@@ -123,7 +123,7 @@ export function PoemList() {
     if (from < 0 || to < 0) return;
     const next = [...rows];
     next.splice(to, 0, next.splice(from, 1)[0]);
-    update((draft) => commitRows(next, draft));
+    update((draft) => commitRows(next, draft), { discrete: true });
   };
 
   const addPoem = () => {
@@ -409,12 +409,15 @@ function SectionRow({ section }: { section: Section }) {
         type="button"
         title="Delete this part (its poems stay)"
         onClick={() =>
-          update((draft) => {
-            draft.sections = draft.sections.filter((s) => s.id !== section.id);
-            for (const poem of draft.poems) {
-              if (poem.sectionId === section.id) poem.sectionId = null;
-            }
-          })
+          update(
+            (draft) => {
+              draft.sections = draft.sections.filter((s) => s.id !== section.id);
+              for (const poem of draft.poems) {
+                if (poem.sectionId === section.id) poem.sectionId = null;
+              }
+            },
+            { discrete: true },
+          )
         }
         className="rounded px-1.5 py-1 text-ink-600 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
       >

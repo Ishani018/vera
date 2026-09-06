@@ -26,9 +26,12 @@ import { Button, Notice, cx } from './ui';
 export function RepairView({
   body,
   onChange,
+  onBulkChange,
 }: {
   body: string;
   onChange: (body: string) => void;
+  /** Rewrites the whole poem, so it gets an undo step of its own. */
+  onBulkChange?: (body: string) => void;
 }) {
   const rows = useMemo(() => body.replace(/\r\n?/g, '\n').split('\n'), [body]);
   const stats = useMemo(() => repairStats(body), [body]);
@@ -64,7 +67,7 @@ export function RepairView({
         {stats.suggestions > 0 && (
           <Button
             className="ml-auto"
-            onClick={() => onChange(applyAllSuggestions(body))}
+            onClick={() => (onBulkChange ?? onChange)(applyAllSuggestions(body))}
             title="Split every line at the places marked in amber"
           >
             Accept {stats.suggestions} suggestion{stats.suggestions === 1 ? '' : 's'}

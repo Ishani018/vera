@@ -31,9 +31,12 @@ export function PoemEditor() {
     });
 
   const remove = () => {
-    update((draft) => {
-      draft.poems = draft.poems.filter((p) => p.id !== poem.id).map((p, i) => ({ ...p, order: i }));
-    });
+    update(
+      (draft) => {
+        draft.poems = draft.poems.filter((p) => p.id !== poem.id).map((p, i) => ({ ...p, order: i }));
+      },
+      { discrete: true },
+    );
     select(null);
   };
 
@@ -113,7 +116,19 @@ export function PoemEditor() {
       </div>
 
       {tab === 'repair' ? (
-        <RepairView body={poem.body} onChange={(body) => edit({ body })} />
+        <RepairView
+          body={poem.body}
+          onChange={(body) => edit({ body })}
+          onBulkChange={(body) =>
+            update(
+              (draft) => {
+                const found = draft.poems.find((p) => p.id === poem.id);
+                if (found) found.body = body;
+              },
+              { discrete: true },
+            )
+          }
+        />
       ) : (
         <div className="space-y-4">
           <Field label="Title" hint="Leave empty for an untitled poem — it gets no heading, no running head and no contents entry.">

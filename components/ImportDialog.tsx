@@ -71,9 +71,12 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
 
   const doImport = () => {
     if (!parsed.length) return;
-    update((draft) => {
-      draft.poems.push(...toPoems(parsed, draft.poems.length, sectionId || null));
-    });
+    update(
+      (draft) => {
+        draft.poems.push(...toPoems(parsed, draft.poems.length, sectionId || null));
+      },
+      { discrete: true },
+    );
     onClose();
   };
 

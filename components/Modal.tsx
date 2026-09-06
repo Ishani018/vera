@@ -18,15 +18,26 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
+  /**
+   * Held in a ref so the effect below can run once, on mount, and never again.
+   *
+   * Callers pass an inline arrow for onClose, which is a new function on every
+   * render. With onClose in the dependency array this effect re-ran after every
+   * keystroke and pulled focus back to the dialog, so only the first character
+   * anyone typed into a field ever landed.
+   */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     // Move focus in so Escape and Tab behave, and the page behind stays put.
     ref.current?.focus();
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   return (
     <div

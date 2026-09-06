@@ -6,6 +6,7 @@ import { BookPreview } from './BookPreview';
 import { CoverDesigner } from './CoverDesigner';
 import { PoemEditor } from './PoemEditor';
 import { PoemList } from './PoemList';
+import { HelpPanel } from './HelpPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { Walkthrough, useWalkthrough } from './Walkthrough';
 import { Button, cx } from './ui';
@@ -18,8 +19,46 @@ export function Workspace() {
   const init = useStore((s) => s.init);
   const pageCount = useStore((s) => s.pageCount);
   const setImportOpen = useStore((s) => s.setImportOpen);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
+  const canUndo = useStore((s) => s.past.length > 0);
+  const canRedo = useStore((s) => s.future.length > 0);
   const [tab, setTab] = useState<Tab>('book');
+  const [helpOpen, setHelpOpen] = useState(false);
   const walkthrough = useWalkthrough();
+
+  /**
+   * Undo is intercepted everywhere, including inside text fields. A controlled
+   * React input has no reliable native undo stack of its own, so leaving it to
+   * the browser would mean undo works in some places and silently not others.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const mod = event.metaKey || event.ctrlKey;
+
+      if (mod && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      // "?" is a shortcut only when it is not being typed into something.
+      const typing =
+        target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName ?? '');
+      if (!mod && !typing && event.key === '?') {
+        event.preventDefault();
+        setHelpOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   useEffect(() => {
     void init();
@@ -68,6 +107,18 @@ export function Workspace() {
         <span className="ml-auto tabular-nums text-[11px] text-ink-500">
           {pageCount ? `${pageCount} pages` : 'paginating…'}
         </span>
+
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" onClick={undo} disabled={!canUndo} title="Undo">
+            ↶
+          </Button>
+          <Button variant="ghost" onClick={redo} disabled={!canRedo} title="Redo">
+            ↷
+          </Button>
+        </div>
+        <Button variant="ghost" onClick={() => setHelpOpen(true)} title="Keyboard shortcuts (?)">
+          ?
+        </Button>
         <Button
           variant="ghost"
           onClick={() =>
@@ -98,6 +149,7 @@ export function Workspace() {
       )}
 
       <PoemEditor />
+      {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
       <Walkthrough
         {...walkthrough}
         onOpenImport={() => {

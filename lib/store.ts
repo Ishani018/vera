@@ -29,8 +29,21 @@ export type Guides = {
   gutter: boolean;
 };
 
+/**
+ * How long a run of edits counts as one undo step. Typing fires an update per
+ * keystroke, and stepping back a character at a time is not undo — it is
+ * torture. Deliberate actions pass `discrete` to force their own step.
+ */
+const COALESCE_MS = 500;
+
+/** Snapshots kept. The project is a few KB now that images live elsewhere. */
+const HISTORY_LIMIT = 60;
+
 type State = {
   project: Project | null;
+  /** Snapshots before and after the current one. Oldest first in `past`. */
+  past: Project[];
+  future: Project[];
   status: 'loading' | 'ready';
   /** Live page count from the last Paged.js pass. 0 until the first render. */
   pageCount: number;
@@ -62,7 +75,9 @@ type State = {
 
 type Actions = {
   init: () => Promise<void>;
-  update: (recipe: (draft: Project) => void) => void;
+  update: (recipe: (draft: Project) => void, options?: { discrete?: boolean }) => void;
+  undo: () => void;
+  redo: () => void;
   replaceProject: (project: Project) => Promise<void>;
   clearSamplePoems: () => void;
   seedSamplePoems: () => void;
@@ -125,8 +140,12 @@ function scheduleSave(project: Project) {
   }, 400);
 }
 
+let lastPushAt = 0;
+
 export const useStore = create<State & Actions>((set, get) => ({
   project: null,
+  past: [],
+  future: [],
   status: 'loading',
   pageCount: 0,
   pages: [],
@@ -173,19 +192,56 @@ export const useStore = create<State & Actions>((set, get) => ({
     set({ project, status: 'ready' });
   },
 
-  update: (recipe) => {
-    const current = get().project;
+  update: (recipe, options) => {
+    const { project: current, past } = get();
     if (!current) return;
     const draft = structuredClone(current);
     recipe(draft);
     draft.updatedAt = Date.now();
-    set({ project: draft });
+
+    const now = Date.now();
+    // A burst of keystrokes folds into the step that started it.
+    const coalesce = !options?.discrete && past.length > 0 && now - lastPushAt < COALESCE_MS;
+    lastPushAt = now;
+
+    set({
+      project: draft,
+      past: coalesce ? past : [...past, current].slice(-HISTORY_LIMIT),
+      future: [],
+    });
     scheduleSave(draft);
+  },
+
+  undo: () => {
+    const { project, past, future } = get();
+    const previous = past[past.length - 1];
+    if (!project || !previous) return;
+    // A fresh step boundary, so the next edit never folds into the undone one.
+    lastPushAt = 0;
+    set({
+      project: previous,
+      past: past.slice(0, -1),
+      future: [project, ...future].slice(0, HISTORY_LIMIT),
+    });
+    scheduleSave(previous);
+  },
+
+  redo: () => {
+    const { project, past, future } = get();
+    const next = future[0];
+    if (!project || !next) return;
+    lastPushAt = 0;
+    set({
+      project: next,
+      past: [...past, project].slice(-HISTORY_LIMIT),
+      future: future.slice(1),
+    });
+    scheduleSave(next);
   },
 
   replaceProject: async (project) => {
     const db = getDb();
-    set({ project, status: 'ready', positioned: false, currentSpread: 0 });
+    set({ project, status: 'ready', positioned: false, currentSpread: 0, past: [], future: [] });
     if (db) {
       await db.projects.put(project);
       window.localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
@@ -197,14 +253,23 @@ export const useStore = create<State & Actions>((set, get) => ({
     if (!current) return;
     const next = withoutSamplePoems(current);
     next.updatedAt = Date.now();
-    set({ project: next, selectedPoemId: null });
+    lastPushAt = 0;
+    set({
+      project: next,
+      selectedPoemId: null,
+      past: [...get().past, current].slice(-HISTORY_LIMIT),
+      future: [],
+    });
     scheduleSave(next);
   },
 
   seedSamplePoems: () => {
-    get().update((draft) => {
-      draft.poems = [...draft.poems, ...buildSamplePoems(draft.poems.length)];
-    });
+    get().update(
+      (draft) => {
+        draft.poems = [...draft.poems, ...buildSamplePoems(draft.poems.length)];
+      },
+      { discrete: true },
+    );
   },
 
   setPagination: (pageCount, pages) => set({ pageCount, pages, paginating: false }),
