@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Versecraft — redesign mock</title>
+<!--
+  A mock, not the app. It exists to settle the layout, the language and the
+  weight of things before any of it is wired up. Nothing here is stateful and
+  no control does anything; the page previews are drawn, not paginated.
+
+  Switch screens by setting document.body.dataset.screen to one of:
+  write, design, images, export, editor-text, editor-breaks.
+-->
+<style>
+  :root {
+    --paper: #ffffff;
+    --app: #f4f2ef;
+    --line: #e4e0d9;
+    --line-strong: #cfc9bf;
+    --ink: #1d1a16;
+    --ink-2: #4a443c;
+    --ink-3: #7d7568;
+    --accent: #8a6522;
+    --accent-soft: #f4ecdc;
+    --accent-line: #d9c8a4;
+    --ground: #8e8e8e;
+    --ok: #2f6b46;
+    --warn: #8a5a12;
+    --radius: 12px;
+    --radius-lg: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 15px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--app);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  /* ---------------------------------------------------------------- shell */
+  .app { display: grid; grid-template-rows: 60px 1fr; height: 100%; }
+  .topbar {
+    display: flex; align-items: center; gap: 16px; padding: 0 18px;
+    background: var(--paper); border-bottom: 1px solid var(--line);
+  }
+  .wordmark { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+  .wordmark span { color: var(--accent); }
+  .project-name {
+    font-size: 15px; color: var(--ink-2); border: 1px solid transparent;
+    border-radius: 8px; padding: 6px 10px; background: transparent;
+  }
+  .project-name:hover { border-color: var(--line); background: var(--app); }
+  .seg { display: inline-flex; background: var(--app); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button {
+    border: 0; background: transparent; padding: 7px 18px; border-radius: 8px;
+    font-size: 14px; font-weight: 550; color: var(--ink-3);
+  }
+  .seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.10); }
+  .spacer { margin-left: auto; }
+  .icon-btn {
+    border: 0; background: transparent; width: 38px; height: 38px; border-radius: 9px;
+    display: grid; place-items: center; color: var(--ink-3); font-size: 17px;
+  }
+  .icon-btn:hover { background: var(--app); color: var(--ink); }
+  .chip {
+    font-size: 13px; color: var(--ink-2); background: var(--app);
+    border-radius: 999px; padding: 6px 13px; font-variant-numeric: tabular-nums;
+  }
+  .primary {
+    border: 0; background: var(--accent); color: #fff; font-weight: 600; font-size: 14.5px;
+    padding: 10px 20px; border-radius: 10px;
+  }
+  .primary.ghost { background: var(--paper); color: var(--ink); border: 1px solid var(--line-strong); font-weight: 550; }
+
+  .body { display: grid; grid-template-columns: 92px 356px 1fr; min-height: 0; }
+
+  /* ------------------------------------------------------------- mode rail */
+  .rail { background: var(--paper); border-right: 1px solid var(--line); padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .rail button {
+    border: 0; background: transparent; border-radius: 12px; padding: 12px 4px 10px;
+    display: grid; gap: 6px; justify-items: center; color: var(--ink-3);
+  }
+  .rail button:hover { background: var(--app); }
+  .rail .glyph { font-size: 21px; line-height: 1; }
+  .rail .label { font-size: 12.5px; font-weight: 560; }
+  .rail button.on { background: var(--accent-soft); color: var(--accent); }
+  .rail .rule { height: 1px; background: var(--line); margin: 8px 10px; }
+
+  /* ----------------------------------------------------------------- panel */
+  .panel { background: var(--paper); border-right: 1px solid var(--line); overflow: auto visible; display: flex; flex-direction: column; }
+  .panel-head { padding: 20px 20px 12px; }
+  .panel-head h2 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  .panel-head p { margin: 5px 0 0; font-size: 13.5px; color: var(--ink-3); }
+  .panel-body { padding: 4px 20px 24px; display: flex; flex-direction: column; gap: 18px; }
+
+  .field { display: block; }
+  .field > .name { font-size: 15px; font-weight: 560; }
+  .field > .term { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+  .field > .control { margin-top: 9px; }
+
+  .input, select.input {
+    width: 100%; font: inherit; padding: 11px 13px; border: 1px solid var(--line-strong);
+    border-radius: 10px; background: var(--paper); color: var(--ink);
+  }
+  .search { position: relative; }
+  .search .input { padding-left: 38px; }
+  .search .mag { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .add {
+    border: 1px solid var(--line-strong); background: var(--paper); border-radius: 11px;
+    padding: 13px 6px 11px; display: grid; gap: 5px; justify-items: center; font-size: 13px; font-weight: 560;
+  }
+  .add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .add .glyph { font-size: 18px; line-height: 1; }
+
+  .wide { width: 100%; border: 1px dashed var(--line-strong); background: transparent; border-radius: 11px; padding: 12px; font-size: 14px; color: var(--ink-2); font-weight: 550; }
+
+  /* ------------------------------------------------------------ contents */
+  .contents { display: flex; flex-direction: column; gap: 2px; margin: 0 -8px; }
+  .item {
+    display: grid; grid-template-columns: 16px 26px 1fr auto; align-items: center; gap: 10px;
+    padding: 11px 8px; border-radius: 10px; position: relative;
+  }
+  .item:hover { background: var(--app); }
+  .item.sel { background: var(--accent-soft); }
+  .grip { color: var(--line-strong); font-size: 13px; letter-spacing: -2px; }
+  .item:hover .grip { color: var(--ink-3); }
+  .kind { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: 13px; background: var(--app); color: var(--ink-3); }
+  .kind.poem { background: #eef1f5; color: #46566d; }
+  .kind.illo { background: #eef4ef; color: #3d6b4e; }
+  .kind.part { background: #f4efe4; color: #7d6224; }
+  .item .t { font-size: 14.5px; font-weight: 540; }
+  .item .m { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+  .item .more { opacity: 0; border: 0; background: transparent; color: var(--ink-3); padding: 4px 6px; border-radius: 7px; }
+  .item:hover .more { opacity: 1; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+  .part-row { padding-left: 8px; margin-top: 12px; }
+  .part-row .t { text-transform: uppercase; letter-spacing: .07em; font-size: 12px; color: var(--ink-3); font-weight: 620; }
+
+  .menu {
+    position: absolute; z-index: 20; left: 34px; top: 46px; width: 258px; background: var(--paper);
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.16); padding: 6px;
+  }
+  .menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 9px 11px; border-radius: 8px; font-size: 14px; }
+  .menu button:hover { background: var(--app); }
+  .menu .sep { height: 1px; background: var(--line); margin: 5px 8px; }
+  .menu .danger { color: #8c2f24; }
+
+  /* ------------------------------------------------------------- pickers */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .card {
+    border: 1px solid var(--line-strong); border-radius: 11px; background: var(--paper);
+    padding: 12px 8px 10px; display: grid; justify-items: center; gap: 9px; text-align: center;
+  }
+  .card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
+  .card .shape { background: #fff; border: 1px solid var(--line-strong); box-shadow: 0 1px 3px rgba(0,0,0,.10); }
+  .card .cap { font-size: 12.5px; font-weight: 560; font-variant-numeric: tabular-nums; }
+  .card .sub { font-size: 11.5px; color: var(--ink-3); margin-top: -6px; }
+
+  .fontcard {
+    border: 1px solid var(--line-strong); border-radius: 11px; padding: 12px 14px; background: var(--paper);
+    display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 14px; text-align: left;
+    width: 100%;
+  }
+  .fontcard.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .fontcard .aa { font-size: 30px; line-height: 1; }
+  .fontcard .nm { font-size: 14.5px; font-weight: 560; }
+  .fontcard .sp { font-size: 12.5px; color: var(--ink-3); }
+  .stack { display: grid; gap: 8px; }
+
+  .diagram { border: 1px solid var(--line); border-radius: 12px; background: var(--app); padding: 16px; display: grid; place-items: center; }
+  .spreaddi { display: flex; gap: 3px; }
+  .pg { width: 96px; height: 148px; background: #fff; border: 1px solid var(--line-strong); position: relative; }
+  .pg .tx { position: absolute; border: 1px dashed #9db4d4; background: rgba(157,180,212,.10); }
+  .pg .hnd { position: absolute; width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); }
+  .legend { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 13px; margin-top: 12px; width: 100%; }
+  .legend .k { color: var(--ink-2); }
+  .legend .v { font-variant-numeric: tabular-nums; font-weight: 560; }
+  .legend .note { grid-column: 1 / -1; font-size: 12px; color: var(--ink-3); }
+
+  .three { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
+  .mini { border: 1px solid var(--line-strong); border-radius: 10px; padding: 9px; background: var(--paper); display: grid; gap: 8px; justify-items: center; }
+  .mini.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .mini .thumb { width: 100%; height: 78px; background: #fff; border: 1px solid var(--line); position: relative; overflow: hidden; }
+  .mini .cap { font-size: 12px; font-weight: 550; }
+  .bar { position: absolute; background: #b9b2a6; height: 3px; border-radius: 2px; }
+  .bar.t { background: #6f6659; height: 4px; }
+
+  .slider { display: grid; grid-template-columns: 1fr 62px; gap: 12px; align-items: center; }
+  .track { height: 5px; border-radius: 3px; background: var(--line); position: relative; }
+  .track i { position: absolute; inset: 0 42% 0 0; background: var(--accent); border-radius: 3px; }
+  .track b { position: absolute; left: 58%; top: 50%; width: 17px; height: 17px; margin: -8.5px 0 0 -8.5px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .num { text-align: center; padding: 7px 4px; border: 1px solid var(--line-strong); border-radius: 8px; font-variant-numeric: tabular-nums; font-size: 13.5px; }
+
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .sw { width: 42px; height: 24px; border-radius: 999px; background: var(--line-strong); position: relative; flex: none; }
+  .sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .sw.on { background: var(--accent); }
+  .sw.on i { left: 21px; }
+
+  .group { border-top: 1px solid var(--line); padding-top: 16px; }
+  .group > h3 { margin: 0 0 12px; font-size: 15.5px; font-weight: 620; }
+  .adv { border: 0; background: transparent; padding: 12px 0 0; border-top: 1px solid var(--line); width: 100%; text-align: left; font-size: 14px; color: var(--ink-2); font-weight: 550; }
+  .adv:hover { color: var(--accent); }
+
+  /* -------------------------------------------------------------- preview */
+  .stage { position: relative; display: grid; grid-template-rows: 52px 1fr; min-width: 0; }
+  .stage-bar { display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--paper); border-bottom: 1px solid var(--line); }
+  .stage-bar .where { font-size: 13.5px; color: var(--ink-3); }
+  .stage-bar .where b { color: var(--ink); font-weight: 560; font-variant-numeric: tabular-nums; }
+  .ground { background: var(--ground); display: grid; place-items: center; position: relative; overflow: hidden; }
+  .spread { display: flex; box-shadow: 0 18px 48px rgba(0,0,0,.36); }
+  .page { width: 288px; height: 445px; background: #fff; padding: 40px 34px; position: relative; }
+  .page .run { font: italic 9px/1 Georgia, serif; color: #444; text-align: center; margin-bottom: 26px; }
+  .page h4 { font: 600 14px/1.3 Georgia, serif; letter-spacing: .04em; margin: 0 0 16px; }
+  .page p { font: 11px/1.75 Georgia, serif; margin: 0 0 12px; color: #17140f; }
+  .page .folio { position: absolute; bottom: 26px; left: 0; right: 0; text-align: center; font: 9px Georgia, serif; color: #444; }
+  .page.left { box-shadow: inset -16px 0 20px -18px rgba(0,0,0,.4); }
+  .page.right { box-shadow: inset 16px 0 20px -18px rgba(0,0,0,.4); }
+  .page.illo { display: grid; place-items: center; padding: 30px; }
+  .page.illo .art { width: 100%; height: 100%; background:
+      linear-gradient(135deg,#e8e2d6,#cfc6b4 60%,#b9ae98); display: grid; place-items: center; color: #6a6152; font-size: 12px; }
+
+  .pagepill {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(28,25,21,.92); color: #fff; border-radius: 13px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.34);
+    backdrop-filter: blur(6px);
+  }
+  .pagepill .lab { font-size: 13px; color: #cfc8bd; padding-left: 4px; white-space: nowrap; }
+  .pagepill .seg2 { display: inline-flex; background: rgba(255,255,255,.12); border-radius: 9px; padding: 3px; gap: 2px; }
+  .pagepill .seg2 button { border: 0; background: transparent; color: #e6e1d8; padding: 6px 13px; border-radius: 7px; font-size: 13px; font-weight: 550; white-space: nowrap; }
+  .pagepill .seg2 button[aria-pressed="true"] { background: #fff; color: #1d1a16; }
+  .pagepill .div { width: 1px; height: 24px; background: rgba(255,255,255,.18); }
+  .pagepill .facing { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #e6e1d8; padding-right: 6px; white-space: nowrap; }
+  .pagepill .sw { width: 38px; height: 22px; background: rgba(255,255,255,.22); }
+  .pagepill .sw i { width: 16px; height: 16px; }
+  .pagepill .sw.on { background: #c9a24e; }
+  .pagepill .sw.on i { left: 19px; }
+
+  /* --------------------------------------------------------------- images */
+  .drop { border: 2px dashed var(--line-strong); border-radius: 13px; padding: 26px 16px; text-align: center; color: var(--ink-3); }
+  .drop b { display: block; color: var(--ink); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .asset { border: 1px solid var(--line-strong); border-radius: 11px; overflow: hidden; background: var(--paper); }
+  .asset.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .asset .im { height: 92px; background: linear-gradient(135deg,#dfd8ca,#b6ab94); }
+  .asset .im.b { background: linear-gradient(135deg,#cdd6dd,#8fa0ae); }
+  .asset .im.c { background: linear-gradient(135deg,#e3d9d9,#b59a9a); }
+  .asset .im.d { background: linear-gradient(135deg,#d7ddd2,#9aa892); }
+  .asset .meta { padding: 8px 9px; display: flex; align-items: center; justify-content: space-between; gap: 5px; min-width: 0; }
+  .asset .nm { font-size: 12.5px; font-weight: 540; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 11px; font-weight: 620; padding: 3px 7px; border-radius: 999px; white-space: nowrap; flex: none; }
+  .badge.ok { background: #e6f0e9; color: var(--ok); }
+  .badge.warn { background: #f7edda; color: var(--warn); }
+
+  /* --------------------------------------------------------------- export */
+  .check { display: grid; grid-template-columns: 22px 1fr; gap: 11px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .check .m { font-size: 15px; line-height: 1.4; }
+  .check .m.ok { color: var(--ok); }
+  .check .m.warn { color: var(--warn); }
+  .check .t { font-size: 14.5px; font-weight: 550; }
+  .check .d { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+  .bigprimary { width: 100%; padding: 15px; font-size: 15.5px; border-radius: 12px; }
+  .outline { width: 100%; padding: 12px; border-radius: 11px; border: 1px solid var(--line-strong); background: var(--paper); font-size: 14.5px; font-weight: 550; }
+
+  /* --------------------------------------------------------------- editor */
+  .editor { grid-column: 2 / -1; display: grid; grid-template-columns: 1fr 400px; min-width: 0; background: var(--paper); }
+  .ed-main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+  .ed-head { padding: 18px 26px 0; }
+  .ed-head .crumb { font-size: 13px; color: var(--ink-3); }
+  .ed-head h2 { margin: 6px 0 14px; font-size: 24px; font-weight: 650; letter-spacing: -0.015em; }
+  .tabs { display: inline-flex; gap: 4px; background: var(--app); padding: 4px; border-radius: 11px; }
+  .tabs button { border: 0; background: transparent; padding: 9px 20px; border-radius: 8px; font-size: 14.5px; font-weight: 550; color: var(--ink-3); }
+  .tabs button[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.10); }
+  .tabs .count { font-size: 12px; background: #f2e5cd; color: var(--warn); border-radius: 999px; padding: 2px 7px; margin-left: 7px; font-weight: 620; }
+  .ed-body { padding: 20px 26px 26px; overflow: auto; }
+  .verse {
+    width: 100%; min-height: 340px; border: 1px solid var(--line-strong); border-radius: 12px; padding: 18px 20px;
+    font: 14.5px/1.95 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre; color: var(--ink);
+  }
+  .ed-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .tool { border: 1px solid var(--line-strong); background: var(--paper); border-radius: 9px; width: 36px; height: 34px; }
+  .ed-side { border-left: 1px solid var(--line); background: var(--app); padding: 22px; overflow: auto; display: grid; gap: 18px; align-content: start; }
+  .ed-side .mini-preview { background: var(--ground); border-radius: 12px; padding: 20px; display: grid; place-items: center; }
+  .ed-side .page { width: 216px; height: 334px; padding: 30px 26px; box-shadow: 0 10px 26px rgba(0,0,0,.3); }
+  .ed-side .page h4 { font-size: 11px; margin-bottom: 12px; }
+  .ed-side .page p { font-size: 8.5px; line-height: 1.75; margin-bottom: 9px; }
+
+  .breaks { display: grid; gap: 3px; }
+  .brow { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: baseline; padding: 5px 8px; border-radius: 8px; }
+  .brow:hover { background: var(--app); }
+  .brow.long { background: #fdf7ea; }
+  .brow .n { text-align: right; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .brow.long .n { color: var(--warn); font-weight: 600; }
+  .brow .l { font: 14.5px/1.9 ui-monospace, Menlo, Consolas, monospace; }
+  .gap { display: inline-block; width: 9px; height: 15px; vertical-align: -3px; border-radius: 3px; }
+  .gap:hover { background: rgba(60,120,190,.4); }
+  .gap.hi { background: rgba(200,150,40,.5); }
+  .gap.mid { background: rgba(200,150,40,.22); }
+  .brow .acts { opacity: 0; display: flex; gap: 4px; }
+  .brow:hover .acts { opacity: 1; }
+  .brow .acts button { border: 1px solid var(--line-strong); background: var(--paper); border-radius: 7px; padding: 3px 9px; font-size: 12.5px; color: var(--ink-2); }
+  .stanza-rule { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 50px; color: var(--ink-3); font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; }
+  .stanza-rule i { flex: 1; height: 1px; background: var(--line); }
+  .breakbar { display: flex; align-items: center; gap: 14px; padding: 13px 16px; background: #fdf7ea; border: 1px solid #efe0c2; border-radius: 12px; margin-bottom: 16px; }
+  .breakbar .txt { font-size: 14px; }
+  .breakbar .txt b { font-weight: 620; }
+
+  /* ------------------------------------------------------------ screens */
+  [data-screen] .only { display: none; }
+  body[data-screen="write"] .s-write,
+  body[data-screen="design"] .s-design,
+  body[data-screen="images"] .s-images,
+  body[data-screen="export"] .s-export { display: flex; }
+  body[data-screen^="editor"] .panel, body[data-screen^="editor"] .stage { display: none; }
+  body:not([data-screen^="editor"]) .editor { display: none; }
+  body[data-screen="editor-text"] .e-breaks, body[data-screen="editor-breaks"] .e-text { display: none; }
+  body[data-screen="export"] .top-export { background: var(--paper); color: var(--ink); border: 1px solid var(--line-strong); font-weight: 550; }
+  body[data-screen="write"] .menu { display: block; }
+  body:not([data-screen="write"]) .menu { display: none; }
+</style>
+</head>
+<body data-screen="write">
+<div class="app">
+
+  <header class="topbar">
+    <div class="wordmark">Verse<span>craft</span></div>
+    <button class="project-name">My Collection ⌄</button>
+    <div class="seg" style="margin-left:8px">
+      <button aria-pressed="true">Book</button>
+      <button aria-pressed="false">Cover</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="icon-btn" title="Undo">↺</button>
+    <button class="icon-btn" title="Redo">↻</button>
+    <span class="chip">86 pages</span>
+    <button class="icon-btn" title="Help">?</button>
+    <button class="primary top-export">Export PDF</button>
+  </header>
+
+  <div class="body">
+
+    <nav class="rail">
+      <button class="on"><span class="glyph">✎</span><span class="label">Write</span></button>
+      <button><span class="glyph">◐</span><span class="label">Design</span></button>
+      <button><span class="glyph">▣</span><span class="label">Images</span></button>
+      <button><span class="glyph">⤓</span><span class="label">Export</span></button>
+      <div class="rule"></div>
+      <button><span class="glyph">≡</span><span class="label">Guide</span></button>
+    </nav>
+
+    <!-- ============================================================ PANEL -->
+    <aside class="panel">
+      <!-- WRITE -->
+      <div class="only s-write" style="flex-direction:column">
+        <div class="panel-head">
+          <h2>Write</h2>
+          <p>Everything the book contains, in the order it is printed.</p>
+        </div>
+        <div class="panel-body">
+          <div class="row3">
+            <button class="add"><span class="glyph">¶</span>Poem</button>
+            <button class="add"><span class="glyph">§</span>Part</button>
+            <button class="add"><span class="glyph">▣</span>Illustration</button>
+          </div>
+          <button class="wide">Import from .docx, .txt or .md</button>
+          <div class="search">
+            <span class="mag">⌕</span>
+            <input class="input" placeholder="Search titles and lines">
+          </div>
+
+          <div class="contents">
+            <div class="item part-row"><span class="grip">⋮⋮</span><span class="kind part">§</span><div><div class="t">Part One · Salt</div></div><button class="more">⋯</button></div>
+
+            <div class="item"><span class="grip">⋮⋮</span><span class="kind poem">¶</span>
+              <div><div class="t">Tideline</div><div class="m">18 lines · page 11</div></div><span class="dot"></span></div>
+
+            <div class="item sel"><span class="grip">⋮⋮</span><span class="kind poem">¶</span>
+              <div><div class="t">What the Harbour Keeps</div><div class="m">34 lines · pages 12–13</div></div><button class="more">⋯</button>
+              <div class="menu">
+                <button>Rename</button>
+                <button>Turn into an illustration page</button>
+                <button>Move to another part</button>
+                <button>Duplicate</button>
+                <div class="sep"></div>
+                <button class="danger">Delete</button>
+              </div>
+            </div>
+
+            <div class="item"><span class="grip">⋮⋮</span><span class="kind illo">▣</span>
+              <div><div class="t">Plate I — Low Water</div><div class="m">Illustration · page 14 · 412 dpi</div></div></div>
+
+            <div class="item"><span class="grip">⋮⋮</span><span class="kind poem">¶</span>
+              <div><div class="t">Ninth of March</div><div class="m">12 lines · page 15</div></div></div>
+
+            <div class="item"><span class="grip">⋮⋮</span><span class="kind poem">¶</span>
+              <div><div class="t">Untitled</div><div class="m">9 lines · page 16 · no contents entry</div></div></div>
+
+            <div class="item part-row"><span class="grip">⋮⋮</span><span class="kind part">§</span><div><div class="t">Part Two · Ash</div></div></div>
+
+            <div class="item"><span class="grip">⋮⋮</span><span class="kind poem">¶</span>
+              <div><div class="t">Sixteen Ways of Leaving</div><div class="m">41 lines · pages 19–20</div></div><span class="dot"></span></div>
+
+            <div class="item"><span class="grip">⋮⋮</span><span class="kind illo">▣</span>
+              <div><div class="t">Plate II — The Burn</div><div class="m">Illustration · page 21 · 198 dpi</div></div><span class="dot"></span></div>
+          </div>
+
+          <button class="adv">Front and back matter ▸</button>
+        </div>
+      </div>
+
+      <!-- DESIGN -->
+      <div class="only s-design" style="flex-direction:column">
+        <div class="panel-head">
+          <h2>Design</h2>
+          <p>How the book looks. Everything here changes the preview as you touch it.</p>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <div class="name">Page size</div>
+            <div class="term">Trim size · what KDP prints to</div>
+            <div class="control cards">
+              <button class="card"><span class="shape" style="width:35px;height:56px"></span><span class="cap">5 × 8″</span></button>
+              <button class="card on"><span class="shape" style="width:38.5px;height:59.5px"></span><span class="cap">5.5 × 8.5″</span><span class="sub">most poetry</span></button>
+              <button class="card"><span class="shape" style="width:42px;height:63px"></span><span class="cap">6 × 9″</span></button>
+            </div>
+            <div class="control"><select class="input"><option>All 17 KDP sizes…</option></select></div>
+          </div>
+
+          <div class="field">
+            <div class="name">Margins</div>
+            <div class="term">Drag the handles, or type the numbers below</div>
+            <div class="control diagram">
+              <div class="spreaddi">
+                <div class="pg"><div class="tx" style="inset:16px 22px 20px 12px"></div>
+                  <div class="hnd" style="right:17px;top:69px"></div><div class="hnd" style="left:7px;top:69px"></div></div>
+                <div class="pg"><div class="tx" style="inset:16px 12px 20px 22px"></div>
+                  <div class="hnd" style="left:17px;top:69px"></div><div class="hnd" style="right:7px;top:69px"></div>
+                  <div class="hnd" style="left:50%;margin-left:-5px;top:11px"></div></div>
+              </div>
+              <div class="legend">
+                <span class="k">Inside <small style="color:var(--ink-3)">(near the spine)</small></span><span class="v">0.75″</span>
+                <span class="k">Outside</span><span class="v">0.50″</span>
+                <span class="k">Top / bottom</span><span class="v">0.60″</span>
+                <span class="note">KDP needs at least 0.625″ inside at 86 pages. You have room.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>Type</h3>
+            <div class="field">
+              <div class="name">Verse</div>
+              <div class="term">The face the poems are set in</div>
+              <div class="control stack">
+                <button class="fontcard on"><span class="aa" style="font-family:Georgia,serif">Aa</span>
+                  <span><span class="nm">EB Garamond</span><br><span class="sp">Old-style serif · 11pt / 15.4pt</span></span></button>
+                <button class="fontcard"><span class="aa" style="font-family:'Times New Roman',serif">Aa</span>
+                  <span><span class="nm">Crimson Pro</span><br><span class="sp">Old-style serif</span></span></button>
+                <button class="fontcard"><span class="aa" style="font-family:Palatino,Georgia,serif">Aa</span>
+                  <span><span class="nm">Cormorant Garamond</span><br><span class="sp">Display serif</span></span></button>
+              </div>
+              <div class="control"><button class="wide">Browse all Google Fonts…</button></div>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>Where poems start</h3>
+            <div class="three">
+              <button class="mini on"><span class="thumb">
+                <i class="bar t" style="left:14%;top:20%;width:56%"></i><i class="bar" style="left:14%;top:36%;width:64%"></i>
+                <i class="bar" style="left:14%;top:46%;width:48%"></i><i class="bar" style="left:14%;top:56%;width:60%"></i></span>
+                <span class="cap">A new page</span></button>
+              <button class="mini"><span class="thumb">
+                <i class="bar" style="left:14%;top:14%;width:52%"></i><i class="bar" style="left:14%;top:24%;width:44%"></i>
+                <i class="bar t" style="left:14%;top:50%;width:56%"></i><i class="bar" style="left:14%;top:66%;width:60%"></i></span>
+                <span class="cap">Run on</span></button>
+              <button class="mini"><span class="thumb" style="background:linear-gradient(90deg,#fff 50%,#f6f4f0 50%)">
+                <i class="bar t" style="left:56%;top:20%;width:34%"></i><i class="bar" style="left:56%;top:36%;width:38%"></i>
+                <i class="bar" style="left:56%;top:46%;width:30%"></i></span>
+                <span class="cap">A right-hand page</span></button>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="name">Space between stanzas</div>
+            <div class="term">Measured in lines of verse</div>
+            <div class="control slider">
+              <span class="track"><i></i><b></b></span>
+              <span class="num">1.0</span>
+            </div>
+          </div>
+
+          <div class="toggle">
+            <div><div class="name">Indent lines that run over</div><div class="term">Hanging indent · never justify verse</div></div>
+            <span class="sw on"><i></i></span>
+          </div>
+
+          <button class="adv">Advanced — borders, ornaments, running heads, folios, widow control ▸</button>
+        </div>
+      </div>
+
+      <!-- IMAGES -->
+      <div class="only s-images" style="flex-direction:column">
+        <div class="panel-head">
+          <h2>Images</h2>
+          <p>Full-page plates and pictures set inside a poem.</p>
+        </div>
+        <div class="panel-body">
+          <div class="drop"><b>Drop images here</b>JPEG, PNG or TIFF · 300 dpi or better at print size</div>
+
+          <div class="field">
+            <div class="name">In this book</div>
+            <div class="term">4 images · stored on this computer only</div>
+            <div class="control grid2">
+              <div class="asset on"><div class="im"></div><div class="meta"><span class="nm">low-water.jpg</span><span class="badge ok">412 dpi</span></div></div>
+              <div class="asset"><div class="im b"></div><div class="meta"><span class="nm">the-burn.png</span><span class="badge warn">198 dpi</span></div></div>
+              <div class="asset"><div class="im c"></div><div class="meta"><span class="nm">headpiece.png</span><span class="badge ok">600 dpi</span></div></div>
+              <div class="asset"><div class="im d"></div><div class="meta"><span class="nm">salt-marsh.jpg</span><span class="badge ok">355 dpi</span></div></div>
+            </div>
+          </div>
+
+          <div class="group">
+            <h3>low-water.jpg</h3>
+            <div class="field">
+              <div class="name">Use it as</div>
+              <div class="control three">
+                <button class="mini on"><span class="thumb"><i class="bar" style="inset:12% 12%;height:auto;background:#c9c1b2;border-radius:1px"></i></span><span class="cap">A full page</span></button>
+                <button class="mini"><span class="thumb"><i class="bar t" style="left:14%;top:16%;width:50%"></i><i class="bar" style="inset:34% 18% 30%;height:auto;background:#c9c1b2"></i></span><span class="cap">Inside a poem</span></button>
+                <button class="mini"><span class="thumb"><i class="bar" style="left:34%;top:44%;width:32%;height:6px;background:#c9c1b2"></i></span><span class="cap">An ornament</span></button>
+              </div>
+            </div>
+            <div class="field" style="margin-top:16px">
+              <div class="name">Caption</div>
+              <div class="term">Set under the plate, in italic</div>
+              <div class="control"><input class="input" value="Plate I — Low Water"></div>
+            </div>
+            <div class="toggle" style="margin-top:16px">
+              <div><div class="name">Bleed to the page edge</div><div class="term">Adds 0.125″ on three sides</div></div>
+              <span class="sw"><i></i></span>
+            </div>
+          </div>
+
+          <button class="adv">Advanced — placement, scale, alignment on the page ▸</button>
+        </div>
+      </div>
+
+      <!-- EXPORT -->
+      <div class="only s-export" style="flex-direction:column">
+        <div class="panel-head">
+          <h2>Export</h2>
+          <p>Two PDFs go to KDP: the pages, and the cover.</p>
+        </div>
+        <div class="panel-body">
+          <div>
+            <div class="check"><span class="m ok">✓</span><div><div class="t">Page count is even</div><div class="d">86 pages, padded from 85</div></div></div>
+            <div class="check"><span class="m ok">✓</span><div><div class="t">Margins clear KDP's minimum</div><div class="d">0.75″ inside against 0.625″ required at this length</div></div></div>
+            <div class="check"><span class="m warn">!</span><div><div class="t">One image is under 300 dpi</div><div class="d">the-burn.png prints at 198 dpi. KDP will accept it; it will look soft.</div></div></div>
+            <div class="check"><span class="m ok">✓</span><div><div class="t">Every font can be embedded</div><div class="d">EB Garamond, static cuts at 400 and 600</div></div></div>
+            <div class="check"><span class="m ok">✓</span><div><div class="t">Contents page numbers match the book</div><div class="d">Checked against the laid-out pages, not an estimate</div></div></div>
+          </div>
+
+          <button class="primary bigprimary">Export the interior PDF</button>
+          <button class="outline">Export the cover PDF</button>
+          <button class="outline">Save a copy of the project</button>
+
+          <button class="adv">How to upload this to KDP ▸</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============================================================ STAGE -->
+    <main class="stage">
+      <div class="stage-bar">
+        <div class="seg">
+          <button aria-pressed="true">Spread</button>
+          <button>Scroll</button>
+          <button>Grid</button>
+        </div>
+        <button class="icon-btn">←</button>
+        <span class="where"><b>12 – 13</b> · What the Harbour Keeps</span>
+        <button class="icon-btn">→</button>
+        <div class="spacer"></div>
+        <button class="primary ghost" style="padding:8px 14px">Guides</button>
+      </div>
+
+      <div class="ground">
+        <div class="spread">
+          <div class="page left">
+            <div class="run">My Collection</div>
+            <h4>WHAT THE HARBOUR KEEPS</h4>
+            <p>Salt on the rail and the light going amber,<br>&nbsp;&nbsp;&nbsp;&nbsp;the boats not yet in.</p>
+            <p>A woman counts the ropes she does not own<br>and finds the number steady.</p>
+            <p>Nothing here is kept for long —<br>&nbsp;&nbsp;&nbsp;&nbsp;not the weather, not the men,<br>not the small change of the tide<br>&nbsp;&nbsp;&nbsp;&nbsp;turning over in its sleep.</p>
+            <p>Only the wall remembers,<br>and the wall says little.</p>
+            <div class="folio">12</div>
+          </div>
+          <div class="page right">
+            <div class="run">Ishani Chakraborty</div>
+            <p>She walks the length of it at seven<br>&nbsp;&nbsp;&nbsp;&nbsp;and again at four,</p>
+            <p>and the harbour keeps what harbours keep:<br>the rope, the rust, the ring,<br>&nbsp;&nbsp;&nbsp;&nbsp;the year somebody carved<br>and no one since has asked about.</p>
+            <div class="folio">13</div>
+          </div>
+        </div>
+
+        <div class="pagepill">
+          <span class="lab">This page is</span>
+          <span class="seg2">
+            <button aria-pressed="true">Poem</button>
+            <button>Illustration</button>
+            <button>Blank</button>
+          </span>
+          <span class="div"></span>
+          <span class="facing"><span class="sw"><i></i></span> Keep the facing page blank</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- =========================================================== EDITOR -->
+    <section class="editor">
+      <div class="ed-main">
+        <div class="ed-head">
+          <div class="crumb">Write · Part One · Salt</div>
+          <div style="display:flex;align-items:baseline;gap:16px">
+            <h2 style="flex:1">What the Harbour Keeps</h2>
+            <button class="primary ghost" style="padding:9px 20px">Done</button>
+          </div>
+          <div class="tabs">
+            <button class="e-tab-text" aria-pressed="true">The poem</button>
+            <button class="e-tab-breaks">Line breaks <span class="count">4</span></button>
+          </div>
+        </div>
+
+        <div class="ed-body e-text">
+          <div class="ed-tools">
+            <button class="tool"><em>I</em></button>
+            <button class="tool"><strong>B</strong></button>
+            <span style="flex:1"></span>
+            <span style="font-size:13px;color:var(--ink-3)">34 lines · 6 stanzas · longest line 48 characters</span>
+          </div>
+          <div class="verse" contenteditable="false">Salt on the rail and the light going amber,
+    the boats not yet in.
+
+A woman counts the ropes she does not own
+and finds the number steady.
+
+Nothing here is kept for long —
+    not the weather, not the men,
+not the small change of the tide
+    turning over in its sleep.
+
+Only the wall remembers,
+and the wall says little.</div>
+          <p style="font-size:13px;color:var(--ink-3);margin-top:10px">
+            Every line break here is a line break in the book. Blank lines separate stanzas; leading spaces are kept.
+          </p>
+        </div>
+
+        <div class="ed-body e-breaks">
+          <div class="breakbar">
+            <span style="font-size:17px;color:var(--warn)">!</span>
+            <span class="txt"><b>4 places look like two lines typed as one.</b> They are marked in amber. Click any gap to break a line there.</span>
+            <span style="flex:1"></span>
+            <button class="primary" style="padding:8px 16px">Accept all 4</button>
+          </div>
+          <div class="breaks">
+            <div class="brow"><span class="n">1</span><span class="l">Salt on the rail<span class="gap"></span>and the light<span class="gap"></span>going amber,</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+            <div class="brow"><span class="n">2</span><span class="l">&nbsp;&nbsp;&nbsp;&nbsp;the boats<span class="gap"></span>not yet in.</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+            <div class="stanza-rule"><i></i> stanza break <i></i></div>
+            <div class="brow long"><span class="n">3</span><span class="l">A woman counts the ropes she does not own<span class="gap hi"></span>and finds the number steady.</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+            <div class="brow long"><span class="n">4</span><span class="l">Nothing here is kept for long —<span class="gap mid"></span>not the weather,<span class="gap"></span>not the men,</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+            <div class="brow"><span class="n">5</span><span class="l">not the small change<span class="gap"></span>of the tide</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+            <div class="brow"><span class="n">6</span><span class="l">&nbsp;&nbsp;&nbsp;&nbsp;turning over<span class="gap"></span>in its sleep.</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+            <div class="stanza-rule"><i></i> stanza break <i></i></div>
+            <div class="brow long"><span class="n">7</span><span class="l">Only the wall remembers, and the wall says little.<span class="gap hi"></span>She walks the length of it at seven</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+            <div class="brow"><span class="n">8</span><span class="l">&nbsp;&nbsp;&nbsp;&nbsp;and again<span class="gap"></span>at four,</span>
+              <span class="acts"><button>¶</button><button>join</button></span></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="ed-side">
+        <div class="mini-preview">
+          <div class="page">
+            <div class="run">My Collection</div>
+            <h4>WHAT THE HARBOUR KEEPS</h4>
+            <p>Salt on the rail and the light going amber,<br>&nbsp;&nbsp;&nbsp;the boats not yet in.</p>
+            <p>A woman counts the ropes she does not own<br>and finds the number steady.</p>
+            <p>Nothing here is kept for long —<br>&nbsp;&nbsp;&nbsp;not the weather, not the men,<br>not the small change of the tide<br>&nbsp;&nbsp;&nbsp;turning over in its sleep.</p>
+            <div class="folio">12</div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="name">Alignment</div>
+          <div class="term">For shaped poems · turns off the turnover indent</div>
+          <div class="control"><select class="input"><option>Flush left (the book default)</option></select></div>
+        </div>
+        <div class="toggle">
+          <div><div class="name">Start on a right-hand page</div><div class="term">Just this poem</div></div>
+          <span class="sw"><i></i></span>
+        </div>
+        <div style="font-size:13.5px;color:var(--ink-3);line-height:1.7">
+          34 lines · 6 stanzas<br>longest line 48 characters<br>
+          <span style="color:var(--warn)">4 lines over the measure</span>
+        </div>
+        <button class="adv">Epigraph, dedication, notes, tags ▸</button>
+        <button class="outline" style="color:#8c2f24;border-color:#e3cbc7">Delete this poem</button>
+      </aside>
+    </section>
+
+  </div>
+</div>
+</body>
+</html>
