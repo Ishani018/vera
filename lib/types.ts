@@ -182,7 +182,20 @@ export type CoverTextBox = {
   rotate: number;
 };
 
+/**
+ * A reference to an image in the assets table, not the image itself. The pixel
+ * dimensions travel with the reference so DPI checks stay synchronous and never
+ * have to load the blob.
+ */
 export type CoverImage = {
+  assetId: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  fit: 'cover' | 'contain';
+};
+
+/** A project saved before assets moved out of the document. */
+export type LegacyCoverImage = {
   dataUrl: string;
   naturalWidth: number;
   naturalHeight: number;
@@ -238,6 +251,11 @@ export type RenderOptions = {
   pagedJsSrc: string;
   /** Draw margin/bleed/safe-area guides over each page. Preview only. */
   guides: { margins: boolean; bleed: boolean; safe: boolean; gutter: boolean };
+  /**
+   * Asset id to URL. Object URLs in the preview, data URLs for export, because
+   * an object URL means nothing outside the document that made it.
+   */
+  assets?: Record<string, string>;
   /** Blank pages appended to reach an even count, known after a first pass. */
   padPages: number;
   /**

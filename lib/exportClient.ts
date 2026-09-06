@@ -1,5 +1,6 @@
 'use client';
 
+import { assetsAsDataUrls, importAssets } from './assets';
 import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
@@ -17,6 +18,11 @@ export type ExportOutcome = {
   /** Set when the server has no Chromium and the browser must print instead. */
   needsPrintFallback?: boolean;
 };
+
+/** Every asset a project refers to. Illustrations will join this list. */
+export function projectAssetIds(project: Project): string[] {
+  return [project.cover.frontImage?.assetId].filter((id): id is string => Boolean(id));
+}
 
 function slug(title: string): string {
   return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'book';
@@ -74,14 +80,22 @@ async function postForPdf(
   return { ok: true, message: parts.join(' · ') || 'Exported.' };
 }
 
-export function exportInteriorPdf(project: Project): Promise<ExportOutcome> {
-  return postForPdf('/api/export/interior', { project }, `${slug(project.meta.title)}-interior.pdf`);
+export async function exportInteriorPdf(project: Project): Promise<ExportOutcome> {
+  // Assets live in IndexedDB; the server cannot reach them, so the bytes travel
+  // with the request.
+  const assets = await assetsAsDataUrls(projectAssetIds(project));
+  return postForPdf(
+    '/api/export/interior',
+    { project, assets },
+    `${slug(project.meta.title)}-interior.pdf`,
+  );
 }
 
-export function exportCoverPdf(project: Project, pageCount: number): Promise<ExportOutcome> {
+export async function exportCoverPdf(project: Project, pageCount: number): Promise<ExportOutcome> {
+  const assets = await assetsAsDataUrls(projectAssetIds(project));
   return postForPdf(
     '/api/export/cover',
-    { project, pageCount: padToEven(pageCount) },
+    { project, pageCount: padToEven(pageCount), assets },
     `${slug(project.meta.title)}-cover.pdf`,
   );
 }
@@ -105,12 +119,14 @@ export function printInterior(project: Project, padPages: number): void {
   openForPrint(html);
 }
 
-export function printCover(project: Project, pageCount: number): void {
+export async function printCover(project: Project, pageCount: number): Promise<void> {
   const html = buildCoverHtml(project, {
     pageCount: padToEven(pageCount),
     fontStyle: googleFontsLinks(project),
     guides: false,
     autoPrint: true,
+    // Data URLs, not object URLs: the print window is a separate document.
+    assets: await assetsAsDataUrls(projectAssetIds(project)),
   });
   openForPrint(html);
 }
@@ -126,16 +142,31 @@ function openForPrint(html: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 120_000);
 }
 
-/** Backup and restore. The project is plain data, so this is the whole format. */
-export function exportProjectJson(project: Project): void {
-  const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+/**
+ * Backup and restore. The project is plain data; the images it refers to are
+ * carried alongside it so a backup is a complete book rather than a book with
+ * missing pictures.
+ */
+export async function exportProjectJson(project: Project): Promise<void> {
+  const assets = await assetsAsDataUrls(projectAssetIds(project));
+  const payload = { versecraft: 1, project, assets };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   download(blob, `${slug(project.meta.title)}-versecraft.json`);
 }
 
 export async function importProjectJson(file: File): Promise<Project> {
-  const parsed = JSON.parse(await file.text()) as Partial<Project>;
-  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.poems)) {
+  const parsed = JSON.parse(await file.text()) as
+    | Partial<Project>
+    | { versecraft?: number; project?: Project; assets?: Record<string, string> };
+
+  // A backup made before assets were split out is the project itself.
+  const project =
+    'project' in parsed && parsed.project ? parsed.project : (parsed as Project);
+  const assets = 'assets' in parsed && parsed.assets ? parsed.assets : {};
+
+  if (!project || typeof project !== 'object' || !Array.isArray(project.poems)) {
     throw new Error('That file is not a Versecraft project.');
   }
-  return parsed as Project;
+  await importAssets(assets);
+  return project;
 }

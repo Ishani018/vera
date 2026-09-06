@@ -56,10 +56,10 @@ export function ExportPanel() {
     }
   };
 
-  const print = (which: 'interior' | 'cover') => {
+  const print = async (which: 'interior' | 'cover') => {
     try {
       if (which === 'interior') printInterior(project, padded);
-      else printCover(project, finalPages);
+      else await printCover(project, finalPages);
       setStatus({
         level: 'info',
         text: 'Opened a print window. Choose “Save as PDF”, set margins to None and turn background graphics on.',
@@ -143,8 +143,8 @@ export function ExportPanel() {
             the pagination and type are identical.
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <Button onClick={() => print('interior')}>Print interior</Button>
-            <Button onClick={() => print('cover')}>Print cover</Button>
+            <Button onClick={() => void print('interior')}>Print interior</Button>
+            <Button onClick={() => void print('cover')}>Print cover</Button>
           </div>
         </div>
       )}
@@ -154,7 +154,7 @@ export function ExportPanel() {
           Backup
         </h4>
         <div className="grid grid-cols-2 gap-2">
-          <Button onClick={() => exportProjectJson(project)}>Save project</Button>
+          <Button onClick={() => void exportProjectJson(project)}>Save project</Button>
           <Button onClick={() => fileRef.current?.click()}>Load project</Button>
         </div>
         <input

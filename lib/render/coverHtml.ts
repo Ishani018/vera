@@ -55,6 +55,8 @@ export type CoverRenderOptions = {
   guides: boolean;
   /** Raise the print dialog once fonts and the image have settled. */
   autoPrint?: boolean;
+  /** Asset id to URL. Without an entry the image is simply not drawn. */
+  assets?: Record<string, string>;
 };
 
 export function buildCoverHtml(project: Project, options: CoverRenderOptions): string {
@@ -63,12 +65,13 @@ export function buildCoverHtml(project: Project, options: CoverRenderOptions): s
   const cover = project.cover;
 
   const image = cover.frontImage;
+  const imageSrc = image ? (options.assets?.[image.assetId] ?? '') : '';
   const imageRect = cover.imageSpansWrap
     ? { x: 0, y: 0, width: d.width, height: d.height }
     : { x: panels.front.x - d.bleed, y: 0, width: panels.front.width + d.bleed, height: d.height };
 
-  const imageHtml = image
-    ? `<img class="cover-image" src="${image.dataUrl}" alt="">`
+  const imageHtml = image && imageSrc
+    ? `<img class="cover-image" src="${escapeHtml(imageSrc)}" alt="">`
     : '';
 
   const boxes = cover.textBoxes

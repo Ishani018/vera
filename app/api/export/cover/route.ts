@@ -9,8 +9,13 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
   let project: Project;
   let pageCount: number;
+  let assets: Record<string, string> = {};
   try {
-    ({ project, pageCount } = (await request.json()) as { project: Project; pageCount: number });
+    ({ project, pageCount, assets = {} } = (await request.json()) as {
+      project: Project;
+      pageCount: number;
+      assets?: Record<string, string>;
+    });
   } catch {
     return NextResponse.json({ error: 'Malformed request body.' }, { status: 400 });
   }
@@ -25,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await renderCoverPdf(project, pageCount);
+    const result = await renderCoverPdf(project, pageCount, assets);
     const slug =
       project.meta.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ||
       'book';

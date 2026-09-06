@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import type { AssetRecord } from './assets';
 import type { Project } from './types';
 
 /**
@@ -7,10 +8,19 @@ import type { Project } from './types';
  */
 export class VersecraftDatabase extends Dexie {
   projects!: Table<Project, string>;
+  /**
+   * Image bytes, keyed by id. Kept out of the project document so the project
+   * stays small enough to clone on every edit and to snapshot for undo.
+   */
+  assets!: Table<AssetRecord, string>;
 
   constructor() {
     super('versecraft');
     this.version(1).stores({ projects: 'id, updatedAt, name' });
+    this.version(2).stores({
+      projects: 'id, updatedAt, name',
+      assets: 'id, createdAt',
+    });
   }
 }
 

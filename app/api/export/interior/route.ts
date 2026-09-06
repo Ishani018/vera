@@ -13,8 +13,12 @@ function filename(title: string): string {
 
 export async function POST(request: Request) {
   let project: Project;
+  let assets: Record<string, string> = {};
   try {
-    ({ project } = (await request.json()) as { project: Project });
+    ({ project, assets = {} } = (await request.json()) as {
+      project: Project;
+      assets?: Record<string, string>;
+    });
   } catch {
     return NextResponse.json({ error: 'Malformed request body.' }, { status: 400 });
   }
@@ -23,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await renderInteriorPdf(project);
+    const result = await renderInteriorPdf(project, assets);
     return new NextResponse(new Uint8Array(result.pdf), {
       headers: {
         'Content-Type': 'application/pdf',

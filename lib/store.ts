@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { putAssetFromDataUrl } from './assets';
 import { ACTIVE_PROJECT_KEY, getDb } from './db';
 import { createProject } from './defaults';
 import { buildSamplePoems, withoutSamplePoems } from './samples';
@@ -79,6 +80,40 @@ type Actions = {
   setPanel: (panel: string | null) => void;
 };
 
+/**
+ * Projects saved before assets moved out of the document carry the cover image
+ * as a base64 data URL. Move it into the assets table on load and leave a
+ * reference behind, so nobody loses a cover they already chose.
+ */
+async function migrateInlineImages(
+  project: Project,
+  db: NonNullable<ReturnType<typeof getDb>>,
+): Promise<Project> {
+  const image = project.cover?.frontImage as unknown as { dataUrl?: string } | null;
+  if (!image?.dataUrl) return project;
+  try {
+    const record = await putAssetFromDataUrl(image.dataUrl, `${project.name} cover`);
+    const migrated: Project = {
+      ...project,
+      cover: {
+        ...project.cover,
+        frontImage: {
+          assetId: record.id,
+          naturalWidth: record.width,
+          naturalHeight: record.height,
+          fit: project.cover.frontImage?.fit ?? 'cover',
+        },
+      },
+    };
+    await db.projects.put(migrated);
+    return migrated;
+  } catch {
+    // A cover that cannot be migrated is dropped rather than left as a broken
+    // reference; everything else about the project is untouched.
+    return { ...project, cover: { ...project.cover, frontImage: null } };
+  }
+}
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function scheduleSave(project: Project) {
@@ -133,6 +168,7 @@ export const useStore = create<State & Actions>((set, get) => ({
       project.poems = buildSamplePoems();
       await db.projects.put(project);
     }
+    project = await migrateInlineImages(project, db);
     window.localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
     set({ project, status: 'ready' });
   },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { UnsupportedImageError, forgetAssetUrl, getAssetUrl, putAsset } from '@/lib/assets';
 import { MIN_COVER_DPI, effectiveDpi, padToEven, spineWidth } from '@/lib/kdp';
 import { coverLayout, spineTooThinForText } from '@/lib/render/coverLayout';
 import { id } from '@/lib/defaults';
@@ -23,6 +24,7 @@ export function CoverDesigner() {
   const pageCount = useStore((s) => s.pageCount);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageWidth, setStageWidth] = useState(0);
 
@@ -40,6 +42,22 @@ export function CoverDesigner() {
     setStageWidth(stage.clientWidth);
     return () => observer.disconnect();
   }, []);
+
+  // The project holds an asset id; the canvas needs a URL for it.
+  const assetId = project?.cover.frontImage?.assetId ?? null;
+  useEffect(() => {
+    let live = true;
+    if (!assetId) {
+      setImageUrl(null);
+      return;
+    }
+    void getAssetUrl(assetId).then((url) => {
+      if (live) setImageUrl(url);
+    });
+    return () => {
+      live = false;
+    };
+  }, [assetId]);
 
   const scale = layout && stageWidth ? Math.min(96, (stageWidth - 48) / layout.dimensions.width) : 0;
 
@@ -106,30 +124,26 @@ export function CoverDesigner() {
   const onImage = async (file: File | undefined) => {
     if (!file) return;
     setImageError(null);
-    if (/\.tiff?$/i.test(file.name) || file.type === 'image/tiff') {
-      setImageError(
-        'Browsers cannot display TIFF, so it cannot be previewed or embedded here. Convert it to a high-quality JPEG or PNG first — KDP accepts both.',
-      );
-      return;
-    }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('That image could not be read.'));
-      reader.readAsDataURL(file);
-    });
-    const image = new Image();
-    image.onload = () =>
+    const previous = assetId;
+    try {
+      const record = await putAsset(file);
       update((draft) => {
         draft.cover.frontImage = {
-          dataUrl,
-          naturalWidth: image.naturalWidth,
-          naturalHeight: image.naturalHeight,
-          fit: 'cover',
+          assetId: record.id,
+          naturalWidth: record.width,
+          naturalHeight: record.height,
+          fit: draft.cover.frontImage?.fit ?? 'cover',
         };
       });
-    image.onerror = () => setImageError('That file is not an image the browser can read.');
-    image.src = dataUrl;
+      // The replaced asset's object URL is stale; the bytes are swept later.
+      if (previous) forgetAssetUrl(previous);
+    } catch (error) {
+      setImageError(
+        error instanceof UnsupportedImageError || error instanceof Error
+          ? error.message
+          : 'That image could not be read.',
+      );
+    }
   };
 
   const imageDpi = cover.frontImage
@@ -175,11 +189,11 @@ export function CoverDesigner() {
               }}
             />
 
-            {cover.frontImage && (
+            {cover.frontImage && imageUrl && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 alt=""
-                src={cover.frontImage.dataUrl}
+                src={imageUrl}
                 className="pointer-events-none absolute"
                 style={{
                   left: cover.imageSpansWrap ? 0 : (layout.panels.front.x - layout.bleed) * scale,
@@ -348,11 +362,12 @@ export function CoverDesigner() {
               </Field>
               <Button
                 variant="danger"
-                onClick={() =>
+                onClick={() => {
+                  if (assetId) forgetAssetUrl(assetId);
                   update((draft) => {
                     draft.cover.frontImage = null;
-                  })
-                }
+                  });
+                }}
               >
                 Remove image
               </Button>

@@ -67,7 +67,10 @@ export type InteriorResult = {
  * page count, and the count is not knowable before pagination, so the second
  * pass is unavoidable rather than wasteful.
  */
-export async function renderInteriorPdf(project: Project): Promise<InteriorResult> {
+export async function renderInteriorPdf(
+  project: Project,
+  assets: Record<string, string> = {},
+): Promise<InteriorResult> {
   const fonts = await embedGoogleFonts(project);
   const pagedJs = await loadPagedJs();
   const { browser, via } = await launchBrowser();
@@ -81,6 +84,7 @@ export async function renderInteriorPdf(project: Project): Promise<InteriorResul
         pagedJsSrc: '',
         guides: { margins: false, bleed: false, safe: false, gutter: false },
         padPages,
+        assets,
       });
 
     let pageCount = await paginate(page, render(0), pagedJs);
@@ -119,7 +123,11 @@ export type CoverResult = {
   via: string;
 };
 
-export async function renderCoverPdf(project: Project, pageCount: number): Promise<CoverResult> {
+export async function renderCoverPdf(
+  project: Project,
+  pageCount: number,
+  assets: Record<string, string> = {},
+): Promise<CoverResult> {
   const { coverLayout } = await import('../render/coverLayout');
   const evenPages = padToEven(pageCount);
   const layout = coverLayout(project, evenPages);
@@ -133,6 +141,7 @@ export async function renderCoverPdf(project: Project, pageCount: number): Promi
       pageCount: evenPages,
       fontStyle: fonts.style,
       guides: false,
+      assets,
     });
     // The cover is one page with inlined fonts and a data-URI image, so once
     // the document has loaded and the faces have settled there is nothing left
