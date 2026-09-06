@@ -216,12 +216,21 @@ export type Project = {
 
 /** Everything the renderer needs that is not stored on the project. */
 export type RenderOptions = {
-  /** How web fonts reach the document: a stylesheet link, or inlined faces. */
+  /**
+   * `preview` renders for the iframe: page shadows, guides, and a postMessage
+   * back to the app with the page count. `export` renders for headless
+   * Chromium: no chrome, no guides, blank-page padding applied.
+   */
+  mode: 'preview' | 'export';
+  /** Head markup that supplies the fonts: a stylesheet link, or inlined faces. */
   fontStyle: string;
-  /** Pad the body out to an even page count. Export only. */
-  padToEven: boolean;
+  /**
+   * URL of the Paged.js polyfill. Empty means the caller injects it itself,
+   * which is what the export route does so it can serve it from node_modules.
+   */
+  pagedJsSrc: string;
   /** Draw margin/bleed/safe-area guides over each page. Preview only. */
   guides: { margins: boolean; bleed: boolean; safe: boolean; gutter: boolean };
-  /** Blank pages needed to reach an even count; computed after a first pass. */
+  /** Blank pages appended to reach an even count, known after a first pass. */
   padPages: number;
 };
