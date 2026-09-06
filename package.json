@@ -1,0 +1,40 @@
+{
+  "name": "versecraft",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-based poetry typesetter that exports print-ready KDP interior and cover PDFs.",
+  "scripts": {
+    "predev": "node scripts/copy-vendor.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/copy-vendor.mjs",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^9.0.0",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "dexie": "^4.4.5",
+    "dexie-react-hooks": "^4.4.0",
+    "mammoth": "^1.12.2",
+    "next": "15.5.25",
+    "pagedjs": "^0.4.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@sparticuz/chromium": "^149.0.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@tailwindcss/postcss": "^4.3.3",
+    "puppeteer-core": "^25.10.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.2"
+  }
+}
