@@ -21,6 +21,16 @@ export type ViewMessage = {
   turn?: 'forward' | 'back' | null;
 };
 
+/**
+ * Sent back when the reader turns a page inside the preview — by dragging the
+ * paper or clicking a side — so the app's own idea of where the book is open
+ * follows the reader rather than the other way round.
+ */
+export type SpreadMessage = {
+  type: 'versecraft:spread';
+  spread: number;
+};
+
 /** Flashes everything a just-changed setting affects. */
 export type HighlightMessage = {
   type: 'versecraft:highlight';
@@ -31,6 +41,16 @@ export const VIEWER_SCRIPT = String.raw`
 (function () {
   var STYLE_ID = 'vc-view-style';
   var state = { mode: 'spread', spread: 0, zoom: 1 };
+
+  /**
+   * Page numbers to show instead of the current spread's own.
+   *
+   * A turn shows neither the spread it is leaving nor the one it is arriving
+   * at: the leaf itself carries two of the four pages, and the two that stay
+   * put are one from each spread. The flip sets this for the length of the
+   * animation and clears it on landing.
+   */
+  var override = null;
 
   /**
    * The view stylesheet must not exist while Paged.js is laying the book out.
@@ -75,7 +95,7 @@ export const VIEWER_SCRIPT = String.raw`
   }
 
   function spreadCss(spread) {
-    var pair = spreadPages(spread);
+    var pair = override || spreadPages(spread);
     var visible = [];
     if (pair[0]) visible.push(nth(pair[0]));
     if (pair[1] && pair[1] <= pageCount()) visible.push(nth(pair[1]));
@@ -85,7 +105,7 @@ export const VIEWER_SCRIPT = String.raw`
       '.pagedjs_pages {',
       '  display: flex; align-items: center; justify-content: center;',
       '  gap: 0; min-height: 100vh; padding: 3vh 2vw;',
-      '  perspective: 2600px;',
+      '  perspective: 4200px;',
       '  zoom: ' + state.zoom + ';',
       '}',
       '.pagedjs_page { display: none; margin: 0 !important; }',
@@ -93,14 +113,6 @@ export const VIEWER_SCRIPT = String.raw`
       /* The two leaves meet at the gutter, with a soft fold shadow between. */
       '.pagedjs_left_page { box-shadow: -6px 8px 26px rgba(0,0,0,0.45), inset -18px 0 22px -18px rgba(0,0,0,0.35); }',
       '.pagedjs_right_page { box-shadow: 6px 8px 26px rgba(0,0,0,0.45), inset 18px 0 22px -18px rgba(0,0,0,0.35); }',
-      '.vc-turn-out { transform-origin: left center; animation: vc-turn-out 0.24s ease-in forwards; }',
-      '.vc-turn-in { transform-origin: left center; animation: vc-turn-in 0.24s ease-out forwards; }',
-      '.vc-turn-out-back { transform-origin: right center; animation: vc-turn-out-back 0.24s ease-in forwards; }',
-      '.vc-turn-in-back { transform-origin: right center; animation: vc-turn-in-back 0.24s ease-out forwards; }',
-      '@keyframes vc-turn-out { to { transform: rotateY(-92deg); } }',
-      '@keyframes vc-turn-in { from { transform: rotateY(92deg); } to { transform: rotateY(0); } }',
-      '@keyframes vc-turn-out-back { to { transform: rotateY(92deg); } }',
-      '@keyframes vc-turn-in-back { from { transform: rotateY(-92deg); } to { transform: rotateY(0); } }',
     ].join('\n');
   }
 
@@ -134,6 +146,7 @@ export const VIEWER_SCRIPT = String.raw`
       state.mode === 'grid' ? gridCss() :
       spreadCss(state.spread);
     styleEl().textContent = css;
+    document.documentElement.classList.toggle('vc-grab', state.mode === 'spread');
   }
 
   new MutationObserver(function () {
@@ -147,39 +160,81 @@ export const VIEWER_SCRIPT = String.raw`
   });
 
   /**
-   * A two-phase turn: the leaf that is being turned rotates to edge-on, the
-   * spread changes behind it, and the leaf that replaces it rotates back into
-   * place. It costs no relayout because both leaves are already paginated.
+   * The turn itself lives in its own module, injected just before this one. It
+   * needs to reach into the paginated document — measure a page, hide the two
+   * pages it is carrying, put the spread back when the leaf lands — so it is
+   * handed exactly those operations rather than sharing this file's state.
    */
-  function turn(direction, nextSpread) {
-    var pair = spreadPages(state.spread);
-    var leafNumber = direction === 'forward' ? pair[1] : pair[0];
-    var leaf = leafNumber ? document.querySelector(nth(leafNumber)) : null;
+  var flip = window.__VC_FLIP__ || null;
 
-    var outClass = direction === 'forward' ? 'vc-turn-out' : 'vc-turn-out-back';
-    var inClass = direction === 'forward' ? 'vc-turn-in' : 'vc-turn-in-back';
-
-    var finish = function () {
-      if (leaf) leaf.classList.remove(outClass);
-      state.spread = nextSpread;
-      apply();
-      var newPair = spreadPages(state.spread);
-      var incomingNumber = direction === 'forward' ? newPair[0] : newPair[1];
-      var incoming = incomingNumber ? document.querySelector(nth(incomingNumber)) : null;
-      if (incoming) {
-        incoming.classList.add(inClass);
-        setTimeout(function () { incoming.classList.remove(inClass); }, 260);
-      }
+  function apiForFlip() {
+    return {
+      ready: isPaginated,
+      container: function () {
+        return document.querySelector('.pagedjs_pages');
+      },
+      pageEl: function (n) {
+        return n && n >= 1 && n <= pageCount() ? document.querySelector(nth(n)) : null;
+      },
+      spreadPages: function (spread) {
+        var pair = spreadPages(spread);
+        return [pair[0], pair[1] && pair[1] <= pageCount() ? pair[1] : null];
+      },
+      maxSpread: maxSpread,
+      state: function () {
+        return state;
+      },
+      override: function (pair) {
+        override = pair;
+        apply();
+      },
+      settle: function (spread) {
+        override = null;
+        state.spread = spread;
+        apply();
+      },
+      post: postSpread,
     };
+  }
 
-    if (!leaf || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      state.spread = nextSpread;
-      apply();
+  function postSpread(spread) {
+    if (window.parent === window) return;
+    window.parent.postMessage({ type: 'versecraft:spread', spread: spread }, '*');
+  }
+
+  if (flip) flip.install(apiForFlip());
+
+  /**
+   * Navigation exists on both sides of the frame.
+   *
+   * Turning a page by clicking or dragging puts the focus inside this document,
+   * and from then on the app's own arrow-key handler hears nothing — the keys
+   * go to whichever document has focus. Only one of the two ever fires for a
+   * given press, so there is no risk of turning twice.
+   */
+  document.addEventListener('keydown', function (event) {
+    if (state.mode !== 'spread' || !isPaginated()) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    var jump = null;
+    if (event.key === 'ArrowRight' || event.key === 'PageDown') {
+      if (flip) flip.turn('forward');
+    } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+      if (flip) flip.turn('back');
+    } else if (event.key === 'Home') {
+      jump = 0;
+    } else if (event.key === 'End') {
+      jump = maxSpread();
+    } else {
       return;
     }
-    leaf.classList.add(outClass);
-    setTimeout(finish, 230);
-  }
+    event.preventDefault();
+    if (jump !== null && jump !== state.spread) {
+      state.spread = jump;
+      apply();
+      postSpread(jump);
+    }
+  });
 
   /**
    * Flashes every element a setting touches.
@@ -222,10 +277,15 @@ export const VIEWER_SCRIPT = String.raw`
     state.mode = data.mode;
     if (typeof data.zoom === 'number' && data.zoom > 0) state.zoom = data.zoom;
 
-    if (!modeChanged && data.turn && nextSpread !== state.spread && state.mode === 'spread') {
-      turn(data.turn, nextSpread);
-      return;
+    if (!modeChanged && data.turn && Math.abs(nextSpread - state.spread) === 1 && state.mode === 'spread' && flip) {
+      if (flip.turn(data.turn)) return;
     }
+
+    // The app updates its own spread as soon as it asks for a turn, so the
+    // follow-up message arrives while the leaf is still in the air. Record it,
+    // but leave the pages alone until the flip has landed.
+    if (flip && flip.busy() && !modeChanged && nextSpread === state.spread) return;
+
     state.spread = nextSpread;
     apply();
   });

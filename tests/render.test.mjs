@@ -13,6 +13,8 @@ import {
   parseStanzas,
 } from '../lib/render/text.ts';
 import { RUNTIME_SCRIPT } from '../lib/render/runtime.ts';
+import { FLIP_SCRIPT } from '../lib/render/flip.ts';
+import { VIEWER_SCRIPT } from '../lib/render/viewer.ts';
 
 function seeded(overrides = {}) {
   const project = createProject(overrides);
@@ -309,4 +311,64 @@ test('emphasis markup never leaks into a TOC entry or an index line', () => {
   const index = html.slice(html.indexOf('index-first-lines'));
   assert.ok(index.includes('The first line'));
   assert.ok(!index.includes('*The first line*'));
+});
+
+// Every script injected as a raw string shares the same trap: one backtick or
+// one dollar-brace and the whole document is templated wrong at build time.
+test('the injected viewer and flip scripts carry no template syntax', () => {
+  for (const [name, script] of [
+    ['viewer', VIEWER_SCRIPT],
+    ['flip', FLIP_SCRIPT],
+  ]) {
+    assert.ok(!script.includes('`'), name + ' has a backtick');
+    assert.ok(!script.includes('${'), name + ' has a dollar-brace');
+  }
+});
+
+test('the flip is installed into the viewer, not left as a dangling global', () => {
+  assert.ok(FLIP_SCRIPT.includes('window.__VC_FLIP__'));
+  assert.ok(VIEWER_SCRIPT.includes('flip.install(apiForFlip())'));
+  // The two pages the leaf carries are neither in the spread it leaves nor the
+  // one it arrives at, so the viewer has to be able to show an arbitrary pair.
+  assert.ok(VIEWER_SCRIPT.includes('override || spreadPages(spread)'));
+});
+
+test('the turning sheet is cut into strips rather than rotated flat', () => {
+  assert.ok(!VIEWER_SCRIPT.includes('@keyframes vc-turn-out'), 'the flat rotation is gone');
+  assert.ok(FLIP_SCRIPT.includes('preserve-3d'));
+  assert.ok(FLIP_SCRIPT.includes('backface-visibility: hidden'));
+  assert.ok(FLIP_SCRIPT.includes('MAX_BEND'));
+});
+
+// The bend is added to the tangent angle, so it could in principle push the
+// sheet past flat before the turn is over. It must not: a drag is solved by
+// bisecting on the sheet's reach, which only works while that reach falls
+// monotonically. sin(x) <= x is what keeps it safe for any bend up to 1.
+test('the sheet never overshoots flat, whatever the bend', () => {
+  const MAX_BEND = Number(FLIP_SCRIPT.match(/var MAX_BEND = ([\d.]+);/)[1]);
+  assert.ok(MAX_BEND > 0 && MAX_BEND <= 1, 'bend of ' + MAX_BEND + ' is outside the safe range');
+
+  const angle = (t, s, W) =>
+    Math.PI * t + MAX_BEND * Math.sin(Math.PI * t) * Math.sin((Math.PI * s) / W);
+  const W = 1;
+  const N = 26;
+  let previous = Infinity;
+  for (let step = 0; step <= 200; step++) {
+    const t = step / 200;
+    let reach = 0;
+    for (let i = 0; i < N; i++) {
+      const phi = angle(t, ((i + 0.5) * W) / N, W);
+      assert.ok(phi <= Math.PI + 1e-9, 'tangent angle passed flat at t=' + t);
+      reach += (W / N) * Math.cos(phi);
+    }
+    assert.ok(reach < previous + 1e-9, 'the sheet reached further at t=' + t + ' than before it');
+    previous = reach;
+  }
+});
+
+test('the preview can navigate on its own once it has the focus', () => {
+  // Clicking or dragging inside the preview moves focus into the iframe, and
+  // the app's own key handler stops hearing anything from then on.
+  assert.ok(VIEWER_SCRIPT.includes("addEventListener('keydown'"));
+  assert.ok(VIEWER_SCRIPT.includes("versecraft:spread"));
 });

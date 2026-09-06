@@ -5,7 +5,7 @@ import { fetchFontCss } from '@/lib/fontsClient';
 import { PAGEDJS_SRC } from '@/lib/exportClient';
 import { buildBookHtml } from '@/lib/render/bookHtml';
 import { pageGeometry } from '@/lib/render/css';
-import type { HighlightMessage, ViewMessage } from '@/lib/render/viewer';
+import type { HighlightMessage, SpreadMessage, ViewMessage } from '@/lib/render/viewer';
 import { useStore, type PageInfo } from '@/lib/store';
 import { Button, SegmentedControl, cx } from './ui';
 
@@ -80,7 +80,12 @@ export function BookPreview() {
     const onMessage = (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) return;
       const data = event.data as PaginatedMessage | { type: string; message?: string };
-      if (data?.type === 'versecraft:paginated') {
+      if (data?.type === 'versecraft:spread') {
+        // The reader turned a page inside the preview, by dragging the paper or
+        // clicking a side. The pages have already moved; this only catches the
+        // app's own idea of where the book is open up with them.
+        setSpread((data as unknown as SpreadMessage).spread);
+      } else if (data?.type === 'versecraft:paginated') {
         const paginated = data as PaginatedMessage;
         setPagination(paginated.pageCount, paginated.pages);
       } else if (data?.type === 'versecraft:error') {
@@ -90,7 +95,7 @@ export function BookPreview() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [setPagination, setPaginating]);
+  }, [setPagination, setPaginating, setSpread]);
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -283,7 +288,7 @@ export function BookPreview() {
             Google Fonts unreachable — previewing in a fallback face
           </span>
         )}
-        <span className="ml-auto">← / → to turn pages</span>
+        <span className="ml-auto">Drag the page to turn it, or use ← / →</span>
       </div>
     </div>
   );
