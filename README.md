@@ -60,6 +60,7 @@ is generated and not committed.
 | `npm run typecheck` | `tsc --noEmit` |
 | Linting | Not configured. Correctness is covered by `npm test` and `npm run typecheck`; `next lint` is deprecated in Next 16, so no half-working script is shipped. |
 | `npm run check:render` | Renders the seeded book in real Chromium and reports page count, folios, page tags and resolved TOC numbers; writes a PDF and page PNGs to `.render-check/` |
+| `npm run trim-compare -- --docx <dir>` | Renders the longest-lined poems at 5.5×8.5 and 6×9, at two body sizes, and reports how many lines wrap onto a turnover at each. Writes four PDFs and a side-by-side contact sheet to `.trim-compare/`. Also takes `--json <project.json>`. Trim is expensive to change once a book is laid out — this is for deciding before that. |
 
 ### Environment
 
