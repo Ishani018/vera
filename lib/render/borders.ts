@@ -1,4 +1,5 @@
 import type { BorderSettings, BorderStyle } from '../types';
+import { cssColor } from './text';
 
 /**
  * Decorative page frames.
@@ -63,7 +64,8 @@ function cornerBackgrounds(svg: string, size: number): string {
 }
 
 export function borderCss(border: BorderSettings): BorderCss {
-  const { color, weightPt: w } = border;
+  const color = cssColor(border.color);
+  const w = border.weightPt;
   const style: BorderStyle = border.style;
 
   switch (style) {

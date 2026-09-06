@@ -1,0 +1,320 @@
+'use client';
+
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useMemo, useState } from 'react';
+
+import { id } from '@/lib/defaults';
+import { orderBook } from '@/lib/render/bookHtml';
+import { countLines } from '@/lib/render/text';
+import { countSamplePoems } from '@/lib/samples';
+import { useStore } from '@/lib/store';
+import type { Poem, Project, Section } from '@/lib/types';
+import { ImportDialog } from './ImportDialog';
+import { Button, cx } from './ui';
+
+type Row =
+  | { kind: 'section'; key: string; section: Section }
+  | { kind: 'poem'; key: string; poem: Poem };
+
+/**
+ * The list is one flat sortable sequence of section headers and poems, rather
+ * than nested lists. Dragging a poem above or below a header is what moves it
+ * between sections, so ordering and grouping are the same gesture.
+ */
+function buildRows(project: Project): Row[] {
+  const order = orderBook(project);
+  const rows: Row[] = order.loose.map((poem) => ({ kind: 'poem', key: poem.id, poem }));
+  for (const group of order.grouped) {
+    rows.push({ kind: 'section', key: group.section.id, section: group.section });
+    for (const poem of group.poems) rows.push({ kind: 'poem', key: poem.id, poem });
+  }
+  return rows;
+}
+
+/** Rewrites order and section membership from the row sequence. */
+function commitRows(rows: Row[], draft: Project) {
+  let currentSection: string | null = null;
+  let sectionOrder = 0;
+  let poemOrder = 0;
+
+  for (const row of rows) {
+    if (row.kind === 'section') {
+      currentSection = row.section.id;
+      const section = draft.sections.find((s) => s.id === row.section.id);
+      if (section) section.order = sectionOrder++;
+    } else {
+      const poem = draft.poems.find((p) => p.id === row.poem.id);
+      if (poem) {
+        poem.sectionId = currentSection;
+        poem.order = poemOrder++;
+      }
+    }
+  }
+}
+
+export function PoemList() {
+  const project = useStore((s) => s.project);
+  const update = useStore((s) => s.update);
+  const select = useStore((s) => s.select);
+  const selectedPoemId = useStore((s) => s.selectedPoemId);
+  const clearSamplePoems = useStore((s) => s.clearSamplePoems);
+  const [importing, setImporting] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const rows = useMemo(() => (project ? buildRows(project) : []), [project]);
+  const sampleCount = project ? countSamplePoems(project) : 0;
+
+  if (!project) return null;
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = rows.findIndex((r) => r.key === active.id);
+    const to = rows.findIndex((r) => r.key === over.id);
+    if (from < 0 || to < 0) return;
+    const next = [...rows];
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    update((draft) => commitRows(next, draft));
+  };
+
+  const addPoem = () => {
+    const newId = id('poem');
+    update((draft) => {
+      draft.poems.push({
+        id: newId,
+        title: 'Untitled',
+        body: '',
+        epigraph: '',
+        dedication: '',
+        sectionId: draft.sections.length ? draft.sections[draft.sections.length - 1].id : null,
+        order: draft.poems.length,
+      });
+    });
+    select(newId);
+  };
+
+  const addSection = () => {
+    update((draft) => {
+      draft.sections.push({
+        id: id('sec'),
+        title: `Part ${draft.sections.length + 1}`,
+        subtitle: '',
+        order: draft.sections.length,
+      });
+    });
+  };
+
+  return (
+    <div className="flex h-full flex-col bg-ink-900">
+      <header className="space-y-2 border-b border-ink-800 px-3 py-2">
+        <h2 className="flex items-baseline gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-300">
+          Contents
+          <span className="font-normal normal-case tracking-normal text-ink-400">
+            {project.poems.length} poem{project.poems.length === 1 ? '' : 's'}
+            {project.sections.length > 0 && `, ${project.sections.length} parts`}
+          </span>
+        </h2>
+        {/* Its own row: at 220px the pane is too narrow to sit these beside a heading. */}
+        <div className="grid grid-cols-3 gap-1.5">
+          <Button onClick={addPoem} title="Add a poem">
+            + Poem
+          </Button>
+          <Button onClick={addSection} title="Add a section or part">
+            + Part
+          </Button>
+          <Button onClick={() => setImporting(true)} title="Import or paste poems">
+            Import
+          </Button>
+        </div>
+      </header>
+
+      {sampleCount > 0 && (
+        <div className="space-y-1.5 border-b border-ink-800 bg-ink-850 px-3 py-2 text-[11px] text-ink-300">
+          <p>
+            {sampleCount} placeholder verse{sampleCount === 1 ? '' : 's'} loaded, to exercise the
+            layout.
+          </p>
+          <div className="flex gap-1.5">
+          {confirmClear ? (
+            <>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  clearSamplePoems();
+                  setConfirmClear(false);
+                }}
+              >
+                Remove them
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirmClear(false)}>
+                Keep
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setConfirmClear(true)}>Clear sample poems</Button>
+          )}
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
+        {rows.length === 0 ? (
+          <p className="px-4 py-8 text-center text-ink-400">
+            No poems yet. Use <strong className="text-ink-300">Import</strong> to paste or upload a
+            manuscript, or add one by hand.
+          </p>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext items={rows.map((r) => r.key)} strategy={verticalListSortingStrategy}>
+              {rows.map((row) =>
+                row.kind === 'section' ? (
+                  <SectionRow key={row.key} section={row.section} />
+                ) : (
+                  <PoemRow
+                    key={row.key}
+                    poem={row.poem}
+                    selected={row.poem.id === selectedPoemId}
+                    onSelect={() => select(row.poem.id)}
+                  />
+                ),
+              )}
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
+
+      {importing && <ImportDialog onClose={() => setImporting(false)} />}
+    </div>
+  );
+}
+
+function DragHandle({ listeners, attributes }: { listeners?: object; attributes?: object }) {
+  return (
+    <span
+      {...attributes}
+      {...listeners}
+      className="cursor-grab touch-none px-1 text-ink-600 transition-colors hover:text-ink-300 active:cursor-grabbing"
+      aria-label="Reorder"
+    >
+      <svg viewBox="0 0 10 16" className="h-3.5 w-2.5" fill="currentColor" aria-hidden>
+        <circle cx="2" cy="3" r="1.2" />
+        <circle cx="8" cy="3" r="1.2" />
+        <circle cx="2" cy="8" r="1.2" />
+        <circle cx="8" cy="8" r="1.2" />
+        <circle cx="2" cy="13" r="1.2" />
+        <circle cx="8" cy="13" r="1.2" />
+      </svg>
+    </span>
+  );
+}
+
+function PoemRow({
+  poem,
+  selected,
+  onSelect,
+}: {
+  poem: Poem;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: poem.id,
+  });
+  const lines = countLines(poem.body);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cx(
+        'group flex items-center gap-1 pl-2 pr-2',
+        isDragging && 'relative z-10 opacity-90',
+      )}
+    >
+      <DragHandle listeners={listeners} attributes={attributes} />
+      <button
+        type="button"
+        onClick={onSelect}
+        className={cx(
+          'min-w-0 flex-1 rounded px-2 py-1.5 text-left transition-colors',
+          selected ? 'bg-brass-500/15 text-brass-300' : 'hover:bg-ink-850',
+        )}
+      >
+        <span className="block truncate">{poem.title || <em className="text-ink-400">Untitled</em>}</span>
+        <span className="block truncate text-[11px] text-ink-400">
+          {lines ? `${lines} line${lines === 1 ? '' : 's'}` : 'empty'}
+          {poem.sampleKey ? ' · placeholder' : ''}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function SectionRow({ section }: { section: Section }) {
+  const update = useStore((s) => s.update);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: section.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cx('group mt-3 flex items-center gap-1 pl-2 pr-2 first:mt-0', isDragging && 'relative z-10')}
+    >
+      <DragHandle listeners={listeners} attributes={attributes} />
+      <input
+        value={section.title}
+        onChange={(e) =>
+          update((draft) => {
+            const found = draft.sections.find((s) => s.id === section.id);
+            if (found) found.title = e.target.value;
+          })
+        }
+        className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-ink-300 hover:border-ink-700 focus:border-brass-500 focus:outline-none"
+        aria-label="Section title"
+      />
+      <button
+        type="button"
+        title="Delete this part (its poems stay)"
+        onClick={() =>
+          update((draft) => {
+            draft.sections = draft.sections.filter((s) => s.id !== section.id);
+            for (const poem of draft.poems) {
+              if (poem.sectionId === section.id) poem.sectionId = null;
+            }
+          })
+        }
+        className="rounded px-1.5 py-1 text-ink-600 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}

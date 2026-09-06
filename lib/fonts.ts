@@ -104,23 +104,65 @@ export function projectFamilies(project: Project): string[] {
   return [...new Set(specs.map((s) => s.family).filter(Boolean))];
 }
 
+/** Every FontSpec a project sets, across the book and the cover. */
+export function projectSpecs(project: Project): FontSpec[] {
+  return [
+    ...Object.values(project.typography),
+    ...project.cover.textBoxes.map((b) => b.font),
+  ];
+}
+
 /**
- * Google Fonts CSS2 URL for a set of families. Regular and bold, upright and
- * italic, are always requested: a book uses all four even if the current
- * settings do not.
+ * Google Fonts stylesheet URLs covering exactly the faces a project sets — one
+ * URL per weight, each carrying every family that uses that weight in upright
+ * and italic.
+ *
+ * Splitting by weight is not an optimisation, it is a correctness requirement.
+ * Ask css2 for two weights of a family that has a variable version and it
+ * returns the variable font. Chromium cannot embed a variable-font instance in
+ * a PDF: it writes Type3 glyph procedures with no embedded font program, and a
+ * print service will reject that. Ask for one weight and it returns a static
+ * face, which comes out as a properly embedded CIDFontType2 subset. Verified
+ * against Chromium in tests/fonts.test.mjs.
+ *
+ * Italic is always requested alongside, because the stylesheet sets epigraphs
+ * and dedications in italic and a synthesised slant is not an italic.
  */
-export function googleFontsHref(families: string[]): string | null {
+export function projectFontsHrefs(project: Project): string[] {
+  const byWeight = new Map<number, Set<string>>();
+  for (const spec of projectSpecs(project)) {
+    if (!spec.family) continue;
+    const families = byWeight.get(spec.weight) ?? new Set<string>();
+    families.add(spec.family);
+    byWeight.set(spec.weight, families);
+  }
+
+  return [...byWeight.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([weight, families]) => {
+      const params = [...families]
+        .sort()
+        .map((family) => `family=${encodeURIComponent(family)}:ital,wght@0,${weight};1,${weight}`)
+        .join('&');
+      return `https://fonts.googleapis.com/css2?${params}&display=block`;
+    });
+}
+
+/** One weight, both styles — the shape that keeps css2 on static faces. */
+export function googleFontsHref(families: string[], weight = 400): string | null {
   if (!families.length) return null;
   const params = families
-    .map((family) => `family=${encodeURIComponent(family)}:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700`)
+    .map((family) => `family=${encodeURIComponent(family)}:ital,wght@0,${weight};1,${weight}`)
     .join('&');
   return `https://fonts.googleapis.com/css2?${params}&display=block`;
 }
 
-/** Head markup for the preview, which can just link the stylesheet. */
-export function googleFontsLink(families: string[]): string {
-  const href = googleFontsHref(families);
-  if (!href) return '';
-  return `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="${href}">`;
+/** Head markup that links every stylesheet a project needs. */
+export function googleFontsLinks(project: Project): string {
+  const hrefs = projectFontsHrefs(project);
+  if (!hrefs.length) return '';
+  return [
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
+    ...hrefs.map((href) => `<link rel="stylesheet" href="${href}">`),
+  ].join('\n');
 }

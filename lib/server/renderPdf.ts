@@ -1,10 +1,10 @@
 import 'server-only';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import type { Page } from 'puppeteer-core';
 
 import { padToEven } from '../kdp';
-import { projectFamilies } from '../fonts';
 import { buildBookHtml } from '../render/bookHtml';
 import { buildCoverHtml } from '../render/coverHtml';
 import { RUNTIME_SCRIPT } from '../render/runtime';
@@ -12,16 +12,34 @@ import type { Project } from '../types';
 import { launchBrowser } from './browser';
 import { embedGoogleFonts } from './fontEmbed';
 
-const require = createRequire(import.meta.url);
-
 let pagedJsSource: string | null = null;
 
-/** The Paged.js polyfill, read from node_modules and injected as a script. */
+/**
+ * The Paged.js polyfill, read off disk and injected as a script tag.
+ *
+ * It cannot be imported: pagedjs's `exports` map does not expose the dist file,
+ * and bundling a 900KB polyfill into the route would be wasteful when the same
+ * file is already served to the preview from /vendor. next.config.mjs traces
+ * both locations into the deployed function.
+ */
+const PAGEDJS_CANDIDATES = [
+  'node_modules/pagedjs/dist/paged.polyfill.js',
+  'public/vendor/paged.polyfill.js',
+];
+
 async function loadPagedJs(): Promise<string> {
   if (pagedJsSource) return pagedJsSource;
-  const path = require.resolve('pagedjs/dist/paged.polyfill.js');
-  pagedJsSource = await readFile(path, 'utf8');
-  return pagedJsSource;
+  for (const candidate of PAGEDJS_CANDIDATES) {
+    const path = join(process.cwd(), candidate);
+    if (existsSync(path)) {
+      pagedJsSource = await readFile(path, 'utf8');
+      return pagedJsSource;
+    }
+  }
+  throw new Error(
+    'Could not find the Paged.js polyfill on disk. Run `npm install`, or use ' +
+      '"Print to PDF" in the export panel to print from the browser instead.',
+  );
 }
 
 async function paginate(page: Page, html: string, pagedJs: string): Promise<number> {
@@ -50,8 +68,7 @@ export type InteriorResult = {
  * pass is unavoidable rather than wasteful.
  */
 export async function renderInteriorPdf(project: Project): Promise<InteriorResult> {
-  const families = projectFamilies(project);
-  const fonts = await embedGoogleFonts(families);
+  const fonts = await embedGoogleFonts(project);
   const pagedJs = await loadPagedJs();
   const { browser, via } = await launchBrowser();
 
@@ -107,8 +124,7 @@ export async function renderCoverPdf(project: Project, pageCount: number): Promi
   const evenPages = padToEven(pageCount);
   const layout = coverLayout(project, evenPages);
 
-  const families = [...new Set(project.cover.textBoxes.map((b) => b.font.family))];
-  const fonts = await embedGoogleFonts(families);
+  const fonts = await embedGoogleFonts(project);
   const { browser, via } = await launchBrowser();
 
   try {
@@ -118,14 +134,18 @@ export async function renderCoverPdf(project: Project, pageCount: number): Promi
       fontStyle: fonts.style,
       guides: false,
     });
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // The cover is one page with inlined fonts and a data-URI image, so once
+    // the document has loaded and the faces have settled there is nothing left
+    // to wait for.
+    await page.setContent(html, { waitUntil: 'load' });
     await page.evaluateHandle('document.fonts.ready');
 
     const pdf = await page.pdf({
       printBackground: true,
-      width: `${layout.dimensions.width}in`,
-      height: `${layout.dimensions.height}in`,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      // The @page rule in the cover stylesheet already carries the exact size.
+      // Passing width/height here instead goes through a pixel conversion that
+      // lands a fraction of a point off, and a cover has to be exact.
+      preferCSSPageSize: true,
       pageRanges: '1',
     });
 

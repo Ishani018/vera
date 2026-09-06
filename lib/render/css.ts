@@ -1,7 +1,7 @@
 import { BLEED, getTrim } from '../kdp';
 import type { FontSpec, PageNumberPosition, Project, RunningHeadContent } from '../types';
 import { borderCss } from './borders';
-import { cssString } from './text';
+import { cssColor, cssFamily, cssString } from './text';
 
 /** Page geometry, in inches, derived once and reused by CSS and the guides. */
 export type PageGeometry = {
@@ -74,10 +74,10 @@ export function pageGeometry(project: Project): PageGeometry {
 
 function fontDecls(spec: FontSpec, includeSize = true): string {
   const lines = [
-    `font-family: '${spec.family}', ${spec.fallback};`,
+    `font-family: '${cssFamily(spec.family)}', ${spec.fallback};`,
     `font-weight: ${spec.weight};`,
     `font-style: ${spec.italic ? 'italic' : 'normal'};`,
-    `color: ${spec.color};`,
+    `color: ${cssColor(spec.color)};`,
     `text-align: ${spec.align};`,
   ];
   if (includeSize) {
@@ -333,7 +333,7 @@ function poemRules(project: Project): string {
 
 .ornament {
   ${fontDecls(project.typography.body, false)}
-  color: ${ornament.color};
+  color: ${cssColor(ornament.color)};
   font-size: ${ornament.sizePt}pt;
   text-align: center;
   margin: ${ornament.spacingEm}em 0;
@@ -346,7 +346,7 @@ function poemRules(project: Project): string {
   content: '';
   display: inline-block;
   width: 22%;
-  border-top: 0.75pt solid ${ornament.color};
+  border-top: 0.75pt solid ${cssColor(ornament.color)};
   vertical-align: 0.35em;
 }
 `;

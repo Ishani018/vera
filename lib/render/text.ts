@@ -84,3 +84,31 @@ export function indexSortKey(line: string): string {
     .replace(/^[^\p{L}\p{N}]+/u, '')
     .replace(/^(a|an|the)\s+/u, '');
 }
+
+/**
+ * Font family names and colours reach the stylesheet as raw CSS. They come from
+ * the font API or from an imported project file, so they are not necessarily
+ * well behaved. These keep a stray quote or brace from ending the declaration
+ * it sits in and starting something else.
+ */
+export function cssFamily(family: string): string {
+  // No apostrophes: the family is emitted inside single quotes, so one would
+  // close the string and let whatever follows it become CSS.
+  const clean = family
+    .replace(/[^\w \-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return clean || 'serif';
+}
+
+export function cssColor(color: string): string {
+  const clean = color.trim();
+  return /^(#[0-9a-f]{3,8}|[a-z]+|(rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(clean)
+    ? clean
+    : 'currentColor';
+}
+
+/** A bare CSS length in points or inches, with anything else rejected. */
+export function cssNumber(value: number, fallback = 0): number {
+  return Number.isFinite(value) ? value : fallback;
+}

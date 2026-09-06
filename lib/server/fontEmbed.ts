@@ -1,23 +1,28 @@
 // Never let this reach a client bundle: it inlines megabytes of font data.
 import 'server-only';
-import { googleFontsHref } from '../fonts';
+import { projectFontsHrefs, projectSpecs } from '../fonts';
+import type { Project } from '../types';
 
 /**
- * Fetches the Google Fonts stylesheet for a set of families and inlines every
- * font file it references as a data URI.
+ * Fetches the Google Fonts stylesheet for a project and inlines every font file
+ * it references as a data URI.
  *
- * Two reasons this is worth the round trips. Headless Chromium in a serverless
+ * Inlining rather than linking, because headless Chromium in a serverless
  * sandbox often cannot reach fonts.gstatic.com, and a book that silently prints
- * in a fallback face is worse than one that fails loudly. And a PDF produced
- * from inlined faces embeds subsets of exactly the faces that were used, which
- * is what KDP wants.
+ * in a substituted face is worse than one that fails loudly.
  *
- * The Chrome user agent matters: Google serves woff2 only to browsers that
- * advertise support, and hands everyone else much larger ttf files.
+ * TTF rather than woff2, which looks backwards and is not. Google hands woff2
+ * to any browser that advertises support, and for a family with a variable
+ * version that woff2 *is* the variable font. Chromium cannot embed a
+ * variable-font instance in a PDF: it gives up and writes Type3 glyph
+ * procedures with no embedded font program, which is precisely what a print
+ * service rejects. An old user agent gets static TTF files per weight, and
+ * those come out of the PDF as properly embedded CIDFontType2 subsets. The
+ * files are larger over the wire; the PDF is smaller and correct.
  */
 
-const CHROME_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const LEGACY_UA =
+  'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_8) AppleWebKit/533 (KHTML, like Gecko) Version/4 Safari/533';
 
 const cache = new Map<string, string>();
 
@@ -27,7 +32,7 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
   try {
     return await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': CHROME_UA },
+      headers: { 'User-Agent': LEGACY_UA },
     });
   } finally {
     clearTimeout(timer);
@@ -43,20 +48,27 @@ export type EmbedResult = {
 };
 
 export async function embedGoogleFonts(
-  families: string[],
-  { timeoutMs = 12000 }: { timeoutMs?: number } = {},
+  project: Project,
+  { timeoutMs = 20000 }: { timeoutMs?: number } = {},
 ): Promise<EmbedResult> {
-  const href = googleFontsHref(families);
-  if (!href) return { style: '', embedded: [], failed: [] };
+  const families = [...new Set(projectSpecs(project).map((s) => s.family))].filter(Boolean);
+  const hrefs = projectFontsHrefs(project);
+  if (!hrefs.length) return { style: '', embedded: [], failed: [] };
 
-  const cached = cache.get(href);
+  const key = hrefs.join('|');
+  const cached = cache.get(key);
   if (cached) return { style: cached, embedded: families, failed: [] };
 
   let css: string;
   try {
-    const res = await fetchWithTimeout(href, timeoutMs);
-    if (!res.ok) throw new Error(`Google Fonts responded ${res.status}`);
-    css = await res.text();
+    const sheets = await Promise.all(
+      hrefs.map(async (href) => {
+        const res = await fetchWithTimeout(href, timeoutMs);
+        if (!res.ok) throw new Error(`Google Fonts responded ${res.status}`);
+        return res.text();
+      }),
+    );
+    css = sheets.join('\n');
   } catch {
     return { style: '', embedded: [], failed: families };
   }
@@ -93,7 +105,7 @@ export async function embedGoogleFonts(
   // Drop any face whose file could not be fetched, so Chromium does not stall
   // on a network request that is going to fail.
   const style = `<style>\n${stripUnresolved(out)}\n</style>`;
-  cache.set(href, style);
+  cache.set(key, style);
 
   const embedded = families.filter((f) => css.includes(f.replace(/ /g, ' ')));
   return { style, embedded, failed: families.filter((f) => !embedded.includes(f)) };

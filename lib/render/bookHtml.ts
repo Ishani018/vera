@@ -2,6 +2,7 @@ import type { MatterPage, Poem, Project, RenderOptions, Section } from '../types
 import { ORNAMENT_GLYPHS } from './borders';
 import { buildCss, pageGeometry } from './css';
 import { RUNTIME_SCRIPT, type RuntimeConfig } from './runtime';
+import { VIEWER_SCRIPT } from './viewer';
 import {
   countLines,
   escapeBlock,
@@ -234,6 +235,7 @@ ${pad ? `<section class="pad-matter">${pad}</section>` : ''}
 </div>
 ${options.pagedJsSrc ? `<script src="${escapeHtml(options.pagedJsSrc)}"></script>` : ''}
 ${options.pagedJsSrc ? `<script>${RUNTIME_SCRIPT}</script>` : ''}
+${preview ? `<script>${VIEWER_SCRIPT}</script>` : ''}
 </body>
 </html>`;
 }

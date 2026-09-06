@@ -1,6 +1,6 @@
 'use client';
 
-import { googleFontsLink, projectFamilies } from './fonts';
+import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
 import { buildCoverHtml } from './render/coverHtml';
@@ -96,7 +96,7 @@ export function exportCoverPdf(project: Project, pageCount: number): Promise<Exp
 export function printInterior(project: Project, padPages: number): void {
   const html = buildBookHtml(project, {
     mode: 'export',
-    fontStyle: googleFontsLink(projectFamilies(project)),
+    fontStyle: googleFontsLinks(project),
     pagedJsSrc: PAGEDJS_SRC,
     guides: NO_GUIDES,
     padPages,
@@ -106,10 +106,9 @@ export function printInterior(project: Project, padPages: number): void {
 }
 
 export function printCover(project: Project, pageCount: number): void {
-  const families = [...new Set(project.cover.textBoxes.map((b) => b.font.family))];
   const html = buildCoverHtml(project, {
     pageCount: padToEven(pageCount),
-    fontStyle: googleFontsLink(families),
+    fontStyle: googleFontsLinks(project),
     guides: false,
     autoPrint: true,
   });

@@ -51,12 +51,14 @@ export async function launchBrowser(): Promise<LaunchedBrowser> {
 
   try {
     const chromium = (await import('@sparticuz/chromium')).default;
+    // Printing needs no WebGL, and skipping the graphics stack keeps the cold
+    // start and the unpacked size down.
+    chromium.setGraphicsMode = false;
     const executablePath = await chromium.executablePath();
     if (executablePath) {
       const browser = await puppeteer.launch({
         executablePath,
         args: [...chromium.args, ...BASE_ARGS],
-        defaultViewport: chromium.defaultViewport,
       });
       return { browser, via: '@sparticuz/chromium' };
     }

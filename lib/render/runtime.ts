@@ -226,8 +226,61 @@ export const RUNTIME_SCRIPT = String.raw`
 
   Paged.registerHandlers(VersecraftHandler);
 
+  /**
+   * Paged.js waits on every stylesheet before it lays anything out, and a
+   * webfont request that fails takes the whole pipeline down with it. A book
+   * should still typeset when the network is unavailable — in a fallback face,
+   * with a note, but typeset. So failed stylesheets are dropped first, and
+   * pagination starts either way once they have all settled.
+   */
+  function settleStylesheets() {
+    var links = Array.prototype.slice.call(
+      document.querySelectorAll('link[rel="stylesheet"]')
+    );
+    if (!links.length) return Promise.resolve();
+
+    var pending = links.map(function (link) {
+      if (link.sheet) return Promise.resolve();
+      return new Promise(function (resolve) {
+        link.addEventListener('load', function () { resolve(); });
+        link.addEventListener('error', function () {
+          window.__VC_FONTS_FAILED__ = true;
+          if (link.parentNode) link.parentNode.removeChild(link);
+          resolve();
+        });
+      });
+    });
+
+    // A stylesheet that neither loads nor errors must not hold the book up.
+    var timeout = new Promise(function (resolve) { setTimeout(resolve, 8000); });
+    return Promise.race([Promise.all(pending), timeout]);
+  }
+
+  function dropStylesheets() {
+    var links = document.querySelectorAll('link[rel="stylesheet"]');
+    for (var i = 0; i < links.length; i++) {
+      if (links[i].parentNode) links[i].parentNode.removeChild(links[i]);
+    }
+    window.__VC_FONTS_FAILED__ = true;
+  }
+
   window.__VC_READY__ = false;
-  window.PagedPolyfill.preview().then(function (flow) {
+  settleStylesheets()
+    .then(function () {
+      return window.PagedPolyfill.preview();
+    })
+    .catch(function () {
+      // Paged.js rejects if a stylesheet it is waiting on has already failed,
+      // and a link that errored before this script ran never fires its error
+      // event for us to catch. Nothing has been laid out at that point, so
+      // dropping the stylesheets and starting again is safe — the book comes
+      // out in a fallback face rather than not at all.
+      dropStylesheets();
+      var pages = document.querySelector('.pagedjs_pages');
+      if (pages && pages.parentNode) pages.parentNode.removeChild(pages);
+      return window.PagedPolyfill.preview();
+    })
+    .then(function (flow) {
     var pages = collectPages();
     window.__VC_PAGES__ = pages;
     window.__VC_PAGE_COUNT__ = pages.length;
@@ -246,12 +299,13 @@ export const RUNTIME_SCRIPT = String.raw`
         requestAnimationFrame(function () { window.print(); });
       });
     }
-  }).catch(function (err) {
+    })
+    .catch(function (err) {
     window.__VC_ERROR__ = String((err && err.message) || err);
     document.documentElement.setAttribute('data-vc-ready', 'error');
     if (CONFIG.postToParent && window.parent !== window) {
       window.parent.postMessage({ type: 'versecraft:error', message: window.__VC_ERROR__ }, '*');
-    }
-  });
+      }
+    });
 })();
 `;

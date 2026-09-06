@@ -1,6 +1,6 @@
 import type { CoverTextBox, Project } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
-import { escapeBlock, escapeHtml } from './text';
+import { cssColor, cssFamily, escapeBlock, escapeHtml } from './text';
 
 /**
  * The wraparound cover as a single-page document.
@@ -12,13 +12,13 @@ import { escapeBlock, escapeHtml } from './text';
 function fontCss(box: CoverTextBox): string {
   const f = box.font;
   return [
-    `font-family: '${f.family}', ${f.fallback};`,
+    `font-family: '${cssFamily(f.family)}', ${f.fallback};`,
     `font-weight: ${f.weight};`,
     `font-style: ${f.italic ? 'italic' : 'normal'};`,
     `font-size: ${f.sizePt}pt;`,
     `line-height: ${f.lineHeight};`,
     `letter-spacing: ${f.letterSpacingEm}em;`,
-    `color: ${f.color};`,
+    `color: ${cssColor(f.color)};`,
     `text-align: ${f.align};`,
     f.transform === 'smallcaps'
       ? 'font-variant-caps: small-caps;'
@@ -104,7 +104,7 @@ html, body { margin: 0; padding: 0; }
   width: ${d.width}in;
   height: ${d.height}in;
   overflow: hidden;
-  background: ${cover.backgroundColor};
+  background: ${cssColor(cover.backgroundColor)};
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -113,13 +113,13 @@ html, body { margin: 0; padding: 0; }
   left: 0; top: 0;
   width: ${panels.spine.x}in;
   height: ${d.height}in;
-  background: ${cover.backColor};
+  background: ${cssColor(cover.backColor)};
 }
 #panel-spine {
   left: ${panels.spine.x}in; top: 0;
   width: ${panels.spine.width}in;
   height: ${d.height}in;
-  background: ${cover.spineColor};
+  background: ${cssColor(cover.spineColor)};
 }
 .cover-image {
   position: absolute;

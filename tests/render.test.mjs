@@ -167,3 +167,24 @@ test('a border inset can never be pushed past the trim edge', () => {
   // Clamped to min(margins) - 0.05 = 0.25, so the frame lands at 0.05in in.
   assert.ok(css.includes('0.04999999999999999in') || css.includes('0.05in'), 'inset was not clamped');
 });
+
+test('font families and colours are sanitised before reaching the stylesheet', () => {
+  const project = seeded();
+  project.typography.body.family = "Evil'; } body { display:none } .x{";
+  project.typography.body.color = 'red; background: url(http://x)';
+  project.ornament.color = '"><script>';
+  const html = render(project);
+  assert.ok(!html.includes('display:none'), 'family escaped its declaration');
+  assert.ok(!html.includes('url(http://x)'), 'colour escaped its declaration');
+  assert.ok(!html.includes('<script>"'), 'ornament colour escaped its declaration');
+  assert.ok(!html.includes("'Evil';"), 'family must not close its own quote');
+  assert.match(html, /font-family: 'Evil body displaynone x'/);
+});
+
+test('a failed webfont stylesheet cannot stop pagination', () => {
+  // Paged.js waits on every stylesheet, so the runtime drops broken ones first
+  // and races the rest against a timeout.
+  assert.ok(RUNTIME_SCRIPT.includes('settleStylesheets'));
+  assert.ok(RUNTIME_SCRIPT.includes('__VC_FONTS_FAILED__'));
+  assert.ok(RUNTIME_SCRIPT.includes('Promise.race'));
+});

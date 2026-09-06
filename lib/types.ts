@@ -1,3 +1,4 @@
+export type { PaperType } from './kdp';
 import type { PaperType } from './kdp';
 
 export type TextTransform = 'none' | 'uppercase' | 'lowercase' | 'capitalize' | 'smallcaps';
