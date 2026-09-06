@@ -74,9 +74,13 @@ test('a Word heading becomes a markdown heading, so titles are recognised', () =
   assert.equal(poem.body, 'Its first line.');
 });
 
-test('inline formatting is unwrapped rather than shown as markup', () => {
+test('inline formatting survives as markup the editor can round-trip', () => {
   const text = docxHtmlToVerse('<p><em>Italic</em> and <strong>bold</strong> words.</p>');
-  assert.equal(text, 'Italic and bold words.');
+  assert.equal(text, '*Italic* and **bold** words.');
+});
+
+test('an asterisk already in the poem is escaped so it stays an asterisk', () => {
+  assert.equal(docxHtmlToVerse('<p>A * star and <em>emphasis</em>.</p>'), 'A \\* star and *emphasis*.');
 });
 
 test('entities are decoded, including the non-breaking space Word inserts', () => {

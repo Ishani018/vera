@@ -29,6 +29,12 @@ export type Poem = {
   sectionId: string | null;
   order: number;
   /**
+   * Overrides the collection's left alignment for one poem. Shaped poems are
+   * centred or ranged right by the poet, not by the book design, so this is
+   * per poem rather than a global setting.
+   */
+  align?: Align;
+  /**
    * Set only on seeded placeholder verses (see src/data/samplePoems.ts) so the
    * "Clear sample poems" action can find them. Never set on real work.
    */

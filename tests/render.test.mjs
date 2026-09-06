@@ -188,3 +188,125 @@ test('a failed webfont stylesheet cannot stop pagination', () => {
   assert.ok(RUNTIME_SCRIPT.includes('__VC_FONTS_FAILED__'));
   assert.ok(RUNTIME_SCRIPT.includes('Promise.race'));
 });
+
+// --- audit: what real poetry actually contains -------------------------------
+
+import { renderInlineMarkup, stripInlineMarkup } from '../lib/render/text.ts';
+
+/** Builds a one-poem project so a single feature can be looked at in isolation. */
+function withPoem(patch) {
+  const project = createProject();
+  project.poems = [
+    {
+      id: 'x1',
+      title: 'A Title',
+      body: 'first line\nsecond line',
+      epigraph: '',
+      dedication: '',
+      sectionId: null,
+      order: 0,
+      ...patch,
+    },
+  ];
+  return project;
+}
+
+test('audit: indented lines keep their indent as hard spaces', () => {
+  const html = render(withPoem({ body: 'flush left\n    four spaces in\n\tone tab in' }));
+  assert.match(html, /class="poem-line">    four spaces in/);
+  // A tab has no width in HTML flow, so it becomes four hard spaces.
+  assert.match(html, /class="poem-line">    one tab in/);
+});
+
+test('audit: a centred poem drops the turnover indent it cannot use', () => {
+  const centred = render(withPoem({ align: 'center' }));
+  assert.match(centred, /data-align="center"/);
+  assert.match(centred, /\.poem\[data-align='center'\] \.poem-line \{ text-align: center; \}/);
+  assert.match(centred, /data-align='center'\][\s\S]*?padding-left: 0;[\s\S]*?text-indent: 0;/);
+  // Default poems are untouched by any of that.
+  assert.match(render(withPoem({})), /data-align="inherit"/);
+});
+
+test('audit: em-dashes, smart quotes and ellipses pass through untouched', () => {
+  const body = 'An em—dash, “smart quotes”, an ellipsis… and an en–dash';
+  const html = render(withPoem({ body }));
+  assert.ok(html.includes(body), 'punctuation must not be normalised or escaped away');
+});
+
+test('audit: a non-breaking space survives as a non-breaking space', () => {
+  const html = render(withPoem({ body: 'a b' }));
+  assert.ok(html.includes('a b'));
+});
+
+test('audit: unicode beyond Latin-1 is preserved', () => {
+  const body = 'Πλάγια\nКириллица\n日本語\n🕊';
+  const html = render(withPoem({ body }));
+  for (const line of body.split('\n')) assert.ok(html.includes(line), `${line} was lost`);
+});
+
+test('audit: a one-line poem renders as one stanza of one line', () => {
+  const html = render(withPoem({ body: 'The only line.' }));
+  const stanzas = html.match(/<div class="stanza">/g) ?? [];
+  assert.equal(stanzas.length, 1);
+  assert.equal((html.match(/class="poem-line"/g) ?? []).length, 1);
+});
+
+test('audit: an untitled poem gets no heading and no contents entry', () => {
+  const project = withPoem({ title: '' });
+  const html = render(project);
+  assert.ok(!html.includes('<h2 class="poem-title">'), 'an empty h2 would still take the title space');
+  assert.ok(!html.includes(`href="#p_${project.poems[0].id}"`), 'no dotted line to nowhere');
+  // It still has to be a link target, for the index of first lines.
+  assert.match(html, /<article class="poem" id="p_x1"/);
+});
+
+test('audit: an untitled poem still appears in the index of first lines', () => {
+  const project = withPoem({ title: '' });
+  project.toc.firstLineIndex = true;
+  const html = render(project);
+  assert.match(html, /class="index-entry" href="#p_x1"/);
+  assert.ok(html.includes('first line'));
+});
+
+test('audit: a titled poem keeps its heading and its contents entry', () => {
+  const project = withPoem({});
+  const html = render(project);
+  assert.match(html, /<h2 class="poem-title">A Title<\/h2>/);
+  assert.ok(html.includes(`href="#p_${project.poems[0].id}"`));
+});
+
+test('running heads are resolved at render time, not by a CSS string()', () => {
+  const html = render(withPoem({}));
+  assert.ok(!html.includes('string-set'), 'string() cannot fall back for an untitled poem');
+  assert.match(html, /content: var\(--vc-head-left, ""\)/);
+  assert.match(html, /content: var\(--vc-head-right, ""\)/);
+  assert.match(html, /"heads":\{"verso":"bookTitle","recto":"author"/);
+});
+
+test('a poem carries the head text it wants, stripped of markup', () => {
+  const html = render(withPoem({ title: 'A *shaped* title' }));
+  assert.match(html, /data-head="A shaped title"/);
+});
+
+test('inline emphasis becomes real emphasis, and a literal asterisk survives', () => {
+  assert.equal(renderInlineMarkup('an *italic* word'), 'an <em>italic</em> word');
+  assert.equal(renderInlineMarkup('a **bold** word'), 'a <strong>bold</strong> word');
+  assert.equal(renderInlineMarkup('* * *'), '* * *', 'a dinkus is not emphasis');
+  assert.equal(renderInlineMarkup('5 * 3 and 2 * 4'), '5 * 3 and 2 * 4');
+  assert.equal(renderInlineMarkup('a \\*literal\\* pair'), 'a *literal* pair');
+  assert.equal(stripInlineMarkup('an *italic* and **bold** line'), 'an italic and bold line');
+});
+
+test('emphasis reaches the rendered verse line', () => {
+  const html = render(withPoem({ body: 'a line with *stress* in it' }));
+  assert.ok(html.includes('a line with <em>stress</em> in it'));
+});
+
+test('emphasis markup never leaks into a TOC entry or an index line', () => {
+  const project = withPoem({ body: '*The first line*\nsecond' });
+  project.toc.firstLineIndex = true;
+  const html = render(project);
+  const index = html.slice(html.indexOf('index-first-lines'));
+  assert.ok(index.includes('The first line'));
+  assert.ok(!index.includes('*The first line*'));
+});

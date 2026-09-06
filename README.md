@@ -32,12 +32,20 @@ real pagination rather than an estimate.
 one function, rendered by the same engine (Paged.js in Chromium). There is no
 second layout path that can drift out of agreement with the first.
 
-Also: sections and drag-to-reorder, front and back matter with roman numerals
-that restart at 1 in arabic for the body, an auto table of contents with real
-folios, an optional index of first lines, configurable running heads, decorative
-borders and section ornaments, a Google Fonts picker, a wraparound cover
-designer with live spine width, a pre-export validation panel, and JSON
-backup/restore.
+**Repairing what the import cannot.** Verse that has been pasted around loses
+its line breaks — two lines welded into one paragraph, or a break landing
+mid-phrase because the text was hard-wrapped at some other width. Nothing can
+put those back reliably, because only the poet knows where the lines go. So the
+poem editor has a **Line breaks** tab that marks every place a line looks wrong,
+makes accepting one a single click, and never changes anything on its own.
+
+Also: per-poem alignment for shaped poems, inline italic and bold that survive
+the round trip from Word, sections and drag-to-reorder, front and back matter
+with roman numerals that restart at 1 in arabic for the body, an auto table of
+contents with real folios, an optional index of first lines, configurable
+running heads, decorative borders and section ornaments, a Google Fonts picker,
+a wraparound cover designer with live spine width, a pre-export validation
+panel, and JSON backup/restore.
 
 ---
 
@@ -156,6 +164,28 @@ components/           the workspace
 The renderer is a pure function of the project. The preview calls it with
 `mode: 'preview'`, the export calls it with `mode: 'export'`, and that is the
 only difference between what you see and what you upload.
+
+### Editing a poem
+
+The body is plain text and stays that way — it is what the editor edits, what
+the importer writes, what the repair view splits and joins, and what round-trips
+through the project JSON. Two things ride inside it:
+
+- **Emphasis** is `*italic*` and `**bold**`, with `\*` for a literal asterisk.
+  The I and B buttons wrap the selection. `.docx` import writes the same markup,
+  so emphasis survives from Word to the printed page.
+- **Line breaks and blank lines** are the poem's own. Nothing reflows them.
+
+**Untitled poems** are a first-class case, not an oversight. Collections often
+identify poems by first line or by number. An untitled poem gets no heading, no
+contents entry, and its running head falls back to the section title and then
+the book title — never an empty head, which would look like a fault in the
+binding.
+
+**Per-poem alignment** (left / centred / ranged right) is on the poem, not the
+book, because shaping is the poet's decision about one poem. Centring turns off
+the turnover indent with it: an indent only reads as a turnover against a
+straight left edge.
 
 ### Things worth knowing if you work on this
 

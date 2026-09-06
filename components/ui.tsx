@@ -32,11 +32,14 @@ const inputClass =
   'w-full rounded-md border border-ink-700 bg-ink-900 px-2.5 py-1.5 text-ink-200 ' +
   'transition-colors hover:border-ink-600 focus:border-brass-500 focus:outline-none';
 
-export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+// ComponentPropsWithRef rather than the HTML attribute types: React 19 passes
+// `ref` to function components as an ordinary prop, and the editor needs one on
+// the body field to put the cursor back after wrapping a selection.
+export function TextInput(props: React.ComponentPropsWithRef<'input'>) {
   return <input {...props} className={cx(inputClass, props.className)} />;
 }
 
-export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextArea(props: React.ComponentPropsWithRef<'textarea'>) {
   return <textarea {...props} className={cx(inputClass, 'resize-y leading-relaxed', props.className)} />;
 }
 

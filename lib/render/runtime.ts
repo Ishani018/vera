@@ -23,6 +23,17 @@ export type RuntimeConfig = {
   postToParent: boolean;
   /** Raise the browser print dialog once the book has been laid out. */
   autoPrint: boolean;
+  /**
+   * What each running head says. Resolved per page in the runtime rather than
+   * with a CSS string(), which cannot fall back when the poem on the page has
+   * no title of its own.
+   */
+  heads: {
+    verso: string;
+    recto: string;
+    bookTitle: string;
+    author: string;
+  };
 };
 
 export const RUNTIME_SCRIPT = String.raw`
@@ -182,6 +193,46 @@ export const RUNTIME_SCRIPT = String.raw`
   }
 
   /**
+   * Works out what each page's running head says.
+   *
+   * Section and poem titles are tracked as the walk goes, so a page in the
+   * middle of a poem still carries that poem's head. An untitled poem falls
+   * back to the section it sits in, and then to the book's title — a head that
+   * printed empty would look like a mistake in the binding.
+   */
+  function writeHeads(els) {
+    var config = CONFIG.heads;
+    if (!config) return;
+
+    var section = '';
+    var poem = '';
+
+    function resolve(kind) {
+      if (kind === 'bookTitle') return config.bookTitle;
+      if (kind === 'author') return config.author;
+      if (kind === 'sectionTitle') return section || config.bookTitle;
+      if (kind === 'poemTitle') return poem || section || config.bookTitle;
+      return '';
+    }
+
+    for (var i = 0; i < els.length; i++) {
+      var content = els[i].querySelector('.pagedjs_page_content');
+      if (content) {
+        var opener = content.querySelector('.section-open h1');
+        if (opener) section = (opener.textContent || '').trim();
+
+        var poems = content.querySelectorAll('.poem');
+        if (poems.length) {
+          var last = poems[poems.length - 1];
+          poem = (last.getAttribute('data-head') || '').trim();
+        }
+      }
+      els[i].style.setProperty('--vc-head-left', JSON.stringify(resolve(config.verso)));
+      els[i].style.setProperty('--vc-head-right', JSON.stringify(resolve(config.recto)));
+    }
+  }
+
+  /**
    * Resolves TOC and index entries to the folio printed on the target's page.
    * Paged.js's own target-counter() counts physical sheets, which disagrees
    * with the folio as soon as the front matter is numbered in roman.
@@ -220,6 +271,7 @@ export const RUNTIME_SCRIPT = String.raw`
       for (var i = 0; i < els.length; i++) drawGuides(els[i]);
       var pages = collectPages();
       writeFolios(els, pages);
+      writeHeads(els);
       writeCrossReferences(els, pages);
     }
   }

@@ -1,7 +1,7 @@
 import { BLEED, getTrim } from '../kdp';
 import type { FontSpec, PageNumberPosition, Project, RunningHeadContent } from '../types';
 import { borderCss } from './borders';
-import { cssColor, cssFamily, cssString } from './text';
+import { cssColor, cssFamily } from './text';
 
 /** Page geometry, in inches, derived once and reused by CSS and the guides. */
 export type PageGeometry = {
@@ -92,21 +92,6 @@ function fontDecls(spec: FontSpec, includeSize = true): string {
   return lines.join('\n  ');
 }
 
-function headContent(kind: RunningHeadContent, project: Project): string {
-  switch (kind) {
-    case 'none':
-      return 'none';
-    case 'bookTitle':
-      return cssString(project.meta.title);
-    case 'author':
-      return cssString(project.meta.author);
-    case 'sectionTitle':
-      return 'string(sectionTitle)';
-    case 'poemTitle':
-      return 'string(poemTitle)';
-  }
-}
-
 type Side = 'left' | 'right';
 
 /** Where the folio goes on a given side, given the chosen position. */
@@ -132,9 +117,11 @@ function marginBoxes(project: Project, side: Side): string {
 
   if (headKind !== 'none') {
     // The head sits at the inner edge of the header band, i.e. hard against the
-    // text block and therefore inside the safe area.
+    // text block and therefore inside the safe area. Its text is resolved per
+    // page by the runtime — a CSS string() cannot fall back when the poem on
+    // the page has no title, and would print an empty head instead.
     out.push(`@top-center {
-    content: ${headContent(headKind, project)};
+    content: var(--vc-head-${side}, "");
     vertical-align: bottom;
     padding-bottom: 0.55em;
     ${fontDecls(typography.runningHead)}
@@ -276,7 +263,6 @@ function poemRules(project: Project): string {
 .poem-title {
   margin: ${layout.titleSpaceAboveEm}em 0 ${layout.titleSpaceBelowEm}em;
   break-after: avoid;
-  string-set: poemTitle content(text);
   ${fontDecls(typography.poemTitle)}
 }
 
@@ -317,12 +303,29 @@ function poemRules(project: Project): string {
 }
 
 /* A short poem alone on its page can be optically centred in the text block. */
+/* Shaped poems. The hanging indent is dropped with the flush-left edge it
+   depends on — an indent under centred verse just looks like a mistake. */
+.poem[data-align='center'] .poem-line,
+.poem[data-align='right'] .poem-line {
+  padding-left: 0;
+  text-indent: 0;
+}
+.poem[data-align='center'] .poem-line { text-align: center; }
+.poem[data-align='right'] .poem-line { text-align: right; }
+.poem[data-align='center'] .poem-title,
+.poem[data-align='center'] .poem-epigraph { text-align: center; }
+.poem[data-align='right'] .poem-title,
+.poem[data-align='right'] .poem-epigraph { text-align: right; }
+
 .poem.vc-center {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: 100%;
 }
+
+.poem-line em { font-style: italic; }
+.poem-line strong { font-weight: 700; }
 
 .vc-continued {
   ${fontDecls(typography.runningHead)}
@@ -483,7 +486,6 @@ function matterRules(project: Project): string {
 }
 .section-open h1 {
   ${fontDecls(typography.sectionTitle)}
-  string-set: sectionTitle content(text);
   margin: 0;
 }
 .section-open .section-subtitle {

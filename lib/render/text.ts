@@ -43,7 +43,36 @@ export function countLines(body: string): number {
 /** First line of verse, used by the index of first lines. */
 export function firstLine(body: string): string {
   const stanzas = parseStanzas(body);
-  return stanzas[0]?.lines[0]?.trim() ?? '';
+  return stripInlineMarkup(stanzas[0]?.lines[0]?.trim() ?? '');
+}
+
+/**
+ * Inline emphasis, as a lightweight markup inside the plain-text body.
+ *
+ * The body has to stay a plain string: it is what the editor edits, what the
+ * importer writes, what the repair view splits and joins, and what round-trips
+ * through the project JSON. Storing runs of styled text instead would infect
+ * all of that. So emphasis is written the way people already write it in a
+ * plain-text field — *italic* and **bold** — and an asterisk that is meant
+ * literally is escaped as \*.
+ */
+const ESCAPED_STAR = '\u0000';
+
+export function renderInlineMarkup(escaped: string): string {
+  const protectedText = escaped.replace(/\\\*/g, ESCAPED_STAR);
+  const bolded = protectedText.replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, '<strong>$1</strong>');
+  const emphasised = bolded.replace(/\*(?=\S)([^*\n]*?\S)\*/g, '<em>$1</em>');
+  return emphasised.split(ESCAPED_STAR).join('*');
+}
+
+/** The same text with its markup removed, for counting and for running heads. */
+export function stripInlineMarkup(value: string): string {
+  return value
+    .replace(/\\\*/g, ESCAPED_STAR)
+    .replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, '$1')
+    .replace(/\*(?=\S)([^*\n]*?\S)\*/g, '$1')
+    .split(ESCAPED_STAR)
+    .join('*');
 }
 
 export function escapeHtml(value: string): string {
@@ -62,14 +91,14 @@ export function escapeHtml(value: string): string {
  */
 export function escapeVerseLine(line: string): string {
   const match = /^[ \t]+/.exec(line);
-  if (!match) return escapeHtml(line);
+  if (!match) return renderInlineMarkup(escapeHtml(line));
   const indent = match[0].replace(/\t/g, '    ').replace(/ /g, NBSP);
-  return indent + escapeHtml(line.slice(match[0].length));
+  return indent + renderInlineMarkup(escapeHtml(line.slice(match[0].length)));
 }
 
 /** Renders arbitrary user prose (front matter, blurbs) preserving line breaks. */
 export function escapeBlock(value: string): string {
-  return escapeHtml(value).replace(/\n/g, '<br>');
+  return renderInlineMarkup(escapeHtml(value)).replace(/\n/g, '<br>');
 }
 
 /** Escapes a string for use inside a CSS `content: "..."` declaration. */

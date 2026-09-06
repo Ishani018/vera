@@ -1,33 +1,30 @@
 'use client';
 
-import { useMemo } from 'react';
-import { countLines, parseStanzas } from '@/lib/render/text';
+import { useMemo, useRef, useState } from 'react';
+import { repairStats } from '@/lib/repair';
+import { parseStanzas } from '@/lib/render/text';
 import { useStore } from '@/lib/store';
+import type { Align, Poem } from '@/lib/types';
 import { Modal } from './Modal';
-import { Button, Field, Select, TextArea, TextInput } from './ui';
+import { RepairView } from './RepairView';
+import { Button, Field, Select, TextArea, TextInput, cx } from './ui';
+
+type Tab = 'text' | 'repair';
 
 export function PoemEditor() {
   const project = useStore((s) => s.project);
   const selectedPoemId = useStore((s) => s.selectedPoemId);
   const select = useStore((s) => s.select);
   const update = useStore((s) => s.update);
+  const [tab, setTab] = useState<Tab>('text');
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const poem = project?.poems.find((p) => p.id === selectedPoemId);
-
-  const stats = useMemo(() => {
-    if (!poem) return null;
-    const stanzas = parseStanzas(poem.body);
-    const lines = countLines(poem.body);
-    const longest = stanzas.reduce(
-      (max, s) => Math.max(max, ...s.lines.map((l) => l.length)),
-      0,
-    );
-    return { stanzas: stanzas.length, lines, longest };
-  }, [poem]);
+  const stats = useMemo(() => (poem ? repairStats(poem.body) : null), [poem]);
 
   if (!project || !poem) return null;
 
-  const edit = (patch: Partial<typeof poem>) =>
+  const edit = (patch: Partial<Poem>) =>
     update((draft) => {
       const found = draft.poems.find((p) => p.id === poem.id);
       if (found) Object.assign(found, patch);
@@ -40,17 +37,49 @@ export function PoemEditor() {
     select(null);
   };
 
+  /**
+   * Wraps the selection in the body field. Emphasis is markup inside the plain
+   * text rather than a styled editor, so this is what a toolbar button does:
+   * put the asterisks in, and put the cursor back where it was.
+   */
+  const wrapSelection = (marker: string) => {
+    const field = bodyRef.current;
+    if (!field) return;
+    const { selectionStart: start, selectionEnd: end, value } = field;
+    if (start === end) return;
+    const selected = value.slice(start, end);
+
+    // Clicking again on already-wrapped text takes the markup off.
+    const already =
+      value.slice(start - marker.length, start) === marker &&
+      value.slice(end, end + marker.length) === marker;
+
+    const next = already
+      ? value.slice(0, start - marker.length) + selected + value.slice(end + marker.length)
+      : value.slice(0, start) + marker + selected + marker + value.slice(end);
+
+    edit({ body: next });
+    requestAnimationFrame(() => {
+      field.focus();
+      const shift = already ? -marker.length : marker.length;
+      field.setSelectionRange(start + shift, end + shift);
+    });
+  };
+
   return (
     <Modal
-      title="Edit poem"
+      title={poem.title.trim() || 'Untitled poem'}
       onClose={() => select(null)}
       width="max-w-3xl"
       footer={
         <>
           {stats && (
             <span className="mr-auto text-[11px] tabular-nums text-ink-400">
-              {stats.lines} lines · {stats.stanzas} stanza{stats.stanzas === 1 ? '' : 's'} · longest
-              line {stats.longest} characters
+              {stats.lines} lines · {stats.stanzas} stanza{stats.stanzas === 1 ? '' : 's'} ·
+              longest line {stats.longestLine}
+              {stats.longLines > 0 && (
+                <span className="text-amber-300"> · {stats.longLines} over the measure</span>
+              )}
             </span>
           )}
           <Button variant="danger" onClick={remove}>
@@ -62,51 +91,113 @@ export function PoemEditor() {
         </>
       }
     >
-      <div className="space-y-4">
-        <Field label="Title">
-          <TextInput value={poem.title} onChange={(e) => edit({ title: e.target.value })} />
-        </Field>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Epigraph" hint="Set above the first stanza, in italic.">
-            <TextInput value={poem.epigraph} onChange={(e) => edit({ epigraph: e.target.value })} />
-          </Field>
-          <Field label="Dedication" hint="Printed under the title.">
-            <TextInput
-              value={poem.dedication}
-              onChange={(e) => edit({ dedication: e.target.value })}
-            />
-          </Field>
-        </div>
-
-        {project.sections.length > 0 && (
-          <Field label="Part">
-            <Select
-              value={poem.sectionId ?? ''}
-              onChange={(value) => edit({ sectionId: value || null })}
-              options={[
-                { value: '', label: 'No part' },
-                ...project.sections.map((s) => ({ value: s.id, label: s.title })),
-              ]}
-            />
-          </Field>
-        )}
-
-        <Field
-          label="Body"
-          hint="Every line break here is a line break in the book. Blank lines separate stanzas; leading spaces are kept."
-        >
-          <TextArea
-            value={poem.body}
-            onChange={(e) => edit({ body: e.target.value })}
-            rows={20}
-            spellCheck={false}
-            /* Monospace while editing so indentation is countable, even though
-               the book is set in a serif. */
-            className="font-mono text-[12.5px] leading-6"
-          />
-        </Field>
+      <div className="mb-4 inline-flex rounded-md border border-ink-700 bg-ink-950 p-0.5">
+        {(
+          [
+            ['text', 'Text'],
+            ['repair', stats?.longLines ? `Line breaks (${stats.longLines})` : 'Line breaks'],
+          ] as Array<[Tab, string]>
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            className={cx(
+              'rounded px-3 py-1 transition-colors',
+              tab === value ? 'bg-ink-700 text-ink-200' : 'text-ink-400 hover:text-ink-200',
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      {tab === 'repair' ? (
+        <RepairView body={poem.body} onChange={(body) => edit({ body })} />
+      ) : (
+        <div className="space-y-4">
+          <Field label="Title" hint="Leave empty for an untitled poem — it gets no heading, no running head and no contents entry.">
+            <TextInput value={poem.title} onChange={(e) => edit({ title: e.target.value })} />
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Epigraph" hint="Set above the first stanza, in italic.">
+              <TextInput value={poem.epigraph} onChange={(e) => edit({ epigraph: e.target.value })} />
+            </Field>
+            <Field label="Dedication" hint="Printed under the title.">
+              <TextInput
+                value={poem.dedication}
+                onChange={(e) => edit({ dedication: e.target.value })}
+              />
+            </Field>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Alignment" hint="For shaped poems. Turns off the turnover indent.">
+              <Select<Align | 'inherit'>
+                value={poem.align ?? 'inherit'}
+                onChange={(value) => edit({ align: value === 'inherit' ? undefined : value })}
+                options={[
+                  { value: 'inherit', label: 'Flush left (the book default)' },
+                  { value: 'center', label: 'Centred' },
+                  { value: 'right', label: 'Ranged right' },
+                ]}
+              />
+            </Field>
+            {project.sections.length > 0 && (
+              <Field label="Part">
+                <Select
+                  value={poem.sectionId ?? ''}
+                  onChange={(value) => edit({ sectionId: value || null })}
+                  options={[
+                    { value: '', label: 'No part' },
+                    ...project.sections.map((s) => ({ value: s.id, label: s.title })),
+                  ]}
+                />
+              </Field>
+            )}
+          </div>
+
+          <div>
+            <div className="mb-1.5 flex items-center gap-2">
+              <span className="flex-1 text-[11px] font-medium uppercase tracking-wider text-ink-400">
+                Body
+              </span>
+              <Button onClick={() => wrapSelection('*')} title="Italic (wraps the selection in *)">
+                <em>I</em>
+              </Button>
+              <Button onClick={() => wrapSelection('**')} title="Bold (wraps the selection in **)">
+                <strong>B</strong>
+              </Button>
+            </div>
+            <TextArea
+              ref={bodyRef}
+              value={poem.body}
+              onChange={(e) => edit({ body: e.target.value })}
+              rows={18}
+              spellCheck={false}
+              className="font-mono text-[12.5px] leading-6"
+            />
+            <p className="mt-1 text-[11px] text-ink-400">
+              Every line break here is a line break in the book. Blank lines separate stanzas;
+              leading spaces are kept. Select text and use I or B for emphasis — or type{' '}
+              <code className="text-ink-300">*italic*</code> and{' '}
+              <code className="text-ink-300">**bold**</code> directly. A literal asterisk is{' '}
+              <code className="text-ink-300">\*</code>.
+            </p>
+          </div>
+
+          {stats && stats.longLines > 0 && (
+            <p className="text-[11px] text-amber-300">
+              {stats.longLines} line{stats.longLines === 1 ? '' : 's'} longer than the measure.
+              The <strong>Line breaks</strong> tab can split them.
+            </p>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }
+
+/** Kept for the poem list's line count, which does not need the full stats. */
+export const countStanzas = (body: string) => parseStanzas(body).length;

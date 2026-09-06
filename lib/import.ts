@@ -233,6 +233,11 @@ function decodeEntities(value: string): string {
  * paragraph's text; a Word heading becomes a markdown heading, so a manuscript
  * whose titles are styled as headings gets its titles recognised for free.
  */
+// Emphasis is carried through as sentinels so that asterisks already in the
+// poem can be escaped without escaping the ones being added.
+const EM = '\u0001';
+const STRONG = '\u0002';
+
 export function docxHtmlToVerse(html: string): string {
   const blocks: string[] = [];
   const blockPattern = /<(p|h[1-6]|li)\b[^>]*>([\s\S]*?)<\/\1>/gi;
@@ -241,8 +246,16 @@ export function docxHtmlToVerse(html: string): string {
     const tag = match[1].toLowerCase();
     const inner = match[2]
       .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/?(?:em|i)\b[^>]*>/gi, EM)
+      .replace(/<\/?(?:strong|b)\b[^>]*>/gi, STRONG)
       .replace(/<[^>]+>/g, '');
-    const text = decodeEntities(inner);
+
+    const text = decodeEntities(inner)
+      .replace(/\*/g, '\\*')
+      .split(EM)
+      .join('*')
+      .split(STRONG)
+      .join('**');
 
     if (!text.trim()) {
       blocks.push('');

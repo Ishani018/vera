@@ -11,6 +11,7 @@ import {
   firstLine,
   indexSortKey,
   parseStanzas,
+  stripInlineMarkup,
 } from './text';
 
 /** Front-matter pages that carry no folio and no running head. */
@@ -51,7 +52,11 @@ function renderPoem(poem: Poem, project: Project): string {
     lines <= project.layout.shortPoemMaxLines;
 
   const parts: string[] = [];
-  parts.push(`<h2 class="poem-title" id="${poemAnchor(poem)}">${escapeHtml(poem.title)}</h2>`);
+  // An untitled poem gets no title element at all. An empty one would still
+  // occupy the space below a title and would set an empty running head.
+  if (poem.title.trim()) {
+    parts.push(`<h2 class="poem-title">${escapeHtml(poem.title)}</h2>`);
+  }
   if (poem.epigraph.trim()) {
     parts.push(`<p class="poem-epigraph">${escapeBlock(poem.epigraph)}</p>`);
   }
@@ -65,7 +70,9 @@ function renderPoem(poem: Poem, project: Project): string {
     parts.push(`<div class="stanza">${body}</div>`);
   }
 
-  return `<article class="poem${centered ? ' vc-center' : ''}" data-poem-id="${escapeHtml(poem.id)}" data-title="${escapeHtml(poem.title)}">${parts.join('')}</article>`;
+  // The anchor lives on the article, not the title, so an untitled poem is
+  // still a link target for the index of first lines.
+  return `<article class="poem${centered ? ' vc-center' : ''}" id="${poemAnchor(poem)}" data-poem-id="${escapeHtml(poem.id)}" data-align="${poem.align ?? 'inherit'}" data-title="${escapeHtml(poem.title)}" data-head="${escapeHtml(stripInlineMarkup(poem.title))}">${parts.join('')}</article>`;
 }
 
 function renderOrnament(project: Project): string {
@@ -135,14 +142,16 @@ function renderToc(project: Project, order: BookOrder): string {
   const poemItem = (poem: Poem) =>
     `<li class="toc-item is-poem"><a class="toc-entry" href="#${poemAnchor(poem)}"><span class="toc-entry-title">${escapeHtml(poem.title)}</span><span class="toc-leader"></span></a></li>`;
 
+  const titled = (poems: Poem[]) => poems.filter((p) => p.title.trim());
+
   if (toc.includePoems) {
-    order.loose.forEach((p) => items.push(poemItem(p)));
+    titled(order.loose).forEach((p) => items.push(poemItem(p)));
   }
   for (const group of order.grouped) {
     items.push(
       `<li class="toc-item is-section"><a class="toc-entry" href="#${sectionAnchor(group.section)}"><span class="toc-entry-title">${escapeHtml(group.section.title)}</span><span class="toc-leader"></span></a></li>`,
     );
-    if (toc.includePoems) group.poems.forEach((p) => items.push(poemItem(p)));
+    if (toc.includePoems) titled(group.poems).forEach((p) => items.push(poemItem(p)));
   }
 
   if (!items.length) return '';
@@ -214,6 +223,12 @@ export function buildBookHtml(project: Project, options: RenderOptions): string 
     },
     postToParent: preview,
     autoPrint: Boolean(options.autoPrint),
+    heads: {
+      verso: project.headers.verso,
+      recto: project.headers.recto,
+      bookTitle: project.meta.title,
+      author: project.meta.author,
+    },
   };
 
   return `<!doctype html>
