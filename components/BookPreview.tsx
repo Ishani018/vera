@@ -5,7 +5,7 @@ import { fetchFontCss } from '@/lib/fontsClient';
 import { PAGEDJS_SRC } from '@/lib/exportClient';
 import { buildBookHtml } from '@/lib/render/bookHtml';
 import { pageGeometry } from '@/lib/render/css';
-import type { ViewMessage } from '@/lib/render/viewer';
+import type { HighlightMessage, ViewMessage } from '@/lib/render/viewer';
 import { useStore, type PageInfo } from '@/lib/store';
 import { Button, SegmentedControl, cx } from './ui';
 
@@ -31,6 +31,9 @@ export function BookPreview() {
   const paginating = useStore((s) => s.paginating);
   const setPagination = useStore((s) => s.setPagination);
   const setPaginating = useStore((s) => s.setPaginating);
+  const highlight = useStore((s) => s.highlight);
+  const positioned = useStore((s) => s.positioned);
+  const setPositioned = useStore((s) => s.setPositioned);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -122,6 +125,30 @@ export function BookPreview() {
     sendView(currentSpread);
   }, [sendView, currentSpread, pageCount, srcDoc]);
 
+  /**
+   * A book opens on its half title, which is nearly blank and reads as a broken
+   * preview. So the first pagination jumps to where the poems start — once
+   * only, or it would fight every navigation afterwards.
+   */
+  useEffect(() => {
+    if (positioned || !pages.length) return;
+    const first = pages.findIndex((p) => p.kind === 'poem' || p.kind === 'section');
+    setPositioned(true);
+    if (first > 0) setSpread(Math.floor((first + 1) / 2));
+  }, [pages, positioned, setPositioned, setSpread]);
+
+  /** Flash whatever the last-touched setting governs, once the pages exist. */
+  useEffect(() => {
+    if (!highlight || !pageCount) return;
+    const timer = setTimeout(() => {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'versecraft:highlight', selector: highlight.selector } satisfies HighlightMessage,
+        '*',
+      );
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [highlight, pageCount, srcDoc]);
+
   const go = useCallback(
     (delta: number) => {
       const next = Math.max(0, Math.min(currentSpread + delta, maxSpread));
@@ -177,7 +204,12 @@ export function BookPreview() {
             <Button onClick={() => go(-1)} disabled={currentSpread === 0} aria-label="Previous spread">
               ←
             </Button>
-            <span className="min-w-24 text-center tabular-nums text-ink-300">{visible}</span>
+            <span className="min-w-48 px-1 text-center">
+              <span className="block tabular-nums text-ink-300">{visible.folios}</span>
+              <span className="block truncate text-[11px] text-ink-400" title={visible.captions}>
+                {visible.captions}
+              </span>
+            </span>
             <Button onClick={() => go(1)} disabled={currentSpread >= maxSpread} aria-label="Next spread">
               →
             </Button>
@@ -257,12 +289,18 @@ export function BookPreview() {
   );
 }
 
-function spreadLabels(pages: PageInfo[], spread: number): string {
-  if (!pages.length) return '—';
+/**
+ * What the reader is looking at, in folios and in words. A blank-looking page
+ * should say "Half title" or "Blank page" rather than leave someone wondering
+ * whether the preview has broken.
+ */
+function spreadLabels(pages: PageInfo[], spread: number): { folios: string; captions: string } {
+  if (!pages.length) return { folios: '—', captions: '' };
   const left = spread <= 0 ? null : pages[spread * 2 - 1];
   const right = spread <= 0 ? pages[0] : pages[spread * 2];
-  const format = (page: PageInfo | undefined | null) =>
-    page ? (page.blank ? '·' : page.label) : '';
-  const parts = [format(left), format(right)].filter(Boolean);
-  return parts.join(' – ') || '—';
+  const shown = [left, right].filter((p): p is PageInfo => Boolean(p));
+
+  const folios = shown.map((p) => (p.blank ? '·' : p.label)).join(' – ') || '—';
+  const captions = [...new Set(shown.map((p) => p.caption).filter(Boolean))].join('  ·  ');
+  return { folios, captions };
 }

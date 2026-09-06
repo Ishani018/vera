@@ -552,7 +552,21 @@ ${guideRules()}
 
 ${
   opts.screen
-    ? `.pagedjs_pages { padding: 24px 0 48px; }
+    ? `/* The flash a setting change leaves on whatever it touched. Screen only —
+     it must never reach a printed page. */
+.vc-flash {
+  animation: vc-flash 1.1s ease-out;
+  border-radius: 2px;
+}
+@keyframes vc-flash {
+  0%, 55% { background-color: rgba(200, 164, 92, 0.42); box-shadow: 0 0 0 3px rgba(200, 164, 92, 0.42); }
+  100% { background-color: transparent; box-shadow: 0 0 0 3px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vc-flash { animation-duration: 0.01ms; outline: 2px solid rgba(200, 164, 92, 0.8); }
+}
+
+.pagedjs_pages { padding: 24px 0 48px; }
 .pagedjs_page { margin: 0 auto 22px; background: #fff; box-shadow: 0 6px 22px rgba(0,0,0,0.35); }
 .pagedjs_page.vc-blank { background: #fff; }`
     : ''

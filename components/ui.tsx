@@ -280,15 +280,25 @@ export function SegmentedControl<T extends string>({
 
 export function Accordion({
   title,
+  description,
   open,
   onToggle,
   badge,
+  onAnyChange,
   children,
 }: {
   title: string;
+  /** One line saying what this section does, so a collapsed heading is not a riddle. */
+  description?: string;
   open: boolean;
   onToggle: () => void;
   badge?: ReactNode;
+  /**
+   * Fired when any control inside changes. Used to flash the part of the
+   * preview this section governs — captured rather than wired per control, so
+   * adding a control never means remembering to wire it.
+   */
+  onAnyChange?: () => void;
   children: ReactNode;
 }) {
   return (
@@ -297,21 +307,40 @@ export function Accordion({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-ink-850"
+        className="flex w-full items-start gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-ink-850"
       >
         <svg
           viewBox="0 0 12 12"
           aria-hidden
-          className={cx('h-3 w-3 shrink-0 text-ink-400 transition-transform', open && 'rotate-90')}
+          className={cx(
+            'mt-0.5 h-3 w-3 shrink-0 text-ink-400 transition-transform',
+            open && 'rotate-90',
+          )}
         >
           <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" />
         </svg>
-        <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-ink-300">
-          {title}
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-semibold uppercase tracking-wider text-ink-300">
+            {title}
+          </span>
+          {description && (
+            <span className="mt-0.5 block text-[11px] leading-snug text-ink-500">
+              {description}
+            </span>
+          )}
         </span>
         {badge}
       </button>
-      {open && <div className="space-y-3 px-3.5 pb-4 pt-0.5">{children}</div>}
+      {open && (
+        <div
+          className="space-y-3 px-3.5 pb-4 pt-0.5"
+          onChangeCapture={onAnyChange}
+          onInputCapture={onAnyChange}
+          onClickCapture={onAnyChange}
+        >
+          {children}
+        </div>
+      )}
     </section>
   );
 }

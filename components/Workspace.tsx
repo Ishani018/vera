@@ -7,7 +7,8 @@ import { CoverDesigner } from './CoverDesigner';
 import { PoemEditor } from './PoemEditor';
 import { PoemList } from './PoemList';
 import { SettingsPanel } from './SettingsPanel';
-import { cx } from './ui';
+import { Walkthrough, useWalkthrough } from './Walkthrough';
+import { Button, cx } from './ui';
 
 type Tab = 'book' | 'cover';
 
@@ -16,7 +17,9 @@ export function Workspace() {
   const project = useStore((s) => s.project);
   const init = useStore((s) => s.init);
   const pageCount = useStore((s) => s.pageCount);
+  const setImportOpen = useStore((s) => s.setImportOpen);
   const [tab, setTab] = useState<Tab>('book');
+  const walkthrough = useWalkthrough();
 
   useEffect(() => {
     void init();
@@ -65,6 +68,15 @@ export function Workspace() {
         <span className="ml-auto tabular-nums text-[11px] text-ink-500">
           {pageCount ? `${pageCount} pages` : 'paginating…'}
         </span>
+        <Button
+          variant="ghost"
+          onClick={() =>
+            walkthrough.update({ step: walkthrough.progress.step, dismissed: false })
+          }
+          title="Reopen the getting-started walkthrough"
+        >
+          Guide
+        </Button>
       </header>
 
       {tab === 'book' ? (
@@ -86,6 +98,13 @@ export function Workspace() {
       )}
 
       <PoemEditor />
+      <Walkthrough
+        {...walkthrough}
+        onOpenImport={() => {
+          setTab('book');
+          setImportOpen(true);
+        }}
+      />
     </main>
   );
 }

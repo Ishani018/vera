@@ -21,12 +21,13 @@ import { useMemo, useState } from 'react';
 
 import { id } from '@/lib/defaults';
 import { orderBook } from '@/lib/render/bookHtml';
+import { repairStats } from '@/lib/repair';
 import { countLines } from '@/lib/render/text';
 import { countSamplePoems } from '@/lib/samples';
 import { useStore } from '@/lib/store';
 import type { Poem, Project, Section } from '@/lib/types';
 import { ImportDialog } from './ImportDialog';
-import { Button, cx } from './ui';
+import { Button, TextInput, cx } from './ui';
 
 type Row =
   | { kind: 'section'; key: string; section: Section }
@@ -74,7 +75,10 @@ export function PoemList() {
   const select = useStore((s) => s.select);
   const selectedPoemId = useStore((s) => s.selectedPoemId);
   const clearSamplePoems = useStore((s) => s.clearSamplePoems);
-  const [importing, setImporting] = useState(false);
+  const filter = useStore((s) => s.poemFilter);
+  const setFilter = useStore((s) => s.setPoemFilter);
+  const importing = useStore((s) => s.importOpen);
+  const setImporting = useStore((s) => s.setImportOpen);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const sensors = useSensors(
@@ -82,8 +86,32 @@ export function PoemList() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const rows = useMemo(() => (project ? buildRows(project) : []), [project]);
+  const allRows = useMemo(() => (project ? buildRows(project) : []), [project]);
   const sampleCount = project ? countSamplePoems(project) : 0;
+
+  const needle = filter.trim().toLowerCase();
+  // Filtering hides rows, so dragging while filtered would reorder against a
+  // sequence the poet cannot see. Reordering is switched off instead.
+  const rows = useMemo(() => {
+    if (!needle) return allRows;
+    return allRows.filter((row) =>
+      row.kind === 'poem'
+        ? row.poem.title.toLowerCase().includes(needle) ||
+          row.poem.body.toLowerCase().includes(needle)
+        : row.section.title.toLowerCase().includes(needle),
+    );
+  }, [allRows, needle]);
+
+  const warnings = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of allRows) {
+      if (row.kind !== 'poem') continue;
+      const stats = repairStats(row.poem.body);
+      const count = stats.suggestions + stats.longLines;
+      if (count) map.set(row.poem.id, count);
+    }
+    return map;
+  }, [allRows]);
 
   if (!project) return null;
 
@@ -133,6 +161,9 @@ export function PoemList() {
           <span className="font-normal normal-case tracking-normal text-ink-400">
             {project.poems.length} poem{project.poems.length === 1 ? '' : 's'}
             {project.sections.length > 0 && `, ${project.sections.length} parts`}
+            {warnings.size > 0 && (
+              <span className="text-amber-300"> · {warnings.size} to check</span>
+            )}
           </span>
         </h2>
         {/* Its own row: at 220px the pane is too narrow to sit these beside a heading. */}
@@ -147,6 +178,27 @@ export function PoemList() {
             Import
           </Button>
         </div>
+        {project.poems.length > 4 && (
+          <div className="relative">
+            <TextInput
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Search titles and lines…"
+              aria-label="Search poems"
+              className="pr-6"
+            />
+            {filter && (
+              <button
+                type="button"
+                onClick={() => setFilter('')}
+                aria-label="Clear search"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1 text-ink-500 hover:text-ink-200"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       {sampleCount > 0 && (
@@ -179,11 +231,35 @@ export function PoemList() {
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
+        {needle && (
+          <p className="px-3 pb-1.5 text-[11px] text-ink-500">
+            {rows.length} match{rows.length === 1 ? '' : 'es'} · reordering is off while filtered
+          </p>
+        )}
         {rows.length === 0 ? (
           <p className="px-4 py-8 text-center text-ink-400">
-            No poems yet. Use <strong className="text-ink-300">Import</strong> to paste or upload a
-            manuscript, or add one by hand.
+            {needle ? (
+              <>Nothing matches “{filter}”.</>
+            ) : (
+              <>
+                No poems yet. Use <strong className="text-ink-300">Import</strong> to paste or
+                upload a manuscript, or add one by hand.
+              </>
+            )}
           </p>
+        ) : needle ? (
+          rows.map((row) =>
+            row.kind === 'poem' ? (
+              <PoemRow
+                key={row.key}
+                poem={row.poem}
+                warnings={warnings.get(row.poem.id) ?? 0}
+                selected={row.poem.id === selectedPoemId}
+                onSelect={() => select(row.poem.id)}
+                draggable={false}
+              />
+            ) : null,
+          )
         ) : (
           <DndContext
             sensors={sensors}
@@ -199,6 +275,7 @@ export function PoemList() {
                   <PoemRow
                     key={row.key}
                     poem={row.poem}
+                    warnings={warnings.get(row.poem.id) ?? 0}
                     selected={row.poem.id === selectedPoemId}
                     onSelect={() => select(row.poem.id)}
                   />
@@ -237,27 +314,36 @@ function DragHandle({ listeners, attributes }: { listeners?: object; attributes?
 function PoemRow({
   poem,
   selected,
+  warnings,
   onSelect,
+  draggable = true,
 }: {
   poem: Poem;
   selected: boolean;
+  warnings: number;
   onSelect: () => void;
+  draggable?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: poem.id,
+    disabled: !draggable,
   });
   const lines = countLines(poem.body);
 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={draggable ? { transform: CSS.Transform.toString(transform), transition } : undefined}
       className={cx(
         'group flex items-center gap-1 pl-2 pr-2',
         isDragging && 'relative z-10 opacity-90',
       )}
     >
-      <DragHandle listeners={listeners} attributes={attributes} />
+      {draggable ? (
+        <DragHandle listeners={listeners} attributes={attributes} />
+      ) : (
+        <span className="w-[18px] shrink-0" />
+      )}
       <button
         type="button"
         onClick={onSelect}
@@ -266,10 +352,29 @@ function PoemRow({
           selected ? 'bg-brass-500/15 text-brass-300' : 'hover:bg-ink-850',
         )}
       >
-        <span className="block truncate">{poem.title || <em className="text-ink-400">Untitled</em>}</span>
+        <span className="flex items-baseline gap-1.5">
+          <span className="min-w-0 flex-1 truncate">
+            {poem.title || <em className="text-ink-400">Untitled</em>}
+          </span>
+          {warnings > 0 && (
+            <span
+              aria-hidden
+              title={`${warnings} line${warnings === 1 ? '' : 's'} to check`}
+              className="shrink-0 text-[13px] leading-none text-amber-400"
+            >
+              •
+            </span>
+          )}
+        </span>
         <span className="block truncate text-[11px] text-ink-400">
           {lines ? `${lines} line${lines === 1 ? '' : 's'}` : 'empty'}
           {poem.sampleKey ? ' · placeholder' : ''}
+          {warnings > 0 && (
+            <span className="text-amber-400/90">
+              {' · '}
+              {warnings} to check
+            </span>
+          )}
         </span>
       </button>
     </div>

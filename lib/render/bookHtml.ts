@@ -131,7 +131,7 @@ function renderMatterPage(page: MatterPage, project: Project): string {
   // skipped when it looks for the node before a `break-before`. That silently
   // dropped every front-matter page break. Alignment goes through data-align
   // and the stylesheet instead. `tests/render.test.mjs` guards this.
-  return `<div class="matter-page" data-kind="${page.kind}" data-v="${page.verticalPosition}" data-align="${page.align}" data-recto="${page.startsRecto}" data-display="${display}">${heading}${renderMatterBody(page, project)}</div>`;
+  return `<div class="matter-page" data-kind="${page.kind}" data-label="${escapeHtml(page.label)}" data-v="${page.verticalPosition}" data-align="${page.align}" data-recto="${page.startsRecto}" data-display="${display}">${heading}${renderMatterBody(page, project)}</div>`;
 }
 
 function renderToc(project: Project, order: BookOrder): string {

@@ -13,6 +13,10 @@ export type PageInfo = {
   label: string;
   side: 'left' | 'right';
   blank: boolean;
+  /** What sort of page this is, for the viewer's own labelling. */
+  kind: 'matter' | 'toc' | 'section' | 'poem' | 'index' | 'blank' | 'other';
+  /** What to call it: "Half title", "Contents", the poem's name. */
+  caption: string;
 };
 
 export type PreviewMode = 'spread' | 'scroll' | 'grid';
@@ -37,6 +41,22 @@ type State = {
   currentSpread: number;
   guides: Guides;
   panel: string | null;
+  /**
+   * A CSS selector for whatever the last-touched setting affects. The preview
+   * flashes it after re-paginating, so a change to a control on the right is
+   * visible in the book in the middle.
+   */
+  highlight: { selector: string; at: number } | null;
+  /**
+   * Whether the preview has been moved to the body once. A book opens on its
+   * half title, which is nearly blank and reads as a broken preview, so the
+   * first pagination jumps to the first poem — but only the first, or it would
+   * fight every navigation afterwards.
+   */
+  positioned: boolean;
+  poemFilter: string;
+  /** Held here so the walkthrough can open the importer, not just the list. */
+  importOpen: boolean;
 };
 
 type Actions = {
@@ -46,6 +66,10 @@ type Actions = {
   clearSamplePoems: () => void;
   seedSamplePoems: () => void;
   setPagination: (pageCount: number, pages: PageInfo[]) => void;
+  setHighlight: (selector: string) => void;
+  setPositioned: (v: boolean) => void;
+  setPoemFilter: (value: string) => void;
+  setImportOpen: (open: boolean) => void;
   setPaginating: (v: boolean) => void;
   select: (poemId: string | null) => void;
   selectMatter: (matterId: string | null) => void;
@@ -78,6 +102,10 @@ export const useStore = create<State & Actions>((set, get) => ({
   currentSpread: 0,
   guides: { margins: true, bleed: false, safe: false, gutter: false },
   panel: 'trim',
+  highlight: null,
+  positioned: false,
+  poemFilter: '',
+  importOpen: false,
 
   init: async () => {
     const db = getDb();
@@ -121,7 +149,7 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   replaceProject: async (project) => {
     const db = getDb();
-    set({ project, status: 'ready' });
+    set({ project, status: 'ready', positioned: false, currentSpread: 0 });
     if (db) {
       await db.projects.put(project);
       window.localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
@@ -144,6 +172,10 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   setPagination: (pageCount, pages) => set({ pageCount, pages, paginating: false }),
+  setHighlight: (selector) => set({ highlight: { selector, at: Date.now() } }),
+  setPositioned: (positioned) => set({ positioned }),
+  setPoemFilter: (poemFilter) => set({ poemFilter }),
+  setImportOpen: (importOpen) => set({ importOpen }),
   setPaginating: (v) => set({ paginating: v }),
   select: (poemId) => set({ selectedPoemId: poemId, selectedMatterId: null }),
   selectMatter: (matterId) => set({ selectedMatterId: matterId, selectedPoemId: null }),

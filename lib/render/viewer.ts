@@ -21,6 +21,12 @@ export type ViewMessage = {
   turn?: 'forward' | 'back' | null;
 };
 
+/** Flashes everything a just-changed setting affects. */
+export type HighlightMessage = {
+  type: 'versecraft:highlight';
+  selector: string;
+};
+
 export const VIEWER_SCRIPT = String.raw`
 (function () {
   var STYLE_ID = 'vc-view-style';
@@ -175,8 +181,40 @@ export const VIEWER_SCRIPT = String.raw`
     setTimeout(finish, 230);
   }
 
+  /**
+   * Flashes every element a setting touches.
+   *
+   * The preview re-paginates wholesale on each edit, so there is nothing to
+   * diff — what can be shown is the category of thing the control governs. A
+   * change to the poem-title font flashes all poem titles, which is enough to
+   * answer "what did that do?".
+   */
+  var highlightTimer = null;
+  function highlight(selector) {
+    if (!selector) return;
+    var previous = document.querySelectorAll('.vc-flash');
+    for (var i = 0; i < previous.length; i++) previous[i].classList.remove('vc-flash');
+    if (highlightTimer) clearTimeout(highlightTimer);
+
+    var targets;
+    try {
+      targets = document.querySelectorAll(selector);
+    } catch (e) {
+      return;
+    }
+    if (!targets.length) return;
+    for (var j = 0; j < targets.length; j++) targets[j].classList.add('vc-flash');
+    highlightTimer = setTimeout(function () {
+      for (var k = 0; k < targets.length; k++) targets[k].classList.remove('vc-flash');
+    }, 1100);
+  }
+
   window.addEventListener('message', function (event) {
     var data = event.data;
+    if (data && data.type === 'versecraft:highlight') {
+      highlight(data.selector);
+      return;
+    }
     if (!data || data.type !== 'versecraft:view') return;
 
     var nextSpread = Math.max(0, Math.min(data.spread, maxSpread()));

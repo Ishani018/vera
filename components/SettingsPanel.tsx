@@ -57,44 +57,103 @@ export function SettingsPanel() {
   const panel = useStore((s) => s.panel);
   const setPanel = useStore((s) => s.setPanel);
   const pageCount = useStore((s) => s.pageCount);
+  const setHighlight = useStore((s) => s.setHighlight);
 
   if (!project) return null;
   const open = (key: string) => panel === key;
 
+  /**
+   * Each section says what it does, and names the part of the book it governs
+   * so the preview can flash it when something in that section changes.
+   */
+  const sections: Array<{
+    key: string;
+    title: string;
+    description: string;
+    highlight?: string;
+    badge?: React.ReactNode;
+    body: React.ReactNode;
+  }> = [
+    {
+      key: 'meta',
+      title: 'Book details',
+      description: 'Title, author, ISBN — printed on the title and copyright pages.',
+      highlight: '.matter-page',
+      body: <MetaPanel />,
+    },
+    {
+      key: 'trim',
+      title: 'Trim & margins',
+      description: 'Page size, paper stock and the margins KDP checks.',
+      highlight: '.pagedjs_page_content',
+      badge: <MarginBadge />,
+      body: <TrimPanel />,
+    },
+    {
+      key: 'type',
+      title: 'Typography',
+      description: 'The faces and sizes for verse, titles, headers and folios.',
+      highlight: '.poem-line, .poem-title',
+      body: <TypographyPanel />,
+    },
+    {
+      key: 'layout',
+      title: 'Poem layout',
+      description: 'Where poems start, stanza spacing, and the turnover indent.',
+      highlight: '.stanza',
+      body: <LayoutPanel />,
+    },
+    {
+      key: 'border',
+      title: 'Borders & ornaments',
+      description: 'Decorative frames, and the mark set between poems.',
+      highlight: '.ornament, .pagedjs_pagebox',
+      body: <BorderPanel />,
+    },
+    {
+      key: 'matter',
+      title: 'Front & back matter',
+      description: 'Half title, title page, copyright, dedication, acknowledgements.',
+      highlight: '.matter-page',
+      body: <MatterPanel />,
+    },
+    {
+      key: 'toc',
+      title: 'Contents',
+      description: 'The table of contents and the optional index of first lines.',
+      highlight: '.toc, .index-first-lines',
+      body: <TocPanel />,
+    },
+    {
+      key: 'headers',
+      title: 'Headers & folios',
+      description: 'What runs across the top of each page, and where the number sits.',
+      highlight: '.pagedjs_margin-content',
+      body: <HeadersPanel />,
+    },
+    {
+      key: 'export',
+      title: 'Export',
+      description: 'Checks to run before uploading, and the two PDFs KDP wants.',
+      body: <ExportPanel />,
+    },
+  ];
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-ink-900">
-      <Accordion title="Book details" open={open('meta')} onToggle={() => setPanel('meta')}>
-        <MetaPanel />
-      </Accordion>
-      <Accordion
-        title="Trim & margins"
-        open={open('trim')}
-        onToggle={() => setPanel('trim')}
-        badge={<MarginBadge />}
-      >
-        <TrimPanel />
-      </Accordion>
-      <Accordion title="Typography" open={open('type')} onToggle={() => setPanel('type')}>
-        <TypographyPanel />
-      </Accordion>
-      <Accordion title="Poem layout" open={open('layout')} onToggle={() => setPanel('layout')}>
-        <LayoutPanel />
-      </Accordion>
-      <Accordion title="Borders & ornaments" open={open('border')} onToggle={() => setPanel('border')}>
-        <BorderPanel />
-      </Accordion>
-      <Accordion title="Front & back matter" open={open('matter')} onToggle={() => setPanel('matter')}>
-        <MatterPanel />
-      </Accordion>
-      <Accordion title="Contents" open={open('toc')} onToggle={() => setPanel('toc')}>
-        <TocPanel />
-      </Accordion>
-      <Accordion title="Headers & folios" open={open('headers')} onToggle={() => setPanel('headers')}>
-        <HeadersPanel />
-      </Accordion>
-      <Accordion title="Export" open={open('export')} onToggle={() => setPanel('export')}>
-        <ExportPanel />
-      </Accordion>
+      {sections.map((section) => (
+        <Accordion
+          key={section.key}
+          title={section.title}
+          description={section.description}
+          open={open(section.key)}
+          onToggle={() => setPanel(section.key)}
+          badge={section.badge}
+          onAnyChange={section.highlight ? () => setHighlight(section.highlight!) : undefined}
+        >
+          {section.body}
+        </Accordion>
+      ))}
       <div className="px-3.5 py-3 text-[11px] text-ink-500">
         {pageCount > 0 && `${padToEven(pageCount)} pages after parity padding · `}
         saved locally, automatically

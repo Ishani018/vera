@@ -143,6 +143,46 @@ export const RUNTIME_SCRIPT = String.raw`
   }
 
   /**
+   * What a page is, in words. A reader flipping through the preview should
+   * never have to work out whether a blank-looking page is the half title, a
+   * padded blank, or a mistake.
+   */
+  function describePage(el) {
+    var content = el.querySelector('.pagedjs_page_content');
+    if (!content) return { kind: 'blank', caption: 'Blank page' };
+
+    var matter = content.querySelector('.matter-page');
+    if (matter) {
+      return {
+        kind: 'matter',
+        caption: matter.getAttribute('data-label') || 'Front matter',
+      };
+    }
+    var toc = content.querySelector('.toc h1');
+    if (toc) return { kind: 'toc', caption: (toc.textContent || 'Contents').trim() };
+
+    var index = content.querySelector('.index-first-lines h1');
+    if (index) return { kind: 'index', caption: (index.textContent || 'Index').trim() };
+
+    var section = content.querySelector('.section-open h1');
+    if (section) {
+      return { kind: 'section', caption: (section.textContent || 'Part').trim() };
+    }
+
+    var poem = content.querySelector('.poem');
+    if (poem) {
+      var title = (poem.getAttribute('data-title') || '').trim();
+      var name = title || 'Untitled poem';
+      // No title element on the page means the poem started earlier.
+      var continues = !poem.querySelector(':scope > .poem-title') && !!title;
+      return { kind: 'poem', caption: continues ? name + ' (cont.)' : name };
+    }
+
+    if (!(content.textContent || '').trim()) return { kind: 'blank', caption: 'Blank page' };
+    return { kind: 'other', caption: '' };
+  }
+
+  /**
    * Mirrors the folio the reader will see. Paged.js labels each page with the
    * named page it belongs to, and the stylesheet numbers frontmatter pages in
    * roman and the rest in arabic from 1. Blank pages carry no named-page class
@@ -164,11 +204,16 @@ export const RUNTIME_SCRIPT = String.raw`
       if (region === 'front') { frontCount += 1; label = roman(frontCount); }
       else { bodyCount += 1; label = String(bodyCount); }
 
+      var described = describePage(el);
+      var blank =
+        el.classList.contains('vc-blank') || el.classList.contains('pagedjs_blank_page');
       pages.push({
         pageNumber: i + 1,
         label: label,
         side: el.classList.contains('pagedjs_left_page') ? 'left' : 'right',
-        blank: el.classList.contains('vc-blank') || el.classList.contains('pagedjs_blank_page'),
+        blank: blank,
+        kind: blank ? 'blank' : described.kind,
+        caption: blank ? 'Blank page' : described.caption,
       });
     }
     return pages;
