@@ -233,4 +233,10 @@ export type RenderOptions = {
   guides: { margins: boolean; bleed: boolean; safe: boolean; gutter: boolean };
   /** Blank pages appended to reach an even count, known after a first pass. */
   padPages: number;
+  /**
+   * Open the browser's print dialog once pagination finishes. This is the
+   * fallback path when no server-side Chromium is available: the same Paged.js
+   * output, printed by the user's own browser.
+   */
+  autoPrint?: boolean;
 };

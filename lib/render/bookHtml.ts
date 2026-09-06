@@ -212,6 +212,7 @@ export function buildBookHtml(project: Project, options: RenderOptions): string 
       bleed: geo.bleed,
     },
     postToParent: preview,
+    autoPrint: Boolean(options.autoPrint),
   };
 
   return `<!doctype html>

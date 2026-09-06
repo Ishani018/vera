@@ -1,0 +1,105 @@
+@import 'tailwindcss';
+
+/*
+  The app chrome is dark so the book stays the brightest thing on screen — the
+  page is the subject, everything else is apparatus.
+*/
+@theme {
+  --color-ink-950: #0b0b0d;
+  --color-ink-900: #131317;
+  --color-ink-850: #191920;
+  --color-ink-800: #21212a;
+  --color-ink-700: #2e2e39;
+  --color-ink-600: #3d3d4a;
+  --color-ink-400: #7a7a8c;
+  --color-ink-300: #9d9dae;
+  --color-ink-200: #c6c6d2;
+  --color-brass-500: #c8a45c;
+  --color-brass-400: #d9b978;
+  --color-brass-300: #e6cf9d;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-ink-950);
+  color: var(--color-ink-200);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* Scrollbars that read as part of the chrome rather than the operating system. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-700) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-ink-700);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-600);
+  background-clip: content-box;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='color'] {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type='color']::-webkit-color-swatch {
+  border: 1px solid var(--color-ink-600);
+  border-radius: 5px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brass-500);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

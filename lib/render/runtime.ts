@@ -21,6 +21,8 @@ export type RuntimeConfig = {
   };
   /** Preview posts pagination results to the parent; export does not. */
   postToParent: boolean;
+  /** Raise the browser print dialog once the book has been laid out. */
+  autoPrint: boolean;
 };
 
 export const RUNTIME_SCRIPT = String.raw`
@@ -236,6 +238,13 @@ export const RUNTIME_SCRIPT = String.raw`
         { type: 'versecraft:paginated', pageCount: pages.length, pages: pages },
         '*'
       );
+    }
+    if (CONFIG.autoPrint) {
+      // One frame so the folios and cross-references written above are painted
+      // before the print dialog snapshots the document.
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { window.print(); });
+      });
     }
   }).catch(function (err) {
     window.__VC_ERROR__ = String((err && err.message) || err);
