@@ -135,3 +135,34 @@ Two separate PDFs, because KDP takes them as two separate uploads:
 
 Neither PDF carries crop marks — KDP rejects them. Fonts are embedded as
 subsets in both.
+
+### Font embedding
+
+This is a print requirement, not a preference, and it is easy to get silently
+wrong.
+
+Google Fonts' `css2` endpoint returns a **variable** font whenever more than one
+weight of a family is requested. Chromium cannot embed a variable-font instance
+in a PDF: it gives up and writes **Type3** glyph procedures — outlines drawn
+inline, with no embedded font program — which is exactly what a print service
+flags. The text still prints, but the file has no fonts in it.
+
+So font requests are split **one weight per URL**, with both styles at that
+weight, which keeps `css2` on static faces. The export fetches them with a
+legacy user agent, because Google serves woff2 to modern browsers and static
+TTF to everyone else, and the TTF is what Chromium embeds cleanly.
+
+Verified against Chromium on the seeded book: the interior comes out with
+`Type0` / `CIDFontType2` subsets and real `FontFile` entries, at less than half
+the size of the Type3 output it replaced. `tests/fonts.test.mjs` guards the
+one-weight-per-request rule.
+
+### One known imprecision
+
+Chromium quantises the PDF page width, so a cover whose width is not a clean
+fraction of an inch comes out up to **0.0017"** wider than the computed value
+(a 11.305" cover measures 11.3067"). It is unit-independent — inches, points and
+millimetres all round identically — and it only ever errs larger, so nothing is
+cut short. Against 0.125" of bleed on every edge it is 1.3% of the bleed, well
+inside KDP's tolerance. The interior, whose page sizes are clean fractions,
+comes out exact.

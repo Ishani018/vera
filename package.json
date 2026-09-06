@@ -9,7 +9,6 @@
     "prebuild": "node scripts/copy-vendor.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs --test tests/*.test.mjs",
     "check:render": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/render-check.mjs"
