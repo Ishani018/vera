@@ -117,3 +117,90 @@ test('imported poems get sequential order and the chosen section', () => {
   assert.deepEqual(poems.map((p) => p.sectionId), ['sec1', 'sec1']);
   assert.equal(new Set(poems.map((p) => p.id)).size, 2);
 });
+
+// --- filename as title -------------------------------------------------------
+
+import { firstLineIsTitleOf, poemsFromFile, titleFromFilename } from '../lib/import.ts';
+
+test('a filename becomes a title, with Google substitutions undone', () => {
+  assert.equal(titleFromFilename('Are we the same_.docx'), 'Are we the same');
+  assert.equal(titleFromFilename('It_s only fair_.docx'), "It's only fair");
+  assert.equal(titleFromFilename('What if it_s just me.docx'), "What if it's just me");
+  assert.equal(titleFromFilename('_What if.docx'), 'What if');
+  assert.equal(titleFromFilename('Lost letters (1).docx'), 'Lost letters');
+  assert.equal(titleFromFilename('Not Like The Rest.docx'), 'Not Like The Rest');
+});
+
+test('Google placeholder names produce an untitled poem, not a title', () => {
+  assert.equal(titleFromFilename('Untitled document.docx'), '');
+  assert.equal(titleFromFilename('untitled.docx'), '');
+  assert.equal(titleFromFilename('Untitled document (2).docx'), '');
+});
+
+test('a first line matching the filename is a title', () => {
+  assert.ok(firstLineIsTitleOf('Are we the same?', 'Are we the same'));
+  assert.ok(firstLineIsTitleOf('Love: A beautiful mistake', 'Love_ A beautiful mistake'));
+  assert.ok(firstLineIsTitleOf('Friends can break hearts too~', 'Friends can break hearts too'));
+  assert.ok(firstLineIsTitleOf('The Book of Life', 'The book of life'));
+  // A parenthetical dedication and a trailing date are part of a title.
+  assert.ok(firstLineIsTitleOf('The Dwindling Daisy(the one for Revathy)', 'The Dwindling Daisy'));
+  assert.ok(firstLineIsTitleOf('My last ode to you -21/6/2024', 'My last ode to you'));
+});
+
+test('a first line that is verse is not mistaken for a title', () => {
+  assert.equal(firstLineIsTitleOf('I closed my eyes,', "It's only fair"), false);
+  assert.equal(firstLineIsTitleOf('Your leaves were bright,', 'Not Like The Rest'), false);
+  assert.equal(firstLineIsTitleOf('Like a river,', 'Your Strongest Soilder'), false);
+  assert.equal(firstLineIsTitleOf('Chapter 2:', 'Lost letters'), false);
+  // The dangerous near-miss: a poem opening with its own title word.
+  assert.equal(
+    firstLineIsTitleOf('Forevermore, the leaves will fall.', 'Forevermore'),
+    false,
+    'a prefix is not a title unless almost nothing is left over',
+  );
+});
+
+test('an untitled document keeps every line of verse', () => {
+  const poems = poemsFromFile(
+    { name: 'Untitled document.docx', text: 'Close your eyes,\nAnd drift away,' },
+    DEFAULT_IMPORT_OPTIONS,
+  );
+  assert.equal(poems.length, 1);
+  assert.equal(poems[0].title, '');
+  assert.equal(poems[0].body, 'Close your eyes,\nAnd drift away,');
+});
+
+test('a document with no title line keeps its first line and takes the filename', () => {
+  const poems = poemsFromFile(
+    { name: 'Not Like The Rest.docx', text: 'Your leaves were bright,\nThe petals white.' },
+    DEFAULT_IMPORT_OPTIONS,
+  );
+  assert.equal(poems[0].title, 'Not Like The Rest');
+  assert.equal(poems[0].body, 'Your leaves were bright,\nThe petals white.');
+});
+
+test('a document with a title line uses its wording, not the sanitised filename', () => {
+  const poems = poemsFromFile(
+    { name: 'What if it_s just me.docx', text: "What if it's just me?\nWhat do you do," },
+    DEFAULT_IMPORT_OPTIONS,
+  );
+  assert.equal(poems[0].title, "What if it's just me?", 'the document keeps the apostrophe');
+  assert.equal(poems[0].body, 'What do you do,');
+});
+
+test('a file holding several poems falls back to the blob rules', () => {
+  const poems = poemsFromFile(
+    { name: 'Collection.docx', text: '# One\na\n\n---\n\n# Two\nb' },
+    DEFAULT_IMPORT_OPTIONS,
+  );
+  assert.deepEqual(poems.map((p) => p.title), ['One', 'Two']);
+});
+
+test('a markdown heading still wins over the filename', () => {
+  const poems = poemsFromFile(
+    { name: 'wrong-name.docx', text: '# The Real Title\nA line.' },
+    DEFAULT_IMPORT_OPTIONS,
+  );
+  assert.equal(poems[0].title, 'The Real Title');
+  assert.equal(poems[0].body, 'A line.');
+});

@@ -94,6 +94,89 @@ function markdownHeading(line: string): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * A filename Google Docs produced, turned back into a title.
+ *
+ * Google substitutes an underscore for the characters it cannot put in a
+ * filename — apostrophes, quotes, colons, question marks. An underscore
+ * between two letters is therefore almost always an apostrophe ("It_s"), and
+ * one at either end is punctuation that was dropped. A literal underscore in a
+ * poem title is rare enough that restoring the apostrophe is the better bet;
+ * anything it gets wrong is one edit in the poem editor.
+ */
+export function titleFromFilename(filename: string): string {
+  let stem = filename.replace(/\.[a-z0-9]+$/i, '');
+  stem = stem.replace(/\s*\(\d+\)\s*$/, '');
+
+  // "Untitled document" is Google's placeholder, not a title anybody chose.
+  if (/^untitled(\s+document)?$/i.test(stem.trim())) return '';
+
+  stem = stem.replace(/(\p{L})_(\p{L})/gu, "$1'$2");
+  stem = stem.replace(/^[_\s]+|[_\s]+$/g, '');
+  return stem.trim();
+}
+
+/** Drops a parenthetical aside and a trailing date, which titles often carry. */
+function titleCore(value: string): string {
+  return value
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\s*[-–—]\s*\d[\d/.\-]*\s*$/, '')
+    .trim();
+}
+
+const normaliseTitle = (value: string) =>
+  titleCore(value).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+
+/**
+ * Whether a document's first line is the poem's title or its first line of
+ * verse. The filename settles it: if the two say the same thing, the line is a
+ * title, and if they do not, the document simply has no title line and taking
+ * one would eat a line of the poem.
+ *
+ * The match has to be tight. A poem called "Forevermore" that opens
+ * "Forevermore, the leaves will fall." must not have that line swallowed, so a
+ * prefix only counts when almost nothing is left over.
+ */
+export function firstLineIsTitleOf(firstLine: string, filenameTitle: string): boolean {
+  const a = normaliseTitle(firstLine);
+  const b = normaliseTitle(filenameTitle);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const [shorter, longer] = a.length < b.length ? [a, b] : [b, a];
+  return longer.startsWith(shorter) && longer.length - shorter.length <= 6;
+}
+
+export type NamedSource = { name: string; text: string };
+
+/**
+ * Parses one file that holds one poem, which is how a manuscript kept in Google
+ * Docs or Word actually arrives. The filename carries the title, so the first
+ * line of the document stays part of the poem unless it demonstrably is the
+ * title.
+ *
+ * A file that turns out to contain several poems falls back to the blob rules,
+ * because a single filename cannot title more than one of them.
+ */
+export function poemsFromFile(source: NamedSource, options: ImportOptions): ParsedPoem[] {
+  const fileTitle = titleFromFilename(source.name);
+  const chunks = splitChunks(source.text, options)
+    .map((chunk) => trimBlankEdges(chunk))
+    .filter((chunk) => chunk.length > 0);
+
+  if (chunks.length !== 1) return splitIntoPoems(source.text, options);
+
+  const [lines] = chunks;
+  const heading = markdownHeading(lines[0]);
+  if (heading) {
+    return [{ title: heading, body: trimBlankEdges(lines.slice(1)).join('\n') }];
+  }
+  if (firstLineIsTitleOf(lines[0], fileTitle)) {
+    // The document's own wording keeps punctuation the filename had to drop.
+    return [{ title: lines[0].trim(), body: trimBlankEdges(lines.slice(1)).join('\n') }];
+  }
+  return [{ title: fileTitle, body: lines.join('\n') }];
+}
+
 export function splitIntoPoems(text: string, options: ImportOptions): ParsedPoem[] {
   return splitChunks(text, options)
     .map((chunk) => trimBlankEdges(chunk))
