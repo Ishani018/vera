@@ -128,7 +128,7 @@ export function IllustrationEditor() {
     >
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_260px]">
         <div className="space-y-4">
-          <label className="block cursor-pointer rounded-md border border-ink-700 bg-ink-800 px-2.5 py-2 text-center transition-colors hover:bg-ink-700">
+          <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-2 text-center transition-colors hover:bg-ink-200">
             {plate.assetId ? 'Replace the picture…' : 'Choose a picture…'}
             <input
               type="file"
@@ -140,7 +140,7 @@ export function IllustrationEditor() {
           {error && <Notice level="error">{error}</Notice>}
 
           {plate.assetId && (
-            <p className="text-[11px] text-ink-400">
+            <p className="text-[11px] text-ink-500">
               {plate.naturalWidth} × {plate.naturalHeight}px ·{' '}
               <span className={dpi < MIN_COVER_DPI ? 'text-amber-300' : 'text-emerald-300'}>
                 {Math.round(dpi)} DPI at print size
@@ -212,11 +212,11 @@ export function IllustrationEditor() {
         </div>
 
         <div>
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-400">
+          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-500">
             The page
           </p>
           <div
-            className="grid place-items-center overflow-hidden rounded border border-ink-700 bg-white p-3"
+            className="grid place-items-center overflow-hidden rounded border border-ink-300 bg-white p-3"
             style={{ aspectRatio: `${trim.width} / ${trim.height}` }}
           >
             {url ? (
@@ -235,7 +235,7 @@ export function IllustrationEditor() {
             )}
           </div>
           {plate.caption.trim() && (
-            <p className="mt-1.5 text-center text-[11px] italic text-ink-400">{plate.caption}</p>
+            <p className="mt-1.5 text-center text-[11px] italic text-ink-500">{plate.caption}</p>
           )}
         </div>
       </div>

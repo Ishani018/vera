@@ -74,8 +74,8 @@ export function ExportPanel() {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border border-ink-800 bg-ink-850 p-2.5">
-        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+      <div className="rounded-md border border-ink-200 bg-ink-50 p-2.5">
+        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-500">
           Before you upload
         </h4>
         {issues.length === 0 ? (
@@ -97,8 +97,8 @@ export function ExportPanel() {
                   ●
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-ink-200">{issue.message}</span>
-                  {issue.fix && <span className="block text-[11px] text-ink-400">{issue.fix}</span>}
+                  <span className="block text-ink-900">{issue.message}</span>
+                  {issue.fix && <span className="block text-[11px] text-ink-500">{issue.fix}</span>}
                 </span>
               </li>
             ))}
@@ -111,14 +111,14 @@ export function ExportPanel() {
         )}
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-400">
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
         <dt>Interior pages</dt>
-        <dd className="text-right tabular-nums text-ink-300">
+        <dd className="text-right tabular-nums text-ink-700">
           {pageCount || '—'}
           {padded > 0 && ` (+${padded} blank)`}
         </dd>
         <dt>Uploaded as</dt>
-        <dd className="text-right tabular-nums text-ink-300">{finalPages || '—'} pages</dd>
+        <dd className="text-right tabular-nums text-ink-700">{finalPages || '—'} pages</dd>
       </dl>
 
       <div className="grid gap-2">
@@ -137,8 +137,8 @@ export function ExportPanel() {
       )}
 
       {printFallback && (
-        <div className="space-y-2 rounded-md border border-ink-800 bg-ink-850 p-2.5">
-          <p className="text-[11px] text-ink-400">
+        <div className="space-y-2 rounded-md border border-ink-200 bg-ink-50 p-2.5">
+          <p className="text-[11px] text-ink-500">
             No Chromium on the server. Print the same Paged.js output from this browser instead —
             the pagination and type are identical.
           </p>
@@ -149,8 +149,8 @@ export function ExportPanel() {
         </div>
       )}
 
-      <div className="border-t border-ink-800 pt-3">
-        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+      <div className="border-t border-ink-200 pt-3">
+        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-500">
           Backup
         </h4>
         <div className="grid grid-cols-2 gap-2">

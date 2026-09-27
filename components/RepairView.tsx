@@ -38,22 +38,22 @@ export function RepairView({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3 rounded-md border border-ink-800 bg-ink-850 px-3 py-2">
-        <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-400">
+      <div className="flex flex-wrap items-center gap-3 rounded-md border border-ink-200 bg-ink-50 px-3 py-2">
+        <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-500">
           <span>
             <dt className="inline">lines</dt>{' '}
-            <dd className="inline tabular-nums text-ink-200">{stats.lines}</dd>
+            <dd className="inline tabular-nums text-ink-900">{stats.lines}</dd>
           </span>
           <span>
             <dt className="inline">stanzas</dt>{' '}
-            <dd className="inline tabular-nums text-ink-200">{stats.stanzas}</dd>
+            <dd className="inline tabular-nums text-ink-900">{stats.stanzas}</dd>
           </span>
           <span>
             <dt className="inline">over {LONG_LINE_CHARS} chars</dt>{' '}
             <dd
               className={cx(
                 'inline tabular-nums',
-                stats.longLines ? 'text-amber-300' : 'text-ink-200',
+                stats.longLines ? 'text-amber-300' : 'text-ink-900',
               )}
             >
               {stats.longLines}
@@ -61,7 +61,7 @@ export function RepairView({
           </span>
           <span>
             <dt className="inline">longest</dt>{' '}
-            <dd className="inline tabular-nums text-ink-200">{stats.longestLine}</dd>
+            <dd className="inline tabular-nums text-ink-900">{stats.longestLine}</dd>
           </span>
         </dl>
         {stats.suggestions > 0 && (
@@ -124,16 +124,16 @@ export function RepairView({
 function StanzaBreakRow({ onRemove }: { onRemove: () => void }) {
   return (
     <li className="group flex items-center gap-2 py-1 pl-11">
-      <span className="h-px flex-1 bg-ink-700" />
-      <span className="shrink-0 text-[10px] uppercase tracking-wider text-ink-600">
+      <span className="h-px flex-1 bg-ink-200" />
+      <span className="shrink-0 text-[10px] uppercase tracking-wider text-ink-400">
         stanza break
       </span>
-      <span className="h-px flex-1 bg-ink-700" />
+      <span className="h-px flex-1 bg-ink-200" />
       <button
         type="button"
         onClick={onRemove}
         title="Remove this stanza break"
-        className="shrink-0 rounded px-1 text-ink-600 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
+        className="shrink-0 rounded px-1 text-ink-400 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
       >
         ✕
       </button>
@@ -180,7 +180,7 @@ function LineRow({
       <span
         className={cx(
           'w-7 shrink-0 select-none text-right text-[11px] tabular-nums',
-          long ? 'text-amber-400/80' : 'text-ink-600',
+          long ? 'text-amber-400/80' : 'text-ink-400',
         )}
         title={long ? `${line.length} characters — longer than the measure` : undefined}
       >
@@ -226,7 +226,7 @@ function LineRow({
           type="button"
           onClick={onStanzaBreak}
           title="Add a stanza break after this line"
-          className="rounded px-1.5 py-0.5 text-[11px] text-ink-500 hover:bg-ink-800 hover:text-ink-200"
+          className="rounded px-1.5 py-0.5 text-[11px] text-ink-500 hover:bg-ink-100 hover:text-ink-900"
         >
           ¶
         </button>
@@ -235,7 +235,7 @@ function LineRow({
             type="button"
             onClick={onJoin}
             title="Join this line to the next"
-            className="rounded px-1.5 py-0.5 text-[11px] text-ink-500 hover:bg-ink-800 hover:text-ink-200"
+            className="rounded px-1.5 py-0.5 text-[11px] text-ink-500 hover:bg-ink-100 hover:text-ink-900"
           >
             ⇥
           </button>

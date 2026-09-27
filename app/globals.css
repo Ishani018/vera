@@ -1,26 +1,38 @@
 @import 'tailwindcss';
 
 /*
-  The app chrome is dark so the book stays the brightest thing on screen — the
-  page is the subject, everything else is apparatus.
+  The chrome is light and warm, and the neutrals carry a little of the accent's
+  hue so the greys read as chosen rather than defaulted. The one place that
+  stays a flat, cold grey is the ground the pages sit on: the paper has to read
+  as paper, and it can only do that against something that is not competing
+  with it.
+
+  The scale runs the conventional way — low numbers are light surfaces, high
+  numbers are ink.
 */
 @theme {
-  --color-ink-950: #0b0b0d;
-  --color-ink-900: #131317;
-  --color-ink-850: #191920;
-  --color-ink-800: #21212a;
-  --color-ink-700: #2e2e39;
-  --color-ink-600: #3d3d4a;
-  --color-ink-400: #7a7a8c;
-  --color-ink-300: #9d9dae;
-  --color-ink-200: #c6c6d2;
-  --color-brass-500: #c8a45c;
-  --color-brass-400: #d9b978;
-  --color-brass-300: #e6cf9d;
+  --color-paper: #ffffff;
+  --color-ink-50: #faf9f7;
+  --color-ink-100: #f5f3f0;
+  --color-ink-200: #e5e1da;
+  --color-ink-300: #d2ccc2;
+  --color-ink-400: #b5ada1;
+  --color-ink-500: #7a7266;
+  --color-ink-600: #5e564b;
+  --color-ink-700: #4a443c;
+  --color-ink-900: #1b1815;
+
+  --color-accent-50: #f6efe1;
+  --color-accent-200: #ddc99c;
+  --color-accent-500: #8a6522;
+  --color-accent-600: #75551a;
+
+  /* The ground behind the book. Neutral on purpose. */
+  --color-ground: #8e8e8e;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -29,30 +41,30 @@ body {
 }
 
 body {
-  background: var(--color-ink-950);
-  color: var(--color-ink-200);
+  background: var(--color-ink-100);
+  color: var(--color-ink-900);
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 13px;
+  font-size: 16px;
   overflow: hidden;
 }
 
 /* Scrollbars that read as part of the chrome rather than the operating system. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-ink-700) transparent;
+  scrollbar-color: var(--color-ink-300) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--color-ink-700);
+  background: var(--color-ink-300);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--color-ink-600);
+  background: var(--color-ink-400);
   background-clip: content-box;
 }
 
@@ -86,12 +98,12 @@ input[type='color']::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 input[type='color']::-webkit-color-swatch {
-  border: 1px solid var(--color-ink-600);
+  border: 1px solid var(--color-ink-300);
   border-radius: 5px;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-brass-500);
+  outline: 2px solid var(--color-accent-500);
   outline-offset: 1px;
 }
 

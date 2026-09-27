@@ -93,7 +93,7 @@ export function FontControls({
 
       <div className="flex items-center gap-2">
         {showAlign && (
-          <div className="inline-flex rounded-md border border-ink-700 bg-ink-900 p-0.5">
+          <div className="inline-flex rounded-md border border-ink-300 bg-paper p-0.5">
             {(['left', 'center', 'right'] as const).map((align) => (
               <button
                 key={align}
@@ -102,7 +102,7 @@ export function FontControls({
                 onClick={() => onChange({ align })}
                 className={cx(
                   'rounded px-2 py-1 transition-colors',
-                  spec.align === align ? 'bg-ink-700 text-ink-200' : 'text-ink-400 hover:text-ink-200',
+                  spec.align === align ? 'bg-ink-200 text-ink-900' : 'text-ink-500 hover:text-ink-900',
                 )}
               >
                 {align === 'left' ? '⯇' : align === 'center' ? '≡' : '⯈'}
@@ -116,8 +116,8 @@ export function FontControls({
           className={cx(
             'rounded-md border px-2.5 py-1 italic transition-colors',
             spec.italic
-              ? 'border-brass-500/60 bg-brass-500/15 text-brass-300'
-              : 'border-ink-700 text-ink-400 hover:text-ink-200',
+              ? 'border-accent-500/60 bg-accent-500/15 text-accent-600'
+              : 'border-ink-300 text-ink-500 hover:text-ink-900',
           )}
         >
           I

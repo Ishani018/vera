@@ -91,7 +91,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
       width="max-w-4xl"
       footer={
         <>
-          <span className="mr-auto text-[11px] text-ink-400">
+          <span className="mr-auto text-[11px] text-ink-500">
             {parsed.length
               ? `${parsed.length} poem${parsed.length === 1 ? '' : 's'} detected` +
                 (untitled ? ` · ${untitled} untitled` : '')
@@ -107,7 +107,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
       <div className="grid gap-5 md:grid-cols-[1fr_260px]">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <label className="cursor-pointer rounded-md border border-ink-700 bg-ink-800 px-2.5 py-1.5 transition-colors hover:bg-ink-700">
+            <label className="cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 transition-colors hover:bg-ink-200">
               Choose files…
               <input
                 type="file"
@@ -120,10 +120,10 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                 }}
               />
             </label>
-            <span className="text-[11px] text-ink-400">
+            <span className="text-[11px] text-ink-500">
               .txt, .md or .docx — one poem per file keeps its filename as the title
             </span>
-            {busy && <span className="text-[11px] text-ink-400">Reading…</span>}
+            {busy && <span className="text-[11px] text-ink-500">Reading…</span>}
             {files.length > 0 && (
               <Button variant="ghost" className="ml-auto" onClick={() => setFiles([])}>
                 Clear files
@@ -134,24 +134,24 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           {fileError && <Notice level="error">{fileError}</Notice>}
 
           {fromFiles.length > 0 && (
-            <div className="rounded-md border border-ink-700 bg-ink-850">
-              <p className="border-b border-ink-800 px-3 py-2 text-[11px] uppercase tracking-wider text-ink-400">
+            <div className="rounded-md border border-ink-300 bg-ink-50">
+              <p className="border-b border-ink-200 px-3 py-2 text-[11px] uppercase tracking-wider text-ink-500">
                 {fromFiles.length} file{fromFiles.length === 1 ? '' : 's'}
               </p>
               <ul className="max-h-64 overflow-y-auto px-3 py-2">
                 {fromFiles.map((source) => (
                   <li key={source.name} className="flex items-baseline gap-2 py-0.5">
-                    <span className="min-w-0 flex-[2] truncate text-ink-400" title={source.name}>
+                    <span className="min-w-0 flex-[2] truncate text-ink-500" title={source.name}>
                       {source.name}
                     </span>
                     <span className="min-w-0 flex-[3] truncate">
                       {source.poems.length === 1 ? (
                         source.poems[0].title || <em className="text-amber-300">untitled</em>
                       ) : (
-                        <span className="text-ink-300">{source.poems.length} poems</span>
+                        <span className="text-ink-700">{source.poems.length} poems</span>
                       )}
                     </span>
-                    <span className="shrink-0 text-[11px] tabular-nums text-ink-400">
+                    <span className="shrink-0 text-[11px] tabular-nums text-ink-500">
                       {source.poems.reduce(
                         (n, p) => n + p.body.split('\n').filter((l) => l.trim()).length,
                         0,
@@ -174,18 +174,18 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           />
 
           {fromPaste.length > 0 && (
-            <div className="rounded-md border border-ink-700 bg-ink-850">
-              <p className="border-b border-ink-800 px-3 py-2 text-[11px] uppercase tracking-wider text-ink-400">
+            <div className="rounded-md border border-ink-300 bg-ink-50">
+              <p className="border-b border-ink-200 px-3 py-2 text-[11px] uppercase tracking-wider text-ink-500">
                 From pasted text
               </p>
               <ul className="max-h-40 overflow-y-auto px-3 py-2">
                 {fromPaste.map((poem, i) => (
                   <li key={i} className="flex gap-2 py-0.5">
-                    <span className="w-6 shrink-0 tabular-nums text-ink-600">{i + 1}</span>
+                    <span className="w-6 shrink-0 tabular-nums text-ink-400">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate">
                       {poem.title || <em className="text-amber-300">untitled</em>}
                     </span>
-                    <span className="shrink-0 text-[11px] text-ink-400">
+                    <span className="shrink-0 text-[11px] text-ink-500">
                       {poem.body.split('\n').filter((l) => l.trim()).length} lines
                     </span>
                   </li>

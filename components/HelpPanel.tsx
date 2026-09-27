@@ -56,7 +56,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
       <div className="space-y-5">
         {GROUPS.map((group) => (
           <section key={group.title}>
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-500">
               {group.title}
             </h3>
             <dl className="space-y-1">
@@ -70,20 +70,20 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
                       .map((key, i) => (
                         <kbd
                           key={`${key}-${i}`}
-                          className="mr-1 inline-block rounded border border-ink-700 bg-ink-850 px-1.5 py-0.5 text-[11px] text-ink-200"
+                          className="mr-1 inline-block rounded border border-ink-300 bg-ink-50 px-1.5 py-0.5 text-[11px] text-ink-900"
                         >
                           {key}
                         </kbd>
                       ))}
                   </dt>
-                  <dd className="min-w-0 flex-1 text-ink-300">{what}</dd>
+                  <dd className="min-w-0 flex-1 text-ink-700">{what}</dd>
                 </div>
               ))}
             </dl>
           </section>
         ))}
 
-        <p className="border-t border-ink-800 pt-3 text-[11px] leading-relaxed text-ink-500">
+        <p className="border-t border-ink-200 pt-3 text-[11px] leading-relaxed text-ink-500">
           Undo covers the whole project — poems, order, settings, cover — not just the field you are
           typing in. Everything is saved locally as you go; there is no save button.
         </p>

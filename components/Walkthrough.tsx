@@ -146,10 +146,10 @@ export function Walkthrough({
   return (
     <aside
       aria-label="Getting started"
-      className="pointer-events-auto fixed bottom-4 left-4 z-40 w-80 rounded-xl border border-brass-500/40 bg-ink-900/97 p-3.5 shadow-2xl backdrop-blur"
+      className="pointer-events-auto fixed bottom-4 left-4 z-40 w-80 rounded-xl border border-accent-500/40 bg-paper/97 p-3.5 shadow-2xl backdrop-blur"
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-brass-400">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-600">
           Getting started
         </span>
         <span className="text-[10px] tabular-nums text-ink-500">
@@ -159,14 +159,14 @@ export function Walkthrough({
           type="button"
           onClick={() => update({ ...progress, dismissed: true })}
           aria-label="Dismiss the walkthrough"
-          className="ml-auto rounded px-1.5 text-ink-500 transition-colors hover:bg-ink-800 hover:text-ink-200"
+          className="ml-auto rounded px-1.5 text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900"
         >
           ✕
         </button>
       </div>
 
-      <h3 className="text-[13px] font-semibold text-ink-200">{step.title}</h3>
-      <p className="mt-1 text-[12px] leading-relaxed text-ink-300">{step.body}</p>
+      <h3 className="text-[13px] font-semibold text-ink-900">{step.title}</h3>
+      <p className="mt-1 text-[12px] leading-relaxed text-ink-700">{step.body}</p>
 
       {step.id === 'preview' && pageCount > 0 && (
         <p className="mt-1.5 text-[11px] text-ink-500">
@@ -204,7 +204,7 @@ export function Walkthrough({
               key={s.id}
               className={cx(
                 'h-1 w-4 rounded-full transition-colors',
-                i === progress.step ? 'bg-brass-500' : i < progress.step ? 'bg-ink-600' : 'bg-ink-800',
+                i === progress.step ? 'bg-accent-500' : i < progress.step ? 'bg-ink-300' : 'bg-ink-100',
               )}
             />
           ))}

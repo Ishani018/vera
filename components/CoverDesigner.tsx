@@ -299,14 +299,14 @@ export function CoverDesigner() {
         </p>
       </div>
 
-      <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-800 bg-ink-900 p-3.5">
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-400">
+      <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
           <dt>Full cover</dt>
-          <dd className="text-right tabular-nums text-ink-300">
+          <dd className="text-right tabular-nums text-ink-700">
             {layout.dimensions.width.toFixed(3)}″ × {layout.dimensions.height.toFixed(3)}″
           </dd>
           <dt>Spine at {finalPages} pages</dt>
-          <dd className="text-right tabular-nums text-ink-300">
+          <dd className="text-right tabular-nums text-ink-700">
             {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
           </dd>
         </dl>
@@ -318,8 +318,8 @@ export function CoverDesigner() {
         )}
 
         <div className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">Artwork</h4>
-          <label className="block cursor-pointer rounded-md border border-ink-700 bg-ink-800 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-700">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Artwork</h4>
+          <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-200">
             {cover.frontImage ? 'Replace image…' : 'Upload cover image…'}
             <input
               type="file"
@@ -331,7 +331,7 @@ export function CoverDesigner() {
           {imageError && <Notice level="error">{imageError}</Notice>}
           {cover.frontImage && (
             <>
-              <p className="text-[11px] text-ink-400">
+              <p className="text-[11px] text-ink-500">
                 {cover.frontImage.naturalWidth} × {cover.frontImage.naturalHeight}px ·{' '}
                 <span className={imageDpi < MIN_COVER_DPI ? 'text-amber-300' : 'text-emerald-300'}>
                   {Math.round(imageDpi)} DPI at print size
@@ -408,8 +408,8 @@ export function CoverDesigner() {
           }
         />
 
-        <div className="space-y-2 border-t border-ink-800 pt-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">Text</h4>
+        <div className="space-y-2 border-t border-ink-200 pt-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
           <div className="grid grid-cols-3 gap-1.5">
             {(Object.keys(PANEL_LABELS) as CoverPanel[]).map((panel) => (
               <Button key={panel} onClick={() => addBox(panel)}>
@@ -428,7 +428,7 @@ export function CoverDesigner() {
                   onClick={() => setSelectedId(box.id)}
                   className={cx(
                     'flex w-full items-center gap-2 rounded px-2 py-1 text-left transition-colors',
-                    selectedId === box.id ? 'bg-brass-500/15 text-brass-300' : 'hover:bg-ink-850',
+                    selectedId === box.id ? 'bg-accent-500/15 text-accent-600' : 'hover:bg-ink-50',
                   )}
                 >
                   <span className="w-10 shrink-0 text-[10px] uppercase text-ink-500">
@@ -442,8 +442,8 @@ export function CoverDesigner() {
         </div>
 
         {selected && (
-          <div className="space-y-3 border-t border-ink-800 pt-3">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+          <div className="space-y-3 border-t border-ink-200 pt-3">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
               {PANEL_LABELS[selected.panel]} text
             </h4>
             <TextArea
@@ -507,7 +507,7 @@ export function CoverDesigner() {
         )}
 
         {issues.length > 0 && (
-          <div className="space-y-1.5 border-t border-ink-800 pt-3">
+          <div className="space-y-1.5 border-t border-ink-200 pt-3">
             {issues.map((issue) => (
               <Notice
                 key={issue.id}

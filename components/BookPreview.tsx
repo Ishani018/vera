@@ -214,8 +214,8 @@ export function BookPreview() {
   const visible = spreadLabels(pages, currentSpread);
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-ink-900">
-      <div className="flex flex-wrap items-center gap-2 border-b border-ink-800 px-3 py-2">
+    <div className="flex h-full min-w-0 flex-col bg-paper">
+      <div className="flex flex-wrap items-center gap-2 border-b border-ink-200 px-3 py-2">
         <SegmentedControl
           value={previewMode}
           onChange={setPreviewMode}
@@ -232,8 +232,8 @@ export function BookPreview() {
               ←
             </Button>
             <span className="min-w-48 px-1 text-center">
-              <span className="block tabular-nums text-ink-300">{visible.folios}</span>
-              <span className="block truncate text-[11px] text-ink-400" title={visible.captions}>
+              <span className="block tabular-nums text-ink-700">{visible.folios}</span>
+              <span className="block truncate text-[11px] text-ink-500" title={visible.captions}>
                 {visible.captions}
               </span>
             </span>
@@ -252,8 +252,8 @@ export function BookPreview() {
               className={cx(
                 'rounded border px-2 py-1 text-[11px] capitalize transition-colors',
                 guides[key]
-                  ? 'border-brass-500/60 bg-brass-500/15 text-brass-300'
-                  : 'border-ink-700 text-ink-400 hover:text-ink-200',
+                  ? 'border-accent-500/60 bg-accent-500/15 text-accent-600'
+                  : 'border-ink-300 text-ink-500 hover:text-ink-900',
               )}
             >
               {key}
@@ -277,7 +277,7 @@ export function BookPreview() {
                sanitised before they reach the stylesheet. */
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-ink-300">
+          <div className="flex h-full items-center justify-center text-ink-700">
             Preparing the preview…
           </div>
         )}
@@ -287,7 +287,7 @@ export function BookPreview() {
             <span
               className={cx(
                 'rounded-full px-3 py-1 text-[11px] shadow-lg',
-                error ? 'bg-red-900/90 text-red-100' : 'bg-ink-950/85 text-ink-300',
+                error ? 'bg-red-900/90 text-red-100' : 'bg-ink-100/85 text-ink-700',
               )}
             >
               {error ?? 'Laying out pages…'}
@@ -296,7 +296,7 @@ export function BookPreview() {
         )}
       </div>
 
-      <div className="flex items-center gap-3 border-t border-ink-800 px-3 py-1.5 text-[11px] text-ink-400">
+      <div className="flex items-center gap-3 border-t border-ink-200 px-3 py-1.5 text-[11px] text-ink-500">
         <span className="tabular-nums">
           {pageCount ? `${pageCount} pages` : 'Counting pages…'}
         </span>

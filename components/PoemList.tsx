@@ -148,66 +148,71 @@ export function PoemList() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-ink-900">
-      <header className="space-y-2 border-b border-ink-800 px-3 py-2">
-        <h2 className="flex items-baseline gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-300">
-          Contents
-          <span className="font-normal normal-case tracking-normal text-ink-400">
-            {poemCount} poem{poemCount === 1 ? '' : 's'}
-            {plateCount > 0 && `, ${plateCount} plate${plateCount === 1 ? '' : 's'}`}
-            {partCount > 0 && `, ${partCount} part${partCount === 1 ? '' : 's'}`}
-            {warnings.size > 0 && (
-              <span className="text-amber-300"> · {warnings.size} to check</span>
-            )}
-          </span>
-        </h2>
-        {/* Its own row: at 220px the pane is too narrow to sit these beside a heading. */}
-        {/* Equal weight, deliberately: a plate is as ordinary a thing to add
-            to a collection as a poem is. */}
-        <div className="grid grid-cols-3 gap-1.5">
-          <Button onClick={addPoem} title="Add a poem">
-            + Poem
-          </Button>
-          <Button onClick={addSection} title="Add a section or part">
-            + Part
-          </Button>
-          <Button onClick={addIllustration} title="Add a full-page illustration">
-            + Illustration
-          </Button>
+    <div className="flex flex-col gap-3.5">
+      <header className="flex flex-col gap-3">
+        {/* Equal weight, deliberately: a plate is as ordinary a thing to add to
+            a collection as a poem is. */}
+        <div className="grid grid-cols-3 gap-2.5">
+          <AddButton onClick={addPoem} glyph="¶" label="Poem" title="Add a poem" />
+          <AddButton onClick={addSection} glyph="§" label="Part" title="Add a part" />
+          <AddButton
+            onClick={addIllustration}
+            glyph="▣"
+            label="Illustration"
+            title="Add a full-page illustration"
+          />
         </div>
-        <Button onClick={() => setImporting(true)} title="Import or paste poems" className="w-full">
-          Import from a file or paste
-        </Button>
+        <button
+          type="button"
+          onClick={() => setImporting(true)}
+          className="w-full rounded-2xl border border-dashed border-ink-300 py-4 text-[15px] font-[550] text-ink-700 transition-colors hover:border-accent-500 hover:text-accent-500"
+        >
+          Import from .docx, .txt or .md
+        </button>
         {poemCount > 4 && (
           <div className="relative">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[18px] text-ink-500"
+            >
+              ⌕
+            </span>
             <TextInput
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Search titles and lines…"
+              placeholder="Search titles and lines"
               aria-label="Search poems"
-              className="pr-6"
+              className="pl-11 pr-10"
             />
             {filter && (
               <button
                 type="button"
                 onClick={() => setFilter('')}
                 aria-label="Clear search"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1 text-ink-500 hover:text-ink-200"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded px-1 text-ink-500 hover:text-ink-900"
               >
                 ✕
               </button>
             )}
           </div>
         )}
+        <p className="text-[14px] text-ink-500">
+          {poemCount} poem{poemCount === 1 ? '' : 's'}
+          {plateCount > 0 && `, ${plateCount} plate${plateCount === 1 ? '' : 's'}`}
+          {partCount > 0 && `, ${partCount} part${partCount === 1 ? '' : 's'}`}
+          {warnings.size > 0 && (
+            <span className="text-accent-600"> · {warnings.size} to check</span>
+          )}
+        </p>
       </header>
 
       {sampleCount > 0 && (
-        <div className="space-y-1.5 border-b border-ink-800 bg-ink-850 px-3 py-2 text-[11px] text-ink-300">
+        <div className="space-y-3 rounded-2xl bg-ink-100 px-4 py-4 text-[14.5px] text-ink-700">
           <p>
             {sampleCount} placeholder verse{sampleCount === 1 ? '' : 's'} loaded, to exercise the
             layout.
           </p>
-          <div className="flex gap-1.5">
+          <div className="flex gap-2">
           {confirmClear ? (
             <>
               <Button
@@ -230,19 +235,19 @@ export function PoemList() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
+      <div className="-mx-2">
         {needle && (
-          <p className="px-3 pb-1.5 text-[11px] text-ink-500">
+          <p className="px-3 pb-2 text-[14px] text-ink-500">
             {rows.length} match{rows.length === 1 ? '' : 'es'} · reordering is off while filtered
           </p>
         )}
         {rows.length === 0 ? (
-          <p className="px-4 py-8 text-center text-ink-400">
+          <p className="px-4 py-10 text-center text-[15px] text-ink-500">
             {needle ? (
               <>Nothing matches “{filter}”.</>
             ) : (
               <>
-                No poems yet. Use <strong className="text-ink-300">Import</strong> to paste or
+                No poems yet. Use <strong className="text-ink-700">Import</strong> to paste or
                 upload a manuscript, or add one by hand.
               </>
             )}
@@ -291,12 +296,39 @@ export function PoemList() {
   );
 }
 
+/** A big, plainly-labelled way to add one of the three things a book is made of. */
+function AddButton({
+  onClick,
+  glyph,
+  label,
+  title,
+}: {
+  onClick: () => void;
+  glyph: string;
+  label: string;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="grid justify-items-center gap-2 rounded-2xl border border-ink-300 bg-paper px-1 pb-3 pt-4 text-[14.5px] font-[570] transition-colors hover:border-accent-500 hover:bg-accent-50 hover:text-accent-500"
+    >
+      <span aria-hidden className="text-[22px] leading-none">
+        {glyph}
+      </span>
+      {label}
+    </button>
+  );
+}
+
 function DragHandle({ listeners, attributes }: { listeners?: object; attributes?: object }) {
   return (
     <span
       {...attributes}
       {...listeners}
-      className="cursor-grab touch-none px-1 text-ink-600 transition-colors hover:text-ink-300 active:cursor-grabbing"
+      className="cursor-grab touch-none px-1 text-ink-400 transition-colors hover:text-ink-700 active:cursor-grabbing"
       aria-label="Reorder"
     >
       <svg viewBox="0 0 10 16" className="h-3.5 w-2.5" fill="currentColor" aria-hidden>
@@ -325,8 +357,8 @@ function KindMark({ item }: { item: Poem | Illustration }) {
       aria-hidden
       title={plate ? 'Illustration page' : 'Poem'}
       className={cx(
-        'grid h-4 w-4 shrink-0 place-items-center rounded-sm text-[10px] leading-none',
-        plate ? 'bg-emerald-500/15 text-emerald-300/90' : 'bg-sky-500/10 text-sky-300/80',
+        'grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[15px] leading-none',
+        plate ? 'bg-emerald-50 text-emerald-800' : 'bg-sky-50 text-sky-800',
       )}
     >
       {plate ? '▣' : '¶'}
@@ -359,7 +391,7 @@ function ItemRow({
       ref={setNodeRef}
       style={draggable ? { transform: CSS.Transform.toString(transform), transition } : undefined}
       className={cx(
-        'group flex items-center gap-1 pl-2 pr-2',
+        'group flex items-center gap-1.5 rounded-xl px-1',
         isDragging && 'relative z-10 opacity-90',
       )}
     >
@@ -372,15 +404,15 @@ function ItemRow({
         type="button"
         onClick={onSelect}
         className={cx(
-          'min-w-0 flex-1 rounded px-2 py-1.5 text-left transition-colors',
-          selected ? 'bg-brass-500/15 text-brass-300' : 'hover:bg-ink-850',
+          'min-w-0 flex-1 rounded-xl px-2.5 py-3 text-left transition-colors',
+          selected ? 'bg-accent-50 text-ink-900 ring-1 ring-accent-200' : 'hover:bg-ink-50',
         )}
       >
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-3">
           <KindMark item={item} />
-          <span className="min-w-0 flex-1 truncate">
+          <span className="min-w-0 flex-1 truncate text-[16px] font-[550]">
             {item.title || (
-              <em className="text-ink-400">{plate ? 'Untitled plate' : 'Untitled'}</em>
+              <em className="text-ink-500">{plate ? 'Untitled plate' : 'Untitled'}</em>
             )}
           </span>
           {warnings > 0 && (
@@ -393,7 +425,7 @@ function ItemRow({
             </span>
           )}
         </span>
-        <span className="block truncate pl-[22px] text-[11px] text-ink-400">
+        <span className="mt-0.5 block truncate pl-[44px] text-[13.5px] text-ink-500">
           {plate
             ? item.assetId
               ? `Illustration · ${item.naturalWidth} × ${item.naturalHeight}px`
@@ -435,7 +467,7 @@ function SectionRow({ section }: { section: Section }) {
             if (found) found.title = e.target.value;
           })
         }
-        className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-ink-300 hover:border-ink-700 focus:border-brass-500 focus:outline-none"
+        className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2.5 py-2 text-[13px] font-bold uppercase tracking-[0.08em] text-ink-500 hover:border-ink-300 focus:border-accent-500 focus:outline-none"
         aria-label="Section title"
       />
       <button
@@ -449,7 +481,7 @@ function SectionRow({ section }: { section: Section }) {
             { discrete: true },
           )
         }
-        className="rounded px-1.5 py-1 text-ink-600 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
+        className="rounded px-1.5 py-1 text-ink-400 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
       >
         ✕
       </button>

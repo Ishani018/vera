@@ -52,123 +52,13 @@ const TYPOGRAPHY_SLOTS: Array<{ key: keyof Typography; label: string }> = [
   { key: 'pageNumber', label: 'Page numbers' },
 ];
 
-export function SettingsPanel() {
-  const project = useStore((s) => s.project);
-  const panel = useStore((s) => s.panel);
-  const setPanel = useStore((s) => s.setPanel);
-  const pageCount = useStore((s) => s.pageCount);
-  const setHighlight = useStore((s) => s.setHighlight);
-
-  if (!project) return null;
-  const open = (key: string) => panel === key;
-
-  /**
-   * Each section says what it does, and names the part of the book it governs
-   * so the preview can flash it when something in that section changes.
-   */
-  const sections: Array<{
-    key: string;
-    title: string;
-    description: string;
-    highlight?: string;
-    badge?: React.ReactNode;
-    body: React.ReactNode;
-  }> = [
-    {
-      key: 'meta',
-      title: 'Book details',
-      description: 'Title, author, ISBN — printed on the title and copyright pages.',
-      highlight: '.matter-page',
-      body: <MetaPanel />,
-    },
-    {
-      key: 'trim',
-      title: 'Trim & margins',
-      description: 'Page size, paper stock and the margins KDP checks.',
-      highlight: '.pagedjs_page_content',
-      badge: <MarginBadge />,
-      body: <TrimPanel />,
-    },
-    {
-      key: 'type',
-      title: 'Typography',
-      description: 'The faces and sizes for verse, titles, headers and folios.',
-      highlight: '.poem-line, .poem-title',
-      body: <TypographyPanel />,
-    },
-    {
-      key: 'layout',
-      title: 'Poem layout',
-      description: 'Where poems start, stanza spacing, and the turnover indent.',
-      highlight: '.stanza',
-      body: <LayoutPanel />,
-    },
-    {
-      key: 'border',
-      title: 'Borders & ornaments',
-      description: 'Decorative frames, and the mark set between poems.',
-      highlight: '.ornament, .pagedjs_pagebox',
-      body: <BorderPanel />,
-    },
-    {
-      key: 'matter',
-      title: 'Front & back matter',
-      description: 'Half title, title page, copyright, dedication, acknowledgements.',
-      highlight: '.matter-page',
-      body: <MatterPanel />,
-    },
-    {
-      key: 'toc',
-      title: 'Contents',
-      description: 'The table of contents and the optional index of first lines.',
-      highlight: '.toc, .index-first-lines',
-      body: <TocPanel />,
-    },
-    {
-      key: 'headers',
-      title: 'Headers & folios',
-      description: 'What runs across the top of each page, and where the number sits.',
-      highlight: '.pagedjs_margin-content',
-      body: <HeadersPanel />,
-    },
-    {
-      key: 'export',
-      title: 'Export',
-      description: 'Checks to run before uploading, and the two PDFs KDP wants.',
-      body: <ExportPanel />,
-    },
-  ];
-
-  return (
-    <div className="flex h-full flex-col overflow-y-auto bg-ink-900">
-      {sections.map((section) => (
-        <Accordion
-          key={section.key}
-          title={section.title}
-          description={section.description}
-          open={open(section.key)}
-          onToggle={() => setPanel(section.key)}
-          badge={section.badge}
-          onAnyChange={section.highlight ? () => setHighlight(section.highlight!) : undefined}
-        >
-          {section.body}
-        </Accordion>
-      ))}
-      <div className="px-3.5 py-3 text-[11px] text-ink-500">
-        {pageCount > 0 && `${padToEven(pageCount)} pages after parity padding · `}
-        saved locally, automatically
-      </div>
-    </div>
-  );
-}
-
 function useProject(): [Project, (recipe: (draft: Project) => void) => void] {
   const project = useStore((s) => s.project)!;
   const update = useStore((s) => s.update);
   return [project, update];
 }
 
-function MarginBadge() {
+export function MarginBadge() {
   const project = useStore((s) => s.project);
   const pageCount = useStore((s) => s.pageCount);
   if (!project || pageCount === 0) return null;
@@ -186,7 +76,7 @@ function MarginBadge() {
   );
 }
 
-function MetaPanel() {
+export function MetaPanel() {
   const [project, update] = useProject();
   const meta = project.meta;
   const set = (patch: Partial<typeof meta>) =>
@@ -221,7 +111,7 @@ function MetaPanel() {
   );
 }
 
-function TrimPanel() {
+export function TrimPanel() {
   const [project, update] = useProject();
   const pageCount = useStore((s) => s.pageCount);
   const trim = getTrim(project.trim.trimId);
@@ -347,18 +237,18 @@ function TrimPanel() {
         </Notice>
       )}
 
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-ink-800 pt-3 text-[11px] text-ink-400">
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-ink-200 pt-3 text-[11px] text-ink-500">
         <dt>Sheet</dt>
-        <dd className="text-right tabular-nums text-ink-300">
+        <dd className="text-right tabular-nums text-ink-700">
           {(trim.width + (project.trim.bleed ? 0.125 : 0)).toFixed(3)}″ ×{' '}
           {(trim.height + (project.trim.bleed ? 0.25 : 0)).toFixed(3)}″
         </dd>
         <dt>Spine at {finalPages || '—'} pages</dt>
-        <dd className="text-right tabular-nums text-ink-300">
+        <dd className="text-right tabular-nums text-ink-700">
           {finalPages ? `${spineWidth(finalPages, project.trim.paper).toFixed(3)}″` : '—'}
         </dd>
         <dt>Next gutter tier</dt>
-        <dd className="text-right tabular-nums text-ink-300">
+        <dd className="text-right tabular-nums text-ink-700">
           {GUTTER_TABLE.find((r) => r.minPages > (finalPages || 0))?.minPages ?? '—'} pages
         </dd>
       </dl>
@@ -366,13 +256,13 @@ function TrimPanel() {
   );
 }
 
-function TypographyPanel() {
+export function TypographyPanel() {
   const [project, update] = useProject();
   return (
     <div className="space-y-5">
       {TYPOGRAPHY_SLOTS.map(({ key, label }) => (
         <div key={key} className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
             {label}
           </h4>
           <FontControls
@@ -390,7 +280,7 @@ function TypographyPanel() {
   );
 }
 
-function LayoutPanel() {
+export function LayoutPanel() {
   const [project, update] = useProject();
   const layout = project.layout;
   const set = (patch: Partial<typeof layout>) =>
@@ -470,7 +360,7 @@ function LayoutPanel() {
   );
 }
 
-function BorderPanel() {
+export function BorderPanel() {
   const [project, update] = useProject();
   const border = project.border;
   const ornament = project.ornament;
@@ -567,7 +457,7 @@ function BorderPanel() {
         </>
       )}
 
-      <div className="border-t border-ink-800 pt-3">
+      <div className="border-t border-ink-200 pt-3">
         <Toggle
           label="Ornament between poems"
           checked={ornament.betweenPoems}
@@ -616,12 +506,12 @@ function BorderPanel() {
   );
 }
 
-function MatterPanel() {
+export function MatterPanel() {
   const [project, update] = useProject();
 
   const renderGroup = (which: 'frontMatter' | 'backMatter', label: string) => (
     <div className="space-y-2">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-400">{label}</h4>
+      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">{label}</h4>
       {project[which]
         .slice()
         .sort((a, b) => a.order - b.order)
@@ -660,7 +550,7 @@ function MatterRow({
 }) {
   const usesMeta = page.kind === 'title' || page.kind === 'halfTitle';
   return (
-    <div className="rounded-md border border-ink-800 bg-ink-850 p-2.5">
+    <div className="rounded-md border border-ink-200 bg-ink-50 p-2.5">
       <Toggle label={page.label} checked={page.enabled} onChange={(enabled) => onChange({ enabled })} />
       {page.enabled && (
         <div className="mt-2 space-y-2">
@@ -672,7 +562,7 @@ function MatterRow({
             />
           )}
           {usesMeta ? (
-            <p className="text-[11px] text-ink-400">
+            <p className="text-[11px] text-ink-500">
               Set from the book title and author under Book details.
             </p>
           ) : (
@@ -714,7 +604,7 @@ function MatterRow({
   );
 }
 
-function TocPanel() {
+export function TocPanel() {
   const [project, update] = useProject();
   const toc = project.toc;
   const set = (patch: Partial<typeof toc>) =>
@@ -742,7 +632,7 @@ function TocPanel() {
           </Notice>
         </>
       )}
-      <div className="border-t border-ink-800 pt-3">
+      <div className="border-t border-ink-200 pt-3">
         <Toggle
           label="Index of first lines"
           checked={toc.firstLineIndex}
@@ -769,7 +659,7 @@ const HEAD_OPTIONS: Array<{ value: RunningHeadContent; label: string }> = [
   { value: 'poemTitle', label: 'Poem title' },
 ];
 
-function HeadersPanel() {
+export function HeadersPanel() {
   const [project, update] = useProject();
   const headers = project.headers;
   const set = (patch: Partial<typeof headers>) =>

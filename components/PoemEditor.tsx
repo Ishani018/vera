@@ -114,7 +114,7 @@ export function PoemEditor() {
       footer={
         <>
           {stats && (
-            <span className="mr-auto text-[11px] tabular-nums text-ink-400">
+            <span className="mr-auto text-[11px] tabular-nums text-ink-500">
               {stats.lines} lines · {stats.stanzas} stanza{stats.stanzas === 1 ? '' : 's'} ·
               longest line {stats.longestLine}
               {stats.longLines > 0 && (
@@ -140,7 +140,7 @@ export function PoemEditor() {
         </>
       }
     >
-      <div className="mb-4 inline-flex rounded-md border border-ink-700 bg-ink-950 p-0.5">
+      <div className="mb-4 inline-flex rounded-md border border-ink-300 bg-ink-100 p-0.5">
         {(
           [
             ['text', 'Text'],
@@ -153,7 +153,7 @@ export function PoemEditor() {
             onClick={() => setTab(value)}
             className={cx(
               'rounded px-3 py-1 transition-colors',
-              tab === value ? 'bg-ink-700 text-ink-200' : 'text-ink-400 hover:text-ink-200',
+              tab === value ? 'bg-ink-200 text-ink-900' : 'text-ink-500 hover:text-ink-900',
             )}
           >
             {label}
@@ -229,7 +229,7 @@ export function PoemEditor() {
 
           <div>
             <div className="mb-1.5 flex items-center gap-2">
-              <span className="flex-1 text-[11px] font-medium uppercase tracking-wider text-ink-400">
+              <span className="flex-1 text-[11px] font-medium uppercase tracking-wider text-ink-500">
                 Body
               </span>
               <Button onClick={() => wrapSelection('*')} title="Italic (wraps the selection in *)">
@@ -247,12 +247,12 @@ export function PoemEditor() {
               spellCheck={false}
               className="font-mono text-[12.5px] leading-6"
             />
-            <p className="mt-1 text-[11px] text-ink-400">
+            <p className="mt-1 text-[11px] text-ink-500">
               Every line break here is a line break in the book. Blank lines separate stanzas;
               leading spaces are kept. Select text and use I or B for emphasis — or type{' '}
-              <code className="text-ink-300">*italic*</code> and{' '}
-              <code className="text-ink-300">**bold**</code> directly. A literal asterisk is{' '}
-              <code className="text-ink-300">\*</code>.
+              <code className="text-ink-700">*italic*</code> and{' '}
+              <code className="text-ink-700">**bold**</code> directly. A literal asterisk is{' '}
+              <code className="text-ink-700">\*</code>.
             </p>
           </div>
 

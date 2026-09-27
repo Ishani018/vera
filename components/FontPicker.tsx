@@ -113,22 +113,22 @@ export function FontPicker({
   return (
     <div ref={containerRef} className="relative">
       {label && (
-        <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-ink-400">
+        <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-ink-500">
           {label}
         </span>
       )}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-ink-700 bg-ink-900 px-2.5 py-1.5 text-left transition-colors hover:border-ink-600"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-ink-300 bg-paper px-2.5 py-1.5 text-left transition-colors hover:border-ink-300"
       >
         <span className="truncate">{value}</span>
         <span className="shrink-0 text-ink-500">▾</span>
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-lg border border-ink-700 bg-ink-850 shadow-2xl">
-          <div className="space-y-2 border-b border-ink-800 p-2">
+        <div className="absolute left-0 right-0 z-40 mt-1 overflow-hidden rounded-lg border border-ink-300 bg-ink-50 shadow-2xl">
+          <div className="space-y-2 border-b border-ink-200 p-2">
             <TextInput
               autoFocus
               value={query}
@@ -145,8 +145,8 @@ export function FontPicker({
                     className={cx(
                       'rounded px-1.5 py-0.5 text-[11px] transition-colors',
                       category === c
-                        ? 'bg-ink-700 text-ink-200'
-                        : 'text-ink-400 hover:text-ink-200',
+                        ? 'bg-ink-200 text-ink-900'
+                        : 'text-ink-500 hover:text-ink-900',
                     )}
                   >
                     {c}
@@ -158,7 +158,7 @@ export function FontPicker({
 
           <ul className="max-h-72 overflow-y-auto py-1">
             {results.length === 0 && (
-              <li className="px-3 py-4 text-center text-ink-400">No families match.</li>
+              <li className="px-3 py-4 text-center text-ink-500">No families match.</li>
             )}
             {results.map((family) => (
               <li key={family.family}>
@@ -166,8 +166,8 @@ export function FontPicker({
                   type="button"
                   onClick={() => pick(family)}
                   className={cx(
-                    'flex w-full items-baseline gap-2 px-3 py-1.5 text-left transition-colors hover:bg-ink-800',
-                    family.family === value && 'bg-brass-500/10',
+                    'flex w-full items-baseline gap-2 px-3 py-1.5 text-left transition-colors hover:bg-ink-100',
+                    family.family === value && 'bg-accent-500/10',
                   )}
                 >
                   <span
@@ -186,7 +186,7 @@ export function FontPicker({
             ))}
           </ul>
 
-          <div className="flex items-center gap-2 border-t border-ink-800 px-3 py-1.5 text-[10px] text-ink-500">
+          <div className="flex items-center gap-2 border-t border-ink-200 px-3 py-1.5 text-[10px] text-ink-500">
             <span>
               {families.length} families ·{' '}
               {source === 'google' ? 'Google Fonts API' : 'curated list'}
