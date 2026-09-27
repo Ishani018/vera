@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Versecraft — redesign mock</title>
+<title>Versecraft Interface Mock</title>
 <!--
   A mock, not the app. It settles the layout, the language and the size of
   things before any of it is wired up. Nothing here is stateful and no control
@@ -51,7 +51,8 @@
   button { cursor: pointer; }
 
   /* ================================================================= shell */
-  .app { display: grid; grid-template-rows: 68px 1fr; height: 100%; }
+  .frame { height: 100%; overflow: auto; background: var(--app); }
+  .app { display: grid; grid-template-rows: 68px 1fr; height: 100%; min-width: 1160px; }
 
   .topbar {
     display: flex; align-items: center; gap: 18px; padding: 0 22px;
@@ -364,12 +365,13 @@
   body[data-screen^="editor"] .panel, body[data-screen^="editor"] .stage { display: none; }
   body:not([data-screen^="editor"]) .editor { display: none; }
   body[data-screen="editor-text"] .e-breaks, body[data-screen="editor-breaks"] .e-text { display: none; }
-  body[data-screen="write"] .menu { display: block; }
-  body:not([data-screen="write"]) .menu { display: none; }
+  .menu { display: none; }
+  .menu.show { display: block; }
   body[data-screen="export"] .top-export { background: var(--paper); color: var(--ink); border: 1px solid var(--line-strong); font-weight: 550; }
 </style>
 </head>
 <body data-screen="write">
+<div class="frame">
 <div class="app">
 
   <header class="topbar">
@@ -390,10 +392,10 @@
   <div class="body">
 
     <nav class="rail">
-      <button class="on"><span class="glyph">✎</span><span class="label">Write</span></button>
-      <button><span class="glyph">◐</span><span class="label">Design</span></button>
-      <button><span class="glyph">▣</span><span class="label">Images</span></button>
-      <button><span class="glyph">⤓</span><span class="label">Export</span></button>
+      <button class="on" data-go="write"><span class="glyph">✎</span><span class="label">Write</span></button>
+      <button data-go="design"><span class="glyph">◐</span><span class="label">Design</span></button>
+      <button data-go="images"><span class="glyph">▣</span><span class="label">Images</span></button>
+      <button data-go="export"><span class="glyph">⤓</span><span class="label">Export</span></button>
       <div class="rule"></div>
       <button><span class="glyph">≡</span><span class="label">Guide</span></button>
     </nav>
@@ -729,7 +731,7 @@
           <div class="crumb">Write · Part One · Salt</div>
           <div style="display:flex;align-items:baseline;gap:18px">
             <h2 style="flex:1">What the Harbour Keeps</h2>
-            <button class="primary ghost" style="padding:11px 24px">Done</button>
+            <button class="primary ghost" data-done style="padding:11px 24px">Done</button>
           </div>
           <div class="tabs">
             <button aria-pressed="true">The poem</button>
@@ -821,5 +823,72 @@ and the wall says little.</div>
 
   </div>
 </div>
+</div>
+
+<script>
+  /* Enough behaviour to walk through it. Nothing is stored and nothing is real. */
+  const rail = [...document.querySelectorAll('.rail [data-go]')];
+  const show = (screen) => {
+    document.body.dataset.screen = screen;
+    const mode = screen.startsWith('editor') ? 'write' : screen;
+    rail.forEach((b) => b.classList.toggle('on', b.dataset.go === mode));
+    document.querySelector('.panel')?.scrollTo(0, 0);
+  };
+  rail.forEach((b) => b.addEventListener('click', () => show(b.dataset.go)));
+  document.querySelector('[data-done]').addEventListener('click', () => show('write'));
+
+  document.querySelectorAll('.contents .item').forEach((row) =>
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.more') || e.target.closest('.menu')) return;
+      document.querySelectorAll('.contents .item').forEach((r) => r.classList.remove('sel'));
+      row.classList.add('sel');
+      if (row.querySelector('.kind.poem')) show('editor-text');
+    }),
+  );
+
+  const tabs = [...document.querySelectorAll('.editor .tabs button')];
+  tabs.forEach((b, i) => b.addEventListener('click', () => show(i === 0 ? 'editor-text' : 'editor-breaks')));
+
+  /* Segmented controls and switches move, so the page answers a click. */
+  document.querySelectorAll('.seg, .seg2, .tabs').forEach((group) => {
+    const buttons = [...group.querySelectorAll('button')];
+    buttons.forEach((b) =>
+      b.addEventListener('click', () => {
+        buttons.forEach((x) => x.setAttribute('aria-pressed', 'false'));
+        b.setAttribute('aria-pressed', 'true');
+      }),
+    );
+  });
+  document.querySelectorAll('.sw').forEach((s) =>
+    s.addEventListener('click', () => s.classList.toggle('on')),
+  );
+
+  document.querySelectorAll('.scroller').forEach((row) => {
+    const cards = [...row.querySelectorAll('.card, .fontcard')];
+    cards.forEach((c) =>
+      c.addEventListener('click', () => {
+        cards.forEach((x) => x.classList.remove('on'));
+        c.classList.add('on');
+      }),
+    );
+  });
+  document.querySelectorAll('.asset').forEach((a, _, all) =>
+    a.addEventListener('click', () => {
+      all.forEach((x) => x.classList.remove('on'));
+      a.classList.add('on');
+    }),
+  );
+
+  const menu = document.querySelector('.menu');
+  document.querySelectorAll('.more').forEach((b) =>
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = b.closest('.item');
+      row.appendChild(menu);
+      menu.classList.toggle('show');
+    }),
+  );
+  document.addEventListener('click', () => menu.classList.remove('show'));
+</script>
 </body>
 </html>
