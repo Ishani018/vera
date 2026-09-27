@@ -1,6 +1,7 @@
 'use client';
 
 import { assetsAsDataUrls, importAssets } from './assets';
+import { looksLikeProject, migrateContents } from './contents';
 import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
@@ -164,9 +165,10 @@ export async function importProjectJson(file: File): Promise<Project> {
     'project' in parsed && parsed.project ? parsed.project : (parsed as Project);
   const assets = 'assets' in parsed && parsed.assets ? parsed.assets : {};
 
-  if (!project || typeof project !== 'object' || !Array.isArray(project.poems)) {
+  if (!project || typeof project !== 'object' || !looksLikeProject(project)) {
     throw new Error('That file is not a Versecraft project.');
   }
   await importAssets(assets);
-  return project;
+  // A file saved before poems and parts became one list still opens.
+  return { ...project, contents: migrateContents(project) } as Project;
 }

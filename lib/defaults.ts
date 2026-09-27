@@ -206,8 +206,7 @@ export function createProject(overrides: Partial<Project> = {}): Project {
     },
     frontMatter: defaultFrontMatter(meta),
     backMatter: defaultBackMatter(),
-    sections: [],
-    poems: [],
+    contents: [],
     cover: {
       backgroundColor: '#f4efe4',
       backColor: '#f4efe4',

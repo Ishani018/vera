@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { isPoem, movePoemToSection, sectionOfPoem, sectionsOf } from '@/lib/contents';
 import { repairStats } from '@/lib/repair';
 import { parseStanzas } from '@/lib/render/text';
 import { useStore } from '@/lib/store';
@@ -19,21 +20,25 @@ export function PoemEditor() {
   const [tab, setTab] = useState<Tab>('text');
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
-  const poem = project?.poems.find((p) => p.id === selectedPoemId);
+  const poem = project?.contents.find(
+    (item): item is Poem => isPoem(item) && item.id === selectedPoemId,
+  );
+  const parts = project ? sectionsOf(project) : [];
+  const partId = project && poem ? (sectionOfPoem(project, poem.id)?.id ?? '') : '';
   const stats = useMemo(() => (poem ? repairStats(poem.body) : null), [poem]);
 
   if (!project || !poem) return null;
 
   const edit = (patch: Partial<Poem>) =>
     update((draft) => {
-      const found = draft.poems.find((p) => p.id === poem.id);
+      const found = draft.contents.find((item) => item.id === poem.id);
       if (found) Object.assign(found, patch);
     });
 
   const remove = () => {
     update(
       (draft) => {
-        draft.poems = draft.poems.filter((p) => p.id !== poem.id).map((p, i) => ({ ...p, order: i }));
+        draft.contents = draft.contents.filter((item) => item.id !== poem.id);
       },
       { discrete: true },
     );
@@ -122,8 +127,8 @@ export function PoemEditor() {
           onBulkChange={(body) =>
             update(
               (draft) => {
-                const found = draft.poems.find((p) => p.id === poem.id);
-                if (found) found.body = body;
+                const found = draft.contents.find((item) => item.id === poem.id);
+                if (isPoem(found!)) found.body = body;
               },
               { discrete: true },
             )
@@ -159,14 +164,22 @@ export function PoemEditor() {
                 ]}
               />
             </Field>
-            {project.sections.length > 0 && (
-              <Field label="Part">
+            {parts.length > 0 && (
+              <Field
+                label="Part"
+                hint="Moves the poem to the end of that part. Dragging it in the list does the same thing."
+              >
                 <Select
-                  value={poem.sectionId ?? ''}
-                  onChange={(value) => edit({ sectionId: value || null })}
+                  value={partId}
+                  onChange={(value) =>
+                    update(
+                      (draft) => movePoemToSection(draft.contents, poem.id, value || null),
+                      { discrete: true },
+                    )
+                  }
                   options={[
-                    { value: '', label: 'No part' },
-                    ...project.sections.map((s) => ({ value: s.id, label: s.title })),
+                    { value: '', label: 'Before the first part' },
+                    ...parts.map((part) => ({ value: part.id, label: part.title })),
                   ]}
                 />
               </Field>

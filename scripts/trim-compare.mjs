@@ -73,7 +73,7 @@ async function inlineFonts(project) {
 async function loadPoems() {
   if (args.get('json')) {
     const project = JSON.parse(await readFile(path.resolve(args.get('json')), 'utf8'));
-    return project.poems ?? [];
+    return (project.contents ?? project.poems ?? []).filter((i) => i.kind !== 'section');
   }
   const dir = path.resolve(args.get('docx') ?? '.');
   const mammoth = (await import('mammoth')).default;
@@ -87,13 +87,12 @@ async function loadPoems() {
     const text = docxHtmlToVerse(html);
     for (const parsed of poemsFromFile({ name: file, text }, DEFAULT_IMPORT_OPTIONS)) {
       poems.push({
+        kind: 'poem',
         id: `p${poems.length}`,
         title: parsed.title,
         body: parsed.body,
         epigraph: '',
         dedication: '',
-        sectionId: null,
-        order: poems.length,
       });
     }
   }
@@ -149,7 +148,7 @@ async function main() {
         copyrightExtra: '',
       },
     });
-    project.poems = picked.map((p) => p.poem);
+    project.contents = picked.map((p) => p.poem);
     project.trim.trimId = variant.trimId;
     project.typography.body.sizePt = variant.sizePt;
     // Keep the title proportional so the comparison is about the measure.

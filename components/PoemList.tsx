@@ -19,55 +19,21 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useMemo, useState } from 'react';
 
+import { isPoem, isSection, poemsOf, sectionsOf } from '@/lib/contents';
 import { id } from '@/lib/defaults';
-import { orderBook } from '@/lib/render/bookHtml';
 import { repairStats } from '@/lib/repair';
 import { countLines } from '@/lib/render/text';
 import { countSamplePoems } from '@/lib/samples';
 import { useStore } from '@/lib/store';
-import type { Poem, Project, Section } from '@/lib/types';
+import type { ContentItem, Poem, Section } from '@/lib/types';
 import { ImportDialog } from './ImportDialog';
 import { Button, TextInput, cx } from './ui';
 
-type Row =
-  | { kind: 'section'; key: string; section: Section }
-  | { kind: 'poem'; key: string; poem: Poem };
-
 /**
- * The list is one flat sortable sequence of section headers and poems, rather
- * than nested lists. Dragging a poem above or below a header is what moves it
- * between sections, so ordering and grouping are the same gesture.
+ * The list is the book's contents, shown as they are stored: one flat sortable
+ * sequence of part headings and poems. Dragging a poem above or below a heading
+ * is what moves it between parts, because being under a part *is* following it.
  */
-function buildRows(project: Project): Row[] {
-  const order = orderBook(project);
-  const rows: Row[] = order.loose.map((poem) => ({ kind: 'poem', key: poem.id, poem }));
-  for (const group of order.grouped) {
-    rows.push({ kind: 'section', key: group.section.id, section: group.section });
-    for (const poem of group.poems) rows.push({ kind: 'poem', key: poem.id, poem });
-  }
-  return rows;
-}
-
-/** Rewrites order and section membership from the row sequence. */
-function commitRows(rows: Row[], draft: Project) {
-  let currentSection: string | null = null;
-  let sectionOrder = 0;
-  let poemOrder = 0;
-
-  for (const row of rows) {
-    if (row.kind === 'section') {
-      currentSection = row.section.id;
-      const section = draft.sections.find((s) => s.id === row.section.id);
-      if (section) section.order = sectionOrder++;
-    } else {
-      const poem = draft.poems.find((p) => p.id === row.poem.id);
-      if (poem) {
-        poem.sectionId = currentSection;
-        poem.order = poemOrder++;
-      }
-    }
-  }
-}
 
 export function PoemList() {
   const project = useStore((s) => s.project);
@@ -86,57 +52,62 @@ export function PoemList() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const allRows = useMemo(() => (project ? buildRows(project) : []), [project]);
+  const allRows: ContentItem[] = project ? project.contents : [];
   const sampleCount = project ? countSamplePoems(project) : 0;
+  const poemCount = project ? poemsOf(project).length : 0;
+  const partCount = project ? sectionsOf(project).length : 0;
 
   const needle = filter.trim().toLowerCase();
   // Filtering hides rows, so dragging while filtered would reorder against a
   // sequence the poet cannot see. Reordering is switched off instead.
   const rows = useMemo(() => {
     if (!needle) return allRows;
-    return allRows.filter((row) =>
-      row.kind === 'poem'
-        ? row.poem.title.toLowerCase().includes(needle) ||
-          row.poem.body.toLowerCase().includes(needle)
-        : row.section.title.toLowerCase().includes(needle),
+    return allRows.filter((item) =>
+      isPoem(item)
+        ? item.title.toLowerCase().includes(needle) || item.body.toLowerCase().includes(needle)
+        : item.title.toLowerCase().includes(needle),
     );
   }, [allRows, needle]);
 
   const warnings = useMemo(() => {
     const map = new Map<string, number>();
-    for (const row of allRows) {
-      if (row.kind !== 'poem') continue;
-      const stats = repairStats(row.poem.body);
+    for (const item of allRows) {
+      if (!isPoem(item)) continue;
+      const stats = repairStats(item.body);
       const count = stats.suggestions + stats.longLines;
-      if (count) map.set(row.poem.id, count);
+      if (count) map.set(item.id, count);
     }
     return map;
   }, [allRows]);
 
   if (!project) return null;
 
+  // Reordering is a move within the one array, which is all that order means
+  // now — there is no membership to rewrite alongside it.
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const from = rows.findIndex((r) => r.key === active.id);
-    const to = rows.findIndex((r) => r.key === over.id);
-    if (from < 0 || to < 0) return;
-    const next = [...rows];
-    next.splice(to, 0, next.splice(from, 1)[0]);
-    update((draft) => commitRows(next, draft), { discrete: true });
+    update(
+      (draft) => {
+        const from = draft.contents.findIndex((item) => item.id === active.id);
+        const to = draft.contents.findIndex((item) => item.id === over.id);
+        if (from < 0 || to < 0) return;
+        draft.contents.splice(to, 0, draft.contents.splice(from, 1)[0]);
+      },
+      { discrete: true },
+    );
   };
 
   const addPoem = () => {
     const newId = id('poem');
     update((draft) => {
-      draft.poems.push({
+      draft.contents.push({
+        kind: 'poem',
         id: newId,
         title: 'Untitled',
         body: '',
         epigraph: '',
         dedication: '',
-        sectionId: draft.sections.length ? draft.sections[draft.sections.length - 1].id : null,
-        order: draft.poems.length,
       });
     });
     select(newId);
@@ -144,11 +115,11 @@ export function PoemList() {
 
   const addSection = () => {
     update((draft) => {
-      draft.sections.push({
+      draft.contents.push({
+        kind: 'section',
         id: id('sec'),
-        title: `Part ${draft.sections.length + 1}`,
+        title: `Part ${sectionsOf(draft).length + 1}`,
         subtitle: '',
-        order: draft.sections.length,
       });
     });
   };
@@ -159,8 +130,8 @@ export function PoemList() {
         <h2 className="flex items-baseline gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-300">
           Contents
           <span className="font-normal normal-case tracking-normal text-ink-400">
-            {project.poems.length} poem{project.poems.length === 1 ? '' : 's'}
-            {project.sections.length > 0 && `, ${project.sections.length} parts`}
+            {poemCount} poem{poemCount === 1 ? '' : 's'}
+            {partCount > 0 && `, ${partCount} part${partCount === 1 ? '' : 's'}`}
             {warnings.size > 0 && (
               <span className="text-amber-300"> · {warnings.size} to check</span>
             )}
@@ -178,7 +149,7 @@ export function PoemList() {
             Import
           </Button>
         </div>
-        {project.poems.length > 4 && (
+        {poemCount > 4 && (
           <div className="relative">
             <TextInput
               value={filter}
@@ -248,14 +219,14 @@ export function PoemList() {
             )}
           </p>
         ) : needle ? (
-          rows.map((row) =>
-            row.kind === 'poem' ? (
+          rows.map((item) =>
+            isPoem(item) ? (
               <PoemRow
-                key={row.key}
-                poem={row.poem}
-                warnings={warnings.get(row.poem.id) ?? 0}
-                selected={row.poem.id === selectedPoemId}
-                onSelect={() => select(row.poem.id)}
+                key={item.id}
+                poem={item}
+                warnings={warnings.get(item.id) ?? 0}
+                selected={item.id === selectedPoemId}
+                onSelect={() => select(item.id)}
                 draggable={false}
               />
             ) : null,
@@ -267,17 +238,17 @@ export function PoemList() {
             modifiers={[restrictToVerticalAxis, restrictToParentElement]}
             onDragEnd={onDragEnd}
           >
-            <SortableContext items={rows.map((r) => r.key)} strategy={verticalListSortingStrategy}>
-              {rows.map((row) =>
-                row.kind === 'section' ? (
-                  <SectionRow key={row.key} section={row.section} />
+            <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+              {rows.map((item) =>
+                isSection(item) ? (
+                  <SectionRow key={item.id} section={item} />
                 ) : (
                   <PoemRow
-                    key={row.key}
-                    poem={row.poem}
-                    warnings={warnings.get(row.poem.id) ?? 0}
-                    selected={row.poem.id === selectedPoemId}
-                    onSelect={() => select(row.poem.id)}
+                    key={item.id}
+                    poem={item}
+                    warnings={warnings.get(item.id) ?? 0}
+                    selected={item.id === selectedPoemId}
+                    onSelect={() => select(item.id)}
                   />
                 ),
               )}
@@ -398,7 +369,7 @@ function SectionRow({ section }: { section: Section }) {
         value={section.title}
         onChange={(e) =>
           update((draft) => {
-            const found = draft.sections.find((s) => s.id === section.id);
+            const found = draft.contents.find((item) => item.id === section.id);
             if (found) found.title = e.target.value;
           })
         }
@@ -407,14 +378,11 @@ function SectionRow({ section }: { section: Section }) {
       />
       <button
         type="button"
-        title="Delete this part (its poems stay)"
+        title="Delete this part (its poems stay, under whatever precedes them)"
         onClick={() =>
           update(
             (draft) => {
-              draft.sections = draft.sections.filter((s) => s.id !== section.id);
-              for (const poem of draft.poems) {
-                if (poem.sectionId === section.id) poem.sectionId = null;
-              }
+              draft.contents = draft.contents.filter((item) => item.id !== section.id);
             },
             { discrete: true },
           )

@@ -1,4 +1,5 @@
-import type { MatterPage, Poem, Project, RenderOptions, Section } from '../types';
+import { isSection } from '../contents';
+import type { ContentItem, MatterPage, Poem, Project, RenderOptions, Section } from '../types';
 import { ORNAMENT_GLYPHS } from './borders';
 import { buildCss, pageGeometry } from './css';
 import { RUNTIME_SCRIPT, type RuntimeConfig } from './runtime';
@@ -21,25 +22,43 @@ const DISPLAY_KINDS = new Set(['halfTitle', 'title', 'dedication', 'epigraph']);
 export const poemAnchor = (poem: Poem) => `p_${poem.id}`;
 export const sectionAnchor = (section: Section) => `s_${section.id}`;
 
-/** Poems in reading order: ungrouped first, then section by section. */
+/**
+ * One stretch of the book.
+ *
+ * Poems are gathered into runs because the ornament between poems belongs
+ * *between* them and nowhere else, so the renderer needs to know which poems
+ * are neighbours. A part opener always ends the run before it.
+ */
+export type Block =
+  | { kind: 'section'; section: Section }
+  | { kind: 'poems'; poems: Poem[] };
+
 export type BookOrder = {
-  loose: Poem[];
-  grouped: Array<{ section: Section; poems: Poem[] }>;
-  all: Poem[];
+  /** Everything in the body, in printed order. */
+  items: ContentItem[];
+  /** The same sequence, with neighbouring poems gathered together. */
+  blocks: Block[];
+  /** Every poem, in printed order. */
+  poems: Poem[];
 };
 
 export function orderBook(project: Project): BookOrder {
-  const byOrder = <T extends { order: number }>(a: T, b: T) => a.order - b.order;
-  const sections = [...project.sections].sort(byOrder);
-  const poems = [...project.poems].sort(byOrder);
+  const items = project.contents;
+  const blocks: Block[] = [];
+  const poems: Poem[] = [];
 
-  const loose = poems.filter((p) => !p.sectionId || !sections.some((s) => s.id === p.sectionId));
-  const grouped = sections.map((section) => ({
-    section,
-    poems: poems.filter((p) => p.sectionId === section.id),
-  }));
-  const all = [...loose, ...grouped.flatMap((g) => g.poems)];
-  return { loose, grouped, all };
+  for (const item of items) {
+    if (isSection(item)) {
+      blocks.push({ kind: 'section', section: item });
+      continue;
+    }
+    poems.push(item);
+    const last = blocks[blocks.length - 1];
+    if (last?.kind === 'poems') last.poems.push(item);
+    else blocks.push({ kind: 'poems', poems: [item] });
+  }
+
+  return { items, blocks, poems };
 }
 
 function renderPoem(poem: Poem, project: Project): string {
@@ -143,16 +162,16 @@ function renderToc(project: Project, order: BookOrder): string {
   const poemItem = (poem: Poem) =>
     `<li class="toc-item is-poem"><a class="toc-entry" href="#${poemAnchor(poem)}"><span class="toc-entry-title">${escapeHtml(poem.title)}</span><span class="toc-leader"></span></a></li>`;
 
-  const titled = (poems: Poem[]) => poems.filter((p) => p.title.trim());
-
-  if (toc.includePoems) {
-    titled(order.loose).forEach((p) => items.push(poemItem(p)));
-  }
-  for (const group of order.grouped) {
-    items.push(
-      `<li class="toc-item is-section"><a class="toc-entry" href="#${sectionAnchor(group.section)}"><span class="toc-entry-title">${escapeHtml(group.section.title)}</span><span class="toc-leader"></span></a></li>`,
-    );
-    if (toc.includePoems) titled(group.poems).forEach((p) => items.push(poemItem(p)));
+  // The contents page is the book's own order, read straight off. An untitled
+  // poem has no name to print and no heading to link to, so it is skipped.
+  for (const entry of order.items) {
+    if (entry.kind === 'section') {
+      items.push(
+        `<li class="toc-item is-section"><a class="toc-entry" href="#${sectionAnchor(entry)}"><span class="toc-entry-title">${escapeHtml(entry.title)}</span><span class="toc-leader"></span></a></li>`,
+      );
+    } else if (toc.includePoems && entry.title.trim()) {
+      items.push(poemItem(entry));
+    }
   }
 
   if (!items.length) return '';
@@ -161,7 +180,7 @@ function renderToc(project: Project, order: BookOrder): string {
 
 function renderFirstLineIndex(project: Project, order: BookOrder): string {
   if (!project.toc.firstLineIndex) return '';
-  const entries = order.all
+  const entries = order.poems
     .map((poem) => ({ poem, line: firstLine(poem.body) }))
     .filter((e) => e.line.length > 0)
     .sort((a, b) => indexSortKey(a.line).localeCompare(indexSortKey(b.line)));
@@ -177,13 +196,13 @@ function renderFirstLineIndex(project: Project, order: BookOrder): string {
 }
 
 function renderBody(project: Project, order: BookOrder): string {
-  const parts: string[] = [];
-  if (order.loose.length) parts.push(renderPoemRun(order.loose, project));
-  for (const group of order.grouped) {
-    parts.push(renderSectionOpener(group.section));
-    if (group.poems.length) parts.push(renderPoemRun(group.poems, project));
-  }
-  return parts.join('');
+  return order.blocks
+    .map((block) =>
+      block.kind === 'section'
+        ? renderSectionOpener(block.section)
+        : renderPoemRun(block.poems, project),
+    )
+    .join('');
 }
 
 export function buildBookHtml(project: Project, options: RenderOptions): string {

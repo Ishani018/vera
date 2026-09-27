@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Malformed request body.' }, { status: 400 });
   }
-  if (!project?.poems) {
+  if (!project?.contents) {
     return NextResponse.json({ error: 'No project in request body.' }, { status: 400 });
   }
 

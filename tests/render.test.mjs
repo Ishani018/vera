@@ -18,9 +18,11 @@ import { VIEWER_SCRIPT } from '../lib/render/viewer.ts';
 
 function seeded(overrides = {}) {
   const project = createProject(overrides);
-  project.poems = buildSamplePoems();
+  project.contents = buildSamplePoems();
   return project;
 }
+
+const poemsIn = (project) => project.contents.filter((item) => item.kind === 'poem');
 
 const render = (project, opts = {}) =>
   buildBookHtml(project, {
@@ -73,7 +75,7 @@ test('the rendered book contains no inline style attributes', () => {
 test('every poem is anchored and the TOC links to those anchors', () => {
   const project = seeded();
   const html = render(project);
-  for (const poem of project.poems) {
+  for (const poem of poemsIn(project)) {
     assert.ok(html.includes(`id="p_${poem.id}"`), `missing anchor for ${poem.title}`);
     assert.ok(html.includes(`href="#p_${poem.id}"`), `missing TOC link for ${poem.title}`);
   }
@@ -82,30 +84,58 @@ test('every poem is anchored and the TOC links to those anchors', () => {
 test('poems carry their title as data so a continuation page can name them', () => {
   const project = seeded();
   const html = render(project);
-  const long = project.poems.find((p) => p.sampleKey.endsWith('page-break'));
+  const long = poemsIn(project).find((p) => p.sampleKey.endsWith('page-break'));
   assert.ok(html.includes(`data-title="${long.title.replace(/&/g, '&amp;')}"`));
 });
 
-test('reading order puts loose poems first, then each section in order', () => {
-  const project = seeded();
-  project.sections = [
-    { id: 's1', title: 'Two', subtitle: '', order: 1 },
-    { id: 's0', title: 'One', subtitle: '', order: 0 },
-  ];
-  project.poems[0].sectionId = 's1';
-  project.poems[1].sectionId = 's0';
-  const order = orderBook(project);
-  assert.deepEqual(order.grouped.map((g) => g.section.title), ['One', 'Two']);
-  assert.equal(order.loose.length, project.poems.length - 2);
-  assert.equal(order.all.length, project.poems.length);
+const part = (id, title) => ({ kind: 'section', id, title, subtitle: '' });
+const poem = (id, title = id) => ({
+  kind: 'poem',
+  id,
+  title,
+  body: 'a line',
+  epigraph: '',
+  dedication: '',
 });
 
-test('a poem assigned to a deleted section falls back to loose', () => {
-  const project = seeded();
-  project.poems[0].sectionId = 'gone';
+test('the book is read in list order, whatever that order is', () => {
+  const project = createProject();
+  project.contents = [poem('a'), part('s0', 'One'), poem('b'), part('s1', 'Two'), poem('c')];
   const order = orderBook(project);
-  assert.ok(order.loose.some((p) => p.id === project.poems[0].id));
-  assert.equal(order.all.length, project.poems.length);
+  assert.deepEqual(order.poems.map((p) => p.id), ['a', 'b', 'c']);
+  assert.deepEqual(
+    order.blocks.map((b) => (b.kind === 'section' ? b.section.title : b.poems.map((p) => p.id))),
+    [['a'], 'One', ['b'], 'Two', ['c']],
+  );
+});
+
+// The old model could not say this at all: every poem had to sit inside a part
+// or before all of them, so a poem printed between two parts was unreachable.
+test('a poem can be printed between two parts', () => {
+  const project = createProject();
+  project.contents = [part('s0', 'One'), poem('a'), poem('interlude'), part('s1', 'Two')];
+  const html = render(project);
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('id="p_interlude"') > at('id="s_s0"'), 'the interlude follows the first part');
+  assert.ok(at('id="p_interlude"') < at('id="s_s1"'), 'and precedes the second');
+});
+
+test('neighbouring poems form one run, and a part heading ends it', () => {
+  const project = createProject();
+  project.contents = [poem('a'), poem('b'), part('s0', 'One'), poem('c')];
+  const blocks = orderBook(project).blocks;
+  assert.deepEqual(
+    blocks.map((b) => (b.kind === 'poems' ? b.poems.length : 'section')),
+    [2, 'section', 1],
+  );
+});
+
+test('the contents page lists everything in printed order', () => {
+  const project = createProject();
+  project.contents = [poem('a', 'Alpha'), part('s0', 'One'), poem('b', 'Beta')];
+  const html = render(project);
+  const entries = [...html.matchAll(/class="toc-entry-title">([^<]+)</g)].map((m) => m[1]);
+  assert.deepEqual(entries, ['Alpha', 'One', 'Beta']);
 });
 
 test('blank padding pages are emitted only when asked for', () => {
@@ -198,15 +228,14 @@ import { renderInlineMarkup, stripInlineMarkup } from '../lib/render/text.ts';
 /** Builds a one-poem project so a single feature can be looked at in isolation. */
 function withPoem(patch) {
   const project = createProject();
-  project.poems = [
+  project.contents = [
     {
+      kind: 'poem',
       id: 'x1',
       title: 'A Title',
       body: 'first line\nsecond line',
       epigraph: '',
       dedication: '',
-      sectionId: null,
-      order: 0,
       ...patch,
     },
   ];
@@ -257,7 +286,7 @@ test('audit: an untitled poem gets no heading and no contents entry', () => {
   const project = withPoem({ title: '' });
   const html = render(project);
   assert.ok(!html.includes('<h2 class="poem-title">'), 'an empty h2 would still take the title space');
-  assert.ok(!html.includes(`href="#p_${project.poems[0].id}"`), 'no dotted line to nowhere');
+  assert.ok(!html.includes('href="#p_x1"'), 'no dotted line to nowhere');
   // It still has to be a link target, for the index of first lines.
   assert.match(html, /<article class="poem" id="p_x1"/);
 });
@@ -274,7 +303,7 @@ test('audit: a titled poem keeps its heading and its contents entry', () => {
   const project = withPoem({});
   const html = render(project);
   assert.match(html, /<h2 class="poem-title">A Title<\/h2>/);
-  assert.ok(html.includes(`href="#p_${project.poems[0].id}"`));
+  assert.ok(html.includes('href="#p_x1"'));
 });
 
 test('running heads are resolved at render time, not by a CSS string()', () => {

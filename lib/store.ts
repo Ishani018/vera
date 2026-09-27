@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { putAssetFromDataUrl } from './assets';
+import { migrateContents } from './contents';
 import { ACTIVE_PROJECT_KEY, getDb } from './db';
 import { createProject } from './defaults';
 import { buildSamplePoems, withoutSamplePoems } from './samples';
@@ -184,9 +185,12 @@ export const useStore = create<State & Actions>((set, get) => ({
           copyrightExtra: '',
         },
       });
-      project.poems = buildSamplePoems();
+      project.contents = buildSamplePoems();
       await db.projects.put(project);
     }
+    // Stored projects predate both of these shapes, so bring them forward
+    // before anything reads them.
+    project = { ...project, contents: migrateContents(project) };
     project = await migrateInlineImages(project, db);
     window.localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
     set({ project, status: 'ready' });
@@ -266,7 +270,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   seedSamplePoems: () => {
     get().update(
       (draft) => {
-        draft.poems = [...draft.poems, ...buildSamplePoems(draft.poems.length)];
+        draft.contents = [...draft.contents, ...buildSamplePoems()];
       },
       { discrete: true },
     );

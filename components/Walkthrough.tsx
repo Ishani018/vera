@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { poemsOf } from '@/lib/contents';
 import { useStore } from '@/lib/store';
 import { Button, cx } from './ui';
 
@@ -116,7 +117,7 @@ export function Walkthrough({
   const setPanel = useStore((s) => s.setPanel);
   const pageCount = useStore((s) => s.pageCount);
 
-  const poemCount = project?.poems.length ?? 0;
+  const poemCount = project ? poemsOf(project).length : 0;
   const step = STEPS[progress.step];
 
   const helpers = useMemo<Helpers>(

@@ -1,6 +1,7 @@
 import { SAMPLE_POEMS, SAMPLE_POEM_KEY_PREFIX } from '@/src/data/samplePoems';
+import { isPoem, poemsOf } from './contents';
 import { id } from './defaults';
-import type { Poem, Project } from './types';
+import type { ContentItem, Poem, Project } from './types';
 
 /**
  * Turns the placeholder verses in src/data/samplePoems.ts into project poems.
@@ -8,15 +9,14 @@ import type { Poem, Project } from './types';
  * run. Every seeded poem carries a `sampleKey`, which is the only thing that
  * marks it as disposable.
  */
-export function buildSamplePoems(startOrder = 0): Poem[] {
-  return SAMPLE_POEMS.map((sample, i) => ({
+export function buildSamplePoems(): Poem[] {
+  return SAMPLE_POEMS.map((sample) => ({
+    kind: 'poem',
     id: id('poem'),
     title: sample.title,
     body: sample.body,
     epigraph: sample.epigraph ?? '',
     dedication: sample.dedication ?? '',
-    sectionId: null,
-    order: startOrder + i,
     sampleKey: `${SAMPLE_POEM_KEY_PREFIX}${sample.key}`,
   }));
 }
@@ -24,12 +24,12 @@ export function buildSamplePoems(startOrder = 0): Poem[] {
 export const isSamplePoem = (poem: Poem): boolean => Boolean(poem.sampleKey);
 
 export const countSamplePoems = (project: Project): number =>
-  project.poems.filter(isSamplePoem).length;
+  poemsOf(project).filter(isSamplePoem).length;
 
-/** Drops every seeded poem and closes the gaps in the ordering. */
+/** Drops every seeded poem, leaving parts and real work where they were. */
 export function withoutSamplePoems(project: Project): Project {
-  const poems = project.poems
-    .filter((p) => !isSamplePoem(p))
-    .map((p, i) => ({ ...p, order: i }));
-  return { ...project, poems };
+  const contents: ContentItem[] = project.contents.filter(
+    (item) => !(isPoem(item) && isSamplePoem(item)),
+  );
+  return { ...project, contents };
 }

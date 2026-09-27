@@ -20,14 +20,13 @@ export type FontSpec = {
 };
 
 export type Poem = {
+  kind: 'poem';
   id: string;
   title: string;
   /** Raw text. Line breaks and blank lines are meaningful and never reflowed. */
   body: string;
   epigraph: string;
   dedication: string;
-  sectionId: string | null;
-  order: number;
   /**
    * Overrides the collection's left alignment for one poem. Shaped poems are
    * centred or ranged right by the poet, not by the book design, so this is
@@ -41,12 +40,28 @@ export type Poem = {
   sampleKey?: string;
 };
 
+/**
+ * A part opener. It carries no list of poems: the poems under it are simply the
+ * ones that follow it in `contents`, which is also how a reader finds them.
+ */
 export type Section = {
+  kind: 'section';
   id: string;
   title: string;
   subtitle: string;
-  order: number;
 };
+
+/**
+ * One entry in the body of the book.
+ *
+ * Poems and parts used to live in two arrays keyed to each other by id and
+ * ordered by a number on every row. That could not express a poem printed
+ * between two parts, it needed renumbering after every drag, and the ordering
+ * had to be recomputed identically in the renderer, the list and the contents
+ * page. One array in printed order says the same thing and cannot disagree
+ * with itself.
+ */
+export type ContentItem = Poem | Section;
 
 export type MatterKind =
   | 'halfTitle'
@@ -229,8 +244,8 @@ export type Project = {
   toc: TocSettings;
   frontMatter: MatterPage[];
   backMatter: MatterPage[];
-  sections: Section[];
-  poems: Poem[];
+  /** The body of the book, in the order it is printed. */
+  contents: ContentItem[];
   cover: CoverSpec;
 };
 

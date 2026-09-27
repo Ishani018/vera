@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { insertIntoSection, sectionsOf } from '@/lib/contents';
 import {
   DEFAULT_IMPORT_OPTIONS,
   poemsFromFile,
@@ -25,6 +26,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
   const [options, setOptions] = useState<ImportOptions>(DEFAULT_IMPORT_OPTIONS);
   const [sectionId, setSectionId] = useState<string>('');
+  const parts = project ? sectionsOf(project) : [];
   const [fileError, setFileError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -73,7 +75,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
     if (!parsed.length) return;
     update(
       (draft) => {
-        draft.poems.push(...toPoems(parsed, draft.poems.length, sectionId || null));
+        insertIntoSection(draft.contents, toPoems(parsed), sectionId || null);
       },
       { discrete: true },
     );
@@ -235,14 +237,14 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
             onChange={(v) => set('firstLineIsTitle', v)}
           />
 
-          {project && project.sections.length > 0 && (
+          {parts.length > 0 && (
             <Field label="Add to part">
               <Select
                 value={sectionId}
                 onChange={setSectionId}
                 options={[
                   { value: '', label: 'No part' },
-                  ...project.sections.map((s) => ({ value: s.id, label: s.title })),
+                  ...parts.map((part) => ({ value: part.id, label: part.title })),
                 ]}
               />
             </Field>

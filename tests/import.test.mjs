@@ -114,11 +114,11 @@ test('single mode keeps everything as one poem', () => {
   assert.equal(poem.title, 'Title');
 });
 
-test('imported poems get sequential order and the chosen section', () => {
+test('imported poems keep their order in the file and get distinct ids', () => {
   const parsed = splitIntoPoems('# A\nx\n\n---\n\n# B\ny', DEFAULT_IMPORT_OPTIONS);
-  const poems = toPoems(parsed, 5, 'sec1');
-  assert.deepEqual(poems.map((p) => p.order), [5, 6]);
-  assert.deepEqual(poems.map((p) => p.sectionId), ['sec1', 'sec1']);
+  const poems = toPoems(parsed);
+  assert.deepEqual(poems.map((p) => p.title), ['A', 'B']);
+  assert.ok(poems.every((p) => p.kind === 'poem'));
   assert.equal(new Set(poems.map((p) => p.id)).size, 2);
 });
 

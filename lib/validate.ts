@@ -7,6 +7,7 @@ import {
   padToEven,
   type ValidationIssue,
 } from './kdp';
+import { poemsOf } from './contents';
 import { collidesWithBarcode, coverLayout, spineTooThinForText } from './render/coverLayout';
 import { countLines } from './render/text';
 import type { Project } from './types';
@@ -35,7 +36,9 @@ export function validateProject(project: Project, pageCount: number): Validation
     );
   }
 
-  if (!project.poems.length) {
+  const poems = poemsOf(project);
+
+  if (!poems.length) {
     issues.push({
       id: 'no-poems',
       level: 'error',
@@ -44,7 +47,7 @@ export function validateProject(project: Project, pageCount: number): Validation
     });
   }
 
-  const untitled = project.poems.filter((p) => !p.title.trim());
+  const untitled = poems.filter((p) => !p.title.trim());
   if (untitled.length) {
     issues.push({
       id: 'untitled-poems',
@@ -54,24 +57,13 @@ export function validateProject(project: Project, pageCount: number): Validation
     });
   }
 
-  const empty = project.poems.filter((p) => countLines(p.body) === 0);
+  const empty = poems.filter((p) => countLines(p.body) === 0);
   if (empty.length) {
     issues.push({
       id: 'empty-poems',
       level: 'warning',
       message: `${empty.length} poem${empty.length === 1 ? ' has' : 's have'} no lines.`,
       fix: 'An empty poem still takes a page. Delete it or add its text.',
-    });
-  }
-
-  const knownSections = new Set(project.sections.map((s) => s.id));
-  const orphaned = project.poems.filter((p) => p.sectionId && !knownSections.has(p.sectionId));
-  if (orphaned.length) {
-    issues.push({
-      id: 'orphaned-poems',
-      level: 'warning',
-      message: `${orphaned.length} poem${orphaned.length === 1 ? ' belongs' : 's belong'} to a section that no longer exists.`,
-      fix: 'They will be typeset before the first section. Reassign them from the poem list.',
     });
   }
 

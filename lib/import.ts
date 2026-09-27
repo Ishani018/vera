@@ -293,14 +293,13 @@ export async function readFileAsText(file: File): Promise<string> {
   return file.text();
 }
 
-export function toPoems(parsed: ParsedPoem[], startOrder: number, sectionId: string | null): Poem[] {
-  return parsed.map((p, i) => ({
+export function toPoems(parsed: ParsedPoem[]): Poem[] {
+  return parsed.map((p) => ({
+    kind: 'poem' as const,
     id: id('poem'),
     title: p.title,
     body: p.body,
     epigraph: '',
     dedication: '',
-    sectionId,
-    order: startOrder + i,
   }));
 }

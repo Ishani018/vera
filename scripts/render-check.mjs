@@ -37,7 +37,7 @@ const project = createProject({
     copyrightExtra: '',
   },
 });
-project.poems = buildSamplePoems();
+project.contents = buildSamplePoems();
 project.toc.firstLineIndex = true;
 project.layout.verticalCenterShortPoems = true;
 project.border.enabled = true;
