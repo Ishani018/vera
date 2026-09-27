@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { BookPreview } from './BookPreview';
 import { CoverDesigner } from './CoverDesigner';
+import { IllustrationEditor } from './IllustrationEditor';
 import { PoemEditor } from './PoemEditor';
 import { PoemList } from './PoemList';
 import { HelpPanel } from './HelpPanel';
@@ -149,6 +150,7 @@ export function Workspace() {
       )}
 
       <PoemEditor />
+      <IllustrationEditor />
       {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
       <Walkthrough
         {...walkthrough}

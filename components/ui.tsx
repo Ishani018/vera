@@ -164,15 +164,21 @@ export function Toggle({
   checked,
   onChange,
   label,
+  /** For a switch that is on because another setting implies it. */
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) {
   const id = useId();
   return (
     <div className="flex items-center justify-between gap-3 py-0.5">
-      <label htmlFor={id} className="cursor-pointer select-none text-ink-200">
+      <label
+        htmlFor={id}
+        className={cx('select-none text-ink-200', disabled ? 'text-ink-400' : 'cursor-pointer')}
+      >
         {label}
       </label>
       <button
@@ -180,10 +186,12 @@ export function Toggle({
         type="button"
         role="switch"
         aria-checked={checked}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cx(
           'relative h-5 w-9 shrink-0 rounded-full transition-colors',
           checked ? 'bg-brass-500' : 'bg-ink-700',
+          disabled && 'opacity-60',
         )}
       >
         <span

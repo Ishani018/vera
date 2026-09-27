@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { isPoem, movePoemToSection, sectionOfPoem, sectionsOf } from '@/lib/contents';
+import { isPoem, moveToSection, sectionOfItem, sectionsOf } from '@/lib/contents';
 import { repairStats } from '@/lib/repair';
 import { parseStanzas } from '@/lib/render/text';
 import { useStore } from '@/lib/store';
@@ -18,13 +18,14 @@ export function PoemEditor() {
   const select = useStore((s) => s.select);
   const update = useStore((s) => s.update);
   const [tab, setTab] = useState<Tab>('text');
+  const [confirmConvert, setConfirmConvert] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const poem = project?.contents.find(
     (item): item is Poem => isPoem(item) && item.id === selectedPoemId,
   );
   const parts = project ? sectionsOf(project) : [];
-  const partId = project && poem ? (sectionOfPoem(project, poem.id)?.id ?? '') : '';
+  const partId = project && poem ? (sectionOfItem(project, poem.id)?.id ?? '') : '';
   const stats = useMemo(() => (poem ? repairStats(poem.body) : null), [poem]);
 
   if (!project || !poem) return null;
@@ -74,6 +75,37 @@ export function PoemEditor() {
     });
   };
 
+  /**
+   * Becoming a plate keeps the page's place in the book but throws the verse
+   * away, so a poem with text in it asks first.
+   */
+  const turnIntoIllustration = () => {
+    if (poem.body.trim() && !confirmConvert) {
+      setConfirmConvert(true);
+      return;
+    }
+    update(
+      (draft) => {
+        const at = draft.contents.findIndex((item) => item.id === poem.id);
+        if (at < 0) return;
+        draft.contents[at] = {
+          kind: 'illustration',
+          id: poem.id,
+          title: poem.title,
+          caption: '',
+          assetId: '',
+          naturalWidth: 0,
+          naturalHeight: 0,
+          fit: 'contain',
+          startsRecto: false,
+          facingBlank: false,
+        };
+      },
+      { discrete: true },
+    );
+    setConfirmConvert(false);
+  };
+
   return (
     <Modal
       title={poem.title.trim() || 'Untitled poem'}
@@ -89,6 +121,15 @@ export function PoemEditor() {
                 <span className="text-amber-300"> · {stats.longLines} over the measure</span>
               )}
             </span>
+          )}
+          {confirmConvert ? (
+            <Button variant="danger" onClick={turnIntoIllustration}>
+              Discard the verse and make it a plate
+            </Button>
+          ) : (
+            <Button onClick={turnIntoIllustration} title="Keep its place, make it a picture">
+              Turn into an illustration
+            </Button>
           )}
           <Button variant="danger" onClick={remove}>
             Delete poem
@@ -173,7 +214,7 @@ export function PoemEditor() {
                   value={partId}
                   onChange={(value) =>
                     update(
-                      (draft) => movePoemToSection(draft.contents, poem.id, value || null),
+                      (draft) => moveToSection(draft.contents, poem.id, value || null),
                       { discrete: true },
                     )
                   }

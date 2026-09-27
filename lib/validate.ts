@@ -7,7 +7,7 @@ import {
   padToEven,
   type ValidationIssue,
 } from './kdp';
-import { poemsOf } from './contents';
+import { illustrationsOf, poemsOf } from './contents';
 import { collidesWithBarcode, coverLayout, spineTooThinForText } from './render/coverLayout';
 import { countLines } from './render/text';
 import type { Project } from './types';
@@ -64,6 +64,47 @@ export function validateProject(project: Project, pageCount: number): Validation
       level: 'warning',
       message: `${empty.length} poem${empty.length === 1 ? ' has' : 's have'} no lines.`,
       fix: 'An empty poem still takes a page. Delete it or add its text.',
+    });
+  }
+
+  const plates = illustrationsOf(project);
+  const emptyPlates = plates.filter((plate) => !plate.assetId);
+  if (emptyPlates.length) {
+    issues.push({
+      id: 'empty-plates',
+      level: 'error',
+      message: `${emptyPlates.length} illustration page${emptyPlates.length === 1 ? ' has' : 's have'} no picture.`,
+      fix: 'Choose a picture, or delete the page. It prints blank otherwise.',
+    });
+  }
+
+  // A plate inside the margins prints narrower than one that bleeds, so the
+  // resolution that matters is the one at the size this plate will actually be.
+  const trim = getTrim(project.trim.trimId);
+  const soft = plates.filter((plate) => {
+    if (!plate.assetId || !plate.naturalWidth) return false;
+    const printedWidth =
+      plate.fit === 'bleed'
+        ? trim.width
+        : trim.width - project.margins.inside - project.margins.outside;
+    return effectiveDpi(plate.naturalWidth, printedWidth) < MIN_COVER_DPI;
+  });
+  if (soft.length) {
+    issues.push({
+      id: 'low-dpi-plates',
+      level: 'warning',
+      message: `${soft.length} illustration${soft.length === 1 ? '' : 's'} print${soft.length === 1 ? 's' : ''} under ${MIN_COVER_DPI} DPI.`,
+      fix: 'KDP accepts them; they will look soft. A larger original is the only fix.',
+    });
+  }
+
+  const bleedingWithoutBleed = plates.filter((plate) => plate.fit === 'bleed');
+  if (bleedingWithoutBleed.length && !project.trim.bleed) {
+    issues.push({
+      id: 'plate-bleed-off',
+      level: 'warning',
+      message: `${bleedingWithoutBleed.length} illustration${bleedingWithoutBleed.length === 1 ? ' runs' : 's run'} off the trimmed edge, but the book is set up without bleed.`,
+      fix: 'Turn bleed on under Trim & margins, or set those plates inside the margins.',
     });
   }
 

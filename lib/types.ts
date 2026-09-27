@@ -52,6 +52,36 @@ export type Section = {
 };
 
 /**
+ * A page that is a picture rather than verse.
+ *
+ * The page exists before the picture does — you can put a plate in the running
+ * order and choose the image later — so `assetId` may be empty, and the export
+ * checks rather than the type are what insist on it being filled in.
+ */
+export type Illustration = {
+  kind: 'illustration';
+  id: string;
+  /** Listed in the contents when set. A plate may perfectly well have no name. */
+  title: string;
+  /** Printed under the picture, in italic. */
+  caption: string;
+  assetId: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  /** `contain` sits inside the margins; `bleed` runs off the trimmed edge. */
+  fit: 'contain' | 'bleed';
+  /** Put the plate on a right-hand page. Implied by `facingBlank`. */
+  startsRecto: boolean;
+  /**
+   * Leave the page opposite blank, the way a frontispiece is set. Which page
+   * faces this one is only knowable once it has a side, so this puts the plate
+   * on a recto and pushes what follows to the next recto — the arrangement the
+   * convention actually describes.
+   */
+  facingBlank: boolean;
+};
+
+/**
  * One entry in the body of the book.
  *
  * Poems and parts used to live in two arrays keyed to each other by id and
@@ -61,7 +91,7 @@ export type Section = {
  * page. One array in printed order says the same thing and cannot disagree
  * with itself.
  */
-export type ContentItem = Poem | Section;
+export type ContentItem = Poem | Section | Illustration;
 
 export type MatterKind =
   | 'halfTitle'

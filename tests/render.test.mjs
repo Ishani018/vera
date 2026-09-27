@@ -130,6 +130,95 @@ test('neighbouring poems form one run, and a part heading ends it', () => {
   );
 });
 
+const plate = (id, patch = {}) => ({
+  kind: 'illustration',
+  id,
+  title: '',
+  caption: '',
+  assetId: 'a1',
+  naturalWidth: 2000,
+  naturalHeight: 3000,
+  fit: 'contain',
+  startsRecto: false,
+  facingBlank: false,
+  ...patch,
+});
+
+const withPlate = (patch = {}, opts = {}) => {
+  const project = createProject();
+  project.contents = [plate('x', patch)];
+  return render(project, { assets: { a1: 'data:image/png;base64,AAA' }, ...opts });
+};
+
+test('a plate breaks onto a page of its own and carries its picture', () => {
+  const html = withPlate({ caption: 'Low Water' });
+  assert.match(html, /<figure class="plate" id="i_x"/);
+  assert.match(html, /<img class="plate-image" src="data:image\/png;base64,AAA"/);
+  assert.match(html, /<figcaption class="plate-caption">Low Water<\/figcaption>/);
+  assert.match(html, /\.plate \{[\s\S]*?break-before: page;/);
+});
+
+// Same trap as the poems: an inline style makes Paged.js treat the element as
+// undisplayed, and the page stops breaking where it was told to.
+test('a plate carries no inline style', () => {
+  assert.ok(!/<figure class="plate"[^>]*\sstyle=/.test(withPlate({ fit: 'bleed' })));
+  assert.ok(!/<img class="plate-image"[^>]*\sstyle=/.test(withPlate({ fit: 'bleed' })));
+});
+
+test('an empty plate still takes a page, and says so only in the preview', () => {
+  const project = createProject();
+  project.contents = [plate('x', { assetId: '' })];
+  assert.match(render(project, { mode: 'preview' }), /<div class="plate-empty">/);
+  // The rule stays in the stylesheet either way; it is the element that must go.
+  assert.ok(!render(project).includes('<div class="plate-empty">'), 'that label must never print');
+  assert.match(render(project), /<figure class="plate" id="i_x"/);
+});
+
+// The page facing a plate is the verso across the gutter — the page *before*
+// it. `break-after` would have left the blank on the wrong side of the fold.
+test('keeping the facing page blank puts a real blank verso before the plate', () => {
+  const html = withPlate({ facingBlank: true });
+  assert.match(html, /<div class="plate-facing-blank"><\/div><figure class="plate"/);
+  assert.match(html, /data-recto="true"/, 'there is only a facing page if it is on a recto');
+  assert.match(html, /\.plate-facing-blank \{[\s\S]*?break-before: left;/);
+  assert.match(html, /\.plate\[data-recto='true'\] \{ break-before: right; \}/);
+  assert.ok(!html.includes('break-after: right'), 'that would blank the page after, not the one facing');
+});
+
+test('a plate without a caption gets the whole page for its picture', () => {
+  const tall = withPlate({ caption: '' }).match(/data-fit='contain'\] \.plate-image \{[\s\S]*?max-height: ([\d.]+)in/)[1];
+  const short = withPlate({ caption: 'x' }).match(/data-caption='true'\] \.plate-image \{\s*max-height: ([\d.]+)in/)[1];
+  assert.ok(Number(short) < Number(tall), 'a captioned plate leaves room for the caption');
+  assert.match(withPlate({ caption: 'x' }), /data-caption="true"/);
+  assert.match(withPlate({ caption: '' }), /data-caption="false"/);
+});
+
+// The inside margin is on the right of a verso and the left of a recto, so a
+// bleeding picture cannot use one offset for both.
+test('a bleeding plate reaches the sheet edge from whichever side it lands on', () => {
+  const html = withPlate({ fit: 'bleed' });
+  assert.match(html, /\.pagedjs_left_page \.plate\[data-fit='bleed'\] \.plate-image \{ left: -[\d.]+in; \}/);
+  assert.match(html, /\.pagedjs_right_page \.plate\[data-fit='bleed'\] \.plate-image \{ left: -[\d.]+in; \}/);
+  const left = Number(html.match(/\.pagedjs_left_page[^{]*\{ left: -([\d.]+)in/)[1]);
+  const right = Number(html.match(/\.pagedjs_right_page[^{]*\{ left: -([\d.]+)in/)[1]);
+  assert.notEqual(left, right, 'mirrored margins mean the two sides differ');
+});
+
+test('a plate ends the poem run it interrupts, so no ornament crosses it', () => {
+  const project = createProject();
+  project.contents = [poem('a'), plate('x'), poem('b')];
+  const blocks = orderBook(project).blocks;
+  assert.deepEqual(blocks.map((b) => b.kind), ['poems', 'plate', 'poems']);
+});
+
+test('a named plate is listed in the contents; an unnamed one is not', () => {
+  const project = createProject();
+  project.contents = [plate('named', { title: 'Plate I' }), plate('anon')];
+  const html = render(project, { assets: { a1: 'x' } });
+  assert.match(html, /class="toc-entry" href="#i_named"/);
+  assert.ok(!html.includes('href="#i_anon"'), 'nothing to call it and nowhere to point');
+});
+
 test('the contents page lists everything in printed order', () => {
   const project = createProject();
   project.contents = [poem('a', 'Alpha'), part('s0', 'One'), poem('b', 'Beta')];

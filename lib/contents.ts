@@ -1,13 +1,19 @@
-import type { ContentItem, Poem, Project, Section } from './types';
+import type { ContentItem, Illustration, Poem, Project, Section } from './types';
 
 export const isPoem = (item: ContentItem): item is Poem => item.kind === 'poem';
 export const isSection = (item: ContentItem): item is Section => item.kind === 'section';
+export const isIllustration = (item: ContentItem): item is Illustration =>
+  item.kind === 'illustration';
 
 /** Every poem, in printed order. */
 export const poemsOf = (project: Project): Poem[] => project.contents.filter(isPoem);
 
 /** Every part opener, in printed order. */
 export const sectionsOf = (project: Project): Section[] => project.contents.filter(isSection);
+
+/** Every plate, in printed order. */
+export const illustrationsOf = (project: Project): Illustration[] =>
+  project.contents.filter(isIllustration);
 
 export const findPoem = (project: Project, id: string): Poem | undefined =>
   project.contents.find((item): item is Poem => isPoem(item) && item.id === id);
@@ -19,11 +25,11 @@ export const findPoem = (project: Project, id: string): Poem | undefined =>
  * such thing as a poem pointing at a part that was deleted, and dragging a poem
  * past a part heading is the whole of moving it between parts.
  */
-export function sectionOfPoem(project: Project, poemId: string): Section | null {
+export function sectionOfItem(project: Project, itemId: string): Section | null {
   let current: Section | null = null;
   for (const item of project.contents) {
     if (isSection(item)) current = item;
-    else if (item.id === poemId) return current;
+    else if (item.id === itemId) return current;
   }
   return null;
 }
@@ -56,6 +62,21 @@ function asPoem(raw: Record<string, unknown>): Poem {
   return poem;
 }
 
+function asIllustration(raw: Record<string, unknown>): Illustration {
+  return {
+    kind: 'illustration',
+    id: str(raw.id) || `plate_${Math.random().toString(36).slice(2, 10)}`,
+    title: str(raw.title),
+    caption: str(raw.caption),
+    assetId: str(raw.assetId),
+    naturalWidth: num(raw.naturalWidth),
+    naturalHeight: num(raw.naturalHeight),
+    fit: raw.fit === 'bleed' ? 'bleed' : 'contain',
+    startsRecto: raw.startsRecto === true,
+    facingBlank: raw.facingBlank === true,
+  };
+}
+
 function asSection(raw: Record<string, unknown>): Section {
   return {
     kind: 'section',
@@ -82,7 +103,11 @@ export function migrateContents(raw: unknown): ContentItem[] {
   if (Array.isArray(project.contents)) {
     return project.contents
       .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
-      .map((item) => (item.kind === 'section' ? asSection(item) : asPoem(item)));
+      .map((item) => {
+        if (item.kind === 'section') return asSection(item);
+        if (item.kind === 'illustration') return asIllustration(item);
+        return asPoem(item);
+      });
   }
 
   const rows = (list: unknown): Array<Record<string, unknown>> =>
@@ -146,14 +171,16 @@ export function insertIntoSection(
   contents.splice(endOfSection(contents, sectionId), 0, ...items);
 }
 
-/** Moves one poem to the end of another part's run. */
-export function movePoemToSection(
+/** Moves one poem or plate to the end of another part's run. */
+export function moveToSection(
   contents: ContentItem[],
-  poemId: string,
+  itemId: string,
   sectionId: string | null,
 ): void {
-  const from = contents.findIndex((item) => isPoem(item) && item.id === poemId);
+  const from = contents.findIndex((item) => !isSection(item) && item.id === itemId);
   if (from === -1) return;
-  const [poem] = contents.splice(from, 1);
-  contents.splice(endOfSection(contents, sectionId), 0, poem);
+  // The destination is computed after the removal, or moving an item later
+  // within its own part would land it one place too far along.
+  const [moved] = contents.splice(from, 1);
+  contents.splice(endOfSection(contents, sectionId), 0, moved);
 }

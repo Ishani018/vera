@@ -1,5 +1,13 @@
-import { isSection } from '../contents';
-import type { ContentItem, MatterPage, Poem, Project, RenderOptions, Section } from '../types';
+import { isIllustration, isSection } from '../contents';
+import type {
+  ContentItem,
+  Illustration,
+  MatterPage,
+  Poem,
+  Project,
+  RenderOptions,
+  Section,
+} from '../types';
 import { ORNAMENT_GLYPHS } from './borders';
 import { buildCss, pageGeometry } from './css';
 import { RUNTIME_SCRIPT, type RuntimeConfig } from './runtime';
@@ -21,6 +29,7 @@ const DISPLAY_KINDS = new Set(['halfTitle', 'title', 'dedication', 'epigraph']);
 
 export const poemAnchor = (poem: Poem) => `p_${poem.id}`;
 export const sectionAnchor = (section: Section) => `s_${section.id}`;
+export const plateAnchor = (plate: Illustration) => `i_${plate.id}`;
 
 /**
  * One stretch of the book.
@@ -31,6 +40,7 @@ export const sectionAnchor = (section: Section) => `s_${section.id}`;
  */
 export type Block =
   | { kind: 'section'; section: Section }
+  | { kind: 'plate'; plate: Illustration }
   | { kind: 'poems'; poems: Poem[] };
 
 export type BookOrder = {
@@ -50,6 +60,13 @@ export function orderBook(project: Project): BookOrder {
   for (const item of items) {
     if (isSection(item)) {
       blocks.push({ kind: 'section', section: item });
+      continue;
+    }
+    // A plate takes a page of its own, so it ends the run it interrupts and
+    // the poems after it start a new one — which is what stops an ornament
+    // being drawn across a picture.
+    if (isIllustration(item)) {
+      blocks.push({ kind: 'plate', plate: item });
       continue;
     }
     poems.push(item);
@@ -114,6 +131,44 @@ function renderSectionOpener(section: Section): string {
   return `<div class="section-open"><h1 id="${sectionAnchor(section)}">${escapeHtml(section.title)}</h1>${subtitle}</div>`;
 }
 
+/**
+ * A plate.
+ *
+ * No inline `style` here either: Paged.js treats an element carrying one as
+ * undisplayed, and the whole page would stop breaking where it is told to. The
+ * fit, the side and the facing page are data attributes the stylesheet reads.
+ */
+function renderIllustration(plate: Illustration, options: RenderOptions): string {
+  const src = plate.assetId ? (options.assets?.[plate.assetId] ?? '') : '';
+  const alt = stripInlineMarkup(plate.caption || plate.title);
+
+  const picture = src
+    ? `<img class="plate-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`
+    : // Still a page, so the book paginates the same before and after the
+      // picture arrives. The export checks refuse to ship it empty.
+      (options.mode === 'preview'
+        ? '<div class="plate-empty">No picture chosen yet</div>'
+        : '');
+
+  const caption = plate.caption.trim()
+    ? `<figcaption class="plate-caption">${escapeBlock(plate.caption)}</figcaption>`
+    : '';
+
+  // facingBlank implies a recto: the page facing a plate is the verso across
+  // the gutter from it, so the plate has to be on the right-hand side for there
+  // to be one to leave empty.
+  const recto = plate.startsRecto || plate.facingBlank;
+
+  // That verso is the page *before* the plate, and no single break property can
+  // ask for one blank page and then a recto. An empty page-high spacer does it:
+  // it takes the next verso, and the plate's own break sends it to the recto
+  // after. `break-after: right` would have left the blank on the wrong side of
+  // the gutter — after the plate rather than facing it.
+  const facing = plate.facingBlank ? '<div class="plate-facing-blank"></div>' : '';
+
+  return `${facing}<figure class="plate" id="${plateAnchor(plate)}" data-fit="${plate.fit}" data-recto="${recto}" data-caption="${Boolean(plate.caption.trim())}" data-title="${escapeHtml(stripInlineMarkup(plate.title))}">${picture}${caption}</figure>`;
+}
+
 function renderMatterBody(page: MatterPage, project: Project): string {
   const { meta } = project;
   switch (page.kind) {
@@ -169,6 +224,12 @@ function renderToc(project: Project, order: BookOrder): string {
       items.push(
         `<li class="toc-item is-section"><a class="toc-entry" href="#${sectionAnchor(entry)}"><span class="toc-entry-title">${escapeHtml(entry.title)}</span><span class="toc-leader"></span></a></li>`,
       );
+    } else if (entry.kind === 'illustration') {
+      if (toc.includePoems && entry.title.trim()) {
+        items.push(
+          `<li class="toc-item is-plate"><a class="toc-entry" href="#${plateAnchor(entry)}"><span class="toc-entry-title">${escapeHtml(entry.title)}</span><span class="toc-leader"></span></a></li>`,
+        );
+      }
     } else if (toc.includePoems && entry.title.trim()) {
       items.push(poemItem(entry));
     }
@@ -195,13 +256,13 @@ function renderFirstLineIndex(project: Project, order: BookOrder): string {
   return `<section class="index-first-lines"><h1>${escapeHtml(project.toc.firstLineIndexHeading)}</h1><ul class="index-list">${items}</ul></section>`;
 }
 
-function renderBody(project: Project, order: BookOrder): string {
+function renderBody(project: Project, order: BookOrder, options: RenderOptions): string {
   return order.blocks
-    .map((block) =>
-      block.kind === 'section'
-        ? renderSectionOpener(block.section)
-        : renderPoemRun(block.poems, project),
-    )
+    .map((block) => {
+      if (block.kind === 'section') return renderSectionOpener(block.section);
+      if (block.kind === 'plate') return renderIllustration(block.plate, options);
+      return renderPoemRun(block.poems, project);
+    })
     .join('');
 }
 
@@ -264,7 +325,7 @@ ${options.fontStyle}
 <body>
 <div class="book">
 ${front ? `<section class="front-matter">${front}</section>` : ''}
-<section class="body-matter">${renderBody(project, order)}</section>
+<section class="body-matter">${renderBody(project, order, options)}</section>
 ${back ? `<section class="back-matter">${back}</section>` : ''}
 ${pad ? `<section class="pad-matter">${pad}</section>` : ''}
 </div>

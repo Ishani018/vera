@@ -190,6 +190,9 @@ function pageRules(project: Project, geo: PageGeometry): string {
   // Front matter pages that are pure display (half title, dedication) read
   // better without a folio; the running head never belongs there at all.
   suppress.push(`.pagedjs_page.vc-display-page .pagedjs_margin-content { visibility: hidden !important; }`);
+  // A plate carries no folio and no running head: type over a picture is a
+  // design decision, not a default.
+  suppress.push(`.pagedjs_page.vc-plate-page .pagedjs_margin-content { visibility: hidden !important; }`);
 
   return [base, ...sides, ...suppress].join('\n\n');
 }
@@ -496,6 +499,94 @@ function matterRules(project: Project): string {
 `;
 }
 
+/**
+ * Plates.
+ *
+ * A contained plate is an ordinary flex child: it fits inside the margins with
+ * its caption beneath. A bleeding one has to reach the trimmed edge, which is
+ * outside the page margin, and the distance to that edge is not the same on a
+ * verso as on a recto — the inside margin is on the right of one and the left
+ * of the other. Paged.js labels each page with the side it landed on, so the
+ * two cases are written out separately rather than guessed at.
+ *
+ * The bleeding image is positioned absolutely on purpose. Negative margins
+ * would change the element's size after Paged.js had already placed it, and a
+ * plate that grew past its page would break onto a second one.
+ */
+function plateRules(project: Project, geo: PageGeometry): string {
+  const captionSize = Math.max(7, project.typography.matter.sizePt - 1);
+  const contained = geo.pageHeight - geo.contentTop - geo.contentBottom;
+  const captionGap = ptToIn(captionSize * 0.9);
+  // Room for three lines, so a caption that wraps still does not push itself
+  // onto the next page and split the plate in two.
+  const captionSpace = captionGap + ptToIn(captionSize * 1.4 * 3);
+  return `
+.plate {
+  break-before: page;
+  break-inside: avoid;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  margin: 0;
+}
+.plate[data-recto='true'] { break-before: right; }
+
+/* The spacer takes the verso before the plate; the plate's own break then
+   sends it to the recto after, leaving that verso empty and facing it. */
+.plate-facing-blank {
+  break-before: left;
+  height: 100%;
+}
+
+/* The picture is capped so the caption always fits beneath it on the same
+   page. Without the cap a full-height image pushes its own caption over the
+   break, and the plate arrives split across two leaves. */
+.plate[data-fit='contain'] .plate-image {
+  display: block;
+  max-width: 100%;
+  max-height: ${contained.toFixed(4)}in;
+  object-fit: contain;
+}
+.plate[data-fit='contain'][data-caption='true'] .plate-image {
+  max-height: ${(contained - captionSpace).toFixed(4)}in;
+}
+
+.plate[data-fit='bleed'] .plate-image {
+  position: absolute;
+  top: -${geo.contentTop}in;
+  width: ${geo.pageWidth}in;
+  height: ${geo.pageHeight}in;
+  object-fit: cover;
+}
+.pagedjs_left_page .plate[data-fit='bleed'] .plate-image { left: -${geo.contentOutside}in; }
+.pagedjs_right_page .plate[data-fit='bleed'] .plate-image { left: -${geo.contentInside}in; }
+
+.plate-caption {
+  position: relative;
+  margin: ${captionGap.toFixed(4)}in 0 0;
+  text-align: center;
+  font-style: italic;
+  font-size: ${captionSize}pt;
+  font-family: '${cssFamily(project.typography.matter.family)}', ${project.typography.matter.fallback};
+}
+.plate[data-fit='bleed'] .plate-caption { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+
+.plate-empty {
+  display: grid;
+  place-items: center;
+  width: 60%;
+  aspect-ratio: 4 / 3;
+  border: 1px dashed #b9b2a6;
+  color: #8d867a;
+  font: italic 10pt/1.4 serif;
+  text-align: center;
+}
+`;
+}
+
 function guideRules(): string {
   return `
 .vc-guides { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
@@ -545,6 +636,7 @@ ${pageRules(project, geo)}
 }
 
 ${matterRules(project)}
+${plateRules(project, geo)}
 ${poemRules(project)}
 ${tocRules(project)}
 ${borderRules(project, geo)}

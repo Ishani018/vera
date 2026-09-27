@@ -1,7 +1,7 @@
 'use client';
 
 import { assetsAsDataUrls, importAssets } from './assets';
-import { looksLikeProject, migrateContents } from './contents';
+import { illustrationsOf, looksLikeProject, migrateContents } from './contents';
 import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
@@ -20,9 +20,12 @@ export type ExportOutcome = {
   needsPrintFallback?: boolean;
 };
 
-/** Every asset a project refers to. Illustrations will join this list. */
+/** Every asset a project refers to: the cover, and every plate. */
 export function projectAssetIds(project: Project): string[] {
-  return [project.cover.frontImage?.assetId].filter((id): id is string => Boolean(id));
+  return [
+    project.cover.frontImage?.assetId,
+    ...illustrationsOf(project).map((plate) => plate.assetId),
+  ].filter((id): id is string => Boolean(id));
 }
 
 function slug(title: string): string {

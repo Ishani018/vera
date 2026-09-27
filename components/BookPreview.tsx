@@ -1,13 +1,31 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getAssetUrl } from '@/lib/assets';
+import { illustrationsOf } from '@/lib/contents';
 import { fetchFontCss } from '@/lib/fontsClient';
 import { PAGEDJS_SRC } from '@/lib/exportClient';
 import { buildBookHtml } from '@/lib/render/bookHtml';
 import { pageGeometry } from '@/lib/render/css';
 import type { HighlightMessage, SpreadMessage, ViewMessage } from '@/lib/render/viewer';
 import { useStore, type PageInfo } from '@/lib/store';
+import type { Project } from '@/lib/types';
 import { Button, SegmentedControl, cx } from './ui';
+
+/** The pictures the book refers to, as URLs this document can render. */
+async function illustrationUrls(project: Project): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  await Promise.all(
+    illustrationsOf(project)
+      .map((plate) => plate.assetId)
+      .filter(Boolean)
+      .map(async (assetId) => {
+        const url = await getAssetUrl(assetId);
+        if (url) out[assetId] = url;
+      }),
+  );
+  return out;
+}
 
 /** How long to wait after the last edit before re-paginating. */
 const REPAGINATE_DELAY = 450;
@@ -56,6 +74,9 @@ export function BookPreview() {
         // Paged.js blocks on stylesheets and fails outright if one does, so a
         // network problem has to degrade to a fallback face, not a dead preview.
         const fonts = await fetchFontCss(project);
+        // Object URLs, not data URLs: the preview is same-origin, so it can use
+        // the blob directly instead of copying megabytes of base64 per render.
+        const assets = await illustrationUrls(project);
         if (!live) return;
         setFontsUnavailable(fonts.failed);
         setError(null);
@@ -65,6 +86,7 @@ export function BookPreview() {
             fontStyle: fonts.style,
             pagedJsSrc: PAGEDJS_SRC,
             guides,
+            assets,
             padPages: 0,
           }),
         );

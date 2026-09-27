@@ -104,12 +104,17 @@ export const RUNTIME_SCRIPT = String.raw`
     var content = pageEl.querySelector('.pagedjs_page_content');
     if (!content) return;
 
+    // A page holding nothing but a picture has no text on it at all, which is
+    // not the same as being blank: it must keep its place and must not be
+    // reported to the app as an empty page.
     var text = (content.textContent || '').trim();
+    var picture = !!content.querySelector('.plate-image');
     var hasBlankMarker = !!content.querySelector('.vc-blank-page');
-    if (!text || hasBlankMarker) pageEl.classList.add('vc-blank');
+    if ((!text && !picture) || hasBlankMarker) pageEl.classList.add('vc-blank');
 
     if (content.querySelector('.poem > .poem-title')) pageEl.classList.add('vc-poem-open');
     if (content.querySelector('.section-open h1')) pageEl.classList.add('vc-section-open');
+    if (content.querySelector('.plate')) pageEl.classList.add('vc-plate-page');
 
     var matter = content.querySelector('.matter-page');
     if (matter) {
@@ -130,6 +135,12 @@ export const RUNTIME_SCRIPT = String.raw`
     if (!CONFIG.showContinuedMarker) return;
     var content = pageEl.querySelector('.pagedjs_page_content');
     if (!content) return;
+    var plate = content.querySelector('.plate');
+    if (plate) {
+      var plateTitle = (plate.getAttribute('data-title') || '').trim();
+      return { kind: 'plate', caption: plateTitle || 'Illustration' };
+    }
+
     var poem = content.querySelector('.poem');
     if (!poem) return;
     if (poem.querySelector(':scope > .poem-title')) return;
@@ -169,6 +180,12 @@ export const RUNTIME_SCRIPT = String.raw`
       return { kind: 'section', caption: (section.textContent || 'Part').trim() };
     }
 
+    var plate = content.querySelector('.plate');
+    if (plate) {
+      var plateTitle = (plate.getAttribute('data-title') || '').trim();
+      return { kind: 'plate', caption: plateTitle || 'Illustration' };
+    }
+
     var poem = content.querySelector('.poem');
     if (poem) {
       var title = (poem.getAttribute('data-title') || '').trim();
@@ -178,7 +195,9 @@ export const RUNTIME_SCRIPT = String.raw`
       return { kind: 'poem', caption: continues ? name + ' (cont.)' : name };
     }
 
-    if (!(content.textContent || '').trim()) return { kind: 'blank', caption: 'Blank page' };
+    if (!(content.textContent || '').trim() && !content.querySelector('.plate-image')) {
+      return { kind: 'blank', caption: 'Blank page' };
+    }
     return { kind: 'other', caption: '' };
   }
 

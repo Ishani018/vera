@@ -19,13 +19,13 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useMemo, useState } from 'react';
 
-import { isPoem, isSection, poemsOf, sectionsOf } from '@/lib/contents';
+import { isIllustration, isPoem, isSection, poemsOf, sectionsOf } from '@/lib/contents';
 import { id } from '@/lib/defaults';
 import { repairStats } from '@/lib/repair';
 import { countLines } from '@/lib/render/text';
 import { countSamplePoems } from '@/lib/samples';
 import { useStore } from '@/lib/store';
-import type { ContentItem, Poem, Section } from '@/lib/types';
+import type { ContentItem, Illustration, Poem, Section } from '@/lib/types';
 import { ImportDialog } from './ImportDialog';
 import { Button, TextInput, cx } from './ui';
 
@@ -56,17 +56,21 @@ export function PoemList() {
   const sampleCount = project ? countSamplePoems(project) : 0;
   const poemCount = project ? poemsOf(project).length : 0;
   const partCount = project ? sectionsOf(project).length : 0;
+  const plateCount = allRows.filter(isIllustration).length;
 
   const needle = filter.trim().toLowerCase();
   // Filtering hides rows, so dragging while filtered would reorder against a
   // sequence the poet cannot see. Reordering is switched off instead.
   const rows = useMemo(() => {
     if (!needle) return allRows;
-    return allRows.filter((item) =>
-      isPoem(item)
-        ? item.title.toLowerCase().includes(needle) || item.body.toLowerCase().includes(needle)
-        : item.title.toLowerCase().includes(needle),
-    );
+    return allRows.filter((item) => {
+      const haystack = isPoem(item)
+        ? item.title + '\n' + item.body
+        : isIllustration(item)
+          ? item.title + '\n' + item.caption
+          : item.title;
+      return haystack.toLowerCase().includes(needle);
+    });
   }, [allRows, needle]);
 
   const warnings = useMemo(() => {
@@ -113,6 +117,25 @@ export function PoemList() {
     select(newId);
   };
 
+  const addIllustration = () => {
+    const newId = id('plate');
+    update((draft) => {
+      draft.contents.push({
+        kind: 'illustration',
+        id: newId,
+        title: '',
+        caption: '',
+        assetId: '',
+        naturalWidth: 0,
+        naturalHeight: 0,
+        fit: 'contain',
+        startsRecto: false,
+        facingBlank: false,
+      });
+    });
+    select(newId);
+  };
+
   const addSection = () => {
     update((draft) => {
       draft.contents.push({
@@ -131,6 +154,7 @@ export function PoemList() {
           Contents
           <span className="font-normal normal-case tracking-normal text-ink-400">
             {poemCount} poem{poemCount === 1 ? '' : 's'}
+            {plateCount > 0 && `, ${plateCount} plate${plateCount === 1 ? '' : 's'}`}
             {partCount > 0 && `, ${partCount} part${partCount === 1 ? '' : 's'}`}
             {warnings.size > 0 && (
               <span className="text-amber-300"> · {warnings.size} to check</span>
@@ -138,6 +162,8 @@ export function PoemList() {
           </span>
         </h2>
         {/* Its own row: at 220px the pane is too narrow to sit these beside a heading. */}
+        {/* Equal weight, deliberately: a plate is as ordinary a thing to add
+            to a collection as a poem is. */}
         <div className="grid grid-cols-3 gap-1.5">
           <Button onClick={addPoem} title="Add a poem">
             + Poem
@@ -145,10 +171,13 @@ export function PoemList() {
           <Button onClick={addSection} title="Add a section or part">
             + Part
           </Button>
-          <Button onClick={() => setImporting(true)} title="Import or paste poems">
-            Import
+          <Button onClick={addIllustration} title="Add a full-page illustration">
+            + Illustration
           </Button>
         </div>
+        <Button onClick={() => setImporting(true)} title="Import or paste poems" className="w-full">
+          Import from a file or paste
+        </Button>
         {poemCount > 4 && (
           <div className="relative">
             <TextInput
@@ -220,16 +249,16 @@ export function PoemList() {
           </p>
         ) : needle ? (
           rows.map((item) =>
-            isPoem(item) ? (
-              <PoemRow
+            isSection(item) ? null : (
+              <ItemRow
                 key={item.id}
-                poem={item}
+                item={item}
                 warnings={warnings.get(item.id) ?? 0}
                 selected={item.id === selectedPoemId}
                 onSelect={() => select(item.id)}
                 draggable={false}
               />
-            ) : null,
+            ),
           )
         ) : (
           <DndContext
@@ -243,9 +272,9 @@ export function PoemList() {
                 isSection(item) ? (
                   <SectionRow key={item.id} section={item} />
                 ) : (
-                  <PoemRow
+                  <ItemRow
                     key={item.id}
-                    poem={item}
+                    item={item}
                     warnings={warnings.get(item.id) ?? 0}
                     selected={item.id === selectedPoemId}
                     onSelect={() => select(item.id)}
@@ -282,24 +311,48 @@ function DragHandle({ listeners, attributes }: { listeners?: object; attributes?
   );
 }
 
-function PoemRow({
-  poem,
+/**
+ * What kind of thing a row is, at a glance.
+ *
+ * The icon is not decoration: a plate with a name reads exactly like a poem
+ * with a name in a list of titles, and knowing which is which is the whole
+ * question when deciding what to do with it.
+ */
+function KindMark({ item }: { item: Poem | Illustration }) {
+  const plate = isIllustration(item);
+  return (
+    <span
+      aria-hidden
+      title={plate ? 'Illustration page' : 'Poem'}
+      className={cx(
+        'grid h-4 w-4 shrink-0 place-items-center rounded-sm text-[10px] leading-none',
+        plate ? 'bg-emerald-500/15 text-emerald-300/90' : 'bg-sky-500/10 text-sky-300/80',
+      )}
+    >
+      {plate ? '▣' : '¶'}
+    </span>
+  );
+}
+
+function ItemRow({
+  item,
   selected,
   warnings,
   onSelect,
   draggable = true,
 }: {
-  poem: Poem;
+  item: Poem | Illustration;
   selected: boolean;
   warnings: number;
   onSelect: () => void;
   draggable?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: poem.id,
+    id: item.id,
     disabled: !draggable,
   });
-  const lines = countLines(poem.body);
+  const plate = isIllustration(item);
+  const lines = plate ? 0 : countLines(item.body);
 
   return (
     <div
@@ -323,9 +376,12 @@ function PoemRow({
           selected ? 'bg-brass-500/15 text-brass-300' : 'hover:bg-ink-850',
         )}
       >
-        <span className="flex items-baseline gap-1.5">
+        <span className="flex items-center gap-1.5">
+          <KindMark item={item} />
           <span className="min-w-0 flex-1 truncate">
-            {poem.title || <em className="text-ink-400">Untitled</em>}
+            {item.title || (
+              <em className="text-ink-400">{plate ? 'Untitled plate' : 'Untitled'}</em>
+            )}
           </span>
           {warnings > 0 && (
             <span
@@ -337,9 +393,15 @@ function PoemRow({
             </span>
           )}
         </span>
-        <span className="block truncate text-[11px] text-ink-400">
-          {lines ? `${lines} line${lines === 1 ? '' : 's'}` : 'empty'}
-          {poem.sampleKey ? ' · placeholder' : ''}
+        <span className="block truncate pl-[22px] text-[11px] text-ink-400">
+          {plate
+            ? item.assetId
+              ? `Illustration · ${item.naturalWidth} × ${item.naturalHeight}px`
+              : 'Illustration · no picture yet'
+            : lines
+              ? `${lines} line${lines === 1 ? '' : 's'}`
+              : 'empty'}
+          {!plate && item.sampleKey ? ' · placeholder' : ''}
           {warnings > 0 && (
             <span className="text-amber-400/90">
               {' · '}

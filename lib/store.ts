@@ -16,7 +16,7 @@ export type PageInfo = {
   side: 'left' | 'right';
   blank: boolean;
   /** What sort of page this is, for the viewer's own labelling. */
-  kind: 'matter' | 'toc' | 'section' | 'poem' | 'index' | 'blank' | 'other';
+  kind: 'matter' | 'toc' | 'section' | 'plate' | 'poem' | 'index' | 'blank' | 'other';
   /** What to call it: "Half title", "Contents", the poem's name. */
   caption: string;
 };

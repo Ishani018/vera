@@ -5,9 +5,9 @@ import {
   endOfSection,
   insertIntoSection,
   migrateContents,
-  movePoemToSection,
+  moveToSection,
   poemsOf,
-  sectionOfPoem,
+  sectionOfItem,
 } from '../lib/contents.ts';
 
 const poem = (id) => ({ kind: 'poem', id, title: id, body: '', epigraph: '', dedication: '' });
@@ -79,9 +79,9 @@ test('a poem missing every field still comes back as a usable poem', () => {
 
 test('a poem belongs to the last part before it', () => {
   const project = { contents: [poem('loose'), part('s0'), poem('a'), part('s1'), poem('b')] };
-  assert.equal(sectionOfPoem(project, 'loose'), null);
-  assert.equal(sectionOfPoem(project, 'a').id, 's0');
-  assert.equal(sectionOfPoem(project, 'b').id, 's1');
+  assert.equal(sectionOfItem(project, 'loose'), null);
+  assert.equal(sectionOfItem(project, 'a').id, 's0');
+  assert.equal(sectionOfItem(project, 'b').id, 's1');
 });
 
 test('a part run ends at the next part, and the loose run ends at the first one', () => {
@@ -110,7 +110,7 @@ test('importing with no part chosen goes before the first part', () => {
 
 test('moving a poem to a part takes it out of the one it was in', () => {
   const contents = [part('s0'), poem('a'), part('s1'), poem('b')];
-  movePoemToSection(contents, 'a', 's1');
+  moveToSection(contents, 'a', 's1');
   assert.deepEqual(ids(contents), ['s0', 's1', 'b', 'a']);
   assert.deepEqual(poemsOf({ contents }).map((p) => p.id), ['b', 'a']);
 });
@@ -119,12 +119,47 @@ test('moving a poem to a part takes it out of the one it was in', () => {
 // before the removal would put a poem one place too far along.
 test('moving a poem later within its own part does not drift', () => {
   const contents = [part('s0'), poem('a'), poem('b'), part('s1')];
-  movePoemToSection(contents, 'a', 's0');
+  moveToSection(contents, 'a', 's0');
   assert.deepEqual(ids(contents), ['s0', 'b', 'a', 's1']);
 });
 
 test('moving a poem that is not there changes nothing', () => {
   const contents = [part('s0'), poem('a')];
-  movePoemToSection(contents, 'ghost', null);
+  moveToSection(contents, 'ghost', null);
   assert.deepEqual(ids(contents), ['s0', 'a']);
+});
+
+// --- plates ------------------------------------------------------------------
+
+test('a plate in a project file comes back with every field filled in', () => {
+  const [item] = migrateContents({ contents: [{ kind: 'illustration', id: 'p1' }] });
+  assert.equal(item.kind, 'illustration');
+  assert.deepEqual(
+    [item.assetId, item.fit, item.startsRecto, item.facingBlank, item.naturalWidth],
+    ['', 'contain', false, false, 0],
+  );
+});
+
+test('an unknown fit falls back to sitting inside the margins', () => {
+  const [item] = migrateContents({ contents: [{ kind: 'illustration', id: 'p', fit: 'wat' }] });
+  assert.equal(item.fit, 'contain');
+});
+
+test('plates belong to parts and move between them like poems do', () => {
+  const contents = [
+    part('s0'),
+    { kind: 'illustration', id: 'plate', title: '', caption: '', assetId: '', naturalWidth: 0, naturalHeight: 0, fit: 'contain', startsRecto: false, facingBlank: false },
+    part('s1'),
+    poem('b'),
+  ];
+  assert.equal(sectionOfItem({ contents }, 'plate').id, 's0');
+  moveToSection(contents, 'plate', 's1');
+  assert.deepEqual(ids(contents), ['s0', 's1', 'b', 'plate']);
+});
+
+test('poemsOf counts poems only, not the plates between them', () => {
+  const contents = migrateContents({
+    contents: [poem('a'), { kind: 'illustration', id: 'p' }, poem('b')],
+  });
+  assert.deepEqual(poemsOf({ contents }).map((x) => x.id), ['a', 'b']);
 });

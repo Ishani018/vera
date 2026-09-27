@@ -159,10 +159,20 @@ one-weight-per-request rule.
 
 ### One known imprecision
 
-Chromium quantises the PDF page width, so a cover whose width is not a clean
-fraction of an inch comes out up to **0.0017"** wider than the computed value
-(a 11.305" cover measures 11.3067"). It is unit-independent — inches, points and
-millimetres all round identically — and it only ever errs larger, so nothing is
-cut short. Against 0.125" of bleed on every edge it is 1.3% of the bleed, well
-inside KDP's tolerance. The interior, whose page sizes are clean fractions,
-comes out exact.
+Chromium quantises the PDF page width. A width that is a whole or half inch —
+5, 5.25, 5.5, 6, 7, 7.5, 8, 8.5 — comes out exact; anything else lands on the
+nearest step of the grid and can miss by up to **0.0067"** in either direction.
+Measured across every width KDP allows, with and without bleed: 8.27" (the
+210mm trim) is the worst at −0.0067", 6.815" and 7.565" are +0.005", and most of
+the rest are within ±0.0017". It is unit-independent — inches, points and
+millimetres all round identically.
+
+This reaches the interior as well as the cover, and it reaches it the moment
+bleed is switched on: 5.5" is exact but 5.625" is not, so a bleeding 5.5 × 8.5
+page measures 5.6233" wide. The height is unaffected in every case tested.
+
+Nothing here is near KDP's tolerance. The worst case is 5% of the 0.125" bleed
+and a tenth of the ±0.0625" it allows for trim variance, so the page is still
+cut inside the bleed. It is recorded because it is measurable and would
+otherwise look like a bug: printing an empty page at each width in headless
+Chromium and reading the `/MediaBox` reproduces it in a few lines.
