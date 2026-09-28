@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { AssetRecord } from './assets';
-import type { AnyProject } from './types';
+import type { AnyProject, CoverTemplate, LibrarySticker } from './types';
 
 /**
  * Everything lives in the browser. There is no server-side store: the export
@@ -17,6 +17,17 @@ export class VersecraftDatabase extends Dexie {
    * stays small enough to clone on every edit and to snapshot for undo.
    */
   assets!: Table<AssetRecord, string>;
+  /**
+   * Stickers kept across every book, not inside one.
+   *
+   * Their own table rather than a field on a project, because that is exactly
+   * what "shared by every project" means — and because a book that uses one
+   * keeps its own copy of the image, so deleting from here can never reach
+   * back into a cover that has already been made.
+   */
+  stickers!: Table<LibrarySticker, string>;
+  /** Saved cover layouts, so a series can start from one design. */
+  coverTemplates!: Table<CoverTemplate, string>;
 
   constructor() {
     super('versecraft');
@@ -24,6 +35,12 @@ export class VersecraftDatabase extends Dexie {
     this.version(2).stores({
       projects: 'id, updatedAt, name',
       assets: 'id, createdAt',
+    });
+    this.version(3).stores({
+      projects: 'id, updatedAt, name',
+      assets: 'id, createdAt',
+      stickers: 'id, name, createdAt, *tags',
+      coverTemplates: 'id, name, createdAt',
     });
   }
 }

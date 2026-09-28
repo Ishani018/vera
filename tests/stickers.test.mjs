@@ -268,3 +268,43 @@ test('restacking moves one place and refuses to fall off either end', () => {
   assert.deepEqual(restack(list, 'c', 1).map((s) => s.id), ['a', 'b', 'c']);
   assert.deepEqual(restack(list, 'nope', 1).map((s) => s.id), ['a', 'b', 'c']);
 });
+
+// --- the library --------------------------------------------------------------
+
+import { allTags, parseTags, searchStickers } from '../lib/cover/library.ts';
+
+const lib = (name, tags = []) => ({
+  id: name,
+  name,
+  tags,
+  assetId: 'a_' + name,
+  width: 800,
+  height: 800,
+  createdAt: 1,
+});
+
+test('search looks at names and tags together', () => {
+  const all = [lib('Tabby', ['cats']), lib('Daisy', ['flowers']), lib('Gold star', ['badges'])];
+  // Nobody remembers which of the two they used, so both have to match.
+  assert.deepEqual(searchStickers(all, 'tab', null).map((s) => s.name), ['Tabby']);
+  assert.deepEqual(searchStickers(all, 'cats', null).map((s) => s.name), ['Tabby']);
+  assert.deepEqual(searchStickers(all, '', null).length, 3);
+});
+
+test('a tag narrows the tray, and a search narrows it further', () => {
+  const all = [lib('Tabby', ['cats']), lib('Ginger', ['cats']), lib('Daisy', ['flowers'])];
+  assert.equal(searchStickers(all, '', 'cats').length, 2);
+  assert.deepEqual(searchStickers(all, 'ging', 'cats').map((s) => s.name), ['Ginger']);
+  assert.equal(searchStickers(all, 'ging', 'flowers').length, 0);
+});
+
+test('tags are offered most-used first, so the common ones are to hand', () => {
+  const all = [lib('a', ['cats']), lib('b', ['cats', 'badges']), lib('c', ['flowers'])];
+  assert.deepEqual(allTags(all), ['cats', 'badges', 'flowers']);
+});
+
+test('typing tags is forgiving about commas, spaces, case and repeats', () => {
+  assert.deepEqual(parseTags('Cats, flowers  cats'), ['cats', 'flowers']);
+  assert.deepEqual(parseTags('   '), []);
+  assert.deepEqual(parseTags('Badges'), ['badges']);
+});

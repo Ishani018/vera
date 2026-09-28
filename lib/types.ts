@@ -467,6 +467,38 @@ export type FontedBook = {
   cover: CoverSpec;
 };
 
+/**
+ * A sticker kept across every book rather than inside one.
+ *
+ * The image is held at the size it was supplied, never at the size it happened
+ * to be used at, so the same sticker prints sharply whether it ends up an inch
+ * across or six.
+ */
+export type LibrarySticker = {
+  id: string;
+  name: string;
+  /** Free-form, for grouping: "cats", "flowers", "badges". */
+  tags: string[];
+  assetId: string;
+  width: number;
+  height: number;
+  createdAt: number;
+};
+
+/**
+ * A saved cover layout, so every book in a series can start from one design.
+ *
+ * It holds a whole CoverSpec. Applying it copies each sticker's image into the
+ * book it is applied to, so a template and the books made from it never share
+ * bytes and can never break each other.
+ */
+export type CoverTemplate = {
+  id: string;
+  name: string;
+  createdAt: number;
+  cover: CoverSpec;
+};
+
 /** Anything the studio can open. */
 export type AnyProject = PoetryProject | ColoringBook;
 

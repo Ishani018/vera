@@ -18,6 +18,9 @@ import type {
 } from '@/lib/types';
 import { StickerLayer } from './cover/StickerLayer';
 import { StickerTray, type TrayItem } from './cover/StickerTray';
+import { StickerLibrary } from './cover/StickerLibrary';
+import { CoverTemplates } from './cover/CoverTemplates';
+import { saveToLibrary } from '@/lib/cover/library';
 import { validateCover } from '@/lib/validate';
 import { FontControls } from './FontControls';
 import {
@@ -72,6 +75,9 @@ export function CoverDesigner<T extends CoverableBook>({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
+  // Bumped when the library changes, so the tray reloads without a store.
+  const [libraryVersion, setLibraryVersion] = useState(0);
+  const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -548,6 +554,22 @@ export function CoverDesigner<T extends CoverableBook>({
           onPlace={placeSticker}
         />
 
+        <StickerLibrary
+          onPlace={placeSticker}
+          reloadKey={libraryVersion}
+          onChanged={() => setLibraryVersion((n) => n + 1)}
+        />
+
+        <CoverTemplates
+          cover={cover}
+          onApply={(spec) => {
+            coverHistory.remember();
+            update((draft) => void (draft.cover = spec));
+            setSelectedSticker(null);
+            setSelectedId(null);
+          }}
+        />
+
         {sticker && (
           <StickerInspector
             sticker={sticker}
@@ -580,6 +602,19 @@ export function CoverDesigner<T extends CoverableBook>({
                 draft.cover.stickers = draft.cover.stickers.filter((s) => s.id !== sticker.id);
               });
               setSelectedSticker(null);
+            }}
+            saved={savedToLibrary}
+            onKeep={() => {
+              void saveToLibrary({
+                name: sticker.name,
+                assetId: sticker.assetId,
+                width: sticker.naturalWidth,
+                height: sticker.naturalHeight,
+              }).then(() => {
+                setLibraryVersion((n) => n + 1);
+                setSavedToLibrary(true);
+                setTimeout(() => setSavedToLibrary(false), 2200);
+              });
             }}
           />
         )}
@@ -830,6 +865,8 @@ function StickerInspector({
   onRestack,
   onDuplicate,
   onDelete,
+  onKeep,
+  saved,
 }: {
   sticker: CoverSticker;
   layout: import('@/lib/render/coverLayout').CoverLayout;
@@ -837,6 +874,9 @@ function StickerInspector({
   onRestack: (direction: 1 | -1) => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  /** Keeps a copy in the library, for every book rather than only this one. */
+  onKeep: () => void;
+  saved: boolean;
 }) {
   const warnings = stickerWarnings(sticker, layout);
 
@@ -930,6 +970,7 @@ function StickerInspector({
         <Button onClick={onDuplicate}>Duplicate</Button>
         <Button onClick={onDelete}>Delete</Button>
       </div>
+      <Button onClick={onKeep}>{saved ? 'Kept in My stickers' : 'Save to My stickers'}</Button>
       <p className="text-[11px] leading-snug text-ink-500">
         Drag to move, corners to resize, the handle above to turn. Hold Shift while resizing to
         stretch it. Arrow keys nudge; Delete removes.

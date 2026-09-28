@@ -195,7 +195,36 @@ export async function importAssets(assets: Record<string, string>): Promise<void
   }
 }
 
-/** Deletes assets nothing refers to any more. */
+/**
+ * Copies an asset's bytes under a new id.
+ *
+ * This is what makes "each book keeps its own copy" true. A sticker placed
+ * from the library, or from a template, gets its own bytes, so tidying the
+ * library afterwards cannot reach back into a cover that has already been
+ * made and leave a hole in it.
+ */
+export async function copyAsset(id: string, name?: string): Promise<AssetRecord | null> {
+  const db = getDb();
+  const source = await getAsset(id);
+  if (!db || !source) return null;
+  const record: AssetRecord = {
+    ...source,
+    id: newId(),
+    name: name ?? source.name,
+    createdAt: Date.now(),
+  };
+  await db.assets.put(record);
+  return record;
+}
+
+/**
+ * Deletes assets nothing refers to any more.
+ *
+ * The caller supplies every id still in use, and "in use" now means more than
+ * the open book: the sticker library and the saved cover templates hold assets
+ * too, and sweeping those would empty the library the next time anything was
+ * tidied.
+ */
 export async function pruneAssets(usedIds: string[]): Promise<number> {
   const db = getDb();
   if (!db) return 0;

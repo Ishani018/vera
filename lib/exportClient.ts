@@ -6,9 +6,10 @@ import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
 import { buildColoringHtml } from './render/coloringHtml';
+import { keptAssetIds, listStickers, listTemplates, mergeLibrary } from './cover/library';
 import { matterArtwork } from './render/coloringLayout';
 import { buildCoverHtml } from './render/coverHtml';
-import type { AnyProject, ColoringBook, Project } from './types';
+import type { AnyProject, CoverTemplate, LibrarySticker, Project } from './types';
 
 /** Where the Paged.js polyfill is served from; see scripts/copy-vendor.mjs. */
 export const PAGEDJS_SRC = '/vendor/paged.polyfill.js';
@@ -178,8 +179,14 @@ function openForPrint(html: string): void {
  * missing pictures.
  */
 export async function exportProjectJson(project: AnyProject): Promise<void> {
-  const assets = await assetsAsDataUrls(projectAssetIds(project));
-  const payload = { versecraft: 1, project, assets };
+  // The sticker library and the saved cover templates go too. They live in the
+  // browser like everything else, so clearing site data would take them with
+  // it — and they are the one thing here that is not tied to a single book,
+  // which makes losing them cost more than losing any one of them.
+  const [stickers, templates] = await Promise.all([listStickers(), listTemplates()]);
+  const shared = await keptAssetIds();
+  const assets = await assetsAsDataUrls([...projectAssetIds(project), ...shared]);
+  const payload = { versecraft: 2, project, assets, library: { stickers, templates } };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   download(blob, `${slug(project.meta.title)}-versecraft.json`);
 }
@@ -187,7 +194,12 @@ export async function exportProjectJson(project: AnyProject): Promise<void> {
 export async function importProjectJson(file: File): Promise<Project> {
   const parsed = JSON.parse(await file.text()) as
     | Partial<Project>
-    | { versecraft?: number; project?: Project; assets?: Record<string, string> };
+    | {
+        versecraft?: number;
+        project?: Project;
+        assets?: Record<string, string>;
+        library?: { stickers?: LibrarySticker[]; templates?: CoverTemplate[] };
+      };
 
   // A backup made before assets were split out is the project itself.
   const project =
@@ -198,6 +210,11 @@ export async function importProjectJson(file: File): Promise<Project> {
     throw new Error('That file is not a Versecraft project.');
   }
   await importAssets(assets);
+  // Merged rather than replaced: restoring one book's backup must not empty a
+  // library that has grown since, and anything already here wins on a clash.
+  if ('library' in parsed && parsed.library) {
+    await mergeLibrary(parsed.library.stickers ?? [], parsed.library.templates ?? []);
+  }
   // A file saved before poems and parts became one list still opens.
   return { ...project, contents: migrateContents(project) } as Project;
 }
