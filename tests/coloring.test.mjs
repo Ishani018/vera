@@ -4,12 +4,14 @@ import test from 'node:test';
 import {
   EXTREME_UPSCALE,
   pageQuality,
+  placeOnPage,
   printedSize,
+  shapesAgree,
   storedLongEdge,
   targetLongEdge,
 } from '../lib/coloring/quality.ts';
-import { MAX_EDGE } from '../lib/lineart/pipeline.ts';
-import { createColoringBook } from '../lib/projects.ts';
+import { TRACE_EDGE } from '../lib/lineart/pipeline.ts';
+import { createColoringBook, migrateProject } from '../lib/projects.ts';
 
 /** A page as the store writes one, with only what the reading depends on. */
 const page = (over = {}) => ({
@@ -21,9 +23,11 @@ const page = (over = {}) => ({
   lineArtAssetId: null,
   renderedWith: null,
   upscaled: 1,
+  fit: 'contain',
+  rotate: 0,
   naturalWidth: 3000,
   naturalHeight: 3000,
-  settings: { mode: 'threshold', detail: 50, thickness: 45, cleanup: 40, invert: false },
+  settings: { mode: 'threshold', detail: 50, thickness: 45, cleanup: 40, smoothing: 50, invert: false },
   ...over,
 });
 
@@ -51,14 +55,16 @@ test('the target long edge is 300 DPI across the paper that gets printed', () =>
 test('a picture that fits the page is measured by whichever side runs out first', () => {
   // Tall and narrow on a portrait page: the height decides, and reading the
   // width alone would report nearly twice the resolution there really is.
-  const narrow = page({ naturalWidth: 1000, naturalHeight: 3000 });
+  const narrow = page({ naturalWidth: 800, naturalHeight: 2400 });
   const dpi = pageQuality(narrow, tall()).dpi;
-  assert.ok(Math.abs(dpi - 3000 / 11.25) < 0.01, `read ${dpi}`);
+  assert.ok(Math.abs(dpi - 2400 / 11.25) < 0.01, `read ${dpi}`);
 });
 
 test('a picture below 300 DPI is called soft, and one above it is not', () => {
-  assert.equal(pageQuality(page({ naturalWidth: 1200, naturalHeight: 1200 }), square()).soft, true);
-  assert.equal(pageQuality(page(), square()).soft, false);
+  const small = page({ naturalWidth: 1200, naturalHeight: 1200, upscaled: 1 });
+  assert.equal(pageQuality(small, square()).soft, true);
+  // The same picture once the converter has enlarged its lines to the target.
+  assert.equal(pageQuality({ ...small, upscaled: 2.2 }, square()).soft, false);
 });
 
 test('enlarging counts towards the reading, because the enlarged file is what prints', () => {
@@ -76,17 +82,83 @@ test('a long stretch is flagged, a modest one is not', () => {
 });
 
 test('a scan larger than the converter works at is reported at the size that was saved', () => {
-  // The converter reduces anything past MAX_EDGE before it starts, so the file
-  // that prints is that reduction — not the 9000-pixel original.
+  // The converter reduces anything past TRACE_EDGE before it traces, so what
+  // prints comes from that reduction, not from the 9000-pixel original.
   const huge = page({ naturalWidth: 9000, naturalHeight: 9000 });
-  assert.equal(storedLongEdge(huge), MAX_EDGE);
+  assert.equal(storedLongEdge(huge), TRACE_EDGE);
   // A square picture on a page that bleeds runs out of width before height.
   const dpi = pageQuality(huge, square()).dpi;
-  assert.ok(Math.abs(dpi - MAX_EDGE / 8.625) < 0.01, `read ${dpi}`);
+  assert.ok(Math.abs(dpi - TRACE_EDGE / 8.625) < 0.01, `read ${dpi}`);
 });
 
 test('a page with no measured size reads as nothing rather than as infinity', () => {
   const unknown = page({ naturalWidth: 0, naturalHeight: 0 });
   assert.equal(pageQuality(unknown, square()).dpi, 0);
   assert.equal(storedLongEdge(unknown), 0);
+});
+
+test('a new coloring book still opens after the placement fields were added', () => {
+  const book = createColoringBook();
+  book.pages = [{ ...page(), fit: undefined, rotate: undefined, settings: { detail: 20 } }];
+  const opened = migrateProject(structuredClone(book));
+  const [first] = opened.pages;
+  assert.equal(first.fit, 'contain');
+  assert.equal(first.rotate, 0);
+  // Settings saved before smoothing existed come back with it filled in, and
+  // whatever the poet had chosen is still there.
+  assert.equal(first.settings.detail, 20);
+  assert.equal(typeof first.settings.smoothing, 'number');
+  assert.equal(first.settings.mode, 'threshold');
+});
+
+// --- where the picture lands --------------------------------------------------
+
+/** The shape of the ghost painting: half again as wide as it is tall. */
+const wide = (over = {}) => page({ naturalWidth: 1536, naturalHeight: 864, ...over });
+
+test('fitting a wide picture on a square page leaves paper above and below', () => {
+  const placed = placeOnPage(wide(), square());
+  assert.ok(Math.abs(placed.acrossPage - 100) < 0.01, 'the width should be what runs out first');
+  assert.ok(placed.downPage < 60, `only ${placed.downPage.toFixed(0)}% of the height is used`);
+  assert.equal(placed.cropped, false);
+});
+
+test('filling the page crops instead, and says so', () => {
+  const placed = placeOnPage(wide({ fit: 'cover' }), square());
+  assert.ok(Math.abs(placed.downPage - 100) < 0.01, 'the height should now be what fills');
+  assert.ok(placed.acrossPage > 150, `only ${placed.acrossPage.toFixed(0)}% across`);
+  assert.equal(placed.cropped, true, 'something is going over the edge and must be admitted to');
+});
+
+test('a quarter turn puts a wide picture down the tall side of a tall page', () => {
+  const upright = placeOnPage(wide(), tall());
+  const turned = placeOnPage(wide({ rotate: 90 }), tall());
+  // Turned, the picture's long side runs down the page's long side, so it uses
+  // far more of the paper than it did lying across the top.
+  assert.ok(turned.downPage > upright.downPage * 2, 'turning it should use the height');
+  assert.ok(Math.abs(turned.downPage - 100) < 0.01);
+});
+
+test('the width handed to CSS is the one the element has before it is turned', () => {
+  // Rotating an element turns its box with it. The check is that the box, once
+  // turned, really does span the page: a width in page-width units that comes
+  // out as a height in page-height units.
+  const book = tall();
+  const printed = printedSize(book);
+  const placed = placeOnPage(wide({ rotate: 90 }), book);
+  const asHeight = (placed.boxWidth * printed.width) / printed.height;
+  assert.ok(Math.abs(asHeight - placed.downPage) < 0.01, `${asHeight} against ${placed.downPage}`);
+});
+
+test('a page with no measured size still places somewhere sane', () => {
+  const placed = placeOnPage(page({ naturalWidth: 0, naturalHeight: 0 }), square());
+  assert.equal(placed.acrossPage, 100);
+  assert.equal(placed.downPage, 100);
+  assert.equal(placed.cropped, false);
+});
+
+test('the interface can tell when a picture is the wrong way round for the page', () => {
+  assert.equal(shapesAgree(wide(), tall()), false);
+  assert.equal(shapesAgree(wide({ rotate: 90 }), tall()), true);
+  assert.equal(shapesAgree(page(), square()), true, 'a square picture suits a square page');
 });

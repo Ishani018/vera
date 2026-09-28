@@ -5,6 +5,7 @@ import { putAsset } from '../assets';
 import { ACTIVE_PROJECT_KEY, getDb } from '../db';
 import { id } from '../defaults';
 import { migrateProject } from '../projects';
+import { printedSize } from './quality';
 import type {
   ColoringBook,
   ColoringPage,
@@ -41,10 +42,20 @@ type State = {
     settings: LineArtSettings,
     meta: { source: SourceKind; guessed: boolean; upscaled: number },
   ) => void;
+  setPlacement: (pageId: string, patch: Partial<Pick<ColoringPage, 'fit' | 'rotate'>>) => void;
   setSource: (pageId: string, source: SourceKind) => void;
   setBookSetting: <K extends keyof ColoringSettings>(key: K, value: ColoringSettings[K]) => void;
   applyToAll: (settings: LineArtSettings) => void;
 };
+
+/** True when the picture and the page disagree about which way round they are. */
+function turnedForPage(width: number, height: number, book: ColoringBook): boolean {
+  if (!width || !height) return false;
+  const page = printedSize(book);
+  const wide = width > height * 1.15;
+  const tall = page.height > page.width * 1.15;
+  return wide && tall;
+}
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -100,6 +111,11 @@ export const useColoring = create<State>((set, get) => ({
           lineArtAssetId: null,
           renderedWith: null,
           upscaled: 1,
+          fit: 'contain',
+          // A wide picture on a tall page floats in a sea of paper. Turning it
+          // is what anyone would do with the printed sheet, so it starts that
+          // way — and it is a choice, sitting right there to be undone.
+          rotate: turnedForPage(record.width, record.height, draft) ? 90 : 0,
           naturalWidth: record.width,
           naturalHeight: record.height,
           // New pages start on the book's own settings, so a book stays
@@ -161,6 +177,14 @@ export const useColoring = create<State>((set, get) => ({
       // so the disclosure reminder turns itself on rather than waiting to be
       // remembered at the worst possible moment.
       if (page.source === 'lineart') draft.coloring.containsAiImages = true;
+    }),
+
+  setPlacement: (pageId, patch) =>
+    get().update((draft) => {
+      const page = draft.pages.find((p) => p.id === pageId);
+      // Placement is about the paper, not about the picture: the line art
+      // stays exactly as it was, so nothing is re-converted.
+      if (page) Object.assign(page, patch);
     }),
 
   setSource: (pageId, source) =>

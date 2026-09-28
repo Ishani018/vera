@@ -20,19 +20,43 @@ export type Bitmap = { width: number; height: number; data: Uint8ClampedArray };
 /** One byte per pixel. In binary images, ink is 0 and paper is 255. */
 export type Gray = { width: number; height: number; data: Uint8ClampedArray };
 
+/**
+ * CIE L*a*b*, one plane each. Lightness, green-to-red, blue-to-yellow.
+ *
+ * Kept as floats rather than bytes because a and b run either side of zero and
+ * the whole reason for the space is that distances in it mean something: two
+ * colours a person calls plainly different are far apart here even when they
+ * are the same brightness.
+ */
+export type Lab = {
+  width: number;
+  height: number;
+  l: Float32Array;
+  a: Float32Array;
+  b: Float32Array;
+};
+
+/** A gradient field: the rate of change in x and y at every pixel. */
+export type Gradient = { width: number; height: number; gx: Float32Array; gy: Float32Array };
+
 export const INK = 0;
 export const PAPER = 255;
 
 /**
- * The largest edge the converter works at.
+ * The largest edge the converter traces at.
  *
- * Enough for 300 DPI on the biggest coloring page KDP prints (8.5 × 11 plus
- * bleed is 11.25 inches, so 3375 pixels). A bigger scan is worked from a
- * reduction of itself: the extra pixels are detail no printer will resolve, at
- * a cost the poet waits for on every slider move. Lives here rather than in the
- * worker so the interface can do the same arithmetic without importing one.
+ * Short of the 3375 pixels a full-bleed 8.5 × 11 page needs at 300 DPI, and
+ * deliberately so. Every pass here costs with the area, so tracing a 4000-pixel
+ * scan at full size is four times the work of tracing it at 2000 — and the
+ * finished lines are enlarged to the printing size afterwards anyway, which is
+ * a cheap operation on a two-colour picture and loses almost nothing, because
+ * what is being enlarged is a few hard edges rather than a photograph. Tracing
+ * above about this size buys detail a coloring page has no use for.
+ *
+ * Lives here rather than in the worker so the interface can do the same
+ * arithmetic without importing one.
  */
-export const MAX_EDGE = 3400;
+export const TRACE_EDGE = 2400;
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -53,6 +77,62 @@ export function toGray(source: Bitmap, invert = false): Gray {
     out[p] = invert ? 255 - luma : luma;
   }
   return { width, height, data: out };
+}
+
+/** sRGB's transfer curve, undone once for each of the 256 possible values. */
+const LINEAR = (() => {
+  const table = new Float32Array(256);
+  for (let v = 0; v < 256; v++) {
+    const c = v / 255;
+    table[v] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  }
+  return table;
+})();
+
+const labF = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : (841 / 108) * t + 4 / 29);
+
+/**
+ * Into CIE L*a*b*, which is where "these two look different" is a distance.
+ *
+ * The reason this exists is the case grey cannot handle: a red square beside a
+ * teal one, both about as bright as each other. To a luma channel there is
+ * almost nothing between them, so the boundary vanishes and the page comes back
+ * with a hole in it. In Lab the same pair are nearly a hundred units apart,
+ * because they differ in hue rather than in lightness, and an edge finder
+ * looking at all three planes finds the line exactly where the eye does.
+ */
+export function toLab(source: Bitmap, invert = false): Lab {
+  const { width, height, data } = source;
+  const count = width * height;
+  const l = new Float32Array(count);
+  const a = new Float32Array(count);
+  const b = new Float32Array(count);
+
+  for (let i = 0, p = 0; p < count; i += 4, p += 1) {
+    const r = LINEAR[invert ? 255 - data[i] : data[i]];
+    const g = LINEAR[invert ? 255 - data[i + 1] : data[i + 1]];
+    const bl = LINEAR[invert ? 255 - data[i + 2] : data[i + 2]];
+
+    // sRGB to XYZ under D65, then normalised by the white point.
+    const x = (0.4124 * r + 0.3576 * g + 0.1805 * bl) / 0.95047;
+    const y = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+    const z = (0.0193 * r + 0.1192 * g + 0.9505 * bl) / 1.08883;
+
+    const fx = labF(x);
+    const fy = labF(y);
+    const fz = labF(z);
+    l[p] = 116 * fy - 16;
+    a[p] = 500 * (fx - fy);
+    b[p] = 200 * (fy - fz);
+  }
+  return { width, height, l, a, b };
+}
+
+/** Lightness on its own, as a grey picture the rest of the pipeline can use. */
+export function lightness(lab: Lab): Gray {
+  const out = new Uint8ClampedArray(lab.l.length);
+  for (let i = 0; i < out.length; i++) out[i] = (lab.l[i] * 255) / 100;
+  return { width: lab.width, height: lab.height, data: out };
 }
 
 /**
@@ -210,33 +290,97 @@ export function adaptiveThreshold(image: Gray, window: number, bias: number): Gr
   return { width, height, data: out };
 }
 
+/** Sobel on one plane. Separated out so colour can supply its own. */
+export function sobel(image: Gray): Gradient {
+  const { width, height, data } = image;
+  const gx = new Float32Array(width * height);
+  const gy = new Float32Array(width * height);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = y * width + x;
+      gx[i] =
+        -data[i - width - 1] - 2 * data[i - 1] - data[i + width - 1] +
+        data[i - width + 1] + 2 * data[i + 1] + data[i + width + 1];
+      gy[i] =
+        -data[i - width - 1] - 2 * data[i - width] - data[i - width + 1] +
+        data[i + width - 1] + 2 * data[i + width] + data[i + width + 1];
+    }
+  }
+  return { width, height, gx, gy };
+}
+
 /**
- * Canny: gradient, then thin the ridges to one pixel, then keep only the strong
- * edges and whatever is joined to them.
+ * The gradient of a colour picture, taken across all three planes at once.
+ *
+ * Three separate gradients cannot simply be added: they are vectors, and two
+ * planes changing in opposite directions would cancel to nothing at a boundary
+ * that is plainly there. Di Zenzo's construction instead finds, at each pixel,
+ * the direction in which the colour changes fastest and how fast that is —
+ * which is the right generalisation, and reduces to the ordinary gradient when
+ * only one plane is doing anything.
+ *
+ * With Lab as the input this is the step that finds a red square against a teal
+ * one. There is no lightness edge there to find; there is an enormous hue one.
+ */
+export function colorSobel(lab: Lab): Gradient {
+  const { width, height } = lab;
+  const planes: Gradient[] = [
+    sobel(planeAsGray(lab.l, width, height, 2.55)),
+    sobel(planeAsGray(lab.a, width, height, 1, 128)),
+    sobel(planeAsGray(lab.b, width, height, 1, 128)),
+  ];
+
+  const gx = new Float32Array(width * height);
+  const gy = new Float32Array(width * height);
+  for (let i = 0; i < gx.length; i++) {
+    let xx = 0;
+    let yy = 0;
+    let xy = 0;
+    for (const plane of planes) {
+      xx += plane.gx[i] * plane.gx[i];
+      yy += plane.gy[i] * plane.gy[i];
+      xy += plane.gx[i] * plane.gy[i];
+    }
+    // The larger eigenvalue of [[xx, xy], [xy, yy]] and its eigenvector: the
+    // fastest rate of change and the direction it happens in.
+    const half = (xx + yy) / 2;
+    const spread = Math.sqrt(((xx - yy) / 2) ** 2 + xy * xy);
+    const magnitude = Math.sqrt(Math.max(0, half + spread));
+    const theta = 0.5 * Math.atan2(2 * xy, xx - yy);
+    gx[i] = magnitude * Math.cos(theta);
+    gy[i] = magnitude * Math.sin(theta);
+  }
+  return { width, height, gx, gy };
+}
+
+/** A float plane as a byte picture, so one Sobel serves every plane. */
+function planeAsGray(plane: Float32Array, width: number, height: number, scale: number, offset = 0): Gray {
+  const data = new Uint8ClampedArray(plane.length);
+  for (let i = 0; i < data.length; i++) data[i] = plane[i] * scale + offset;
+  return { width, height, data };
+}
+
+/**
+ * Canny: thin the gradient ridges to one pixel, then keep only the strong edges
+ * and whatever is joined to them.
  *
  * Where thresholding keeps tonal areas, this keeps outlines and nothing else,
  * which is what a soft watercolour wants — it has no edges to speak of inside
  * the wash, and thresholding one turns it to blotches.
+ *
+ * It takes a gradient rather than a picture so the same thinning and the same
+ * thresholds serve a grey edge and a colour one.
  */
-export function canny(image: Gray, keepFraction: number, lowSpread = 3): Gray {
-  const { width, height, data } = image;
+export function canny(gradient: Gradient, keepFraction: number, lowSpread = 3): Gray {
+  const { width, height, gx: fieldX, gy: fieldY } = gradient;
   const magnitude = new Float32Array(width * height);
   const angle = new Uint8Array(width * height);
 
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const i = y * width + x;
-      const gx =
-        -data[i - width - 1] - 2 * data[i - 1] - data[i + width - 1] +
-        data[i - width + 1] + 2 * data[i + 1] + data[i + width + 1];
-      const gy =
-        -data[i - width - 1] - 2 * data[i - width] - data[i - width + 1] +
-        data[i + width - 1] + 2 * data[i + width] + data[i + width + 1];
-      magnitude[i] = Math.hypot(gx, gy);
-      // Quantised to the four directions a pixel grid actually has.
-      const theta = ((Math.atan2(gy, gx) * 180) / Math.PI + 180) % 180;
-      angle[i] = theta < 22.5 || theta >= 157.5 ? 0 : theta < 67.5 ? 1 : theta < 112.5 ? 2 : 3;
-    }
+  for (let i = 0; i < magnitude.length; i++) {
+    magnitude[i] = Math.hypot(fieldX[i], fieldY[i]);
+    // Quantised to the four directions a pixel grid actually has.
+    const theta = ((Math.atan2(fieldY[i], fieldX[i]) * 180) / Math.PI + 180) % 180;
+    angle[i] = theta < 22.5 || theta >= 157.5 ? 0 : theta < 67.5 ? 1 : theta < 112.5 ? 2 : 3;
   }
 
   // Non-maximum suppression: keep a pixel only where it is the ridge line.
@@ -430,6 +574,7 @@ export function resolve(settings: LineArtSettings, longEdge: number = REFERENCE_
   const detail = clamp(settings.detail, 0, 100) / 100;
   const thickness = clamp(settings.thickness, 0, 100) / 100;
   const cleanup = clamp(settings.cleanup, 0, 100) / 100;
+  const smoothing = clamp(settings.smoothing ?? 0, 0, 100) / 100;
   // Everything measured in pixels is a share of the picture, not a fixed
   // count. A four-pixel blur is a real softening on a phone photograph and
   // nothing at all on a scan four times the size; without this, the same
@@ -479,6 +624,20 @@ export function resolve(settings: LineArtSettings, longEdge: number = REFERENCE_
     dilateRadius: thickness > 0 ? Math.max(1, Math.round(lerp(0, 3, thickness) * scale)) : 0,
     /** Specks smaller than this are lifted off. An area, so it scales as one. */
     minArea: Math.round(lerp(0, 90, cleanup) * scale * scale),
+    /** How far a ragged edge is straightened, before the stroke width caps it. */
+    smoothRadius: Math.round(lerp(0, 5, smoothing) * scale),
+    /**
+     * How far the colour planes are blurred before outlines are found. Noise
+     * lives in them at every scale; a real change of colour does not.
+     */
+    chromaRadius: Math.max(2, Math.round(longEdge / 180)),
+    /**
+     * The softening applied before outlines are found. It has a floor the
+     * cleanup slider does not: paint has a texture and paper has a grain, and
+     * at their own scale both are edges. Below about two pixels the finder
+     * traces the weave of the canvas instead of the picture on it.
+     */
+    edgeBlurRadius: Math.max(Math.round(2 * scale), Math.round(lerp(0, 4, cleanup) * scale)),
   };
 }
 
@@ -624,7 +783,7 @@ export function runCleanup(source: Bitmap, settings: LineArtSettings): Gray {
   let out: Gray = { width: grey.width, height: grey.height, data: binary };
   out = despeckle(out, options.minArea);
   if (options.dilateRadius > 0) out = dilate(out, options.dilateRadius);
-  return out;
+  return smoothSafely(out, options.smoothRadius);
 }
 
 /**
@@ -673,30 +832,79 @@ export function upscale(image: Gray, width: number, height: number): Gray {
   return { width, height, data: binary };
 }
 
+/**
+ * Straightens a ragged edge without moving it.
+ *
+ * Thresholding decides every pixel on its own, so a line that ought to be
+ * straight comes out with a bite taken out of it here and a bump there: the
+ * edge of a hand-drawn square wobbles, and the printed page looks torn rather
+ * than drawn. Blurring the two-colour picture and cutting it again is a vote of
+ * the neighbourhood — a pixel stays ink if most of what is around it is ink —
+ * which files off the bumps and fills in the bites while leaving the line
+ * exactly where it was.
+ *
+ * It will rub out anything narrower than the vote, which is why the caller ties
+ * the radius to how wide the strokes actually are.
+ */
+export function smoothEdges(image: Gray, radius: number): Gray {
+  if (radius < 1) return { ...image, data: new Uint8ClampedArray(image.data) };
+  const soft = blur(image, radius);
+  const out = new Uint8ClampedArray(image.data.length);
+  for (let i = 0; i < out.length; i++) out[i] = soft.data[i] < 128 ? INK : PAPER;
+  return { width: image.width, height: image.height, data: out };
+}
+
+/** Wherever either picture has ink. */
+export function union(a: Gray, b: Gray): Gray {
+  const out = new Uint8ClampedArray(a.data.length);
+  for (let i = 0; i < out.length; i++) out[i] = a.data[i] === INK || b.data[i] === INK ? INK : PAPER;
+  return { width: a.width, height: a.height, data: out };
+}
+
+/**
+ * How wide the strokes in a binary picture are, near enough.
+ *
+ * Erode by one and see how much ink is left: a line two pixels wide loses all
+ * of it, a line ten wide loses a fifth. Inverting that gives a width, which is
+ * the only honest cap on how far a corner can be rounded — smoothing by more
+ * than the stroke is wide does not round the stroke, it deletes it.
+ */
+export function strokeWidth(image: Gray): number {
+  let ink = 0;
+  for (const value of image.data) if (value === INK) ink++;
+  if (!ink) return 0;
+  let core = 0;
+  for (const value of erode(image, 1).data) if (value === INK) core++;
+  const lost = (ink - core) / ink;
+  // A stroke of width w loses roughly 2/w of itself to a one-pixel erosion.
+  return lost <= 0 ? Infinity : 2 / lost;
+}
+
 /** The whole chain, from a canvas bitmap to pure black on pure white. */
 export function runLineArt(source: Bitmap, settings: LineArtSettings): Gray {
   const options = resolve(settings, Math.max(source.width, source.height));
+  const lab = toLab(source, settings.invert);
   // Stretch before blurring: the blur is there to soften texture, and doing it
   // first would flatten the very differences the stretch needs to measure.
-  const grey = blur(stretchContrast(toGray(source, settings.invert)), options.blurRadius);
+  const grey = blur(stretchContrast(lightness(lab)), options.blurRadius);
+  const edges = settings.mode === 'edges';
 
-  let binary =
-    settings.mode === 'edges'
-      ? canny(highPass(grey, options.flattenRadius), options.cannyKeep)
-      : adaptiveThreshold(grey, options.window, options.bias);
+  // Outlines are found across all three planes at once, which is what puts a
+  // line between a red square and a teal one: there is no lightness edge there
+  // to find, and to a grey picture the two are one undivided shape.
+  //
+  // Shading is left on lightness alone. A tonal threshold is about how dark
+  // something is, and adding colour boundaries to it fills a page that was
+  // meant to be mostly paper.
+  let binary = edges
+    ? canny(colorSobel(prepareForEdges(lab, options)), options.cannyKeep)
+    : adaptiveThreshold(grey, options.window, options.bias);
 
-  // Closing joins strokes the threshold broke — but only where a threshold
-  // broke them. Canny's hysteresis has already joined what belongs together,
-  // and closing its output does the opposite of what is wanted: on a soft
-  // painting the edges come back speckled, and growing then shrinking merges
-  // the speckle into solid areas. A page that was meant to be outlines comes
-  // back seventy per cent black.
   // Closing joins strokes the threshold broke — but only where a threshold
   // broke them. Canny's hysteresis has already joined what belongs together,
   // and closing its output does the opposite of what is wanted: its lines are
   // one pixel wide, so growing then shrinking merges neighbouring lines into
   // solid areas and a page meant to be outlines comes back a third black.
-  const edges = settings.mode === 'edges';
   if (!edges) binary = erode(dilate(binary, 1), 1);
 
   // A speck is measured in pixels, and a line one pixel wide has very few of
@@ -705,7 +913,73 @@ export function runLineArt(source: Bitmap, settings: LineArtSettings): Gray {
   binary = despeckle(binary, edges ? Math.round(options.minArea / 3) : options.minArea);
   if (options.dilateRadius > 0) binary = dilate(binary, options.dilateRadius);
 
-  return binary;
+  return smoothSafely(binary, options.smoothRadius);
+}
+
+/**
+ * Gets a colour picture ready to have its outlines found.
+ *
+ * Two different corrections, because the planes have different problems.
+ * Lightness carries the lamp, so the broad lighting is subtracted out of it.
+ * Hue and saturation barely move under a lamp but they are where every kind of
+ * noise ends up — paper grain, sensor speckle, and the chroma subsampling that
+ * every photograph and every JPEG has been through. Left alone, that noise is a
+ * gradient in every direction inside a flat square of paint, and the square
+ * comes back scribbled over. Colour boundaries are broad things, so a generous
+ * blur takes the noise out and leaves every real edge where it was.
+ */
+function prepareForEdges(
+  lab: Lab,
+  options: { flattenRadius: number; chromaRadius: number; edgeBlurRadius: number },
+): Lab {
+  const flat = highPass(blur(lightness(lab), options.edgeBlurRadius), options.flattenRadius);
+  const l = new Float32Array(flat.data.length);
+  for (let i = 0; i < l.length; i++) l[i] = (flat.data[i] * 100) / 255;
+  return {
+    width: lab.width,
+    height: lab.height,
+    l,
+    a: blurPlane(lab.a, lab.width, lab.height, options.chromaRadius),
+    b: blurPlane(lab.b, lab.width, lab.height, options.chromaRadius),
+  };
+}
+
+/** Blurs one signed plane by going through the byte blur and back. */
+function blurPlane(plane: Float32Array, width: number, height: number, radius: number): Float32Array {
+  const soft = blur(planeAsGray(plane, width, height, 1, 128), radius);
+  const out = new Float32Array(plane.length);
+  for (let i = 0; i < out.length; i++) out[i] = soft.data[i] - 128;
+  return out;
+}
+
+/** How much of a page is ink. */
+function inkCount(image: Gray): number {
+  let ink = 0;
+  for (const value of image.data) if (value === INK) ink++;
+  return ink;
+}
+
+/**
+ * Smooths as much as the strokes can take, and not a pixel more.
+ *
+ * The stroke width is a first estimate — it is an average, and an average is
+ * wrong about the thinnest line on the page, which is exactly the line that
+ * gets rubbed out. So the result is checked rather than trusted: if a round of
+ * smoothing has eaten a third of the drawing it was too strong for these
+ * lines, and it steps down and tries again. A page comes back straighter or it
+ * comes back as it was; it never comes back emptier.
+ */
+function smoothSafely(binary: Gray, asked: number): Gray {
+  const ink = inkCount(binary);
+  if (asked < 1 || ink === 0) return { ...binary, data: new Uint8ClampedArray(binary.data) };
+
+  let radius = Math.min(asked, Math.floor(strokeWidth(binary) / 3));
+  while (radius >= 1) {
+    const out = smoothEdges(binary, radius);
+    if (inkCount(out) >= ink * 0.67) return out;
+    radius--;
+  }
+  return { ...binary, data: new Uint8ClampedArray(binary.data) };
 }
 
 /** Back to RGBA, pure black on pure white, for a canvas to draw. */

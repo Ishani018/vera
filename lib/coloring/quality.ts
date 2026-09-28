@@ -1,5 +1,5 @@
 import { BLEED, MIN_COVER_DPI, getTrim } from '../kdp';
-import { MAX_EDGE } from '../lineart/pipeline';
+import { TRACE_EDGE } from '../lineart/pipeline';
 import type { ColoringBook, ColoringPage } from '../types';
 
 /**
@@ -33,13 +33,14 @@ export function targetLongEdge(book: ColoringBook): number {
 /**
  * The long edge of the file that actually gets saved.
  *
- * Two corrections to the upload's own size: anything past MAX_EDGE was worked
- * from a reduction of itself, and line art may have been enlarged afterwards.
+ * Two corrections to the upload's own size: anything past TRACE_EDGE was worked
+ * from a reduction of itself, and the finished lines may have been enlarged
+ * afterwards.
  */
 export function storedLongEdge(page: ColoringPage): number {
   const natural = Math.max(page.naturalWidth, page.naturalHeight);
   if (!natural) return 0;
-  return Math.round(Math.min(natural, MAX_EDGE) * (page.upscaled || 1));
+  return Math.round(Math.min(natural, TRACE_EDGE) * (page.upscaled || 1));
 }
 
 /**
@@ -52,7 +53,7 @@ export function storedLongEdge(page: ColoringPage): number {
 export function printedDpi(page: ColoringPage, book: ColoringBook): number {
   if (!page.naturalWidth || !page.naturalHeight) return 0;
   const printed = printedSize(book);
-  const scale = Math.min(MAX_EDGE / Math.max(page.naturalWidth, page.naturalHeight), 1);
+  const scale = Math.min(TRACE_EDGE / Math.max(page.naturalWidth, page.naturalHeight), 1);
   const width = page.naturalWidth * scale * (page.upscaled || 1);
   const height = page.naturalHeight * scale * (page.upscaled || 1);
   return Math.max(width / printed.width, height / printed.height);
@@ -70,4 +71,53 @@ export function pageQuality(page: ColoringPage, book: ColoringBook) {
     stretched: factor > EXTREME_UPSCALE,
     soft: dpi > 0 && dpi < MIN_COVER_DPI,
   };
+}
+
+/**
+ * Where a picture lands on the page, as percentages of the page box.
+ *
+ * Out here rather than in the component because it is arithmetic with a right
+ * answer, and because the answer is easy to get subtly wrong: rotating an
+ * element turns its box with it, so the width handed to CSS is the one it has
+ * *before* the quarter turn, and page width and page height are different
+ * units that have to be converted between.
+ */
+export function placeOnPage(page: ColoringPage, book: ColoringBook) {
+  const printed = printedSize(book);
+  const turned = page.rotate === 90;
+
+  // The picture's size as it lands on the page, once any quarter turn is done.
+  const width = turned ? page.naturalHeight : page.naturalWidth;
+  const height = turned ? page.naturalWidth : page.naturalHeight;
+  const fits = width > 0 && height > 0;
+  const scale = !fits
+    ? 1
+    : page.fit === 'cover'
+      ? Math.max(printed.width / width, printed.height / height)
+      : Math.min(printed.width / width, printed.height / height);
+
+  const acrossPage = fits ? ((width * scale) / printed.width) * 100 : 100;
+  const downPage = fits ? ((height * scale) / printed.height) * 100 : 100;
+
+  return {
+    turned,
+    acrossPage,
+    downPage,
+    /** What CSS is given: the width before any rotation. */
+    boxWidth: turned ? (downPage * printed.height) / printed.width : acrossPage,
+    /** True when something is going over the edge and will be trimmed away. */
+    cropped: acrossPage > 100.01 || downPage > 100.01,
+  };
+}
+
+/** True when the picture and the page are both wide, or both tall, or both square. */
+export function shapesAgree(page: ColoringPage, book: ColoringBook): boolean {
+  if (!page.naturalWidth || !page.naturalHeight) return true;
+  const printed = printedSize(book);
+  const sense = (w: number, h: number) => (w > h * 1.15 ? 'wide' : h > w * 1.15 ? 'tall' : 'square');
+  const picture = sense(
+    page.rotate === 90 ? page.naturalHeight : page.naturalWidth,
+    page.rotate === 90 ? page.naturalWidth : page.naturalHeight,
+  );
+  return picture === sense(printed.width, printed.height);
 }

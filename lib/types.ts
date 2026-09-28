@@ -320,6 +320,13 @@ export type LineArtSettings = {
   thickness: number;
   /** 0–100. Blur before thresholding, and the size of specks removed after. */
   cleanup: number;
+  /**
+   * 0–100. How far a ragged edge is straightened after everything else.
+   *
+   * Capped by how wide the strokes turned out, because rounding a corner by
+   * more than the stroke is wide does not round it, it rubs it out.
+   */
+  smoothing: number;
   /** For art that is light on dark. */
   invert: boolean;
 };
@@ -345,6 +352,14 @@ export type ColoringPage = {
   renderedWith: LineArtSettings | null;
   /** How far the stored art had to be enlarged to reach 300 DPI. 1 means not at all. */
   upscaled: number;
+  /**
+   * How the picture sits on the page. `contain` shows all of it and leaves
+   * paper around a picture the wrong shape; `cover` fills the page and crops
+   * what will not fit.
+   */
+  fit: 'contain' | 'cover';
+  /** Quarter turns. A wide picture on a tall page is worth turning. */
+  rotate: 0 | 90;
   naturalWidth: number;
   naturalHeight: number;
   settings: LineArtSettings;

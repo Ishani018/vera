@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
-import { pageQuality } from '@/lib/coloring/quality';
+import { pageQuality, placeOnPage, printedSize, shapesAgree } from '@/lib/coloring/quality';
 import { MIN_COVER_DPI } from '@/lib/kdp';
 import { useColoring } from '@/lib/coloring/store';
 import type { ColoringBook, ColoringPage, LineArtSettings, SourceKind } from '@/lib/types';
@@ -28,6 +28,7 @@ export function LineArtStudio() {
   const applyToAll = useColoring((s) => s.applyToAll);
   const setSource = useColoring((s) => s.setSource);
   const setBookSetting = useColoring((s) => s.setBookSetting);
+  const setPlacement = useColoring((s) => s.setPlacement);
   const busy = useColoring((s) => s.busy);
 
   const page = book?.pages.find((p) => p.id === selectedId) ?? null;
@@ -74,9 +75,47 @@ export function LineArtStudio() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Pane label={page.source === 'lineart' ? 'What you uploaded' : 'Your painting'} url={sourceUrl} />
-          <Pane label="To colour in" url={lineUrl} pale />
+          <PagePane page={page} book={book} url={lineUrl} />
         </div>
         <Resolution page={page} book={book} />
+      </div>
+
+      <div>
+        <span className="block font-[570]">How it sits on the page</span>
+        <span className="mt-0.5 block text-[14px] text-ink-500">
+          {shapesAgree(page, book)
+            ? 'This picture is about the shape of the page already.'
+            : 'This picture is not the shape of the page, so something has to give.'}
+        </span>
+        <div className="mt-3 grid grid-cols-2 gap-2.5">
+          {(
+            [
+              ['contain', 'Fit the whole picture', 'Paper left over at the sides'],
+              ['cover', 'Fill the page', 'Runs to the edge; the rest is trimmed off'],
+            ] as Array<[ColoringPage['fit'], string, string]>
+          ).map(([value, label, note]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setPlacement(page.id, { fit: value })}
+              className={cx(
+                'rounded-xl border-2 px-3 py-3 text-left transition-colors',
+                page.fit === value ? 'border-accent-500 bg-accent-50' : 'border-ink-200 hover:border-ink-300',
+              )}
+            >
+              <span className="block text-[15px] font-[570]">{label}</span>
+              <span className="mt-0.5 block text-[13px] text-ink-500">{note}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-4">
+          <Toggle
+            label="Turn it sideways"
+            hint="A wide picture on a tall page is worth a quarter turn."
+            checked={page.rotate === 90}
+            onChange={(on) => setPlacement(page.id, { rotate: on ? 90 : 0 })}
+          />
+        </div>
       </div>
 
       <div>
@@ -175,6 +214,12 @@ export function LineArtStudio() {
           }
           value={page.settings.cleanup}
           onChange={(cleanup) => set({ cleanup })}
+        />
+        <Control
+          label="Line smoothing"
+          hint="Straightens a wobbly edge. It will not go further than the lines can take."
+          value={page.settings.smoothing}
+          onChange={(smoothing) => set({ smoothing })}
         />
         <Toggle
           label={page.source === 'lineart' ? 'It is white lines on black' : 'My painting is light on dark'}
@@ -292,5 +337,53 @@ function Resolution({ page, book }: { page: ColoringPage; book: ColoringBook }) 
           ? `Under the ${MIN_COVER_DPI} DPI KDP asks for. It will still print, but the lines will look a little rough.`
           : `Comfortably above the ${MIN_COVER_DPI} DPI KDP asks for.`}
     </p>
+  );
+}
+
+/**
+ * The line art as it will actually be printed: on a page of the right shape,
+ * placed the way the poet asked for.
+ *
+ * A square preview flatters everything. A wide picture floating in the middle
+ * of a square one looks fine there and looks like a mistake on paper, which is
+ * the whole reason these controls exist — so the preview is the page.
+ */
+function PagePane({
+  page,
+  book,
+  url,
+}: {
+  page: ColoringPage;
+  book: ColoringBook;
+  url: string | null;
+}) {
+  const printed = printedSize(book);
+  const { turned, boxWidth, cropped } = placeOnPage(page, book);
+
+  return (
+    <div>
+      <span className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.07em] text-ink-500">
+        On the page{cropped ? ' · cropped' : ''}
+      </span>
+      <div
+        className="relative grid place-items-center overflow-hidden rounded-xl border border-ink-200 bg-paper"
+        style={{ aspectRatio: `${printed.width} / ${printed.height}` }}
+      >
+        {url && page.naturalWidth ? (
+          <img
+            src={url}
+            alt=""
+            className="absolute left-1/2 top-1/2"
+            style={{
+              width: `${boxWidth}%`,
+              aspectRatio: `${page.naturalWidth} / ${page.naturalHeight}`,
+              transform: `translate(-50%, -50%)${turned ? ' rotate(90deg)' : ''}`,
+            }}
+          />
+        ) : (
+          <span className="text-[14px] text-ink-500">…</span>
+        )}
+      </div>
+    </div>
   );
 }

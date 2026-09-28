@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { MAX_EDGE, guessSource, runCleanup, runLineArt, toBitmap, upscale } from './pipeline';
+import { TRACE_EDGE, guessSource, runCleanup, runLineArt, toBitmap, upscale } from './pipeline';
 import type { LineArtSettings, SourceKind } from '../types';
 
 /**
@@ -19,8 +19,8 @@ export type LineArtRequest = {
   source?: SourceKind;
   /**
    * The long edge the finished page needs, in pixels, for 300 DPI at the
-   * chosen trim. Only art that is already a drawing is enlarged to reach it — a
-   * painting cannot be given detail it never had.
+   * chosen trim. The traced lines are enlarged to reach it, whichever path
+   * produced them.
    */
   targetLongEdge?: number;
 };
@@ -51,7 +51,7 @@ self.onmessage = async (event: MessageEvent<LineArtRequest>) => {
 
     // Work at the original size where that is sensible, capped so a 60-megapixel
     // scan does not take a minute to answer a slider.
-    const scale = Math.min(1, MAX_EDGE / sourceLongEdge);
+    const scale = Math.min(1, TRACE_EDGE / sourceLongEdge);
     const width = Math.max(1, Math.round(decoded.width * scale));
     const height = Math.max(1, Math.round(decoded.height * scale));
 
@@ -67,11 +67,14 @@ self.onmessage = async (event: MessageEvent<LineArtRequest>) => {
 
     let lines = source === 'lineart' ? runCleanup(input, settings) : runLineArt(input, settings);
 
-    // Only a finished drawing is enlarged. Interpolating a photograph up to
-    // 300 DPI would make a large file that is no sharper and would let a soft
-    // page through the resolution check that ought to catch it.
+    // Both paths are enlarged, because by this point neither is a photograph
+    // any more: what is being resized is a two-colour drawing, a few hard edges
+    // that interpolate cleanly and re-threshold back to two colours. Enlarging
+    // the painting itself would indeed be inventing detail — this is enlarging
+    // the lines that were traced from it, which is the same operation a vector
+    // would do for free. The reading still says by how much it stretched.
     let upscaled = 1;
-    if (source === 'lineart' && targetLongEdge && targetLongEdge > Math.max(width, height)) {
+    if (targetLongEdge && targetLongEdge > Math.max(width, height)) {
       upscaled = targetLongEdge / Math.max(width, height);
       lines = upscale(lines, Math.round(width * upscaled), Math.round(height * upscaled));
     }

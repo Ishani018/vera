@@ -21,6 +21,7 @@ export const DEFAULT_LINE_ART: LineArtSettings = {
   detail: 50,
   thickness: 45,
   cleanup: 40,
+  smoothing: 50,
   invert: false,
 };
 
@@ -47,6 +48,9 @@ export function migrateProject(raw: unknown): AnyProject {
         source: page.source ?? 'painting',
         sourceGuessed: page.sourceGuessed ?? true,
         upscaled: page.upscaled ?? 1,
+        fit: page.fit ?? 'contain',
+        rotate: page.rotate ?? 0,
+        settings: { ...DEFAULT_LINE_ART, ...page.settings },
       })),
       coloring: {
         lineArt: { ...DEFAULT_LINE_ART, ...(book.coloring?.lineArt ?? {}) },

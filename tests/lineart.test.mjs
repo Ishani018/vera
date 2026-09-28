@@ -11,10 +11,16 @@ import {
   dilate,
   erode,
   guessSource,
+  lightness,
   otsuThreshold,
   reduce,
   resolve,
   runCleanup,
+  smoothEdges,
+  sobel,
+  colorSobel,
+  strokeWidth,
+  toLab,
   runLineArt,
   stretchContrast,
   toBitmap,
@@ -22,7 +28,14 @@ import {
   upscale,
 } from '../lib/lineart/pipeline.ts';
 
-const DEFAULTS = { mode: 'threshold', detail: 50, thickness: 45, cleanup: 40, invert: false };
+const DEFAULTS = {
+  mode: 'threshold',
+  detail: 50,
+  thickness: 45,
+  cleanup: 40,
+  smoothing: 50,
+  invert: false,
+};
 
 /** An RGBA bitmap from a function of x and y returning 0–255 grey. */
 function bitmap(width, height, at) {
@@ -194,8 +207,8 @@ test('raising the bias makes less ink, never more', () => {
 
 test('edge mode finds the boundary of a shape and leaves its inside alone', () => {
   const disc = grey(60, 60, (x, y) => (Math.hypot(x - 30, y - 30) < 18 ? 30 : 230));
-  // A fraction of the picture's own gradients, not an absolute level.
-  const out = canny(disc, 0.15);
+  // A share of the page, not an absolute level.
+  const out = canny(sobel(disc), 0.15);
   const at = (x, y) => out.data[y * 60 + x] === INK;
   assert.ok(!at(30, 30), 'the middle of the shape is not an edge');
   assert.ok(!at(2, 2), 'nor is the empty corner');
@@ -213,8 +226,8 @@ const clampi = (v, hi) => (v < 0 ? 0 : v > hi ? hi : v);
 
 test('edge mode on a flat field finds nothing', () => {
   // Even asked to keep everything: there is nothing there to keep.
-  assert.equal(countInk(canny(grey(40, 40, () => 160), 0.15)), 0);
-  assert.equal(countInk(canny(grey(40, 40, () => 160), 1)), 0);
+  assert.equal(countInk(canny(sobel(grey(40, 40, () => 160)), 0.15)), 0);
+  assert.equal(countInk(canny(sobel(grey(40, 40, () => 160)), 1)), 0);
 });
 
 // --- morphology and despeckle ------------------------------------------------
@@ -460,4 +473,132 @@ test('enlarging does not break a line into a staircase of islands', () => {
   // if the stroke survived as one piece, almost all the ink is still there.
   const kept = countInk(despeckle(big, 200));
   assert.ok(kept > countInk(big) * 0.9, `only ${kept} of ${countInk(big)} survived as one stroke`);
+});
+
+// --- colour -----------------------------------------------------------------
+
+/** An RGBA bitmap from a function of x and y returning [r, g, b]. */
+function colorBitmap(width, height, at) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const [r, g, b] = at(x, y);
+      const i = (y * width + x) * 4;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
+    }
+  }
+  return { width, height, data };
+}
+
+// The red and the teal from a checkerboard that came out with the boundaries
+// missing: to the eye they are nothing alike, and to a grey picture they are
+// within a dozen levels of each other.
+const RED = [196, 52, 48];
+const TEAL = [52, 120, 132];
+
+test('two colours that look different can be the same grey', () => {
+  const patch = colorBitmap(8, 8, (x) => (x < 4 ? RED : TEAL));
+  const values = new Set(Array.from(toGray(patch).data));
+  const spread = Math.max(...values) - Math.min(...values);
+  assert.ok(spread < 30, `grey told them ${spread} apart, which is why this test exists`);
+
+  const lab = toLab(patch);
+  // Same story in lightness alone — the difference is entirely in hue.
+  const light = Array.from(lightness(lab).data);
+  assert.ok(Math.max(...light) - Math.min(...light) < 30);
+  const chroma = lab.a[0] - lab.a[lab.a.length - 1];
+  assert.ok(Math.abs(chroma) > 60, `hue told them only ${chroma} apart`);
+});
+
+test('the colour gradient finds a boundary the grey gradient misses', () => {
+  const patch = colorBitmap(60, 60, (x) => (x < 30 ? RED : TEAL));
+  const at = (grad, x, y) => Math.hypot(grad.gx[y * 60 + x], grad.gy[y * 60 + x]);
+
+  const grey = sobel(toGray(patch));
+  const colour = colorSobel(toLab(patch));
+  assert.ok(
+    at(colour, 30, 30) > at(grey, 30, 30) * 3,
+    `colour ${at(colour, 30, 30).toFixed(0)} against grey ${at(grey, 30, 30).toFixed(0)}`,
+  );
+});
+
+test('outlines are drawn between two colours of the same lightness', () => {
+  // Four squares of a checkerboard, no black lines drawn between them.
+  const board = colorBitmap(160, 160, (x, y) => ((x < 80) === (y < 80) ? RED : TEAL));
+  const out = runLineArt(board, { ...DEFAULTS, mode: 'edges', thickness: 0, smoothing: 0 });
+  const at = (x, y) => out.data[y * 160 + x] === INK;
+
+  // The line down the middle has to be somewhere near the middle.
+  let found = 0;
+  for (let y = 20; y < 140; y += 10) {
+    for (let d = -3; d <= 3; d++) if (at(80 + d, y)) { found++; break; }
+  }
+  assert.ok(found > 8, `only ${found} of 12 crossings found the boundary`);
+  // And the inside of a square stays paper: this is an outline, not a fill.
+  assert.ok(!at(40, 40), 'the middle of a square must be left to colour in');
+});
+
+// --- smoothing ---------------------------------------------------------------
+
+test('smoothing files the bumps off a ragged edge without moving it', () => {
+  // A straight edge with a bite out of it and a bump beside it.
+  const ragged = grey(60, 60, (x, y) => {
+    const edge = 30 + (y % 6 === 0 ? 3 : y % 5 === 0 ? -3 : 0);
+    return x < edge ? INK : PAPER;
+  });
+  const smoothed = smoothEdges(ragged, 2);
+
+  const crossings = (image) => {
+    const xs = [];
+    for (let y = 5; y < 55; y++) {
+      let x = 0;
+      while (x < 60 && image.data[y * 60 + x] === INK) x++;
+      xs.push(x);
+    }
+    const sorted = [...xs].sort((a, b) => a - b);
+    const middle = sorted[sorted.length >> 1];
+    return { middle, spread: sorted[sorted.length - 1] - sorted[0] };
+  };
+
+  const before = crossings(ragged);
+  const after = crossings(smoothed);
+  assert.ok(after.spread < before.spread, `wobble went ${before.spread} to ${after.spread}`);
+  // Still in the same place, give or take a pixel.
+  assert.ok(Math.abs(after.middle - before.middle) <= 1, 'smoothing moved the edge');
+});
+
+test('smoothing at zero is exactly no smoothing', () => {
+  const shape = grey(40, 40, (x, y) => (Math.hypot(x - 20, y - 20) < 12 ? INK : PAPER));
+  assert.deepEqual(Array.from(smoothEdges(shape, 0).data), Array.from(shape.data));
+});
+
+test('stroke width sees a thin line as thin and a block as thick', () => {
+  const line = grey(60, 60, (x) => (Math.abs(x - 30) < 1 ? INK : PAPER));
+  const block = grey(60, 60, (x) => (Math.abs(x - 30) < 10 ? INK : PAPER));
+  assert.ok(strokeWidth(line) < 4, `a one-pixel line measured ${strokeWidth(line)}`);
+  assert.ok(strokeWidth(block) > 12, `a twenty-pixel block measured ${strokeWidth(block)}`);
+});
+
+test('a hairline drawing survives the smoothest setting', () => {
+  // The cap exists for this: smoothing by more than the stroke is wide would
+  // rub the drawing out, so the line has to still be there afterwards.
+  const hairline = colorBitmap(300, 300, (x, y) => {
+    const onLine = Math.abs(x - 150) < 1 || Math.abs(y - 150) < 1;
+    return onLine ? [20, 20, 20] : [250, 250, 250];
+  });
+  const out = runLineArt(hairline, { ...DEFAULTS, thickness: 0, cleanup: 0, smoothing: 100 });
+  assert.ok(countInk(out) > 300, `the drawing was rubbed out: ${countInk(out)} left`);
+});
+
+test('smoothing more never leaves a page with more ink than smoothing less', () => {
+  const shapes = colorBitmap(200, 200, (x, y) => {
+    const v = Math.hypot(x - 100, y - 100) < 60 || (x + y) % 17 < 2 ? 30 : 240;
+    return [v, v, v];
+  });
+  const rough = countInk(runLineArt(shapes, { ...DEFAULTS, smoothing: 0 }));
+  const smooth = countInk(runLineArt(shapes, { ...DEFAULTS, smoothing: 100 }));
+  assert.ok(smooth <= rough * 1.05, `smoothing added ink: ${rough} to ${smooth}`);
 });

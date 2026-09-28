@@ -212,6 +212,22 @@ function Thumb({
           >
             {Math.round(dpi)} dpi
           </span>
+          {page.rotate === 90 && (
+            <span
+              className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500"
+              title="Turned a quarter turn to suit the page"
+            >
+              turned
+            </span>
+          )}
+          {page.fit === 'cover' && (
+            <span
+              className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500"
+              title="Fills the page; the overhang is trimmed off"
+            >
+              cropped
+            </span>
+          )}
           {page.source === 'lineart' && (
             <span
               className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500"
