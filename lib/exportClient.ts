@@ -37,7 +37,11 @@ export function projectAssetIds(project: AnyProject): string[] {
         ])
       : illustrationsOf(project).map((plate) => plate.assetId);
 
-  return [project.cover.frontImage?.assetId, ...inside].filter((id): id is string => Boolean(id));
+  return [
+    project.cover.frontImage?.assetId,
+    ...(project.cover.stickers ?? []).map((sticker) => sticker.assetId),
+    ...inside,
+  ].filter((id): id is string => Boolean(id));
 }
 
 function slug(title: string): string {

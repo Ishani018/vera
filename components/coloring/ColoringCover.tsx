@@ -70,6 +70,16 @@ export function ColoringCover({ pageCount }: { pageCount: number }) {
           update={update}
           pageCount={pageCount}
           displayFont={book.typography.title}
+          // The line art, so a page from inside can be stuck on the outside.
+          pictures={book.pages
+            .filter((page) => page.lineArtAssetId)
+            .map((page) => ({
+              key: page.id,
+              name: page.title || 'Picture',
+              assetId: page.lineArtAssetId!,
+              width: Math.round(page.naturalWidth * (page.upscaled || 1)),
+              height: Math.round(page.naturalHeight * (page.upscaled || 1)),
+            }))}
         />
       </div>
     </div>

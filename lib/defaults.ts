@@ -240,6 +240,7 @@ export function createProject(overrides: Partial<Project> = {}): Project {
       frontImage: null,
       imageSpansWrap: false,
       textBoxes: [],
+      stickers: [],
       showBarcodeZone: true,
     },
     ...overrides,

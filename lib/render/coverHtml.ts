@@ -1,4 +1,4 @@
-import type { CoverTextBox, CoverableBook } from '../types';
+import type { CoverSticker, CoverTextBox, CoverableBook } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
 import { cssColor, cssFamily, escapeBlock, escapeHtml } from './text';
 
@@ -48,6 +48,37 @@ function boxCss(box: CoverTextBox, layout: CoverLayout, index: number): string {
 }`;
 }
 
+/**
+ * One sticker, positioned in inches on the whole cover.
+ *
+ * The rotation is about the sticker's centre rather than its corner, because
+ * that is what turning a thing on a page means to anyone doing it: the picture
+ * spins where it sits instead of swinging away across the cover.
+ */
+function stickerCss(sticker: CoverSticker, index: number): string {
+  const shorter = Math.min(sticker.widthIn, sticker.heightIn);
+  const radius = sticker.cornerRadius * shorter;
+  const rules = [
+    'position: absolute;',
+    `left: ${sticker.x}in;`,
+    `top: ${sticker.y}in;`,
+    `width: ${sticker.widthIn}in;`,
+    `height: ${sticker.heightIn}in;`,
+    'overflow: hidden;',
+  ];
+  if (sticker.rotate) rules.push(`transform: rotate(${sticker.rotate}deg);`);
+  if (radius > 0) rules.push(`border-radius: ${radius.toFixed(4)}in;`);
+  if (sticker.border) {
+    rules.push(`border: ${sticker.border.widthPt}pt solid ${cssColor(sticker.border.color)};`);
+  }
+  // A soft drop shadow. Printed rather than screen-only, so it is kept gentle:
+  // a hard shadow on a paper cover reads as a mistake.
+  if (sticker.shadow) rules.push('box-shadow: 0 0.04in 0.09in rgba(0,0,0,0.33);');
+  return `#cs${index} {
+  ${rules.join('\n  ')}
+}`;
+}
+
 export type CoverRenderOptions = {
   pageCount: number;
   fontStyle: string;
@@ -79,6 +110,21 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
     .join('');
 
   const boxStyles = cover.textBoxes.map((box, i) => boxCss(box, layout, i)).join('\n');
+
+  // Stickers are written in array order, which is what puts the last one on
+  // top. They come before the text so a caption is never buried under a
+  // picture that happens to have been added after it.
+  const stickers = (cover.stickers ?? [])
+    .map((sticker, i) => {
+      const src = options.assets?.[sticker.assetId] ?? '';
+      if (!src) return '';
+      return `<div class="cover-sticker" id="cs${i}"><img src="${escapeHtml(src)}" alt="${escapeHtml(sticker.name)}"></div>`;
+    })
+    .join('');
+
+  const stickerStyles = (cover.stickers ?? [])
+    .map((sticker, i) => stickerCss(sticker, i))
+    .join('\n');
 
   const guides = options.guides
     ? `<div class="guide guide-fold" id="fold-a"></div>
@@ -133,6 +179,13 @@ html, body { margin: 0; padding: 0; }
   object-fit: ${image?.fit ?? 'cover'};
   object-position: center;
 }
+.cover-sticker img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+${stickerStyles}
 .cover-text { position: absolute; white-space: pre-wrap; }
 ${boxStyles}
 .barcode-zone {
@@ -164,6 +217,7 @@ ${options.guides ? '' : '.barcode-zone { border-color: transparent; background: 
   <div class="panel" id="panel-back"></div>
   <div class="panel" id="panel-spine"></div>
   ${imageHtml}
+  ${stickers}
   ${barcodeHtml}
   ${boxes}
   ${guides}

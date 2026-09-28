@@ -247,6 +247,38 @@ export type LegacyCoverImage = {
   fit: 'cover' | 'contain';
 };
 
+/**
+ * A picture placed freely on the cover — front, back, or across the wrap.
+ *
+ * Positions are in inches from the top-left of the whole cover, bleed
+ * included, which is the same frame the layout and the exported PDF use. The
+ * designer scales them to the screen; nothing else has to convert.
+ *
+ * Stickers are drawn in array order, so the last one is on top. That makes
+ * "bring forward" a move within the array rather than a number to keep in
+ * step, which is one fewer thing that can disagree with itself.
+ */
+export type CoverSticker = {
+  id: string;
+  /** The image, copied into this book rather than shared with a library. */
+  assetId: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  x: number;
+  y: number;
+  widthIn: number;
+  heightIn: number;
+  /** Degrees, clockwise, about the sticker's own centre. */
+  rotate: number;
+  /** 0–0.5, as a share of the shorter side. Half is a circle. */
+  cornerRadius: number;
+  /** Null for no border at all, which is the usual case. */
+  border: { widthPt: number; color: string } | null;
+  shadow: boolean;
+  /** What it is called, for the tray and for the library. */
+  name: string;
+};
+
 export type CoverSpec = {
   backgroundColor: string;
   backColor: string;
@@ -255,6 +287,8 @@ export type CoverSpec = {
   /** When true the front image is stretched across back+spine+front. */
   imageSpansWrap: boolean;
   textBoxes: CoverTextBox[];
+  /** Pictures placed freely, in the order they are drawn. */
+  stickers: CoverSticker[];
   showBarcodeZone: boolean;
 };
 

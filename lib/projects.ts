@@ -5,6 +5,7 @@ import { DEFAULT_COLORING_TRIM } from './kdp';
 import type {
   AnyProject,
   ColoringBook,
+  CoverSpec,
   ColoringPage,
   LineArtSettings,
   PoetryProject,
@@ -41,6 +42,11 @@ export const DEFAULT_LINE_ART: LineArtSettings = {
  */
 export function migrateProject(raw: unknown): AnyProject {
   const record = (raw ?? {}) as Partial<AnyProject> & Record<string, unknown>;
+  // Every book has a cover, and a cover saved before stickers existed has no
+  // array for them. One line here rather than a guard at every use.
+  if (record.cover && !Array.isArray((record.cover as CoverSpec).stickers)) {
+    (record.cover as CoverSpec).stickers = [];
+  }
 
   if (record.kind === 'coloring') {
     const book = record as unknown as ColoringBook;

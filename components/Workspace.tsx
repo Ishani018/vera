@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { illustrationsOf } from '@/lib/contents';
 import { useStore } from '@/lib/store';
 import { BookPreview } from './BookPreview';
 import { CoverDesigner } from './CoverDesigner';
@@ -195,6 +196,15 @@ function PoetryCover() {
       update={update}
       pageCount={pageCount}
       displayFont={project?.typography.sectionTitle ?? { family: 'EB Garamond', fallback: 'serif' }}
+      pictures={(project ? illustrationsOf(project) : [])
+        .filter((plate) => plate.assetId)
+        .map((plate) => ({
+          key: plate.id,
+          name: plate.title || plate.caption || 'Illustration',
+          assetId: plate.assetId,
+          width: plate.naturalWidth,
+          height: plate.naturalHeight,
+        }))}
     />
   );
 }
