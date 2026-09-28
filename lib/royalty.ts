@@ -1,3 +1,5 @@
+import type { PaperType } from './kdp';
+
 /**
  * What a paperback earns, near enough to plan with.
  *
@@ -18,6 +20,13 @@ export const PRINT_COST = {
   /** When these figures were last checked against KDP's calculator. */
   updated: '2026-09-28',
   marketplace: 'Amazon.com · paperback · black ink on white or cream paper',
+  /**
+   * The paper stocks these figures cover. Colour printing is charged on an
+   * entirely different scale - several times this, and per page rather than
+   * flat - so a book set to print in colour is not estimated at all rather
+   * than estimated wrongly.
+   */
+  papers: ['white', 'cream'] as const,
   /** Books at or under this length are charged a flat rate. */
   flatRatePages: 108,
   flatRate: 2.3,
@@ -26,7 +35,12 @@ export const PRINT_COST = {
   perPage: 0.012,
 };
 
-/** What KDP charges to print one copy of a book this long. */
+/** True when the figures above apply to the stock this book prints on. */
+export function printCostKnown(paper: PaperType): boolean {
+  return (PRINT_COST.papers as readonly string[]).includes(paper);
+}
+
+/** What KDP charges to print one copy of a black-ink book this long. */
 export function printCost(pageCount: number): number {
   const pages = Math.max(1, Math.round(pageCount));
   return pages <= PRINT_COST.flatRatePages

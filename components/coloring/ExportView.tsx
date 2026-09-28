@@ -11,7 +11,7 @@ import {
   printInterior,
 } from '@/lib/exportClient';
 import { padToEven } from '@/lib/kdp';
-import { PRINT_COST, ROYALTY_TIERS, estimateRoyalty, money } from '@/lib/royalty';
+import { PRINT_COST, ROYALTY_TIERS, estimateRoyalty, money, printCostKnown } from '@/lib/royalty';
 import { validateCover } from '@/lib/validate';
 import { Button, Field, Notice, NumberInput, cx } from '../ui';
 
@@ -43,6 +43,9 @@ export function ExportView({ pageCount }: { pageCount: number }) {
   ];
   const blocking = issues.filter((issue) => issue.level === 'error');
   const estimate = estimateRoyalty(price, finalPages);
+  // Colour printing is charged on a different scale entirely, so the estimate
+  // is withheld rather than given wrongly.
+  const estimable = printCostKnown(book.trim.paper);
 
   // The disclosure is a reminder, not a gate — but it is the last moment it
   // can usefully be given, so it has to be taken in before the PDFs appear.
@@ -158,6 +161,22 @@ export function ExportView({ pageCount }: { pageCount: number }) {
           An estimate, from Amazon&rsquo;s own figures, read on {PRINT_COST.updated}.
         </p>
 
+        {!estimable ? (
+          <div className="mt-4">
+            <Notice level="warning">
+              <strong className="font-[570]">
+                This book is set to print on colour paper, and these figures are for black ink.
+              </strong>
+              <span className="mt-0.5 block opacity-80">
+                Colour costs several times as much and is charged by the page rather than at a flat
+                rate, so no estimate is shown. Use KDP&rsquo;s own printing-cost calculator — or, if
+                the pages are line art, switch to black &amp; white in Book, which is what a
+                coloring book prints as.
+              </span>
+            </Notice>
+          </div>
+        ) : (
+        <>
         <div className="mt-4 flex items-end gap-4">
           <Field label="List price">
             <NumberInput value={price} onChange={setPrice} step={0.5} min={0} suffix="USD" />
@@ -202,9 +221,14 @@ export function ExportView({ pageCount }: { pageCount: number }) {
           </div>
         )}
 
+        </>
+        )}
+
         <p className="mt-3 text-[13.5px] leading-relaxed text-ink-500">
           {PRINT_COST.marketplace}. Other marketplaces print at other prices, and Amazon changes
-          these figures. Check the printing-cost calculator in KDP before you set a price.
+          these figures. Check the printing-cost calculator in KDP before you set a price — these
+          three numbers live in <code className="text-[13px]">lib/royalty.ts</code> and are the
+          only thing to edit when they go stale.
         </p>
       </section>
 

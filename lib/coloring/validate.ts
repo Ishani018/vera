@@ -48,6 +48,28 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
     });
   }
 
+  // Fill-and-crop only reaches the paper edge if there is bleed to trim off.
+  // Without it the picture stops at the trim line, and the trim line is where
+  // the guillotine aims rather than where it lands: a white sliver down one
+  // edge is the usual result.
+  const filling = book.pages.filter((page) => page.fit === 'cover');
+  if (filling.length && !book.trim.bleed) {
+    issues.push({
+      id: 'coloring-bleed-off',
+      level: 'error',
+      message: `${filling.length} picture${filling.length === 1 ? ' is' : 's are'} set to fill the page, but this book has no bleed.`,
+      fix: 'Turn on "Let pictures run off the edge" in Book — and pick Bleed in KDP\'s setup to match. Or set those pictures to fit instead.',
+    });
+  }
+  if (!filling.length && book.trim.bleed) {
+    issues.push({
+      id: 'coloring-bleed-unused',
+      level: 'info',
+      message: 'This book has bleed turned on, but no picture runs off the edge.',
+      fix: 'Harmless, but remember to pick Bleed in KDP\'s setup so the two agree. Turning it off gives the pictures a little more room.',
+    });
+  }
+
   const soft = book.pages.filter((page) => pageQuality(page, book).soft);
   if (soft.length) {
     issues.push({

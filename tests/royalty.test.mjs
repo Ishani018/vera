@@ -7,6 +7,7 @@ import {
   estimateRoyalty,
   money,
   printCost,
+  printCostKnown,
   royaltyRate,
 } from '../lib/royalty.ts';
 
@@ -83,4 +84,13 @@ test('money reads as money, including when it is a loss', () => {
   assert.equal(money(5.678), '$5.68');
   assert.equal(money(-1.5), '−$1.50');
   assert.equal(money(0), '$0.00');
+});
+
+test('the estimate is withheld for paper it does not cover', () => {
+  // Colour printing is several times the price and charged per page. An
+  // estimate built from the black-ink figures would not be slightly wrong, it
+  // would be wrong enough to set a losing price with.
+  assert.equal(printCostKnown('white'), true);
+  assert.equal(printCostKnown('cream'), true);
+  assert.equal(printCostKnown('color'), false);
 });

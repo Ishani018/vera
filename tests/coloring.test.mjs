@@ -377,3 +377,19 @@ test('a cover warns when the spine is too thin to print text on', () => {
   assert.ok(validateCover(book, 20).some((i) => i.id === 'spine-too-thin'));
   assert.ok(!validateCover(book, 120).some((i) => i.id === 'spine-too-thin'));
 });
+
+test('filling the page without bleed is an error, and the reverse is a note', () => {
+  const book = createColoringBook();
+  book.trim = { ...book.trim, bleed: false };
+  book.pages = [page({ lineArtAssetId: 'a', fit: 'cover' })];
+  const ids = validateColoringBook(book, 24).map((i) => i.id);
+  assert.ok(ids.includes('coloring-bleed-off'), 'a picture would stop short of the trimmed edge');
+
+  book.trim = { ...book.trim, bleed: true };
+  assert.ok(!validateColoringBook(book, 24).some((i) => i.id === 'coloring-bleed-off'));
+
+  // Bleed on with nothing using it is harmless, but worth saying so the KDP
+  // setting is chosen to match.
+  book.pages = [page({ lineArtAssetId: 'a', fit: 'contain' })];
+  assert.ok(validateColoringBook(book, 24).some((i) => i.id === 'coloring-bleed-unused'));
+});
