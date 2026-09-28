@@ -16,7 +16,18 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      {/*
+        Grammarly and friends write their own attributes onto <body> before
+        React gets to it, and React then reports the body it rendered and the
+        body it found as a mismatch. Nothing here can prevent that — the page
+        the server sent was right, and an extension edited it in flight.
+
+        This is shallow: it covers this element's own attributes and nothing
+        below it, so a real hydration mismatch anywhere in the app is still
+        reported. It buys quiet about the one case we cannot fix and gives up
+        no warning we would want.
+      */}
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }
