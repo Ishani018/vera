@@ -10,6 +10,7 @@ import { useCoverHistory } from '@/lib/cover/history';
 import { restack } from '@/lib/cover/stickerEdit';
 import { stickerDpi, stickerWarnings, WARNING_TEXT } from '@/lib/render/stickers';
 import { MAX_SWEEP_DEGREES, curvedText } from '@/lib/cover/curve';
+import { bendOf } from '@/lib/cover/bend';
 import type {
   CoverPanel,
   CoverSticker,
@@ -278,6 +279,7 @@ export function CoverDesigner<T extends CoverableBook>({
         cornerRadius: 0,
         border: null,
         shadow: false,
+        arc: 0,
         name: item.name,
       });
     });
@@ -624,6 +626,8 @@ export function CoverDesigner<T extends CoverableBook>({
               coverHistory.remember();
               patchSticker(sticker.id, patch);
             }}
+            onSlide={(patch) => patchSticker(sticker.id, patch)}
+            onCommit={coverHistory.remember}
             onRestack={(direction) => {
               coverHistory.remember();
               update((draft) => {
@@ -931,6 +935,8 @@ function StickerInspector({
   sticker,
   layout,
   onPatch,
+  onSlide,
+  onCommit,
   onRestack,
   onDuplicate,
   onDelete,
@@ -940,14 +946,23 @@ function StickerInspector({
   sticker: CoverSticker;
   layout: import('@/lib/render/coverLayout').CoverLayout;
   onPatch: (patch: Partial<CoverSticker>) => void;
+  /**
+   * The same, without touching the history. A slider sends a few hundred of
+   * these on the way past; remembering each one would bury everything that
+   * came before it under one drag.
+   */
+  onSlide: (patch: Partial<CoverSticker>) => void;
   onRestack: (direction: 1 | -1) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   /** Keeps a copy in the library, for every book rather than only this one. */
   onKeep: () => void;
   saved: boolean;
+  /** Once, at the start of a gesture, so one undo puts back the whole of it. */
+  onCommit: () => void;
 }) {
   const warnings = stickerWarnings(sticker, layout);
+  const bend = bendOf(sticker);
 
   return (
     <div className="space-y-2.5 rounded-md border border-ink-200 bg-ink-50 p-2.5">
@@ -993,27 +1008,57 @@ function StickerInspector({
         </Field>
       </div>
 
-      <Field label="Rounded corners">
-        <Slider
-          value={Math.round(sticker.cornerRadius * 200)}
-          onChange={(value) => onPatch({ cornerRadius: value / 200 })}
-          min={0}
-          max={100}
-          step={1}
-        />
+      <Field
+        label="Arc"
+        hint={
+          bend
+            ? `Bent through ${Math.round((bend.sweep * 180) / Math.PI)}° — ${
+                bend.up ? 'arching up' : 'hanging down'
+              }`
+            : 'Flat. Drag right to bend the picture up, left to bend it down.'
+        }
+      >
+        <div onPointerDown={onCommit} onKeyDown={onCommit}>
+          <Slider
+            value={sticker.arc}
+            onChange={(arc) => onSlide({ arc })}
+            min={-100}
+            max={100}
+            step={1}
+          />
+        </div>
       </Field>
+
+      {/* A bent picture is no longer a rectangle, so a border and rounded
+          corners would frame a shape that is not there. Out of the way rather
+          than sitting there doing nothing. */}
+      {!bend && (
+        <Field label="Rounded corners">
+          <div onPointerDown={onCommit} onKeyDown={onCommit}>
+            <Slider
+              value={Math.round(sticker.cornerRadius * 200)}
+              onChange={(value) => onSlide({ cornerRadius: value / 200 })}
+              min={0}
+              max={100}
+              step={1}
+            />
+          </div>
+        </Field>
+      )}
 
       <Toggle
         label="Soft shadow"
         checked={sticker.shadow}
         onChange={(shadow) => onPatch({ shadow })}
       />
-      <Toggle
-        label="Border"
-        checked={Boolean(sticker.border)}
-        onChange={(on) => onPatch({ border: on ? { widthPt: 2, color: '#1a1a1a' } : null })}
-      />
-      {sticker.border && (
+      {!bend && (
+        <Toggle
+          label="Border"
+          checked={Boolean(sticker.border)}
+          onChange={(on) => onPatch({ border: on ? { widthPt: 2, color: '#1a1a1a' } : null })}
+        />
+      )}
+      {!bend && sticker.border && (
         <div className="grid grid-cols-2 gap-2">
           <Field label="Weight">
             <NumberInput

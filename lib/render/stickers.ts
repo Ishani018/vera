@@ -1,3 +1,4 @@
+import { bendOf } from '../cover/bend';
 import { MIN_COVER_DPI } from '../kdp';
 import type { CoverSticker } from '../types';
 import type { CoverLayout, Rect } from './coverLayout';
@@ -11,9 +12,26 @@ import type { CoverLayout, Rect } from './coverLayout';
  * a right answer, and because the PDF and the screen must agree about them.
  */
 
-/** The rectangle a sticker occupies, ignoring any rotation. */
+/**
+ * The rectangle a sticker occupies, ignoring any rotation.
+ *
+ * A bent one covers the box its arc sweeps out instead, which is a different
+ * shape from the one it was placed in — taller, and usually wider, because the
+ * outer edge of a bend is longer than the middle. Everything downstream, from
+ * where the picture is drawn to whether it is about to cross the spine, reads
+ * this one function, so all of it follows the bend without being told.
+ */
 export function stickerRect(sticker: CoverSticker): Rect {
-  return { x: sticker.x, y: sticker.y, width: sticker.widthIn, height: sticker.heightIn };
+  const bend = bendOf(sticker);
+  if (!bend) {
+    return { x: sticker.x, y: sticker.y, width: sticker.widthIn, height: sticker.heightIn };
+  }
+  return {
+    x: sticker.x + bend.box.x,
+    y: sticker.y + bend.box.y,
+    width: bend.box.width,
+    height: bend.box.height,
+  };
 }
 
 /**
@@ -25,14 +43,15 @@ export function stickerRect(sticker: CoverSticker): Rect {
  * costs a glance, and a missing one costs a print run.
  */
 export function stickerBounds(sticker: CoverSticker): Rect {
+  const rect = stickerRect(sticker);
   const radians = (sticker.rotate * Math.PI) / 180;
   const cos = Math.abs(Math.cos(radians));
   const sin = Math.abs(Math.sin(radians));
-  const width = sticker.widthIn * cos + sticker.heightIn * sin;
-  const height = sticker.widthIn * sin + sticker.heightIn * cos;
+  const width = rect.width * cos + rect.height * sin;
+  const height = rect.width * sin + rect.height * cos;
   return {
-    x: sticker.x + sticker.widthIn / 2 - width / 2,
-    y: sticker.y + sticker.heightIn / 2 - height / 2,
+    x: rect.x + rect.width / 2 - width / 2,
+    y: rect.y + rect.height / 2 - height / 2,
     width,
     height,
   };
@@ -50,10 +69,27 @@ const overlaps = (a: Rect, b: Rect) =>
  */
 export function stickerDpi(sticker: CoverSticker): number {
   if (!sticker.widthIn || !sticker.heightIn) return 0;
-  return Math.min(
+  const flat = Math.min(
     sticker.naturalWidth / sticker.widthIn,
     sticker.naturalHeight / sticker.heightIn,
   );
+  // Bending pulls the outer edge longer than the picture was, and the same
+  // pixels have to cover it. That edge is the softest part of the printed
+  // result, so it is the one the reading has to be about.
+  const bend = bendOf(sticker);
+  return bend ? flat / bend.stretch : flat;
+}
+
+/**
+ * Which picture to draw for a sticker.
+ *
+ * A bent one is a picture that does not exist until it is warped, and two
+ * stickers may bend the same image differently, so it cannot be looked up by
+ * the image it came from. Both the exporter that makes these and the renderer
+ * that draws them ask here, so neither can use the wrong one.
+ */
+export function stickerImageKey(sticker: CoverSticker): string {
+  return sticker.arc ? `bend:${sticker.id}` : sticker.assetId;
 }
 
 export type StickerWarning =

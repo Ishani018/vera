@@ -281,6 +281,13 @@ export type CoverSticker = {
   /** Null for no border at all, which is the usual case. */
   border: { widthPt: number; color: string } | null;
   shadow: boolean;
+  /**
+   * How far the picture itself is bent around a circle, on the same scale as a
+   * text box's curve: 0 is flat, positive arches it up, negative hangs it down.
+   * A tall picture stops short of the ends of the range, where its inner edge
+   * would fold through the middle of the circle.
+   */
+  arc: number;
   /** What it is called, for the tray and for the library. */
   name: string;
 };

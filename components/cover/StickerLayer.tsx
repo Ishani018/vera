@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
+import { bendOf } from '@/lib/cover/bend';
+import { bendToDataUrl } from '@/lib/cover/bendImage';
 import {
   angleTo,
   resizeFromCorner,
@@ -187,6 +189,31 @@ function Sticker({
     };
   }, [sticker.assetId]);
 
+  // The bend is drawn here at the size it is being shown at, through the same
+  // warp the exporter runs at print size. What is on screen is the result, not
+  // a sketch of it.
+  const bend = bendOf(sticker);
+  const [bentUrl, setBentUrl] = useState<string | null>(null);
+  const previewEdge = bend
+    ? Math.max(64, Math.round(Math.max(bend.box.width, bend.box.height) * scale))
+    : 0;
+
+  useEffect(() => {
+    if (!url || !bend) {
+      setBentUrl(null);
+      return undefined;
+    }
+    let live = true;
+    void bendToDataUrl(sticker, url, previewEdge)
+      .then((next) => live && setBentUrl(next))
+      .catch(() => live && setBentUrl(null));
+    return () => {
+      live = false;
+    };
+    // The warp depends on the shape of the bend, not on everything else a
+    // sticker has; redoing it when a shadow is switched on would be waste.
+  }, [url, sticker.arc, sticker.widthIn, sticker.heightIn, previewEdge]);
+
   const shorter = Math.min(sticker.widthIn, sticker.heightIn);
   const soft = stickerDpi(sticker) < MIN_COVER_DPI;
 
@@ -212,21 +239,43 @@ function Sticker({
         width: sticker.widthIn * scale,
         height: sticker.heightIn * scale,
         transform: sticker.rotate ? `rotate(${sticker.rotate}deg)` : undefined,
-        borderRadius: sticker.cornerRadius * shorter * scale,
-        boxShadow: sticker.shadow ? '0 0.04in 0.09in rgba(0,0,0,0.33)' : undefined,
-        border: sticker.border
-          ? `${(sticker.border.widthPt / 72) * scale}px solid ${sticker.border.color}`
-          : undefined,
-        overflow: 'hidden',
+        // A bent picture reaches outside the box it was placed in. The box is
+        // still what the handles move and resize — it is the thing being bent —
+        // so it stays put and the picture bulges out of it.
+        borderRadius: bend ? undefined : sticker.cornerRadius * shorter * scale,
+        boxShadow: sticker.shadow && !bend ? '0 0.04in 0.09in rgba(0,0,0,0.33)' : undefined,
+        filter: sticker.shadow && bend ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.33))' : undefined,
+        border:
+          sticker.border && !bend
+            ? `${(sticker.border.widthPt / 72) * scale}px solid ${sticker.border.color}`
+            : undefined,
+        overflow: bend ? 'visible' : 'hidden',
       }}
     >
-      {url && (
-        <img
-          src={url}
-          alt=""
-          draggable={false}
-          className="pointer-events-none h-full w-full object-contain"
-        />
+      {bend ? (
+        bentUrl && (
+          <img
+            src={bentUrl}
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute max-w-none"
+            style={{
+              left: bend.box.x * scale,
+              top: bend.box.y * scale,
+              width: bend.box.width * scale,
+              height: bend.box.height * scale,
+            }}
+          />
+        )
+      ) : (
+        url && (
+          <img
+            src={url}
+            alt=""
+            draggable={false}
+            className="pointer-events-none h-full w-full object-contain"
+          />
+        )
       )}
 
       {selected && (

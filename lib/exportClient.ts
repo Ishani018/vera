@@ -1,6 +1,8 @@
 'use client';
 
 import { assetsAsDataUrls, importAssets } from './assets';
+import { bendToDataUrl } from './cover/bendImage';
+import { stickerImageKey } from './render/stickers';
 import { illustrationsOf, looksLikeProject, migrateContents } from './contents';
 import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
@@ -102,6 +104,27 @@ async function postForPdf(
   return { ok: true, message: [`${label} saved`, ...parts].join(' · ') };
 }
 
+/**
+ * The cover's images, with every bent sticker warped and ready to print.
+ *
+ * The bend happens here rather than on the server because the source bytes are
+ * in this browser's database and the server has never seen them — and because
+ * the result has to be the very same warp the designer has been showing, which
+ * is this code. Each is rendered at the picture's own resolution, so nothing is
+ * thrown away that the flat version would have printed.
+ */
+async function coverAssets(project: AnyProject): Promise<Record<string, string>> {
+  const assets = await assetsAsDataUrls(projectAssetIds(project));
+  for (const sticker of project.cover.stickers ?? []) {
+    if (!sticker.arc) continue;
+    const source = assets[sticker.assetId];
+    if (!source) continue;
+    const bent = await bendToDataUrl(sticker, source);
+    if (bent) assets[stickerImageKey(sticker)] = bent;
+  }
+  return assets;
+}
+
 export async function exportInteriorPdf(project: AnyProject): Promise<ExportOutcome> {
   // Assets live in IndexedDB; the server cannot reach them, so the bytes travel
   // with the request.
@@ -118,7 +141,7 @@ export async function exportCoverPdf(
   project: AnyProject,
   pageCount: number,
 ): Promise<ExportOutcome> {
-  const assets = await assetsAsDataUrls(projectAssetIds(project));
+  const assets = await coverAssets(project);
   return postForPdf(
     '/api/export/cover',
     { project, pageCount: padToEven(pageCount), assets },
@@ -157,7 +180,7 @@ export async function printCover(project: AnyProject, pageCount: number): Promis
     guides: false,
     autoPrint: true,
     // Data URLs, not object URLs: the print window is a separate document.
-    assets: await assetsAsDataUrls(projectAssetIds(project)),
+    assets: await coverAssets(project),
   });
   openForPrint(html);
 }

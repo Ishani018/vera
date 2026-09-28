@@ -47,10 +47,13 @@ export function migrateProject(raw: unknown): AnyProject {
   if (record.cover && !Array.isArray((record.cover as CoverSpec).stickers)) {
     (record.cover as CoverSpec).stickers = [];
   }
-  // Likewise for text written before it could be curved: straight, which is
-  // what it has always looked like.
+  // Likewise for text written before it could be curved, and pictures stuck on
+  // before they could be bent: flat, which is what they have always looked like.
   for (const box of (record.cover as CoverSpec | undefined)?.textBoxes ?? []) {
     box.curve ??= 0;
+  }
+  for (const sticker of (record.cover as CoverSpec | undefined)?.stickers ?? []) {
+    sticker.arc ??= 0;
   }
 
   if (record.kind === 'coloring') {

@@ -1,6 +1,7 @@
 import { curvedText, type CurvedText } from '../cover/curve';
 import type { CoverSticker, CoverTextBox, CoverableBook } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
+import { stickerImageKey, stickerRect } from './stickers';
 import { cssColor, cssFamily, escapeBlock, escapeHtml, escapeSvgText } from './text';
 
 /**
@@ -93,24 +94,38 @@ function curvedHtml(box: CoverTextBox, arc: CurvedText | null, index: number): s
  * spins where it sits instead of swinging away across the cover.
  */
 function stickerCss(sticker: CoverSticker, index: number): string {
+  // Where the picture actually lands, which a bend moves and resizes.
+  const rect = stickerRect(sticker);
+  const bent = Boolean(sticker.arc);
   const shorter = Math.min(sticker.widthIn, sticker.heightIn);
   const radius = sticker.cornerRadius * shorter;
   const rules = [
     'position: absolute;',
-    `left: ${sticker.x}in;`,
-    `top: ${sticker.y}in;`,
-    `width: ${sticker.widthIn}in;`,
-    `height: ${sticker.heightIn}in;`,
-    'overflow: hidden;',
+    `left: ${rect.x}in;`,
+    `top: ${rect.y}in;`,
+    `width: ${rect.width}in;`,
+    `height: ${rect.height}in;`,
   ];
+  if (!bent) rules.push('overflow: hidden;');
   if (sticker.rotate) rules.push(`transform: rotate(${sticker.rotate}deg);`);
-  if (radius > 0) rules.push(`border-radius: ${radius.toFixed(4)}in;`);
-  if (sticker.border) {
+  // A bent picture is no longer a rectangle, so a rounded corner and a border
+  // would be drawing a frame around a shape that is not there any more. The
+  // panel hides both rather than letting them be set and ignored.
+  if (!bent && radius > 0) rules.push(`border-radius: ${radius.toFixed(4)}in;`);
+  if (!bent && sticker.border) {
     rules.push(`border: ${sticker.border.widthPt}pt solid ${cssColor(sticker.border.color)};`);
   }
   // A soft drop shadow. Printed rather than screen-only, so it is kept gentle:
-  // a hard shadow on a paper cover reads as a mistake.
-  if (sticker.shadow) rules.push('box-shadow: 0 0.04in 0.09in rgba(0,0,0,0.33);');
+  // a hard shadow on a paper cover reads as a mistake. A bent one follows the
+  // curved edge instead of boxing it, which is what drop-shadow reads off the
+  // transparency that box-shadow cannot see.
+  if (sticker.shadow) {
+    rules.push(
+      bent
+        ? 'filter: drop-shadow(0 0.04in 0.06in rgba(0,0,0,0.33));'
+        : 'box-shadow: 0 0.04in 0.09in rgba(0,0,0,0.33);',
+    );
+  }
   return `#cs${index} {
   ${rules.join('\n  ')}
 }`;
@@ -156,7 +171,7 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
   // picture that happens to have been added after it.
   const stickers = (cover.stickers ?? [])
     .map((sticker, i) => {
-      const src = options.assets?.[sticker.assetId] ?? '';
+      const src = options.assets?.[stickerImageKey(sticker)] ?? '';
       if (!src) return '';
       return `<div class="cover-sticker" id="cs${i}"><img src="${escapeHtml(src)}" alt="${escapeHtml(sticker.name)}"></div>`;
     })
