@@ -1,5 +1,5 @@
 import type { ColoringBook, ColoringPage, FontSpec, RenderOptions } from '../types';
-import { artBox, frontMatterPages, sheetOf, type Side } from './coloringLayout';
+import { artBox, matterArt, matterArtwork, sheetOf, type Side } from './coloringLayout';
 import { RUNTIME_SCRIPT, type RuntimeConfig } from './runtime';
 import { FLIP_SCRIPT } from './flip';
 import { VIEWER_SCRIPT } from './viewer';
@@ -85,7 +85,7 @@ body {
    between the page box and anything of ours — so 100% came out as nothing at
    all, and every picture was clipped away by its own overflow rule. The sheet
    is a known size; saying so is both simpler and the only thing that works. */
-.cpage, .matter-sheet, .vc-blank-page {
+.cpage, .matter-sheet, .matter-art, .vc-blank-page {
   break-before: page;
   break-inside: avoid;
   position: relative;
@@ -97,8 +97,14 @@ body {
 
 /* Single-sided: every picture takes a right-hand page, which leaves the page
    behind it blank. That blank is the point — it is what a marker soaks into
-   instead of the next picture. */
+   instead of the next picture. The page pens are tested on wants one for the
+   same reason, more so.
+
+   Both of these come after the rule above rather than before it: they are no
+   more specific than it is, so written first they would simply lose to it and
+   every one of these pages would land wherever it fell. */
 .cpage[data-recto='true'] { break-before: right; }
+.matter-recto { break-before: right; }
 
 .cpage-art {
   position: absolute;
@@ -190,7 +196,31 @@ function renderPicture(page: ColoringPage, book: ColoringBook, options: RenderOp
   return `<div class="cpage" id="${pageId(page)}" data-recto="${book.coloring.singleSided}" data-title="${escapeHtml(page.title)}">${art}</div>`;
 }
 
-function renderTitlePage(book: ColoringBook): string {
+/**
+ * A front-matter page whose design is a drawing rather than type.
+ *
+ * The same box and the same placement arithmetic as a coloring page, minus the
+ * recto rule — where these land is decided by what comes before them, not by
+ * anything about themselves.
+ */
+function renderMatterArt(
+  art: ColoringPage,
+  label: string,
+  options: RenderOptions,
+  recto = false,
+): string {
+  const assetId = art.lineArtAssetId ?? art.sourceAssetId;
+  const src = assetId ? (options.assets?.[assetId] ?? '') : '';
+  const picture = src
+    ? `<img class="cpage-art" src="${escapeHtml(src)}" alt="${escapeHtml(label)}">`
+    : '<div class="cpage-missing">This page has not been converted yet</div>';
+  return `<div class="matter-art${recto ? ' matter-recto' : ''}" id="${pageId(art)}" data-label="${escapeHtml(label)}">${picture}</div>`;
+}
+
+function renderTitlePage(book: ColoringBook, options: RenderOptions): string {
+  const art = matterArt(book, 'title');
+  if (art) return renderMatterArt(art, 'Title page', options);
+
   const { title, subtitle, author } = book.meta;
   return `<div class="matter-sheet" data-label="Title page">
 <h1 class="matter-title">${escapeHtml(title)}</h1>
@@ -215,19 +245,28 @@ function renderCopyrightPage(book: ColoringBook): string {
 </div>`;
 }
 
-function renderBelongsPage(): string {
+function renderBelongsPage(book: ColoringBook, options: RenderOptions): string {
+  const art = matterArt(book, 'belongs');
+  if (art) return renderMatterArt(art, 'This book belongs to', options);
+
   return `<div class="matter-sheet" data-label="This book belongs to">
 <p class="belongs-heading">This book belongs to</p>
 <div class="belongs-rule"></div>
-<p class="belongs-note">Colour every page however you like. There is no wrong way.</p>
+<p class="belongs-note">Fill every page however you like. There is no wrong way.</p>
 </div>`;
 }
 
-function renderColorTestPage(): string {
+function renderColorTestPage(book: ColoringBook, options: RenderOptions): string {
+  const art = matterArt(book, 'colorTest');
+  if (art) return renderMatterArt(art, 'Pen test page', options, book.coloring.singleSided);
+
   const swatches = Array.from({ length: 16 }, () => '<div class="test-swatch"></div>').join('');
-  return `<div class="matter-sheet" data-label="Colour test page">
-<p class="test-heading">Try your colours here</p>
-<p class="test-note">Some pens soak through. Test one here first and turn the page to see.</p>
+  // "Test your pens" rather than "try your colours": the word is spelled two
+  // ways and the printed page cannot hedge. This sidesteps it, and is what the
+  // page is for anyway — the thing being tested is the pen, not the colour.
+  return `<div class="matter-sheet${book.coloring.singleSided ? ' matter-recto' : ''}" data-label="Pen test page">
+<p class="test-heading">Test your pens here</p>
+<p class="test-note">Some pens soak through. Try one here first, then turn the page to see.</p>
 <div class="test-grid">${swatches}</div>
 </div>`;
 }
@@ -242,16 +281,20 @@ export function buildColoringHtml(book: ColoringBook, options: RenderOptions): s
   // sheets, because a box that starts on a right-hand page inside a fresh block
   // makes Paged.js open one whether anything needs it or not.
   const front = [
-    coloring.titlePage ? renderTitlePage(book) : '',
+    coloring.titlePage ? renderTitlePage(book, options) : '',
     coloring.copyrightPage ? renderCopyrightPage(book) : '',
-    coloring.belongsToPage ? renderBelongsPage() : '',
-    coloring.colorTestPage ? renderColorTestPage() : '',
+    coloring.belongsToPage ? renderBelongsPage(book, options) : '',
+    coloring.colorTestPage ? renderColorTestPage(book, options) : '',
   ]
     .filter(Boolean)
     .join('');
 
   const body = book.pages.map((page) => renderPicture(page, book, options)).join('');
-  const placements = book.pages.map((page) => placementCss(page, book)).join('\n');
+  // Front-matter artwork is placed by the same arithmetic as a picture, so its
+  // rules are written the same way.
+  const placements = [...matterArtwork(book), ...book.pages]
+    .map((page) => placementCss(page, book))
+    .join('\n');
 
   const pad = Array.from(
     { length: Math.max(0, options.padPages) },

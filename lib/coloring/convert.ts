@@ -5,7 +5,7 @@ import { forgetAssetUrl, getAsset, putAssetBlob } from '../assets';
 import { renderLineArt } from '../lineart/client';
 import type { ColoringPage } from '../types';
 import { targetLongEdge } from './quality';
-import { useColoring } from './store';
+import { convertibles, useColoring } from './store';
 
 /** Settle time after the last change before anything is converted. */
 const SETTLE_MS = 260;
@@ -38,13 +38,13 @@ export function useConversionQueue() {
 
   // The queue is driven off what the pages say they need, so this signature is
   // the whole of the dependency: nothing else can make work appear.
-  const signature = (book?.pages ?? [])
+  const signature = (book ? convertibles(book) : [])
     .map((page) => `${page.id}:${JSON.stringify(page.settings)}:${page.lineArtAssetId ?? ''}`)
     .join('|');
 
   useEffect(() => {
     if (!book || running.current) return;
-    const waiting = stale(book.pages);
+    const waiting = stale(convertibles(book));
     if (!waiting.length) return;
 
     const timer = setTimeout(() => void run(), SETTLE_MS);
@@ -59,7 +59,7 @@ export function useConversionQueue() {
         for (;;) {
           const current = useColoring.getState().book;
           if (!current) break;
-          const pending = stale(current.pages);
+          const pending = stale(convertibles(current));
           if (!pending.length) break;
 
           const selected = useColoring.getState().selectedId;

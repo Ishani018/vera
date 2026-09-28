@@ -5,12 +5,14 @@ import { putAsset } from '../assets';
 import { ACTIVE_PROJECT_KEY, getDb } from '../db';
 import { id } from '../defaults';
 import { migrateProject } from '../projects';
+import { MATTER_ART_KEYS, matterArtwork } from '../render/coloringLayout';
 import { printedSize } from './quality';
 import type {
   ColoringBook,
   ColoringPage,
   ColoringSettings,
   LineArtSettings,
+  MatterSlot,
   SourceKind,
 } from '../types';
 
@@ -46,7 +48,33 @@ type State = {
   setSource: (pageId: string, source: SourceKind) => void;
   setBookSetting: <K extends keyof ColoringSettings>(key: K, value: ColoringSettings[K]) => void;
   applyToAll: (settings: LineArtSettings) => void;
+  /** Supply a drawing for one of the generated front-matter pages. */
+  setMatterArt: (slot: MatterSlot, file: File) => Promise<void>;
+  /** Go back to the built-in design for that page. */
+  clearMatterArt: (slot: MatterSlot) => void;
 };
+
+/**
+ * Everything in the book that the converter has to run over.
+ *
+ * Front-matter artwork is a drawing like any other, so it goes in the same
+ * queue rather than getting a second one that would race the first.
+ */
+export const convertibles = (book: ColoringBook): ColoringPage[] => [
+  ...book.pages,
+  ...matterArtwork(book),
+];
+
+/** Finds a page or a piece of front-matter artwork by id, in a draft. */
+function convertible(draft: ColoringBook, itemId: string): ColoringPage | undefined {
+  const page = draft.pages.find((p) => p.id === itemId);
+  if (page) return page;
+  for (const key of Object.values(MATTER_ART_KEYS)) {
+    const art = draft.coloring[key];
+    if (art?.id === itemId) return art;
+  }
+  return undefined;
+}
 
 /** True when the picture and the page disagree about which way round they are. */
 function turnedForPage(width: number, height: number, book: ColoringBook): boolean {
@@ -156,13 +184,13 @@ export const useColoring = create<State>((set, get) => ({
 
   setPageSettings: (pageId, settings) =>
     get().update((draft) => {
-      const page = draft.pages.find((p) => p.id === pageId);
+      const page = convertible(draft, pageId);
       if (page) page.settings = { ...settings };
     }),
 
   setLineArt: (pageId, assetId, settings, meta) =>
     get().update((draft) => {
-      const page = draft.pages.find((p) => p.id === pageId);
+      const page = convertible(draft, pageId);
       if (!page) return;
       page.lineArtAssetId = assetId;
       page.renderedWith = { ...settings };
@@ -181,7 +209,7 @@ export const useColoring = create<State>((set, get) => ({
 
   setPlacement: (pageId, patch) =>
     get().update((draft) => {
-      const page = draft.pages.find((p) => p.id === pageId);
+      const page = convertible(draft, pageId);
       // Placement is about the paper, not about the picture: the line art
       // stays exactly as it was, so nothing is re-converted.
       if (page) Object.assign(page, patch);
@@ -189,7 +217,7 @@ export const useColoring = create<State>((set, get) => ({
 
   setSource: (pageId, source) =>
     get().update((draft) => {
-      const page = draft.pages.find((p) => p.id === pageId);
+      const page = convertible(draft, pageId);
       if (!page) return;
       page.source = source;
       page.sourceGuessed = false;
@@ -206,6 +234,46 @@ export const useColoring = create<State>((set, get) => ({
   applyToAll: (settings) =>
     get().update((draft) => {
       draft.coloring.lineArt = { ...settings };
+      // The pictures only. A title page is not a page anybody asked to have
+      // the same detail setting as a painting of a fish.
       for (const page of draft.pages) page.settings = { ...settings };
     }),
+
+  setMatterArt: async (slot, file) => {
+    const record = await putAsset(file);
+    get().update((draft) => {
+      draft.coloring[MATTER_ART_KEYS[slot]] = {
+        id: id('matter'),
+        title: MATTER_TITLES[slot],
+        // Never traced. These arrive already drawn, and tracing a drawing
+        // gives back a hollow, doubled version of it.
+        source: 'lineart',
+        sourceGuessed: false,
+        sourceAssetId: record.id,
+        lineArtAssetId: null,
+        renderedWith: null,
+        upscaled: 1,
+        // Always the whole picture, inside the margins. A cropped title page
+        // is a mistake, never a choice.
+        fit: 'contain',
+        rotate: 0,
+        naturalWidth: record.width,
+        naturalHeight: record.height,
+        settings: { ...draft.coloring.lineArt },
+      };
+      // It arrived already drawn, which is the same signal a picture gives.
+      draft.coloring.containsAiImages = true;
+    });
+  },
+
+  clearMatterArt: (slot) =>
+    get().update((draft) => {
+      draft.coloring[MATTER_ART_KEYS[slot]] = null;
+    }),
 }));
+
+const MATTER_TITLES: Record<MatterSlot, string> = {
+  title: 'Title page',
+  belongs: 'This book belongs to',
+  colorTest: 'Pen test page',
+};

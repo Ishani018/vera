@@ -5,6 +5,7 @@ import { useColoring } from '@/lib/coloring/store';
 import { validateColoringBook } from '@/lib/coloring/validate';
 import { frontMatterPages } from '@/lib/render/coloringLayout';
 import type { PaperType } from '@/lib/types';
+import { MatterPage } from './MatterPage';
 import { Field, Notice, Select, TextInput, Toggle } from '../ui';
 
 /**
@@ -113,15 +114,16 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
       <section>
         <h3 className="text-[17px] font-semibold">Front of the book</h3>
         <p className="mt-1 text-[14px] text-ink-500">
-          Four pages, each optional. They are made from the details above — there is nothing to
-          lay out by hand.
+          Four pages, each optional. Three of them can be a drawing of your own instead of the
+          built-in design — it goes through the same cleanup as a coloring page.
         </p>
-        <div className="mt-3 flex flex-col gap-3.5">
-          <Toggle
+        <div className="mt-3 flex flex-col gap-5">
+          <MatterPage
+            slot="title"
             label="Title page"
             hint="The title, the subtitle and your name."
-            checked={book.coloring.titlePage}
-            onChange={(value) => setBookSetting('titlePage', value)}
+            on={book.coloring.titlePage}
+            onToggle={(value) => setBookSetting('titlePage', value)}
           />
           <Toggle
             label="Copyright page"
@@ -129,17 +131,19 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
             checked={book.coloring.copyrightPage}
             onChange={(value) => setBookSetting('copyrightPage', value)}
           />
-          <Toggle
+          <MatterPage
+            slot="belongs"
             label="“This book belongs to”"
             hint="A line for a name."
-            checked={book.coloring.belongsToPage}
-            onChange={(value) => setBookSetting('belongsToPage', value)}
+            on={book.coloring.belongsToPage}
+            onToggle={(value) => setBookSetting('belongsToPage', value)}
           />
-          <Toggle
-            label="Colour test page"
+          <MatterPage
+            slot="colorTest"
+            label="Pen test page"
             hint="Empty boxes for trying a pen before it soaks through a picture."
-            checked={book.coloring.colorTestPage}
-            onChange={(value) => setBookSetting('colorTestPage', value)}
+            on={book.coloring.colorTestPage}
+            onToggle={(value) => setBookSetting('colorTestPage', value)}
           />
         </div>
       </section>

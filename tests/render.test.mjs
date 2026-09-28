@@ -543,13 +543,13 @@ test('the front matter is exactly the pages that are switched on', () => {
   assert.ok(all.includes('data-label="Title page"'));
   assert.ok(all.includes('data-label="Copyright"'));
   assert.ok(all.includes('data-label="This book belongs to"'));
-  assert.ok(all.includes('data-label="Colour test page"'));
+  assert.ok(all.includes('data-label="Pen test page"'));
 
   book.coloring.titlePage = false;
   book.coloring.colorTestPage = false;
   const fewer = buildColoringHtml(book, coloringOptions());
   assert.ok(!fewer.includes('data-label="Title page"'));
-  assert.ok(!fewer.includes('data-label="Colour test page"'));
+  assert.ok(!fewer.includes('data-label="Pen test page"'));
   assert.ok(fewer.includes('data-label="Copyright"'));
 });
 
@@ -579,7 +579,7 @@ test('the sheet is sized in inches, not in percentages', () => {
   // pinned here instead.
   const book = coloringFixture(1);
   const html = buildColoringHtml(book, coloringOptions());
-  const rule = html.match(/\.cpage, \.matter-sheet, \.vc-blank-page \{[^}]*\}/)?.[0] ?? '';
+  const rule = html.match(/\.cpage, \.matter-sheet, \.matter-art, \.vc-blank-page \{[^}]*\}/)?.[0] ?? '';
   assert.match(rule, /height: 8\.75in/);
   assert.match(rule, /width: 8\.625in/);
   assert.ok(!/height: 100%/.test(rule), 'a percentage height does not resolve here');

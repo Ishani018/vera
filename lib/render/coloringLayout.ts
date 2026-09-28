@@ -1,5 +1,5 @@
 import { BLEED, getTrim } from '../kdp';
-import type { ColoringBook, ColoringPage } from '../types';
+import type { ColoringBook, ColoringPage, ColoringSettings, MatterSlot } from '../types';
 
 /**
  * Where a picture goes on a printed sheet, in inches.
@@ -96,19 +96,55 @@ export function artBox(page: ColoringPage, book: ColoringBook, side: Side): ArtB
   };
 }
 
+/** Where custom front-matter artwork is kept, by slot. */
+export const MATTER_ART_KEYS = {
+  title: 'titleArt',
+  belongs: 'belongsArt',
+  colorTest: 'colorTestArt',
+} as const satisfies Record<MatterSlot, keyof ColoringSettings>;
+
+/** The drawing supplied for a generated page, if there is one. */
+export function matterArt(book: ColoringBook, slot: MatterSlot): ColoringPage | null {
+  return book.coloring[MATTER_ART_KEYS[slot]];
+}
+
+/** Every drawing supplied for a generated page, in printed order. */
+export function matterArtwork(book: ColoringBook): ColoringPage[] {
+  return (['title', 'belongs', 'colorTest'] as MatterSlot[])
+    .map((slot) => matterArt(book, slot))
+    .filter((art): art is ColoringPage => Boolean(art));
+}
+
 /**
- * How many sheets the finished book runs to, before any padding to an even
- * count. Known without laying anything out, because a coloring book's pages
- * are one picture each rather than a flow of type.
+ * How many sheets the finished book runs to, once padded to an even count.
+ *
+ * Worked out by walking the book the way the binding does rather than by
+ * adding up parts, because "this page takes a right-hand one" is not a sum: it
+ * may leave a sheet blank ahead of itself, and whether it does depends on
+ * everything before it. Known without laying anything out all the same,
+ * because a coloring book's pages are one picture each rather than a flow of
+ * type — and the preview replaces this with the real count as soon as it has
+ * one.
  */
 export function sheetCount(book: ColoringBook): number {
-  const front = frontMatterPages(book);
-  const pictures = book.pages.length;
-  // A blank back behind every picture, so a marker that soaks through has
-  // nothing on the other side to ruin.
-  const backs = book.coloring.singleSided ? pictures : 0;
-  const total = front + pictures + backs;
-  return total + (total % 2);
+  const { coloring } = book;
+  let used = 0;
+  /** Adds a page, first skipping a sheet if this one must start a leaf. */
+  const place = (mustBeRecto: boolean) => {
+    // The next page number is `used + 1`, and odd numbers are right-hand pages.
+    if (mustBeRecto && used % 2 === 1) used++;
+    used++;
+  };
+
+  if (coloring.titlePage) place(false);
+  if (coloring.copyrightPage) place(false);
+  if (coloring.belongsToPage) place(false);
+  // The page pens are tested on wants a blank behind it as much as any picture
+  // does — more, since the whole point is to find out what soaks through.
+  if (coloring.colorTestPage) place(coloring.singleSided);
+  for (let i = 0; i < book.pages.length; i++) place(coloring.singleSided);
+
+  return used + (used % 2);
 }
 
 /** Which generated front-matter pages this book is set to print. */

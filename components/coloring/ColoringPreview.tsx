@@ -5,7 +5,7 @@ import { getAssetUrl } from '@/lib/assets';
 import { PAGEDJS_SRC } from '@/lib/exportClient';
 import { fetchFontCss } from '@/lib/fontsClient';
 import { buildColoringHtml } from '@/lib/render/coloringHtml';
-import { sheetOf } from '@/lib/render/coloringLayout';
+import { matterArtwork, sheetOf } from '@/lib/render/coloringLayout';
 import type { ViewMessage } from '@/lib/render/viewer';
 import type { ColoringBook } from '@/lib/types';
 import { Button, SegmentedControl, cx } from '../ui';
@@ -19,7 +19,10 @@ type Paginated = { type: 'versecraft:paginated'; pageCount: number; pages: PageI
 /** Every picture the book needs, as URLs this document can render. */
 async function pictureUrls(book: ColoringBook): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
-  const ids = book.pages.flatMap((page) => [page.lineArtAssetId, page.sourceAssetId]);
+  const ids = [...book.pages, ...matterArtwork(book)].flatMap((page) => [
+    page.lineArtAssetId,
+    page.sourceAssetId,
+  ]);
   await Promise.all(
     [...new Set(ids.filter((id): id is string => Boolean(id)))].map(async (id) => {
       const url = await getAssetUrl(id);
@@ -69,6 +72,7 @@ export function ColoringPreview({
     book.coloring.copyrightPage,
     book.coloring.belongsToPage,
     book.coloring.colorTestPage,
+    matterArtwork(book).map((art) => [art.id, art.lineArtAssetId]),
     book.typography,
     book.pages.map((p) => [p.id, p.lineArtAssetId, p.fit, p.rotate, p.naturalWidth, p.naturalHeight]),
   ]);

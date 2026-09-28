@@ -365,9 +365,25 @@ export type ColoringPage = {
   settings: LineArtSettings;
 };
 
+/**
+ * A front-matter page whose design is a picture rather than something the app
+ * lays out — the title, the name line, or the page for trying pens on.
+ */
+export type MatterSlot = 'title' | 'belongs' | 'colorTest';
+
 export type ColoringSettings = {
   /** Applied to every new page, and by "apply to all". */
   lineArt: LineArtSettings;
+  /**
+   * Artwork supplied for a generated page, or null to use the built-in design.
+   *
+   * The same shape as a coloring page on purpose: it goes through the same
+   * cleanup, the same enlargement, the same placement arithmetic and the same
+   * conversion queue. A front-matter drawing is a drawing.
+   */
+  titleArt: ColoringPage | null;
+  belongsArt: ColoringPage | null;
+  colorTestArt: ColoringPage | null;
   /** A blank back behind every coloring page, so markers cannot bleed through. */
   singleSided: boolean;
   /** The generated front matter, each page its own switch. */

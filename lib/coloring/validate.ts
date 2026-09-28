@@ -5,6 +5,7 @@ import {
   padToEven,
   type ValidationIssue,
 } from '../kdp';
+import { matterArtwork } from '../render/coloringLayout';
 import { EXTREME_UPSCALE, pageQuality } from './quality';
 import type { ColoringBook } from '../types';
 
@@ -38,13 +39,15 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
     );
   }
 
-  const unconverted = book.pages.filter((page) => !page.lineArtAssetId);
+  const unconverted = [...book.pages, ...matterArtwork(book)].filter(
+    (page) => !page.lineArtAssetId,
+  );
   if (unconverted.length) {
     issues.push({
       id: 'coloring-unconverted',
       level: 'error',
-      message: `${unconverted.length} picture${unconverted.length === 1 ? ' has' : 's have'} not been converted to line art yet.`,
-      fix: 'Open Pictures and wait for the converter to finish.',
+      message: `${unconverted.length} page${unconverted.length === 1 ? ' has' : 's have'} not been converted to line art yet: ${names(unconverted.map((p) => p.title))}.`,
+      fix: 'Wait for the converter to finish — it runs one at a time.',
     });
   }
 
@@ -70,7 +73,7 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
     });
   }
 
-  const soft = book.pages.filter((page) => pageQuality(page, book).soft);
+  const soft = [...book.pages, ...matterArtwork(book)].filter((p) => pageQuality(p, book).soft);
   if (soft.length) {
     issues.push({
       id: 'coloring-dpi',
@@ -80,7 +83,9 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
     });
   }
 
-  const stretched = book.pages.filter((page) => pageQuality(page, book).stretched);
+  const stretched = [...book.pages, ...matterArtwork(book)].filter(
+    (p) => pageQuality(p, book).stretched,
+  );
   if (stretched.length) {
     issues.push({
       id: 'coloring-upscale',

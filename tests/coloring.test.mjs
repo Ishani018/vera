@@ -11,7 +11,10 @@ import {
   targetLongEdge,
 } from '../lib/coloring/quality.ts';
 import { TRACE_EDGE } from '../lib/lineart/pipeline.ts';
+import { convertibles } from '../lib/coloring/store.ts';
 import { validateColoringBook } from '../lib/coloring/validate.ts';
+import { projectAssetIds } from '../lib/exportClient.ts';
+import { buildColoringHtml } from '../lib/render/coloringHtml.ts';
 import { buildCoverHtml } from '../lib/render/coverHtml.ts';
 import { coverLayout } from '../lib/render/coverLayout.ts';
 import { validateCover } from '../lib/validate.ts';
@@ -39,6 +42,24 @@ const page = (over = {}) => ({
   naturalHeight: 3000,
   settings: { mode: 'threshold', detail: 50, thickness: 45, cleanup: 40, smoothing: 50, invert: false },
   ...over,
+});
+
+/** A coloring book with `count` converted pictures in it. */
+function coloringFixture(count) {
+  const book = createColoringBook('Ghosts');
+  book.pages = Array.from({ length: count }, (_, i) =>
+    page({ id: `page_${i}`, title: `Picture ${i + 1}`, sourceAssetId: `src_${i}`, lineArtAssetId: `art_${i}` }),
+  );
+  return book;
+}
+
+const coloringOptions = () => ({
+  mode: 'export',
+  fontStyle: '',
+  pagedJsSrc: '',
+  guides: { margins: false, bleed: false, safe: false, gutter: false },
+  assets: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`art_${i}`, `blob:art${i}`])),
+  padPages: 0,
 });
 
 const square = () => createColoringBook('Square');
@@ -197,8 +218,9 @@ test('a book saved with half a meta comes back with all of it', () => {
 test('the printed length counts the front matter, the pictures and the backs', () => {
   const book = createColoringBook();
   book.pages = Array.from({ length: 10 }, (_, i) => page({ id: `p${i}` }));
-  // Four front-matter pages, ten pictures, ten blank backs.
-  assert.equal(sheetCount(book), 24);
+  // Three front-matter pages, then the pen test page taking a right-hand one
+  // and leaving a blank before it, then ten pictures each with a blank back.
+  assert.equal(sheetCount(book), 26);
 
   book.coloring.singleSided = false;
   assert.equal(sheetCount(book), 14);
@@ -392,4 +414,106 @@ test('filling the page without bleed is an error, and the reverse is a note', ()
   // setting is chosen to match.
   book.pages = [page({ lineArtAssetId: 'a', fit: 'contain' })];
   assert.ok(validateColoringBook(book, 24).some((i) => i.id === 'coloring-bleed-unused'));
+});
+
+// --- front matter you drew yourself -------------------------------------------
+
+/** A drawing supplied for one of the generated pages. */
+const drawing = (over = {}) =>
+  page({
+    id: 'matter_1',
+    title: 'Pen test page',
+    source: 'lineart',
+    sourceGuessed: false,
+    naturalWidth: 1280,
+    naturalHeight: 1280,
+    ...over,
+  });
+
+test('front matter artwork goes through the same queue as a picture', () => {
+  // The converter walks one list. If a title page were not in it, it would sit
+  // unconverted for ever and nothing would say why.
+  const book = createColoringBook();
+  book.pages = [page({ id: 'p1' })];
+  book.coloring.titleArt = drawing({ id: 'matter_title' });
+  book.coloring.colorTestArt = drawing({ id: 'matter_test' });
+
+  const ids = convertibles(book).map((item) => item.id);
+  assert.deepEqual(ids, ['p1', 'matter_title', 'matter_test']);
+});
+
+test('a page you drew replaces the built-in design, and nothing else', () => {
+  const book = coloringFixture(1);
+  book.coloring.titleArt = drawing({ id: 'matter_title', lineArtAssetId: 'art_title' });
+  const html = buildColoringHtml(book, {
+    ...coloringOptions(),
+    assets: { ...coloringOptions().assets, art_title: 'blob:title' },
+  });
+
+  const body = html.slice(html.indexOf('<body>'));
+  assert.ok(body.includes('blob:title'), 'the drawing should be on the page');
+  assert.ok(!body.includes('matter-title'), 'the built-in title design should be gone');
+  // The copyright page still names the book, as it should — what must be gone
+  // is the built-in title page, not every mention of the title.
+  assert.ok(!body.includes('<h1'), 'the title should not also be set as type');
+  // The other generated pages are untouched.
+  assert.ok(body.includes('data-label="Copyright"'));
+  assert.ok(body.includes('data-label="This book belongs to"'));
+});
+
+test('a page you drew is placed inside the margins and never cropped', () => {
+  const book = createColoringBook();
+  const art = drawing({ naturalWidth: 1600, naturalHeight: 900 });
+  const sheet = sheetOf(book);
+  const box = artBox(art, book, 'right');
+
+  assert.equal(art.fit, 'contain');
+  assert.ok(box.x >= book.margins.inside - 0.001, 'it must clear the gutter');
+  assert.ok(box.x + box.width <= sheet.width - sheet.bleed - book.margins.outside + 0.001);
+  assert.ok(box.y >= sheet.bleed + book.margins.top - 0.001);
+  assert.ok(box.y + box.height <= sheet.height - sheet.bleed - book.margins.bottom + 0.001);
+});
+
+test('the pen test page takes a right-hand page, so its back stays blank', () => {
+  const book = coloringFixture(0);
+  const html = buildColoringHtml(book, coloringOptions());
+  const testSheet = html.match(/<div class="([^"]*)"[^>]*data-label="Pen test page"/)?.[1] ?? '';
+  assert.ok(testSheet.includes('matter-recto'), 'the whole point is what is behind it');
+
+  book.coloring.singleSided = false;
+  const flat = buildColoringHtml(book, coloringOptions());
+  const flatSheet = flat.match(/<div class="([^"]*)"[^>]*data-label="Pen test page"/)?.[1] ?? '';
+  assert.ok(!flatSheet.includes('matter-recto'), 'double-sided has no blank backs to keep');
+});
+
+test('a drawn pen test page keeps its blank back too', () => {
+  const book = coloringFixture(0);
+  book.coloring.colorTestArt = drawing({ lineArtAssetId: 'art_test' });
+  const html = buildColoringHtml(book, coloringOptions());
+  const sheet = html.match(/<div class="([^"]*)"[^>]*data-label="Pen test page"/)?.[1] ?? '';
+  assert.ok(sheet.includes('matter-art'));
+  assert.ok(sheet.includes('matter-recto'));
+});
+
+test('the printed page never says colour or color, because it cannot spell both', () => {
+  const html = buildColoringHtml(coloringFixture(1), coloringOptions());
+  const body = html.slice(html.indexOf('<body>'));
+  assert.ok(!/\bcolou?rs?\b/i.test(body.replace(/<style[\s\S]*?<\/style>/g, '')));
+});
+
+test('artwork you drew is saved with the book, or a backup restores it missing', () => {
+  const book = coloringFixture(1);
+  book.coloring.titleArt = drawing({ id: 'm1', sourceAssetId: 'src_title', lineArtAssetId: 'art_title' });
+  const ids = projectAssetIds(book);
+  assert.ok(ids.includes('src_title'), 'the original has to travel');
+  assert.ok(ids.includes('art_title'), 'and so does the cleaned-up version');
+});
+
+test('a drawn page that has not been converted is reported by name', () => {
+  const book = createColoringBook();
+  book.pages = [page({ lineArtAssetId: 'a' })];
+  book.coloring.belongsArt = drawing({ id: 'm2', title: 'This book belongs to', lineArtAssetId: null });
+  const issue = validateColoringBook(book, 24).find((i) => i.id === 'coloring-unconverted');
+  assert.ok(issue, 'an unconverted front-matter page is still an unconverted page');
+  assert.match(issue.message, /This book belongs to/);
 });

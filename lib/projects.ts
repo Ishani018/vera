@@ -2,7 +2,13 @@ import { migrateContents } from './contents';
 import { getDb } from './db';
 import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
 import { DEFAULT_COLORING_TRIM } from './kdp';
-import type { AnyProject, ColoringBook, LineArtSettings, PoetryProject } from './types';
+import type {
+  AnyProject,
+  ColoringBook,
+  ColoringPage,
+  LineArtSettings,
+  PoetryProject,
+} from './types';
 
 /**
  * The studio holds two kinds of book. This module is the only place that knows
@@ -59,6 +65,9 @@ export function migrateProject(raw: unknown): AnyProject {
         copyrightPage: book.coloring?.copyrightPage ?? true,
         belongsToPage: book.coloring?.belongsToPage ?? true,
         colorTestPage: book.coloring?.colorTestPage ?? true,
+        titleArt: migrateMatterArt(book.coloring?.titleArt),
+        belongsArt: migrateMatterArt(book.coloring?.belongsArt),
+        colorTestArt: migrateMatterArt(book.coloring?.colorTestArt),
         containsAiImages: book.coloring?.containsAiImages ?? false,
       },
       typography: { ...DEFAULT_COLORING_TYPOGRAPHY, ...(book.typography ?? {}) },
@@ -124,9 +133,27 @@ export function createColoringBook(name = 'Untitled Coloring Book'): ColoringBoo
       copyrightPage: true,
       belongsToPage: true,
       colorTestPage: true,
+      titleArt: null,
+      belongsArt: null,
+      colorTestArt: null,
       containsAiImages: false,
     },
     typography: { ...DEFAULT_COLORING_TYPOGRAPHY },
+  };
+}
+
+/** A front-matter drawing saved before a field existed still opens. */
+function migrateMatterArt(art: ColoringPage | null | undefined): ColoringPage | null {
+  if (!art?.sourceAssetId) return null;
+  return {
+    ...art,
+    renderedWith: art.renderedWith ?? (art.lineArtAssetId ? art.settings : null),
+    source: 'lineart',
+    sourceGuessed: false,
+    upscaled: art.upscaled ?? 1,
+    fit: 'contain',
+    rotate: 0,
+    settings: { ...DEFAULT_LINE_ART, ...art.settings },
   };
 }
 

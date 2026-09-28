@@ -6,6 +6,7 @@ import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
 import { buildColoringHtml } from './render/coloringHtml';
+import { matterArtwork } from './render/coloringLayout';
 import { buildCoverHtml } from './render/coverHtml';
 import type { AnyProject, ColoringBook, Project } from './types';
 
@@ -27,8 +28,13 @@ export function projectAssetIds(project: AnyProject): string[] {
     project.kind === 'coloring'
       ? // The line art is what prints; the original goes too, because a page
         // that has not been converted yet falls back to it rather than to a
-        // hole, and because the cover may be one of them in colour.
-        project.pages.flatMap((page) => [page.lineArtAssetId, page.sourceAssetId])
+        // hole, and because the cover may be one of them in colour. Front
+        // matter the poet drew herself is in here as well, or a backup would
+        // restore a book with its title page missing.
+        [...project.pages, ...matterArtwork(project)].flatMap((page) => [
+          page.lineArtAssetId,
+          page.sourceAssetId,
+        ])
       : illustrationsOf(project).map((plate) => plate.assetId);
 
   return [project.cover.frontImage?.assetId, ...inside].filter((id): id is string => Boolean(id));

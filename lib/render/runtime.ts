@@ -186,6 +186,11 @@ export const RUNTIME_SCRIPT = String.raw`
       return { kind: 'plate', caption: plateTitle || 'Illustration' };
     }
 
+    var sheet = content.querySelector('.matter-sheet[data-label], .matter-art[data-label]');
+    if (sheet) {
+      return { kind: 'matter', caption: sheet.getAttribute('data-label') || 'Front matter' };
+    }
+
     var colouring = content.querySelector('.cpage');
     if (colouring) {
       var colouringTitle = (colouring.getAttribute('data-title') || '').trim();
