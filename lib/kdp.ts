@@ -43,6 +43,10 @@ export const TRIM_SIZES: TrimSize[] = [
 
 export const DEFAULT_TRIM_ID = '5.5x8.5';
 
+/** Coloring books are square by default; 8.5 × 11 is the other one KDP prints. */
+export const DEFAULT_COLORING_TRIM = '8.5x8.5';
+export const COLORING_TRIM_IDS = ['8.5x8.5', '8.5x11'] as const;
+
 export function getTrim(id: string): TrimSize {
   return TRIM_SIZES.find((t) => t.id === id) ?? TRIM_SIZES.find((t) => t.id === DEFAULT_TRIM_ID)!;
 }

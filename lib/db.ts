@@ -1,13 +1,17 @@
 import Dexie, { type Table } from 'dexie';
 import type { AssetRecord } from './assets';
-import type { Project } from './types';
+import type { AnyProject } from './types';
 
 /**
  * Everything lives in the browser. There is no server-side store: the export
  * routes are stateless and receive the project in the request body.
+ *
+ * One table holds both kinds of book. They share most of their fields and all
+ * of their lifecycle — opened, listed, autosaved — so splitting them would mean
+ * two of everything for the sake of one discriminant.
  */
 export class VersecraftDatabase extends Dexie {
-  projects!: Table<Project, string>;
+  projects!: Table<AnyProject, string>;
   /**
    * Image bytes, keyed by id. Kept out of the project document so the project
    * stays small enough to clone on every edit and to snapshot for undo.

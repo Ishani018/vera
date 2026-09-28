@@ -258,26 +258,91 @@ export type CoverSpec = {
   showBarcodeZone: boolean;
 };
 
-export type Project = {
+export type BookKind = 'poetry' | 'coloring';
+
+/**
+ * What every book has, whatever is inside it.
+ *
+ * The two kinds share the parts that are about printing rather than about
+ * content: the trim, the margins, the cover, the matter pages. That shared
+ * half is what lets one set of KDP maths, one cover designer and one PDF
+ * pipeline serve both.
+ */
+export type BookBase = {
   id: string;
+  kind: BookKind;
   name: string;
   createdAt: number;
   updatedAt: number;
   meta: BookMeta;
   trim: TrimSettings;
   margins: Margins;
+  frontMatter: MatterPage[];
+  backMatter: MatterPage[];
+  cover: CoverSpec;
+};
+
+export type PoetryProject = BookBase & {
+  kind: 'poetry';
   layout: LayoutSettings;
   typography: Typography;
   border: BorderSettings;
   ornament: OrnamentSettings;
   headers: HeaderSettings;
   toc: TocSettings;
-  frontMatter: MatterPage[];
-  backMatter: MatterPage[];
   /** The body of the book, in the order it is printed. */
   contents: ContentItem[];
-  cover: CoverSpec;
 };
+
+/**
+ * Kept as the name the poetry side has always used. Splitting the type was to
+ * make room for a second kind of book, not to rename everything that works.
+ */
+export type Project = PoetryProject;
+
+/** How one picture is turned into line art. Nothing here is generative. */
+export type LineArtSettings = {
+  /** Local thresholding keeps tonal areas; edges keeps outlines only. */
+  mode: 'threshold' | 'edges';
+  /** 0–100. Bigger means finer detail survives. */
+  detail: number;
+  /** 0–100. Bigger means heavier lines. */
+  thickness: number;
+  /** 0–100. Blur before thresholding, and the size of specks removed after. */
+  cleanup: number;
+  /** For art that is light on dark. */
+  invert: boolean;
+};
+
+export type ColoringPage = {
+  id: string;
+  title: string;
+  /** The original upload, kept so the settings stay re-appliable. */
+  sourceAssetId: string;
+  /** The processed line art. Null until it has been run. */
+  lineArtAssetId: string | null;
+  naturalWidth: number;
+  naturalHeight: number;
+  settings: LineArtSettings;
+};
+
+export type ColoringSettings = {
+  /** Applied to every new page, and by "apply to all". */
+  lineArt: LineArtSettings;
+  /** A blank back behind every coloring page, so markers cannot bleed through. */
+  singleSided: boolean;
+  belongsToPage: boolean;
+  colorTestPage: boolean;
+};
+
+export type ColoringBook = BookBase & {
+  kind: 'coloring';
+  pages: ColoringPage[];
+  coloring: ColoringSettings;
+};
+
+/** Anything the studio can open. */
+export type AnyProject = PoetryProject | ColoringBook;
 
 /** Everything the renderer needs that is not stored on the project. */
 export type RenderOptions = {

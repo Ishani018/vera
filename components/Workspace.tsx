@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { BookPreview } from './BookPreview';
@@ -76,9 +77,13 @@ export function Workspace() {
   return (
     <main className="flex h-dvh flex-col">
       <header className="flex items-center gap-4 border-b border-ink-200 bg-paper px-5">
-        <span className="py-4 text-[20px] font-semibold tracking-tight">
+        <Link
+          href="/"
+          title="All your books"
+          className="rounded-lg py-4 pr-1 text-[20px] font-semibold tracking-tight transition-colors hover:text-accent-500"
+        >
           Verse<span className="text-accent-500">craft</span>
-        </span>
+        </Link>
         <span className="truncate rounded-lg px-3 py-2 text-ink-700">{project.meta.title}</span>
 
         <SegmentedControl<Tab>

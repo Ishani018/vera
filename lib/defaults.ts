@@ -153,6 +153,7 @@ export function createProject(overrides: Partial<Project> = {}): Project {
   };
   return {
     id: overrides.id ?? id('proj'),
+    kind: 'poetry',
     name: overrides.name ?? meta.title,
     createdAt: now,
     updatedAt: now,

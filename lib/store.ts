@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { putAssetFromDataUrl } from './assets';
-import { migrateContents } from './contents';
+import { migrateProject, needsRewrite } from './projects';
 import { ACTIVE_PROJECT_KEY, getDb } from './db';
 import { createProject } from './defaults';
 import { buildSamplePoems, withoutSamplePoems } from './samples';
@@ -166,10 +166,18 @@ export const useStore = create<State & Actions>((set, get) => ({
     const db = getDb();
     if (!db) return;
     const activeId = window.localStorage.getItem(ACTIVE_PROJECT_KEY);
-    let project = activeId ? await db.projects.get(activeId) : undefined;
-    if (!project) {
-      project = await db.projects.orderBy('updatedAt').last();
+    let stored = activeId ? await db.projects.get(activeId) : undefined;
+    // Only a poetry book opens here. Landing on /poetry with a coloring book
+    // active would otherwise render verse controls over a pile of pictures.
+    if (stored && migrateProject(stored).kind !== 'poetry') stored = undefined;
+    if (!stored) {
+      const rows = await db.projects.orderBy('updatedAt').reverse().toArray();
+      stored = rows.find((row) => migrateProject(row).kind === 'poetry');
     }
+    let project = stored ? (migrateProject(stored) as Project) : undefined;
+    // Convert in place, once, so an old book is old only the first time it is
+    // opened rather than every time.
+    if (project && needsRewrite(stored)) await db.projects.put(project);
     if (!project) {
       // First run: seed the placeholder verses so the preview has something in
       // it. They are removable from the poem list at any time.
@@ -188,9 +196,6 @@ export const useStore = create<State & Actions>((set, get) => ({
       project.contents = buildSamplePoems();
       await db.projects.put(project);
     }
-    // Stored projects predate both of these shapes, so bring them forward
-    // before anything reads them.
-    project = { ...project, contents: migrateContents(project) };
     project = await migrateInlineImages(project, db);
     window.localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
     set({ project, status: 'ready' });
