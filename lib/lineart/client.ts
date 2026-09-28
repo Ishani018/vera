@@ -46,7 +46,7 @@ function ensureWorker(): Worker {
 export function renderLineArt(
   blob: Blob,
   settings: LineArtSettings,
-  options: { source?: SourceKind; targetLongEdge?: number } = {},
+  options: { source?: SourceKind; targetLongEdge?: number; cacheKey?: string } = {},
 ): Promise<LineArtResult> {
   const id = nextId++;
   const request: LineArtRequest = { id, blob, settings, ...options };

@@ -75,6 +75,11 @@ export function useConversionQueue() {
               // converter to look at the picture and decide.
               source: page.sourceGuessed ? undefined : page.source,
               targetLongEdge: targetLongEdge(current),
+              // The converter keeps the expensive half of tracing against this
+              // key, so moving a slider on one picture does not pay for it
+              // again. Tied to the upload, not the page, so two pages made
+              // from the same file can share one.
+              cacheKey: page.sourceAssetId,
             });
             const saved = await putAssetBlob(
               result.blob,

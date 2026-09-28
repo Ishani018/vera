@@ -39,6 +39,16 @@ export type Lab = {
 /** A gradient field: the rate of change in x and y at every pixel. */
 export type Gradient = { width: number; height: number; gx: Float32Array; gy: Float32Array };
 
+/**
+ * A gradient field thinned to its ridge lines: how strong an edge is at each
+ * pixel, zero everywhere that is not the crest of one.
+ *
+ * Separate from the thresholds that follow it because the thinning does not
+ * depend on them. Only the cut between "edge" and "not an edge" moves when the
+ * detail slider moves, so the ridges are worth keeping across a drag.
+ */
+export type Ridges = { width: number; height: number; values: Float32Array };
+
 export const INK = 0;
 export const PAPER = 255;
 
@@ -371,7 +381,7 @@ function planeAsGray(plane: Float32Array, width: number, height: number, scale: 
  * It takes a gradient rather than a picture so the same thinning and the same
  * thresholds serve a grey edge and a colour one.
  */
-export function canny(gradient: Gradient, keepFraction: number, lowSpread = 3): Gray {
+export function thinEdges(gradient: Gradient): Ridges {
   const { width, height, gx: fieldX, gy: fieldY } = gradient;
   const magnitude = new Float32Array(width * height);
   const angle = new Uint8Array(width * height);
@@ -384,17 +394,23 @@ export function canny(gradient: Gradient, keepFraction: number, lowSpread = 3): 
   }
 
   // Non-maximum suppression: keep a pixel only where it is the ridge line.
-  const thin = new Float32Array(width * height);
+  const values = new Float32Array(width * height);
   const neighbours = [1, width + 1, width, width - 1];
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       const i = y * width + x;
       const step = neighbours[angle[i]];
       if (magnitude[i] >= magnitude[i - step] && magnitude[i] > magnitude[i + step]) {
-        thin[i] = magnitude[i];
+        values[i] = magnitude[i];
       }
     }
   }
+  return { width, height, values };
+}
+
+export function canny(input: Gradient | Ridges, keepFraction: number, lowSpread = 3): Gray {
+  const ridges = 'values' in input ? input : thinEdges(input);
+  const { width, height, values: thin } = ridges;
 
   // The thresholds come from the picture's own gradients rather than from fixed
   // numbers. A soft watercolour's strongest edge is weaker than a hard
@@ -880,14 +896,65 @@ export function strokeWidth(image: Gray): number {
   return lost <= 0 ? Infinity : 2 / lost;
 }
 
-/** The whole chain, from a canvas bitmap to pure black on pure white. */
-export function runLineArt(source: Bitmap, settings: LineArtSettings): Gray {
+/**
+ * The expensive half of tracing, which depends on the picture and on almost
+ * none of the sliders.
+ *
+ * Getting into Lab, flattening the lighting, blurring the colour planes and
+ * taking a gradient across all three of them is most of the work and about a
+ * second of it. Nothing in it moves when the detail, thickness or smoothing
+ * slider moves — only the picture, the invert flag and the softening the
+ * cleanup slider asks for — so it is worth keeping so the next drag of a
+ * slider does not pay for it again.
+ */
+export type Analysis = { grey?: Gray; ridges?: Ridges };
+
+/**
+ * What an analysis depends on. Two settings with the same key may share one,
+ * and two with different keys must not: handing over a stale analysis would
+ * quietly trace a picture nobody asked for.
+ */
+export function analysisKey(settings: LineArtSettings): string {
+  return `${settings.invert ? 'i' : '-'}|${clamp(settings.cleanup, 0, 100)}`;
+}
+
+/** The greys the tonal threshold works on. */
+export function analyseGrey(source: Bitmap, settings: LineArtSettings): Gray {
   const options = resolve(settings, Math.max(source.width, source.height));
-  const lab = toLab(source, settings.invert);
   // Stretch before blurring: the blur is there to soften texture, and doing it
   // first would flatten the very differences the stretch needs to measure.
-  const grey = blur(stretchContrast(lightness(lab)), options.blurRadius);
+  return blur(stretchContrast(toGray(source, settings.invert)), options.blurRadius);
+}
+
+/**
+ * The outline finder's view of the picture, thinned to ridge lines. The
+ * expensive one: Lab, the lighting correction, the colour gradient and the
+ * thinning pass, none of which move when detail, thickness or smoothing do.
+ */
+export function analyseRidges(source: Bitmap, settings: LineArtSettings): Ridges {
+  const options = resolve(settings, Math.max(source.width, source.height));
+  return thinEdges(colorSobel(prepareForEdges(toLab(source, settings.invert), options)));
+}
+
+/**
+ * The whole chain, from a canvas bitmap to pure black on pure white.
+ *
+ * An `analysis` may be handed in when one was already made for this picture at
+ * this cleanup setting; it is exactly what `analyse` returns, and passing a
+ * stale one would silently trace the wrong picture, so the caller keys its
+ * cache on `analysisKey`.
+ */
+export function runLineArt(
+  source: Bitmap,
+  settings: LineArtSettings,
+  analysis?: Analysis,
+): Gray {
+  const options = resolve(settings, Math.max(source.width, source.height));
   const edges = settings.mode === 'edges';
+  // Only the half this mode needs is ever built, so shading never pays for a
+  // colour gradient it will not look at.
+  const grey = edges ? null : (analysis?.grey ?? analyseGrey(source, settings));
+  const ridges = edges ? (analysis?.ridges ?? analyseRidges(source, settings)) : null;
 
   // Outlines are found across all three planes at once, which is what puts a
   // line between a red square and a teal one: there is no lightness edge there
@@ -897,8 +964,8 @@ export function runLineArt(source: Bitmap, settings: LineArtSettings): Gray {
   // something is, and adding colour boundaries to it fills a page that was
   // meant to be mostly paper.
   let binary = edges
-    ? canny(colorSobel(prepareForEdges(lab, options)), options.cannyKeep)
-    : adaptiveThreshold(grey, options.window, options.bias);
+    ? canny(ridges!, options.cannyKeep)
+    : adaptiveThreshold(grey!, options.window, options.bias);
 
   // Closing joins strokes the threshold broke — but only where a threshold
   // broke them. Canny's hysteresis has already joined what belongs together,

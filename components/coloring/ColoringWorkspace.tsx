@@ -74,7 +74,7 @@ export function ColoringWorkspace() {
         </aside>
 
         <section className="min-h-0 overflow-y-auto bg-ink-100 px-8 py-6">
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-6xl">
             <LineArtStudio />
             <p className="mt-10 border-t border-ink-200 pt-5 text-[14.5px] leading-relaxed text-ink-500">
               Binding, the cover and the PDFs come next. The converter itself is not generative:

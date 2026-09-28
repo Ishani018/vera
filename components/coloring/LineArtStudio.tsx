@@ -67,8 +67,11 @@ export function LineArtStudio() {
     setPageSettings(page.id, { ...page.settings, ...patch });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
+    // The picture stays put and the controls move. Sliders under the preview
+    // meant scrolling down to move one and back up to see what it did, which
+    // is no way to judge a setting: the two have to be in view together.
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="sticky top-0 z-10 -mx-2 bg-ink-100 px-2 pb-4 pt-1">
         <div className="flex items-baseline gap-3">
           <h3 className="flex-1 truncate text-[18px] font-semibold">{page.title || 'Untitled'}</h3>
           {busy.has(page.id) && <span className="text-[14px] text-ink-500">converting…</span>}
@@ -80,6 +83,9 @@ export function LineArtStudio() {
         <Resolution page={page} book={book} />
       </div>
 
+      {/* Its own scroller on a wide screen, so a long list of settings never
+          pushes the picture off the top. */}
+      <div className="flex flex-col gap-6 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-8.5rem)] xl:overflow-y-auto xl:pr-1">
       <div>
         <span className="block font-[570]">How it sits on the page</span>
         <span className="mt-0.5 block text-[14px] text-ink-500">
@@ -259,6 +265,7 @@ export function LineArtStudio() {
         <span className="text-[14px] text-ink-500">
           {book.pages.length} page{book.pages.length === 1 ? '' : 's'}
         </span>
+      </div>
       </div>
     </div>
   );

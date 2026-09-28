@@ -1,5 +1,16 @@
 /// <reference lib="webworker" />
-import { TRACE_EDGE, guessSource, runCleanup, runLineArt, toBitmap, upscale } from './pipeline';
+import {
+  TRACE_EDGE,
+  analyseRidges,
+  analyseGrey,
+  analysisKey,
+  guessSource,
+  runCleanup,
+  runLineArt,
+  toBitmap,
+  upscale,
+  type Analysis,
+} from './pipeline';
 import type { LineArtSettings, SourceKind } from '../types';
 
 /**
@@ -15,6 +26,11 @@ export type LineArtRequest = {
   id: number;
   blob: Blob;
   settings: LineArtSettings;
+  /**
+   * Identifies the picture, so the expensive half of tracing can be kept
+   * between requests. Two different pictures must never share a key.
+   */
+  cacheKey?: string;
   /** Missing means: work it out from the picture and say what you decided. */
   source?: SourceKind;
   /**
@@ -43,8 +59,18 @@ export type LineArtResponse =
     }
   | { id: number; ok: false; error: string };
 
+/**
+ * The last picture's analysis, kept for the next request about it.
+ *
+ * One entry, not a table. Dragging a slider fires a request every settle, and
+ * every one of them is about the same page — the one being watched. A second
+ * entry would only help someone flicking between two pages mid-drag, at the
+ * cost of holding two multi-megabyte gradients at once.
+ */
+let kept: { key: string; analysis: Analysis } | null = null;
+
 self.onmessage = async (event: MessageEvent<LineArtRequest>) => {
-  const { id, blob, settings, source: asked, targetLongEdge } = event.data;
+  const { id, blob, settings, source: asked, targetLongEdge, cacheKey } = event.data;
   try {
     const decoded = await createImageBitmap(blob);
     const sourceLongEdge = Math.max(decoded.width, decoded.height);
@@ -65,7 +91,21 @@ self.onmessage = async (event: MessageEvent<LineArtRequest>) => {
     const guessed = asked === undefined;
     const source = asked ?? guessSource(input).kind;
 
-    let lines = source === 'lineart' ? runCleanup(input, settings) : runLineArt(input, settings);
+    let lines: ReturnType<typeof runLineArt>;
+    if (source === 'lineart') {
+      // The cleanup path is cheap and shares none of this work.
+      lines = runCleanup(input, settings);
+    } else {
+      const key = cacheKey ? `${cacheKey}|${width}x${height}|${analysisKey(settings)}` : null;
+      const analysis: Analysis = key && kept?.key === key ? kept.analysis : {};
+      if (settings.mode === 'edges') {
+        analysis.ridges ??= analyseRidges(input, settings);
+      } else {
+        analysis.grey ??= analyseGrey(input, settings);
+      }
+      if (key) kept = { key, analysis };
+      lines = runLineArt(input, settings, analysis);
+    }
 
     // Both paths are enlarged, because by this point neither is a photograph
     // any more: what is being resized is a two-colour drawing, a few hard edges

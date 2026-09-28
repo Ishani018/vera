@@ -5,6 +5,9 @@ import {
   INK,
   PAPER,
   adaptiveThreshold,
+  analyseRidges,
+  analyseGrey,
+  analysisKey,
   blur,
   canny,
   despeckle,
@@ -601,4 +604,37 @@ test('smoothing more never leaves a page with more ink than smoothing less', () 
   const rough = countInk(runLineArt(shapes, { ...DEFAULTS, smoothing: 0 }));
   const smooth = countInk(runLineArt(shapes, { ...DEFAULTS, smoothing: 100 }));
   assert.ok(smooth <= rough * 1.05, `smoothing added ink: ${rough} to ${smooth}`);
+});
+
+// --- the analysis cache -------------------------------------------------------
+
+test('a kept analysis gives exactly the same page as building it fresh', () => {
+  const painting = colorBitmap(200, 200, (x, y) => {
+    const inside = Math.hypot(x - 100, y - 100) < 60;
+    return inside ? [196, 52, 48] : [52, 120, 132];
+  });
+  for (const mode of ['threshold', 'edges']) {
+    const settings = { ...DEFAULTS, mode };
+    const analysis =
+      mode === 'edges'
+        ? { ridges: analyseRidges(painting, settings) }
+        : { grey: analyseGrey(painting, settings) };
+    assert.deepEqual(
+      Array.from(runLineArt(painting, settings, analysis).data),
+      Array.from(runLineArt(painting, settings).data),
+      `${mode} differed when the analysis was reused`,
+    );
+  }
+});
+
+test('an analysis is keyed by everything it actually depends on', () => {
+  const base = analysisKey(DEFAULTS);
+  // These move it: they change what the analysis contains.
+  assert.notEqual(analysisKey({ ...DEFAULTS, invert: true }), base);
+  assert.notEqual(analysisKey({ ...DEFAULTS, cleanup: 80 }), base);
+  // These do not, which is the whole point of keeping it.
+  assert.equal(analysisKey({ ...DEFAULTS, detail: 90 }), base);
+  assert.equal(analysisKey({ ...DEFAULTS, thickness: 90 }), base);
+  assert.equal(analysisKey({ ...DEFAULTS, smoothing: 90 }), base);
+  assert.equal(analysisKey({ ...DEFAULTS, mode: 'edges' }), base);
 });
