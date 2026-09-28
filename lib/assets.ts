@@ -94,6 +94,27 @@ export async function putAsset(file: File): Promise<AssetRecord> {
   return record;
 }
 
+/**
+ * Stores bytes the app made itself — line art out of the converter, rather than
+ * a file someone chose. Same table, same ids; it just skips the file dialog.
+ */
+export async function putAssetBlob(blob: Blob, name: string, width: number, height: number) {
+  const db = getDb();
+  if (!db) throw new Error('No local database available.');
+  const record: AssetRecord = {
+    id: newId(),
+    name,
+    mime: blob.type || 'image/png',
+    blob,
+    width,
+    height,
+    bytes: blob.size,
+    createdAt: Date.now(),
+  };
+  await db.assets.put(record);
+  return record;
+}
+
 /** Stores a data URL as an asset. Used to migrate projects saved before this. */
 export async function putAssetFromDataUrl(dataUrl: string, name = 'cover'): Promise<AssetRecord> {
   const blob = await (await fetch(dataUrl)).blob();

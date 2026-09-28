@@ -300,6 +300,16 @@ export type PoetryProject = BookBase & {
  */
 export type Project = PoetryProject;
 
+/**
+ * What kind of thing was uploaded.
+ *
+ * A painting has to be traced; a page that is already line art must not be.
+ * Running edge detection over an existing outline finds both sides of every
+ * stroke and returns a doubled, hollow version of the drawing — so the two go
+ * down different paths entirely rather than sharing one with a flag.
+ */
+export type SourceKind = 'painting' | 'lineart';
+
 /** How one picture is turned into line art. Nothing here is generative. */
 export type LineArtSettings = {
   /** Local thresholding keeps tonal areas; edges keeps outlines only. */
@@ -317,10 +327,24 @@ export type LineArtSettings = {
 export type ColoringPage = {
   id: string;
   title: string;
+  /** Guessed when the picture arrives, and overridable — the guess can be wrong. */
+  source: SourceKind;
+  /** True while the guess stands, so the interface can own up to having guessed. */
+  sourceGuessed: boolean;
   /** The original upload, kept so the settings stay re-appliable. */
   sourceAssetId: string;
   /** The processed line art. Null until it has been run. */
   lineArtAssetId: string | null;
+  /**
+   * The settings that produced the line art now stored.
+   *
+   * Comparing this against `settings` is how the converter knows what still
+   * needs doing — which means a book reopened tomorrow does not re-run every
+   * page, and a slider moved and moved back costs nothing.
+   */
+  renderedWith: LineArtSettings | null;
+  /** How far the stored art had to be enlarged to reach 300 DPI. 1 means not at all. */
+  upscaled: number;
   naturalWidth: number;
   naturalHeight: number;
   settings: LineArtSettings;
@@ -333,6 +357,12 @@ export type ColoringSettings = {
   singleSided: boolean;
   belongsToPage: boolean;
   colorTestPage: boolean;
+  /**
+   * Set when any page came from an image generator rather than from the poet's
+   * own hand. KDP asks to be told, and the export panel is the last place
+   * anyone would notice in time.
+   */
+  containsAiImages: boolean;
 };
 
 export type ColoringBook = BookBase & {

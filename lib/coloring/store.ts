@@ -1,0 +1,187 @@
+'use client';
+
+import { create } from 'zustand';
+import { putAsset } from '../assets';
+import { ACTIVE_PROJECT_KEY, getDb } from '../db';
+import { id } from '../defaults';
+import { migrateProject } from '../projects';
+import type {
+  ColoringBook,
+  ColoringPage,
+  ColoringSettings,
+  LineArtSettings,
+  SourceKind,
+} from '../types';
+
+/**
+ * The coloring book being worked on.
+ *
+ * Its own store rather than a branch inside the poetry one: the two share no
+ * state beyond the record in the database, and making one store understand both
+ * would mean every selector guarding on a kind it does not care about.
+ */
+type State = {
+  book: ColoringBook | null;
+  status: 'loading' | 'ready' | 'missing';
+  selectedId: string | null;
+  /** Pages currently being converted, so the grid can say so. */
+  busy: Set<string>;
+
+  load: () => Promise<void>;
+  update: (recipe: (draft: ColoringBook) => void) => void;
+  addFiles: (files: File[]) => Promise<string[]>;
+  removePage: (pageId: string) => void;
+  reorder: (fromId: string, toId: string) => void;
+  select: (pageId: string | null) => void;
+  setBusy: (pageId: string, busy: boolean) => void;
+  setPageSettings: (pageId: string, settings: LineArtSettings) => void;
+  setLineArt: (
+    pageId: string,
+    assetId: string,
+    settings: LineArtSettings,
+    meta: { source: SourceKind; guessed: boolean; upscaled: number },
+  ) => void;
+  setSource: (pageId: string, source: SourceKind) => void;
+  setBookSetting: <K extends keyof ColoringSettings>(key: K, value: ColoringSettings[K]) => void;
+  applyToAll: (settings: LineArtSettings) => void;
+};
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleSave(book: ColoringBook) {
+  const db = getDb();
+  if (!db) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => void db.projects.put(book), 400);
+}
+
+export const useColoring = create<State>((set, get) => ({
+  book: null,
+  status: 'loading',
+  selectedId: null,
+  busy: new Set<string>(),
+
+  load: async () => {
+    const db = getDb();
+    const activeId =
+      typeof window === 'undefined' ? null : window.localStorage.getItem(ACTIVE_PROJECT_KEY);
+    const stored = db && activeId ? await db.projects.get(activeId) : undefined;
+    if (!stored) return set({ status: 'missing' });
+    const project = migrateProject(stored);
+    if (project.kind !== 'coloring') return set({ status: 'missing' });
+    set({ book: project, status: 'ready', selectedId: project.pages[0]?.id ?? null });
+  },
+
+  update: (recipe) => {
+    const current = get().book;
+    if (!current) return;
+    const draft = structuredClone(current);
+    recipe(draft);
+    draft.updatedAt = Date.now();
+    set({ book: draft });
+    scheduleSave(draft);
+  },
+
+  addFiles: async (files) => {
+    const added: string[] = [];
+    for (const file of files) {
+      const record = await putAsset(file);
+      const pageId = id('page');
+      added.push(pageId);
+      get().update((draft) => {
+        const page: ColoringPage = {
+          id: pageId,
+          title: file.name.replace(/\.[^.]+$/, ''),
+          // Left as a guess: the converter looks at the picture and decides,
+          // then says so on the page so it can be corrected.
+          source: 'painting',
+          sourceGuessed: true,
+          sourceAssetId: record.id,
+          lineArtAssetId: null,
+          renderedWith: null,
+          upscaled: 1,
+          naturalWidth: record.width,
+          naturalHeight: record.height,
+          // New pages start on the book's own settings, so a book stays
+          // consistent without anyone having to press "apply to all".
+          settings: { ...draft.coloring.lineArt },
+        };
+        draft.pages.push(page);
+      });
+    }
+    if (added.length && !get().selectedId) set({ selectedId: added[0] });
+    return added;
+  },
+
+  removePage: (pageId) => {
+    get().update((draft) => {
+      draft.pages = draft.pages.filter((page) => page.id !== pageId);
+    });
+    if (get().selectedId === pageId) set({ selectedId: get().book?.pages[0]?.id ?? null });
+  },
+
+  reorder: (fromId, toId) =>
+    get().update((draft) => {
+      const from = draft.pages.findIndex((page) => page.id === fromId);
+      const to = draft.pages.findIndex((page) => page.id === toId);
+      if (from < 0 || to < 0) return;
+      draft.pages.splice(to, 0, draft.pages.splice(from, 1)[0]);
+    }),
+
+  select: (selectedId) => set({ selectedId }),
+
+  setBusy: (pageId, busy) =>
+    set((state) => {
+      const next = new Set(state.busy);
+      if (busy) next.add(pageId);
+      else next.delete(pageId);
+      return { busy: next };
+    }),
+
+  setPageSettings: (pageId, settings) =>
+    get().update((draft) => {
+      const page = draft.pages.find((p) => p.id === pageId);
+      if (page) page.settings = { ...settings };
+    }),
+
+  setLineArt: (pageId, assetId, settings, meta) =>
+    get().update((draft) => {
+      const page = draft.pages.find((p) => p.id === pageId);
+      if (!page) return;
+      page.lineArtAssetId = assetId;
+      page.renderedWith = { ...settings };
+      page.upscaled = meta.upscaled;
+      // A guess only stands until the poet says otherwise; once they have, the
+      // converter's opinion must not overwrite theirs.
+      if (page.sourceGuessed) {
+        page.source = meta.source;
+        page.sourceGuessed = meta.guessed;
+      }
+      // Anything that arrived already drawn most likely came from a generator,
+      // so the disclosure reminder turns itself on rather than waiting to be
+      // remembered at the worst possible moment.
+      if (page.source === 'lineart') draft.coloring.containsAiImages = true;
+    }),
+
+  setSource: (pageId, source) =>
+    get().update((draft) => {
+      const page = draft.pages.find((p) => p.id === pageId);
+      if (!page) return;
+      page.source = source;
+      page.sourceGuessed = false;
+      // The two paths produce different pictures, so the stored art is wrong
+      // the moment this changes; clearing it puts the page back in the queue.
+      page.renderedWith = null;
+    }),
+
+  setBookSetting: (key, value) =>
+    get().update((draft) => {
+      draft.coloring[key] = value;
+    }),
+
+  applyToAll: (settings) =>
+    get().update((draft) => {
+      draft.coloring.lineArt = { ...settings };
+      for (const page of draft.pages) page.settings = { ...settings };
+    }),
+}));

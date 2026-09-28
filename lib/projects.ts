@@ -39,12 +39,21 @@ export function migrateProject(raw: unknown): AnyProject {
     const book = record as unknown as ColoringBook;
     return {
       ...book,
-      pages: Array.isArray(book.pages) ? book.pages : [],
+      pages: (Array.isArray(book.pages) ? book.pages : []).map((page) => ({
+        ...page,
+        // Written before the converter recorded what it had used: treat the
+        // stored art as matching, rather than re-running every page on open.
+        renderedWith: page.renderedWith ?? (page.lineArtAssetId ? page.settings : null),
+        source: page.source ?? 'painting',
+        sourceGuessed: page.sourceGuessed ?? true,
+        upscaled: page.upscaled ?? 1,
+      })),
       coloring: {
         lineArt: { ...DEFAULT_LINE_ART, ...(book.coloring?.lineArt ?? {}) },
         singleSided: book.coloring?.singleSided ?? true,
         belongsToPage: book.coloring?.belongsToPage ?? true,
         colorTestPage: book.coloring?.colorTestPage ?? true,
+        containsAiImages: book.coloring?.containsAiImages ?? false,
       },
     };
   }
@@ -97,6 +106,7 @@ export function createColoringBook(name = 'Untitled Coloring Book'): ColoringBoo
       singleSided: true,
       belongsToPage: true,
       colorTestPage: true,
+      containsAiImages: false,
     },
   };
 }
