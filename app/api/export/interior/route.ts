@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { BrowserUnavailableError } from '@/lib/server/browser';
 import { renderInteriorPdf } from '@/lib/server/renderPdf';
-import type { Project } from '@/lib/types';
+import type { AnyProject } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -12,18 +12,22 @@ function filename(title: string): string {
 }
 
 export async function POST(request: Request) {
-  let project: Project;
+  let project: AnyProject;
   let assets: Record<string, string> = {};
   try {
     ({ project, assets = {} } = (await request.json()) as {
-      project: Project;
+      project: AnyProject;
       assets?: Record<string, string>;
     });
   } catch {
     return NextResponse.json({ error: 'Malformed request body.' }, { status: 400 });
   }
-  if (!project?.contents) {
-    return NextResponse.json({ error: 'No project in request body.' }, { status: 400 });
+  // Either kind, told apart by its own field: a book of verse has contents, a
+  // coloring book has pages, and neither is the other's empty case.
+  const usable =
+    project?.kind === 'coloring' ? Array.isArray(project.pages) : Array.isArray(project?.contents);
+  if (!usable) {
+    return NextResponse.json({ error: 'No book in request body.' }, { status: 400 });
   }
 
   try {

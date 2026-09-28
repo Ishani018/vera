@@ -9,11 +9,12 @@ import { StudioHeader } from '../StudioHeader';
 import { SegmentedControl } from '../ui';
 import { AssemblyPanel } from './AssemblyPanel';
 import { ColoringCover } from './ColoringCover';
+import { ExportView } from './ExportView';
 import { ColoringPreview } from './ColoringPreview';
 import { LineArtStudio } from './LineArtStudio';
 import { PageGrid } from './PageGrid';
 
-type Mode = 'pictures' | 'book' | 'cover';
+type Mode = 'pictures' | 'book' | 'cover' | 'export';
 
 /**
  * The coloring-book editor.
@@ -84,6 +85,7 @@ export function ColoringWorkspace() {
               { value: 'pictures', label: 'Pictures' },
               { value: 'book', label: 'Book' },
               { value: 'cover', label: 'Cover' },
+              { value: 'export', label: 'Export' },
             ]}
           />
         </div>
@@ -93,7 +95,11 @@ export function ColoringWorkspace() {
         </span>
       </StudioHeader>
 
-      {mode === 'cover' ? (
+      {mode === 'export' ? (
+        <div className="min-h-0 flex-1 overflow-y-auto bg-ink-100">
+          <ExportView pageCount={pageCount} />
+        </div>
+      ) : mode === 'cover' ? (
         <div className="min-h-0 flex-1">
           <ColoringCover pageCount={pageCount} />
         </div>

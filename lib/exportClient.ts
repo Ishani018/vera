@@ -5,8 +5,9 @@ import { illustrationsOf, looksLikeProject, migrateContents } from './contents';
 import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
+import { buildColoringHtml } from './render/coloringHtml';
 import { buildCoverHtml } from './render/coverHtml';
-import type { Project } from './types';
+import type { AnyProject, ColoringBook, Project } from './types';
 
 /** Where the Paged.js polyfill is served from; see scripts/copy-vendor.mjs. */
 export const PAGEDJS_SRC = '/vendor/paged.polyfill.js';
@@ -20,12 +21,17 @@ export type ExportOutcome = {
   needsPrintFallback?: boolean;
 };
 
-/** Every asset a project refers to: the cover, and every plate. */
-export function projectAssetIds(project: Project): string[] {
-  return [
-    project.cover.frontImage?.assetId,
-    ...illustrationsOf(project).map((plate) => plate.assetId),
-  ].filter((id): id is string => Boolean(id));
+/** Every asset a book refers to: the cover, and whatever is printed inside. */
+export function projectAssetIds(project: AnyProject): string[] {
+  const inside =
+    project.kind === 'coloring'
+      ? // The line art is what prints; the original goes too, because a page
+        // that has not been converted yet falls back to it rather than to a
+        // hole, and because the cover may be one of them in colour.
+        project.pages.flatMap((page) => [page.lineArtAssetId, page.sourceAssetId])
+      : illustrationsOf(project).map((plate) => plate.assetId);
+
+  return [project.cover.frontImage?.assetId, ...inside].filter((id): id is string => Boolean(id));
 }
 
 function slug(title: string): string {
@@ -48,6 +54,7 @@ async function postForPdf(
   endpoint: string,
   body: unknown,
   filename: string,
+  label: string,
 ): Promise<ExportOutcome> {
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -81,10 +88,10 @@ async function postForPdf(
     parts.push(`could not embed: ${failedFonts} (a system face was substituted)`);
   }
 
-  return { ok: true, message: parts.join(' · ') || 'Exported.' };
+  return { ok: true, message: [`${label} saved`, ...parts].join(' · ') };
 }
 
-export async function exportInteriorPdf(project: Project): Promise<ExportOutcome> {
+export async function exportInteriorPdf(project: AnyProject): Promise<ExportOutcome> {
   // Assets live in IndexedDB; the server cannot reach them, so the bytes travel
   // with the request.
   const assets = await assetsAsDataUrls(projectAssetIds(project));
@@ -92,15 +99,20 @@ export async function exportInteriorPdf(project: Project): Promise<ExportOutcome
     '/api/export/interior',
     { project, assets },
     `${slug(project.meta.title)}-interior.pdf`,
+    'Interior',
   );
 }
 
-export async function exportCoverPdf(project: Project, pageCount: number): Promise<ExportOutcome> {
+export async function exportCoverPdf(
+  project: AnyProject,
+  pageCount: number,
+): Promise<ExportOutcome> {
   const assets = await assetsAsDataUrls(projectAssetIds(project));
   return postForPdf(
     '/api/export/cover',
     { project, pageCount: padToEven(pageCount), assets },
     `${slug(project.meta.title)}-cover.pdf`,
+    'Cover',
   );
 }
 
@@ -111,19 +123,23 @@ export async function exportCoverPdf(project: Project, pageCount: number): Promi
  * the @page size, so the result is the same trim, the same pagination and the
  * same type — it just needs one dialog from the user.
  */
-export function printInterior(project: Project, padPages: number): void {
-  const html = buildBookHtml(project, {
-    mode: 'export',
+export function printInterior(project: AnyProject, padPages: number): void {
+  const options = {
+    mode: 'export' as const,
     fontStyle: googleFontsLinks(project),
     pagedJsSrc: PAGEDJS_SRC,
     guides: NO_GUIDES,
     padPages,
     autoPrint: true,
-  });
-  openForPrint(html);
+  };
+  openForPrint(
+    project.kind === 'coloring'
+      ? buildColoringHtml(project, options)
+      : buildBookHtml(project, options),
+  );
 }
 
-export async function printCover(project: Project, pageCount: number): Promise<void> {
+export async function printCover(project: AnyProject, pageCount: number): Promise<void> {
   const html = buildCoverHtml(project, {
     pageCount: padToEven(pageCount),
     fontStyle: googleFontsLinks(project),
@@ -151,7 +167,7 @@ function openForPrint(html: string): void {
  * carried alongside it so a backup is a complete book rather than a book with
  * missing pictures.
  */
-export async function exportProjectJson(project: Project): Promise<void> {
+export async function exportProjectJson(project: AnyProject): Promise<void> {
   const assets = await assetsAsDataUrls(projectAssetIds(project));
   const payload = { versecraft: 1, project, assets };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });

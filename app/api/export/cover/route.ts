@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { BrowserUnavailableError } from '@/lib/server/browser';
 import { renderCoverPdf } from '@/lib/server/renderPdf';
-import type { Project } from '@/lib/types';
+import type { AnyProject } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  let project: Project;
+  let project: AnyProject;
   let pageCount: number;
   let assets: Record<string, string> = {};
   try {
     ({ project, pageCount, assets = {} } = (await request.json()) as {
-      project: Project;
+      project: AnyProject;
       pageCount: number;
       assets?: Record<string, string>;
     });

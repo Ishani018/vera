@@ -6,9 +6,10 @@ import type { Page } from 'puppeteer-core';
 
 import { padToEven } from '../kdp';
 import { buildBookHtml } from '../render/bookHtml';
+import { buildColoringHtml } from '../render/coloringHtml';
 import { buildCoverHtml } from '../render/coverHtml';
 import { RUNTIME_SCRIPT } from '../render/runtime';
-import type { Project } from '../types';
+import type { AnyProject, CoverableBook, FontedBook } from '../types';
 import { launchBrowser } from './browser';
 import { embedGoogleFonts } from './fontEmbed';
 
@@ -68,7 +69,7 @@ export type InteriorResult = {
  * pass is unavoidable rather than wasteful.
  */
 export async function renderInteriorPdf(
-  project: Project,
+  project: AnyProject,
   assets: Record<string, string> = {},
 ): Promise<InteriorResult> {
   const fonts = await embedGoogleFonts(project);
@@ -77,15 +78,22 @@ export async function renderInteriorPdf(
 
   try {
     const page = await browser.newPage();
-    const render = (padPages: number) =>
-      buildBookHtml(project, {
-        mode: 'export',
+    // The two kinds of book have different renderers and the same everything
+    // else: the same Paged.js, the same two-pass parity check, the same
+    // embedded fonts, the same printed PDF.
+    const render = (padPages: number) => {
+      const options = {
+        mode: 'export' as const,
         fontStyle: fonts.style,
         pagedJsSrc: '',
         guides: { margins: false, bleed: false, safe: false, gutter: false },
         padPages,
         assets,
-      });
+      };
+      return project.kind === 'coloring'
+        ? buildColoringHtml(project, options)
+        : buildBookHtml(project, options);
+    };
 
     let pageCount = await paginate(page, render(0), pagedJs);
     let paddedPages = 0;
@@ -124,7 +132,7 @@ export type CoverResult = {
 };
 
 export async function renderCoverPdf(
-  project: Project,
+  project: CoverableBook & FontedBook,
   pageCount: number,
   assets: Record<string, string> = {},
 ): Promise<CoverResult> {
