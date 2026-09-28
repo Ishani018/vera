@@ -797,9 +797,22 @@ export function runCleanup(source: Bitmap, settings: LineArtSettings): Gray {
   for (let i = 0; i < grey.data.length; i++) binary[i] = grey.data[i] <= cut ? INK : PAPER;
 
   let out: Gray = { width: grey.width, height: grey.height, data: binary };
-  out = despeckle(out, options.minArea);
+  // A third of the floor a painting gets. That floor is sized for what a
+  // camera adds — canvas weave, sensor grain, dust — and a page that arrived
+  // drawn has none of it, only the odd compression artefact a pixel or two
+  // across. At the full floor the smallest real marks on such a page go with
+  // them: the dot of an i, and every full stop in a caption.
+  out = despeckle(out, Math.round(options.minArea / 3));
   if (options.dilateRadius > 0) out = dilate(out, options.dilateRadius);
-  return smoothSafely(out, options.smoothRadius);
+  // No smoothing on this path, deliberately. Smoothing exists to straighten
+  // what tracing made ragged, and a page that arrived already drawn has clean
+  // edges before it gets here — thresholding a crisp drawing gives back a
+  // crisp drawing. What such a page does have, far more often than a painting
+  // does, is small lettering: a caption a few pixels across whose strokes sit
+  // close enough together that a vote of the neighbourhood closes the gaps
+  // between them and turns a sentence into a row of blots. Nothing to gain
+  // here, and a caption to lose.
+  return out;
 }
 
 /**
@@ -1026,6 +1039,9 @@ function inkCount(image: Gray): number {
   return ink;
 }
 
+/** How much of the drawing a round of smoothing is allowed to cost. */
+const KEEP_INK = 0.67;
+
 /**
  * Smooths as much as the strokes can take, and not a pixel more.
  *
@@ -1043,7 +1059,7 @@ function smoothSafely(binary: Gray, asked: number): Gray {
   let radius = Math.min(asked, Math.floor(strokeWidth(binary) / 3));
   while (radius >= 1) {
     const out = smoothEdges(binary, radius);
-    if (inkCount(out) >= ink * 0.67) return out;
+    if (inkCount(out) >= ink * KEEP_INK) return out;
     radius--;
   }
   return { ...binary, data: new Uint8ClampedArray(binary.data) };

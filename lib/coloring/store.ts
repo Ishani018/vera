@@ -259,7 +259,16 @@ export const useColoring = create<State>((set, get) => ({
         rotate: 0,
         naturalWidth: record.width,
         naturalHeight: record.height,
-        settings: { ...draft.coloring.lineArt },
+        settings: {
+          ...draft.coloring.lineArt,
+          // No thickening. Line thickness is there because tracing a painting
+          // gives thin, broken strokes that need weight; a page that arrived
+          // already drawn has the weight its artist chose. It also costs more
+          // here than anywhere else: these pages carry small lettering, and a
+          // single pixel of growth is enough to swallow a full stop or weld
+          // the dot of an i onto its stem.
+          thickness: 0,
+        },
       };
       // It arrived already drawn, which is the same signal a picture gives.
       draft.coloring.containsAiImages = true;

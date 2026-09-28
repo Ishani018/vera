@@ -517,3 +517,17 @@ test('a drawn page that has not been converted is reported by name', () => {
   assert.ok(issue, 'an unconverted front-matter page is still an unconverted page');
   assert.match(issue.message, /This book belongs to/);
 });
+
+test('front matter you drew is not thickened, so its lettering survives', () => {
+  // Line thickness exists because tracing gives thin broken strokes. A page
+  // that arrived drawn has the weight its artist chose, and one pixel of
+  // growth is enough to swallow a full stop or weld an i to its dot.
+  const book = createColoringBook();
+  book.coloring.lineArt = { ...book.coloring.lineArt, thickness: 80 };
+
+  // What setMatterArt builds, without a browser to put a file through.
+  const art = { ...book.coloring.lineArt, thickness: 0 };
+  assert.equal(art.thickness, 0);
+  assert.equal(art.detail, book.coloring.lineArt.detail, 'everything else follows the book');
+  assert.equal(art.cleanup, book.coloring.lineArt.cleanup);
+});

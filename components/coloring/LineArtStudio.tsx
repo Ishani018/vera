@@ -221,12 +221,16 @@ export function LineArtStudio() {
           value={page.settings.cleanup}
           onChange={(cleanup) => set({ cleanup })}
         />
-        <Control
-          label="Line smoothing"
-          hint="Straightens a wobbly edge. It will not go further than the lines can take."
-          value={page.settings.smoothing}
-          onChange={(smoothing) => set({ smoothing })}
-        />
+        {/* Only tracing makes an edge ragged. A page that arrived already drawn
+            has nothing to straighten, and small lettering to lose. */}
+        {page.source === 'painting' && (
+          <Control
+            label="Line smoothing"
+            hint="Straightens a wobbly traced edge. It will not go further than the lines can take."
+            value={page.settings.smoothing}
+            onChange={(smoothing) => set({ smoothing })}
+          />
+        )}
         <Toggle
           label={page.source === 'lineart' ? 'It is white lines on black' : 'My painting is light on dark'}
           hint="Flips it before anything else happens"

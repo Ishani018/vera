@@ -638,3 +638,67 @@ test('an analysis is keyed by everything it actually depends on', () => {
   assert.equal(analysisKey({ ...DEFAULTS, smoothing: 90 }), base);
   assert.equal(analysisKey({ ...DEFAULTS, mode: 'edges' }), base);
 });
+
+test('smoothing leaves an already-drawn page exactly as it was', () => {
+  // It is there to straighten what tracing made ragged. A page that arrived
+  // drawn has nothing to straighten and, very often, a line of small type that
+  // a vote of the neighbourhood would fuse into blots.
+  const source = drawing();
+  assert.deepEqual(
+    Array.from(runCleanup(source, { ...DEFAULTS, smoothing: 100 }).data),
+    Array.from(runCleanup(source, { ...DEFAULTS, smoothing: 0 }).data),
+  );
+});
+
+test('small lettering on a drawn page survives the cleanup', () => {
+  // Rows of short strokes a few pixels apart, with gaps the size of the
+  // strokes: the shape of a caption, and the thing that was being destroyed.
+  const caption = colorBitmap(400, 120, (x, y) => {
+    const inStroke = y > 40 && y < 80 && x % 12 < 3 && x > 40 && x < 360;
+    return inStroke ? [20, 20, 20] : [250, 250, 250];
+  });
+  const out = runCleanup(caption, { ...DEFAULTS, smoothing: 100, thickness: 0 });
+  assert.ok(countInk(out) > 0, 'the caption should not vanish altogether either');
+  // Count the gaps along the middle row: they are what must not close.
+  let gaps = 0;
+  for (let x = 41; x < 360; x++) {
+    const here = out.data[60 * 400 + x] === INK;
+    const next = out.data[60 * 400 + x + 1] === INK;
+    if (here && !next) gaps++;
+  }
+  assert.ok(gaps > 20, `only ${gaps} strokes stayed separate; the caption ran together`);
+});
+
+test('smoothing still straightens a traced edge, which is what it is for', () => {
+  const ragged = colorBitmap(300, 300, (x, y) => {
+    // A shape whose boundary wobbles by a pixel or two, as tracing leaves it.
+    const edge = 150 + ((y * 7) % 5) - 2;
+    const v = x < edge ? 30 : 240;
+    return [v, v, v];
+  });
+  const rough = runLineArt(ragged, { ...DEFAULTS, mode: 'threshold', smoothing: 0 });
+  const smooth = runLineArt(ragged, { ...DEFAULTS, mode: 'threshold', smoothing: 100 });
+  assert.notDeepEqual(
+    Array.from(smooth.data),
+    Array.from(rough.data),
+    'smoothing must still do something on the path it exists for',
+  );
+});
+
+test('the speck floor on a drawn page is small enough to keep punctuation', () => {
+  // The full floor is sized for what a camera adds. A drawn page has none of
+  // that, and at the full floor a full stop goes with the dust.
+  const dotted = colorBitmap(200, 60, (x, y) => {
+    // A short stroke and, well clear of it, a four-pixel full stop.
+    const stroke = x > 20 && x < 24 && y > 20 && y < 45;
+    const stop = x > 60 && x < 64 && y > 41 && y < 45;
+    return stroke || stop ? [20, 20, 20] : [250, 250, 250];
+  });
+  const out = runCleanup(dotted, { ...DEFAULTS, thickness: 0, cleanup: 100 });
+  // The stop is its own piece of ink; if the floor ate it, this column is bare.
+  let stopInk = 0;
+  for (let y = 38; y < 48; y++) for (let x = 57; x < 68; x++) {
+    if (out.data[y * 200 + x] === INK) stopInk++;
+  }
+  assert.ok(stopInk > 0, 'the full stop was swept up with the dust');
+});
