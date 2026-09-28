@@ -1,4 +1,4 @@
-import type { FontSpec, Project } from './types';
+import type { FontedBook, FontSpec } from './types';
 
 export type FontFamily = {
   family: string;
@@ -96,7 +96,7 @@ export function fallbackFor(family: string, families: FontFamily[] = BUNDLED_FAM
 }
 
 /** Every family a project references, deduplicated. */
-export function projectFamilies(project: Project): string[] {
+export function projectFamilies(project: FontedBook): string[] {
   const specs: FontSpec[] = [
     ...Object.values(project.typography),
     ...project.cover.textBoxes.map((b) => b.font),
@@ -105,7 +105,7 @@ export function projectFamilies(project: Project): string[] {
 }
 
 /** Every FontSpec a project sets, across the book and the cover. */
-export function projectSpecs(project: Project): FontSpec[] {
+export function projectSpecs(project: FontedBook): FontSpec[] {
   return [
     ...Object.values(project.typography),
     ...project.cover.textBoxes.map((b) => b.font),
@@ -128,7 +128,7 @@ export function projectSpecs(project: Project): FontSpec[] {
  * Italic is always requested alongside, because the stylesheet sets epigraphs
  * and dedications in italic and a synthesised slant is not an italic.
  */
-export function projectFontsHrefs(project: Project): string[] {
+export function projectFontsHrefs(project: FontedBook): string[] {
   const byWeight = new Map<number, Set<string>>();
   for (const spec of projectSpecs(project)) {
     if (!spec.family) continue;
@@ -158,7 +158,7 @@ export function googleFontsHref(families: string[], weight = 400): string | null
 }
 
 /** Head markup that links every stylesheet a project needs. */
-export function googleFontsLinks(project: Project): string {
+export function googleFontsLinks(project: FontedBook): string {
   const hrefs = projectFontsHrefs(project);
   if (!hrefs.length) return '';
   return [

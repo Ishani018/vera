@@ -1,5 +1,6 @@
 import { DEFAULT_TRIM_ID } from './kdp';
 import type {
+  ColoringTypography,
   FontSpec,
   MatterPage,
   Project,
@@ -23,6 +24,30 @@ export function font(partial: Partial<FontSpec> & { family: string }): FontSpec 
     ...partial,
   };
 }
+
+/**
+ * A coloring book's two faces. Nothing here is set on a page anybody colours
+ * in — it is the title page, the copyright notice and the line a child writes
+ * their name on, so it wants to be plain, large and friendly rather than
+ * literary.
+ */
+export const DEFAULT_COLORING_TYPOGRAPHY: ColoringTypography = {
+  title: font({
+    family: 'Nunito Sans',
+    fallback: SANS_FALLBACK,
+    sizePt: 30,
+    lineHeight: 1.2,
+    weight: 700,
+    align: 'center',
+  }),
+  body: font({
+    family: 'Nunito Sans',
+    fallback: SANS_FALLBACK,
+    sizePt: 11,
+    lineHeight: 1.6,
+    align: 'center',
+  }),
+};
 
 /**
  * Poetry defaults: a Garamond at 11.5pt on 1.5 line height. Ragged right,

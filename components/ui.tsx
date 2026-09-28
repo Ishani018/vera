@@ -484,11 +484,17 @@ export function Notice({
   level: 'error' | 'warning' | 'info' | 'ok';
   children: ReactNode;
 }) {
+  // Written for a light page: the palette was reversed in the re-skin and these
+  // were still carrying pale text meant for a dark one.
   const styles = {
-    error: 'border-red-500/40 bg-red-500/10 text-red-200',
-    warning: 'border-amber-500/40 bg-amber-500/10 text-amber-100',
-    info: 'border-ink-300 bg-ink-50 text-ink-700',
-    ok: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100',
+    error: 'border-red-300 bg-red-50 text-red-900',
+    warning: 'border-amber-300 bg-amber-50 text-amber-900',
+    info: 'border-ink-200 bg-ink-100 text-ink-700',
+    ok: 'border-emerald-300 bg-emerald-50 text-emerald-900',
   };
-  return <div className={cx('rounded-md border px-2.5 py-2 text-[12px]', styles[level])}>{children}</div>;
+  return (
+    <div className={cx('rounded-lg border px-3 py-2 text-[13px] leading-relaxed', styles[level])}>
+      {children}
+    </div>
+  );
 }

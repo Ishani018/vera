@@ -1,7 +1,7 @@
 'use client';
 
 import { projectFontsHrefs } from './fonts';
-import type { Project } from './types';
+import type { FontedBook } from './types';
 
 /**
  * Fetches the Google Fonts stylesheet in the app and hands it to the preview as
@@ -18,7 +18,7 @@ const cache = new Map<string, string>();
 
 export type FontCssResult = { style: string; failed: boolean };
 
-export async function fetchFontCss(project: Project): Promise<FontCssResult> {
+export async function fetchFontCss(project: FontedBook): Promise<FontCssResult> {
   const hrefs = projectFontsHrefs(project);
   if (!hrefs.length) return { style: '', failed: false };
 

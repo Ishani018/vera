@@ -11,6 +11,13 @@ import {
   targetLongEdge,
 } from '../lib/coloring/quality.ts';
 import { TRACE_EDGE } from '../lib/lineart/pipeline.ts';
+import { validateColoringBook } from '../lib/coloring/validate.ts';
+import {
+  artBox,
+  frontMatterPages,
+  sheetCount,
+  sheetOf,
+} from '../lib/render/coloringLayout.ts';
 import { createColoringBook, migrateProject } from '../lib/projects.ts';
 
 /** A page as the store writes one, with only what the reading depends on. */
@@ -161,4 +168,127 @@ test('the interface can tell when a picture is the wrong way round for the page'
   assert.equal(shapesAgree(wide(), tall()), false);
   assert.equal(shapesAgree(wide({ rotate: 90 }), tall()), true);
   assert.equal(shapesAgree(page(), square()), true, 'a square picture suits a square page');
+});
+
+// --- assembly -----------------------------------------------------------------
+
+test('a new coloring book has every detail its copyright page needs', () => {
+  // It did not, for a while: createProject spreads its overrides last, so
+  // handing it a partial meta replaced the one it had just built.
+  const meta = createColoringBook('Ghosts').meta;
+  for (const key of ['title', 'subtitle', 'author', 'publisher', 'isbn', 'year', 'copyrightExtra']) {
+    assert.equal(typeof meta[key], 'string', `${key} was ${meta[key]}`);
+  }
+  assert.equal(meta.title, 'Ghosts');
+  assert.match(meta.year, /^\d{4}$/);
+});
+
+test('a book saved with half a meta comes back with all of it', () => {
+  const saved = { ...createColoringBook('Old'), meta: { title: 'Old' } };
+  const opened = migrateProject(structuredClone(saved));
+  assert.equal(opened.meta.title, 'Old');
+  assert.equal(typeof opened.meta.year, 'string');
+  assert.equal(typeof opened.meta.author, 'string');
+});
+
+test('the printed length counts the front matter, the pictures and the backs', () => {
+  const book = createColoringBook();
+  book.pages = Array.from({ length: 10 }, (_, i) => page({ id: `p${i}` }));
+  // Four front-matter pages, ten pictures, ten blank backs.
+  assert.equal(sheetCount(book), 24);
+
+  book.coloring.singleSided = false;
+  assert.equal(sheetCount(book), 14);
+
+  book.coloring.titlePage = false;
+  book.coloring.copyrightPage = false;
+  book.coloring.belongsToPage = false;
+  book.coloring.colorTestPage = false;
+  assert.equal(frontMatterPages(book), 0);
+  assert.equal(sheetCount(book), 10);
+});
+
+test('the printed length is always even, because KDP requires it', () => {
+  const book = createColoringBook();
+  book.coloring.singleSided = false;
+  for (const count of [1, 2, 3, 7, 21]) {
+    book.pages = Array.from({ length: count }, (_, i) => page({ id: `p${i}` }));
+    assert.equal(sheetCount(book) % 2, 0, `${count} pictures gave ${sheetCount(book)}`);
+  }
+});
+
+test('a picture set to fit stays inside the margins, and the gutter swaps sides', () => {
+  const book = createColoringBook();
+  const wide = page({ naturalWidth: 1536, naturalHeight: 864, fit: 'contain' });
+  const sheet = sheetOf(book);
+
+  const recto = artBox(wide, book, 'right');
+  const verso = artBox(wide, book, 'left');
+
+  // The gutter is on the left of a recto, so the picture starts further in.
+  assert.ok(recto.x >= book.margins.inside - 0.001, `recto started at ${recto.x}`);
+  assert.ok(verso.x >= sheet.bleed + book.margins.outside - 0.001);
+  assert.ok(recto.x > verso.x, 'the two sides must not be placed identically');
+  // And nothing reaches the sheet edge.
+  assert.ok(recto.y > 0 && recto.y + recto.height < sheet.height);
+});
+
+test('a picture set to fill covers the whole sheet, bleed included', () => {
+  const book = createColoringBook();
+  const sheet = sheetOf(book);
+  const box = artBox(page({ naturalWidth: 1536, naturalHeight: 864, fit: 'cover' }), book, 'right');
+  assert.ok(box.x <= 0.001 && box.width >= sheet.width - 0.001, 'it has to reach both edges');
+  assert.ok(box.y <= 0.001 || box.height >= sheet.height - 0.001);
+});
+
+test('a turned picture is given the box it has before it is spun', () => {
+  const book = createColoringBook();
+  book.trim = { ...book.trim, trimId: '8.5x11' };
+  const upright = artBox(page({ naturalWidth: 1536, naturalHeight: 864 }), book, 'right');
+  const turned = artBox(page({ naturalWidth: 1536, naturalHeight: 864, rotate: 90 }), book, 'right');
+
+  // What the box becomes once it has been spun: width and height swap over.
+  const footprint = (box) =>
+    box.rotate === 90 ? { w: box.height, h: box.width } : { w: box.width, h: box.height };
+
+  assert.equal(turned.rotate, 90);
+  // The box handed to CSS is the one before the spin, so for a wide picture
+  // turned onto a tall page it is wider than it is tall — and the footprint it
+  // becomes is the other way round.
+  assert.ok(turned.width > turned.height, `box was ${turned.width} × ${turned.height}`);
+  assert.ok(footprint(turned).h > footprint(turned).w, 'turned, it should run down the page');
+  assert.ok(
+    footprint(turned).h > footprint(upright).h * 2,
+    'turning it should use far more of a tall page',
+  );
+});
+
+test('a picture with no measured size is given the whole target and left alone', () => {
+  const book = createColoringBook();
+  const box = artBox(page({ naturalWidth: 0, naturalHeight: 0 }), book, 'right');
+  assert.equal(box.rotate, 0);
+  assert.ok(box.width > 0 && box.height > 0);
+});
+
+test('the warnings name what is actually wrong', () => {
+  const book = createColoringBook();
+  const ids = (b, count) => validateColoringBook(b, count).map((i) => i.id);
+
+  assert.ok(ids(book, 0).includes('coloring-empty'), 'an empty book is an error');
+
+  book.pages = [page({ lineArtAssetId: null })];
+  assert.ok(ids(book, 24).includes('coloring-unconverted'));
+
+  book.pages = [page({ lineArtAssetId: 'a', naturalWidth: 700, naturalHeight: 700 })];
+  assert.ok(ids(book, 24).includes('coloring-dpi'));
+  assert.ok(!ids(book, 24).includes('coloring-unconverted'));
+
+  book.pages = [page({ lineArtAssetId: 'a', upscaled: 4 })];
+  assert.ok(ids(book, 24).includes('coloring-upscale'));
+
+  assert.ok(ids(book, 12).includes('page-min'), 'a short book is an error');
+  assert.ok(ids(book, 25).includes('page-parity'));
+
+  book.coloring.containsAiImages = true;
+  assert.ok(ids(book, 24).includes('coloring-ai'));
 });

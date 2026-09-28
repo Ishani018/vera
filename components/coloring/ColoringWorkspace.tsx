@@ -1,30 +1,44 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useConversionQueue } from '@/lib/coloring/convert';
 import { useColoring } from '@/lib/coloring/store';
+import { sheetCount } from '@/lib/render/coloringLayout';
 import { StudioHeader } from '../StudioHeader';
+import { SegmentedControl } from '../ui';
+import { AssemblyPanel } from './AssemblyPanel';
+import { ColoringPreview } from './ColoringPreview';
 import { LineArtStudio } from './LineArtStudio';
 import { PageGrid } from './PageGrid';
+
+type Mode = 'pictures' | 'book';
 
 /**
  * The coloring-book editor.
  *
- * Two columns: everything in the book on the left, and the one picture being
- * worked on beside it. The binding, the cover and the export are the stages
- * after this one, and nothing here pretends otherwise.
+ * Two jobs, kept apart: making the pictures, and making the book out of them.
+ * Trying to show both at once would mean a preview of the whole book beside a
+ * slider that changes one page of it, which is two things to watch and neither
+ * of them well.
  */
 export function ColoringWorkspace() {
   const status = useColoring((s) => s.status);
   const book = useColoring((s) => s.book);
   const load = useColoring((s) => s.load);
+  const [mode, setMode] = useState<Mode>('pictures');
+
+  // What Paged.js actually laid out, once it has. Until then the count worked
+  // out from the settings, so the panel is never blank.
+  const [laidOut, setLaidOut] = useState(0);
+  const onPageCount = useCallback((count: number) => setLaidOut(count), []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  // One queue for the whole book, mounted once, above both panes.
+  // One queue for the whole book, mounted once and above the modes, so
+  // switching to the book view does not abandon a conversion halfway.
   useConversionQueue();
 
   if (status === 'loading') {
@@ -55,37 +69,65 @@ export function ColoringWorkspace() {
     );
   }
 
+  const pageCount = laidOut || sheetCount(book);
+
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
         <span className="truncate text-ink-700">{book.name}</span>
+        <div className="ml-4">
+          <SegmentedControl
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'pictures', label: 'Pictures' },
+              { value: 'book', label: 'Book' },
+            ]}
+          />
+        </div>
         <span className="ml-auto text-[14px] text-ink-500">
-          {book.pages.length} picture{book.pages.length === 1 ? '' : 's'} · saved on this computer
+          {book.pages.length} picture{book.pages.length === 1 ? '' : 's'} · {pageCount} pages ·
+          saved on this computer
         </span>
       </StudioHeader>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
-        <aside className="min-h-0 overflow-y-auto border-r border-ink-200 bg-paper px-6 py-6">
-          <h2 className="text-[22px] font-semibold tracking-tight">Pictures</h2>
-          <p className="mb-5 mt-1.5 text-[15px] text-ink-500">
-            Drag to set the order they are bound in.
-          </p>
-          <PageGrid />
-        </aside>
-
-        <section className="min-h-0 overflow-y-auto bg-ink-100 px-8 py-6">
-          <div className="mx-auto max-w-6xl">
-            <LineArtStudio />
-            <p className="mt-10 border-t border-ink-200 pt-5 text-[14.5px] leading-relaxed text-ink-500">
-              Binding, the cover and the PDFs come next. The converter itself is not generative:
-              every picture is filtered by a fixed sequence of arithmetic on its own pixels, so the
-              same painting and the same settings always give the same page. What it cannot know is
-              where a picture came from before you added it — that is what the disclosure switch is
-              for, and it will be shown again when you export.
+      {mode === 'pictures' ? (
+        <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
+          <aside className="min-h-0 overflow-y-auto border-r border-ink-200 bg-paper px-6 py-6">
+            <h2 className="text-[22px] font-semibold tracking-tight">Pictures</h2>
+            <p className="mb-5 mt-1.5 text-[15px] text-ink-500">
+              Drag to set the order they are bound in.
             </p>
-          </div>
-        </section>
-      </div>
+            <PageGrid />
+          </aside>
+
+          <section className="min-h-0 overflow-y-auto bg-ink-100 px-8 py-6">
+            <div className="mx-auto max-w-6xl">
+              <LineArtStudio />
+              <p className="mt-10 border-t border-ink-200 pt-5 text-[14.5px] leading-relaxed text-ink-500">
+                The converter itself is not generative: every picture is filtered by a fixed
+                sequence of arithmetic on its own pixels, so the same painting and the same
+                settings always give the same page. What it cannot know is where a picture came
+                from before you added it — that is what the disclosure switch is for, and it will
+                be shown again when you export.
+              </p>
+            </div>
+          </section>
+        </div>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
+          <aside className="min-h-0 overflow-y-auto border-r border-ink-200 bg-paper px-6 py-6">
+            <h2 className="text-[22px] font-semibold tracking-tight">Book</h2>
+            <p className="mb-5 mt-1.5 text-[15px] text-ink-500">
+              How the pictures are bound into something KDP will print.
+            </p>
+            <AssemblyPanel pageCount={pageCount} />
+          </aside>
+          <section className="min-h-0">
+            <ColoringPreview book={book} onPageCount={onPageCount} />
+          </section>
+        </div>
+      )}
     </main>
   );
 }

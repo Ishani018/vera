@@ -1,7 +1,7 @@
 // Never let this reach a client bundle: it inlines megabytes of font data.
 import 'server-only';
 import { projectFontsHrefs, projectSpecs } from '../fonts';
-import type { Project } from '../types';
+import type { FontedBook } from '../types';
 
 /**
  * Fetches the Google Fonts stylesheet for a project and inlines every font file
@@ -48,7 +48,7 @@ export type EmbedResult = {
 };
 
 export async function embedGoogleFonts(
-  project: Project,
+  project: FontedBook,
   { timeoutMs = 20000 }: { timeoutMs?: number } = {},
 ): Promise<EmbedResult> {
   const families = [...new Set(projectSpecs(project).map((s) => s.family))].filter(Boolean);

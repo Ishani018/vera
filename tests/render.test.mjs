@@ -314,6 +314,40 @@ test('a failed webfont stylesheet cannot stop pagination', () => {
 
 import { renderInlineMarkup, stripInlineMarkup } from '../lib/render/text.ts';
 
+import { buildColoringHtml } from '../lib/render/coloringHtml.ts';
+import { createColoringBook } from '../lib/projects.ts';
+
+/** A coloring book with `count` converted pictures in it. */
+function coloringFixture(count) {
+  const book = createColoringBook('Ghosts');
+  book.pages = Array.from({ length: count }, (_, i) => ({
+    id: `page_${i}`,
+    title: `Picture ${i + 1}`,
+    source: 'painting',
+    sourceGuessed: true,
+    sourceAssetId: `src_${i}`,
+    lineArtAssetId: `art_${i}`,
+    renderedWith: null,
+    upscaled: 1,
+    fit: 'contain',
+    rotate: 0,
+    naturalWidth: 1200,
+    naturalHeight: 900,
+    settings: book.coloring.lineArt,
+  }));
+  return book;
+}
+
+const coloringOptions = () => ({
+  mode: 'export',
+  fontStyle: '',
+  pagedJsSrc: '',
+  guides: { margins: false, bleed: false, safe: false, gutter: false },
+  assets: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`art_${i}`, `blob:art${i}`])),
+  padPages: 0,
+});
+
+
 /** Builds a one-poem project so a single feature can be looked at in isolation. */
 function withPoem(patch) {
   const project = createProject();
@@ -489,4 +523,89 @@ test('the preview can navigate on its own once it has the focus', () => {
   // the app's own key handler stops hearing anything from then on.
   assert.ok(VIEWER_SCRIPT.includes("addEventListener('keydown'"));
   assert.ok(VIEWER_SCRIPT.includes("versecraft:spread"));
+});
+
+// --- the coloring interior ----------------------------------------------------
+
+test('a coloring book renders one page per picture, on rectos when single-sided', () => {
+  const book = coloringFixture(3);
+  const html = buildColoringHtml(book, coloringOptions());
+  assert.equal((html.match(/class="cpage"/g) || []).length, 3);
+  assert.equal((html.match(/data-recto="true"/g) || []).length, 3);
+
+  book.coloring.singleSided = false;
+  assert.ok(!buildColoringHtml(book, coloringOptions()).includes('data-recto="true"'));
+});
+
+test('the front matter is exactly the pages that are switched on', () => {
+  const book = coloringFixture(1);
+  const all = buildColoringHtml(book, coloringOptions());
+  assert.ok(all.includes('data-label="Title page"'));
+  assert.ok(all.includes('data-label="Copyright"'));
+  assert.ok(all.includes('data-label="This book belongs to"'));
+  assert.ok(all.includes('data-label="Colour test page"'));
+
+  book.coloring.titlePage = false;
+  book.coloring.colorTestPage = false;
+  const fewer = buildColoringHtml(book, coloringOptions());
+  assert.ok(!fewer.includes('data-label="Title page"'));
+  assert.ok(!fewer.includes('data-label="Colour test page"'));
+  assert.ok(fewer.includes('data-label="Copyright"'));
+});
+
+test('a page nobody has converted yet still renders, from the original', () => {
+  const book = coloringFixture(1);
+  book.pages[0].lineArtAssetId = null;
+  const html = buildColoringHtml(book, { ...coloringOptions(), assets: { src_0: 'blob:source' } });
+  assert.ok(html.includes('blob:source'), 'it should fall back to the upload');
+});
+
+test('a page with no picture at all says so rather than rendering nothing', () => {
+  const book = coloringFixture(1);
+  const html = buildColoringHtml(book, { ...coloringOptions(), assets: {} });
+  assert.ok(html.includes('cpage-missing'));
+});
+
+test('every page is placed for both sides of the fold', () => {
+  const html = buildColoringHtml(coloringFixture(2), coloringOptions());
+  assert.equal((html.match(/\.pagedjs_left_page #cp_/g) || []).length, 2);
+  assert.equal((html.match(/\.pagedjs_right_page #cp_/g) || []).length, 2);
+});
+
+test('the sheet is sized in inches, not in percentages', () => {
+  // A percentage height resolves against Paged.js's own auto-height wrappers,
+  // which is nothing at all — and every picture was clipped away by its own
+  // overflow rule. The regression is invisible in a page count, so it is
+  // pinned here instead.
+  const book = coloringFixture(1);
+  const html = buildColoringHtml(book, coloringOptions());
+  const rule = html.match(/\.cpage, \.matter-sheet, \.vc-blank-page \{[^}]*\}/)?.[0] ?? '';
+  assert.match(rule, /height: 8\.75in/);
+  assert.match(rule, /width: 8\.625in/);
+  assert.ok(!/height: 100%/.test(rule), 'a percentage height does not resolve here');
+});
+
+test('nothing in a coloring book carries an inline style attribute', () => {
+  // The same Paged.js trap the poetry renderer has: an element with a style
+  // attribute is treated as undisplayed and the break before it is swallowed.
+  const html = buildColoringHtml(coloringFixture(3), coloringOptions());
+  const body = html.slice(html.indexOf('<body>'));
+  assert.ok(!/<(?!script)[a-z]+[^>]*\sstyle=/i.test(body), 'found an inline style in the body');
+});
+
+test('a title with markup in it cannot escape into the page', () => {
+  const book = coloringFixture(1);
+  book.meta.title = '</title><script>alert(1)</script>';
+  book.pages[0].title = '"><img onerror=alert(2)>';
+  const html = buildColoringHtml(book, coloringOptions());
+  assert.ok(!html.includes('<script>alert(1)'), 'the title escaped into markup');
+  // The words survive escaping, of course; what must not survive is the
+  // punctuation that would turn them into a tag or close the script block.
+  assert.ok(!html.includes('<img onerror'), 'the page name became a tag');
+  assert.ok(!html.includes('</script>alert'), 'the title closed the config block');
+  const config = html.match(/window\.__VC_CONFIG__ = (.*);<\/script>/)?.[1] ?? '';
+  assert.ok(config.length > 2, 'the runtime config should still be there');
+  assert.ok(!config.includes('<'), 'nothing in the config may open a tag');
+  // And it is still the same string once JSON has been read back.
+  assert.equal(JSON.parse(config).heads.bookTitle, book.meta.title);
 });

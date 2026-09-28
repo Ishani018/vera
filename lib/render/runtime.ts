@@ -186,6 +186,12 @@ export const RUNTIME_SCRIPT = String.raw`
       return { kind: 'plate', caption: plateTitle || 'Illustration' };
     }
 
+    var colouring = content.querySelector('.cpage');
+    if (colouring) {
+      var colouringTitle = (colouring.getAttribute('data-title') || '').trim();
+      return { kind: 'plate', caption: colouringTitle || 'Picture' };
+    }
+
     var poem = content.querySelector('.poem');
     if (poem) {
       var title = (poem.getAttribute('data-title') || '').trim();
@@ -195,7 +201,11 @@ export const RUNTIME_SCRIPT = String.raw`
       return { kind: 'poem', caption: continues ? name + ' (cont.)' : name };
     }
 
-    if (!(content.textContent || '').trim() && !content.querySelector('.plate-image')) {
+    if (
+      !(content.textContent || '').trim() &&
+      !content.querySelector('.plate-image') &&
+      !content.querySelector('.cpage-art')
+    ) {
       return { kind: 'blank', caption: 'Blank page' };
     }
     return { kind: 'other', caption: '' };

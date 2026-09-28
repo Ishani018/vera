@@ -75,6 +75,24 @@ export function stripInlineMarkup(value: string): string {
     .join('*');
 }
 
+/**
+ * JSON safe to put inside a `<script>` tag.
+ *
+ * `JSON.stringify` knows nothing about HTML, so a book called
+ * `</script><script>…` closes the tag it is sitting in and whatever follows is
+ * parsed as markup. The parser looks for the literal characters, so escaping
+ * them inside the string leaves the value identical once JSON is read back.
+ * U+2028 and U+2029 go too: they are legal in JSON and are line terminators in
+ * a script, which would break it in half.
+ */
+export function jsonForScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')

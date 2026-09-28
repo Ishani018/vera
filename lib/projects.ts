@@ -1,6 +1,6 @@
 import { migrateContents } from './contents';
 import { getDb } from './db';
-import { createProject, id } from './defaults';
+import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
 import { DEFAULT_COLORING_TRIM } from './kdp';
 import type { AnyProject, ColoringBook, LineArtSettings, PoetryProject } from './types';
 
@@ -55,10 +55,17 @@ export function migrateProject(raw: unknown): AnyProject {
       coloring: {
         lineArt: { ...DEFAULT_LINE_ART, ...(book.coloring?.lineArt ?? {}) },
         singleSided: book.coloring?.singleSided ?? true,
+        titlePage: book.coloring?.titlePage ?? true,
+        copyrightPage: book.coloring?.copyrightPage ?? true,
         belongsToPage: book.coloring?.belongsToPage ?? true,
         colorTestPage: book.coloring?.colorTestPage ?? true,
         containsAiImages: book.coloring?.containsAiImages ?? false,
       },
+      typography: { ...DEFAULT_COLORING_TYPOGRAPHY, ...(book.typography ?? {}) },
+      // Books made before the title was set after the fact are missing most of
+      // their details. Filling them in here means an old one opens with a
+      // copyright page rather than with a crash.
+      meta: { ...createProject({ name: book.name }).meta, ...(book.meta ?? {}) },
     };
   }
 
@@ -87,7 +94,12 @@ export function needsRewrite(raw: unknown): boolean {
 export function createColoringBook(name = 'Untitled Coloring Book'): ColoringBook {
   // Built from the poetry defaults so the shared half — cover, matter pages,
   // margins — comes from one place and cannot drift between the two kinds.
-  const base = createProject({ name, meta: { title: name } as never });
+  //
+  // The title is set afterwards rather than passed in: createProject spreads
+  // its overrides last, so handing it a partial `meta` replaced the whole of
+  // the one it had just built and left a book with no year and no author in
+  // it. Nothing read those fields until the copyright page did.
+  const base = createProject({ name });
   const now = Date.now();
 
   return {
@@ -108,10 +120,13 @@ export function createColoringBook(name = 'Untitled Coloring Book'): ColoringBoo
     coloring: {
       lineArt: { ...DEFAULT_LINE_ART },
       singleSided: true,
+      titlePage: true,
+      copyrightPage: true,
       belongsToPage: true,
       colorTestPage: true,
       containsAiImages: false,
     },
+    typography: { ...DEFAULT_COLORING_TYPOGRAPHY },
   };
 }
 

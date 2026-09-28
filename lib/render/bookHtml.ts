@@ -20,6 +20,7 @@ import {
   escapeVerseLine,
   firstLine,
   indexSortKey,
+  jsonForScript,
   parseStanzas,
   stripInlineMarkup,
 } from './text';
@@ -320,7 +321,7 @@ export function buildBookHtml(project: Project, options: RenderOptions): string 
 ${options.fontStyle}
 <style>${buildCss(project, { screen: preview })}</style>
 <script>window.PagedConfig = { auto: false };</script>
-<script>window.__VC_CONFIG__ = ${JSON.stringify(runtimeConfig)};</script>
+<script>window.__VC_CONFIG__ = ${jsonForScript(runtimeConfig)};</script>
 </head>
 <body>
 <div class="book">

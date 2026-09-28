@@ -370,6 +370,9 @@ export type ColoringSettings = {
   lineArt: LineArtSettings;
   /** A blank back behind every coloring page, so markers cannot bleed through. */
   singleSided: boolean;
+  /** The generated front matter, each page its own switch. */
+  titlePage: boolean;
+  copyrightPage: boolean;
   belongsToPage: boolean;
   colorTestPage: boolean;
   /**
@@ -380,10 +383,27 @@ export type ColoringSettings = {
   containsAiImages: boolean;
 };
 
+/**
+ * The two faces a coloring book sets. Its front matter is a title page and a
+ * copyright notice, not a book of verse, so it needs a display face and a
+ * reading one and nothing else.
+ */
+export type ColoringTypography = {
+  title: FontSpec;
+  body: FontSpec;
+};
+
 export type ColoringBook = BookBase & {
   kind: 'coloring';
   pages: ColoringPage[];
   coloring: ColoringSettings;
+  typography: ColoringTypography;
+};
+
+/** What the font machinery needs from a book, whichever kind it is. */
+export type FontedBook = {
+  typography: Record<string, FontSpec>;
+  cover: CoverSpec;
 };
 
 /** Anything the studio can open. */
