@@ -1,6 +1,7 @@
+import { curvedText, type CurvedText } from '../cover/curve';
 import type { CoverSticker, CoverTextBox, CoverableBook } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
-import { cssColor, cssFamily, escapeBlock, escapeHtml } from './text';
+import { cssColor, cssFamily, escapeBlock, escapeHtml, escapeSvgText } from './text';
 
 /**
  * The wraparound cover as a single-page document.
@@ -30,22 +31,58 @@ function fontCss(box: CoverTextBox): string {
     .join(' ');
 }
 
-function boxCss(box: CoverTextBox, layout: CoverLayout, index: number): string {
+function boxCss(
+  box: CoverTextBox,
+  arc: CurvedText | null,
+  layout: CoverLayout,
+  index: number,
+): string {
   const panel = layout.panels[box.panel];
   // Spine text runs top-to-bottom, the convention for English-language spines,
   // and is rotated about its own start so the box position stays meaningful.
   const spine = box.panel === 'spine';
   const rotate = spine ? 90 + box.rotate : box.rotate;
   const transform = rotate ? ` transform: rotate(${rotate}deg); transform-origin: left top;` : '';
-  const left = panel.x + box.x;
-  const top = panel.y + box.y;
+  // A curved box is the same box: it is put in the same place, turned the same
+  // way, and wears the same type. Only its size and its own offset come from
+  // the arc, which needs more room than the line it replaces.
+  const left = panel.x + box.x + (arc?.offsetX ?? 0);
+  const top = panel.y + box.y + (arc?.offsetY ?? 0);
+  const size = arc
+    ? `width: ${arc.widthIn}in;\n  height: ${arc.heightIn}in;\n  overflow: visible;`
+    : `width: ${box.widthIn}in;`;
   return `#cb${index} {
   position: absolute;
   left: ${left}in;
   top: ${top}in;
-  width: ${box.widthIn}in;
+  ${size}
   ${fontCss(box)}${transform}
 }`;
+}
+
+/**
+ * A curved box's markup: an SVG whose letters ride along an arc.
+ *
+ * Real text, not a picture of it. Chromium writes SVG text into the PDF as
+ * glyphs from the embedded font, each with its own turn on the curve, so a
+ * curved title prints exactly as sharp as a straight one and can still be
+ * searched and selected. Drawing it to a canvas instead would have cost all of
+ * that for nothing.
+ */
+function curvedHtml(box: CoverTextBox, arc: CurvedText | null, index: number): string {
+  if (!arc) return `<div class="cover-text" id="cb${index}">${escapeBlock(box.text)}</div>`;
+  const paths = arc.lines
+    .map((line, i) => `<path id="cp${index}-${i}" d="${line.path}" fill="none"></path>`)
+    .join('');
+  const texts = arc.lines
+    .map((line, i) =>
+      line.text
+        ? `<text text-anchor="${line.anchor}"><textPath href="#cp${index}-${i}" ` +
+          `startOffset="${line.startOffset}">${escapeSvgText(line.text)}</textPath></text>`
+        : '',
+    )
+    .join('');
+  return `<svg class="cover-text cover-curved" id="cb${index}" viewBox="${arc.viewBox}" xmlns="http://www.w3.org/2000/svg"><defs>${paths}</defs>${texts}</svg>`;
 }
 
 /**
@@ -105,11 +142,14 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
     ? `<img class="cover-image" src="${escapeHtml(imageSrc)}" alt="">`
     : '';
 
-  const boxes = cover.textBoxes
-    .map((box, i) => `<div class="cover-text" id="cb${i}">${escapeBlock(box.text)}</div>`)
-    .join('');
+  // Worked out once and handed to both: the markup and the rule that places it
+  // have to be describing the same arc.
+  const arcs = cover.textBoxes.map(curvedText);
+  const boxes = cover.textBoxes.map((box, i) => curvedHtml(box, arcs[i], i)).join('');
 
-  const boxStyles = cover.textBoxes.map((box, i) => boxCss(box, layout, i)).join('\n');
+  const boxStyles = cover.textBoxes
+    .map((box, i) => boxCss(box, arcs[i], layout, i))
+    .join('\n');
 
   // Stickers are written in array order, which is what puts the last one on
   // top. They come before the text so a caption is never buried under a
@@ -187,6 +227,9 @@ html, body { margin: 0; padding: 0; }
 }
 ${stickerStyles}
 .cover-text { position: absolute; white-space: pre-wrap; }
+/* The letters take their colour from the type spec like any other text; an
+   SVG would otherwise paint them solid black whatever the box said. */
+.cover-curved text { fill: currentColor; }
 ${boxStyles}
 .barcode-zone {
   position: absolute;

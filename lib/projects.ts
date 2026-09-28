@@ -47,6 +47,11 @@ export function migrateProject(raw: unknown): AnyProject {
   if (record.cover && !Array.isArray((record.cover as CoverSpec).stickers)) {
     (record.cover as CoverSpec).stickers = [];
   }
+  // Likewise for text written before it could be curved: straight, which is
+  // what it has always looked like.
+  for (const box of (record.cover as CoverSpec | undefined)?.textBoxes ?? []) {
+    box.curve ??= 0;
+  }
 
   if (record.kind === 'coloring') {
     const book = record as unknown as ColoringBook;

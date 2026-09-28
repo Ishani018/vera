@@ -18,6 +18,9 @@ import type { CoverSpec } from '../types';
  */
 const LIMIT = 60;
 
+/** Input types someone types into, which therefore have an undo of their own. */
+const TYPED = /^(text|search|url|tel|email|password|number|date|time|datetime-local|month|week)$/;
+
 export function useCoverHistory(cover: CoverSpec, apply: (spec: CoverSpec) => void) {
   const latest = useRef(cover);
   latest.current = cover;
@@ -56,8 +59,12 @@ export function useCoverHistory(cover: CoverSpec, apply: (spec: CoverSpec) => vo
     const onKey = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
       const target = event.target as HTMLElement | null;
-      // Let a text field have its own undo; it is the more specific thing.
-      if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+      // Let a text field have its own undo; it is the more specific thing. A
+      // slider or a checkbox has no undo of its own, though, so leaving the
+      // focus on one must not swallow the cover's — which is exactly where the
+      // focus is left after dragging the curve slider.
+      if (target?.tagName === 'TEXTAREA') return;
+      if (target?.tagName === 'INPUT' && TYPED.test((target as HTMLInputElement).type)) return;
       if (target?.isContentEditable) return;
       event.preventDefault();
       if (event.shiftKey) redo();

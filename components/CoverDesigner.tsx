@@ -9,6 +9,7 @@ import { font } from '@/lib/defaults';
 import { useCoverHistory } from '@/lib/cover/history';
 import { restack } from '@/lib/cover/stickerEdit';
 import { stickerDpi, stickerWarnings, WARNING_TEXT } from '@/lib/render/stickers';
+import { MAX_SWEEP_DEGREES, curvedText } from '@/lib/cover/curve';
 import type {
   CoverPanel,
   CoverSticker,
@@ -198,8 +199,15 @@ export function CoverDesigner<T extends CoverableBook>({
       const originY = box.y;
       const element = event.currentTarget as HTMLElement;
       element.setPointerCapture(event.pointerId);
+      // Once, here, rather than on every frame of the drag: one undo should put
+      // the text back where it started, not somewhere along the way.
+      let noted = false;
 
       const move = (e: PointerEvent) => {
+        if (!noted) {
+          noted = true;
+          coverHistory.remember();
+        }
         update((draft) => {
           const found = draft.cover.textBoxes.find((b) => b.id === box.id);
           if (!found) return;
@@ -214,7 +222,7 @@ export function CoverDesigner<T extends CoverableBook>({
       element.addEventListener('pointermove', move);
       element.addEventListener('pointerup', up);
     },
-    [layout, scale, update],
+    [layout, scale, update, coverHistory],
   );
 
   if (!project || !layout) return null;
@@ -297,6 +305,7 @@ export function CoverDesigner<T extends CoverableBook>({
           color: '#1a1a1a',
         }),
         rotate: 0,
+        curve: 0,
       });
     });
     setSelectedId(newId);
@@ -444,50 +453,87 @@ export function CoverDesigner<T extends CoverableBook>({
             {cover.textBoxes.map((box) => {
               const panel = layout.panels[box.panel];
               const rotate = box.panel === 'spine' ? 90 + box.rotate : box.rotate;
+              // The same arithmetic the PDF uses, so what is dragged around here
+              // is what gets printed.
+              const arc = curvedText(box);
+              const grab = (e: React.PointerEvent) => {
+                setSelectedId(box.id);
+                setSelectedSticker(null);
+                onDrag(box, e);
+              };
+              const shared = {
+                role: 'button',
+                tabIndex: 0,
+                onPointerDown: grab,
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') setSelectedId(box.id);
+                },
+                className: cx(
+                  'absolute cursor-move whitespace-pre-wrap outline-offset-2',
+                  selectedId === box.id
+                    ? 'outline-2 outline-dashed outline-sky-400'
+                    : 'hover:outline-1 hover:outline-dashed hover:outline-white/50',
+                ),
+              };
+              const type: React.CSSProperties = {
+                left: (panel.x + box.x + (arc?.offsetX ?? 0)) * scale,
+                top: (panel.y + box.y + (arc?.offsetY ?? 0)) * scale,
+                width: (arc?.widthIn ?? box.widthIn) * scale,
+                transform: rotate ? `rotate(${rotate}deg)` : undefined,
+                transformOrigin: 'left top',
+                fontFamily: `'${box.font.family}', ${box.font.fallback}`,
+                fontSize: (box.font.sizePt / 72) * scale,
+                lineHeight: box.font.lineHeight,
+                letterSpacing: `${box.font.letterSpacingEm}em`,
+                fontWeight: box.font.weight,
+                fontStyle: box.font.italic ? 'italic' : 'normal',
+                color: box.font.color,
+                textAlign: box.font.align,
+                fontVariantCaps: box.font.transform === 'smallcaps' ? 'small-caps' : undefined,
+                textTransform:
+                  box.font.transform === 'uppercase'
+                    ? 'uppercase'
+                    : box.font.transform === 'lowercase'
+                      ? 'lowercase'
+                      : box.font.transform === 'capitalize'
+                        ? 'capitalize'
+                        : undefined,
+              };
+
+              if (arc) {
+                return (
+                  <svg
+                    key={box.id}
+                    {...shared}
+                    viewBox={arc.viewBox}
+                    style={{ ...type, height: arc.heightIn * scale, overflow: 'visible' }}
+                  >
+                    <defs>
+                      {arc.lines.map((line, i) => (
+                        <path key={i} id={`d-${box.id}-${i}`} d={line.path} fill="none" />
+                      ))}
+                    </defs>
+                    {/* Fat, invisible, and only as long as the words: something
+                        to take hold of that is not the inside of an arch. */}
+                    <path
+                      d={arc.grabPath}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={box.font.sizePt * 1.4}
+                    />
+                    {arc.lines.map((line, i) => (
+                      <text key={i} textAnchor={line.anchor} fill="currentColor">
+                        <textPath href={`#d-${box.id}-${i}`} startOffset={line.startOffset}>
+                          {line.text}
+                        </textPath>
+                      </text>
+                    ))}
+                  </svg>
+                );
+              }
+
               return (
-                <div
-                  key={box.id}
-                  role="button"
-                  tabIndex={0}
-                  onPointerDown={(e) => {
-                    setSelectedId(box.id);
-                    setSelectedSticker(null);
-                    onDrag(box, e);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') setSelectedId(box.id);
-                  }}
-                  className={cx(
-                    'absolute cursor-move whitespace-pre-wrap outline-offset-2',
-                    selectedId === box.id
-                      ? 'outline-2 outline-dashed outline-sky-400'
-                      : 'hover:outline-1 hover:outline-dashed hover:outline-white/50',
-                  )}
-                  style={{
-                    left: (panel.x + box.x) * scale,
-                    top: (panel.y + box.y) * scale,
-                    width: box.widthIn * scale,
-                    transform: rotate ? `rotate(${rotate}deg)` : undefined,
-                    transformOrigin: 'left top',
-                    fontFamily: `'${box.font.family}', ${box.font.fallback}`,
-                    fontSize: (box.font.sizePt / 72) * scale,
-                    lineHeight: box.font.lineHeight,
-                    letterSpacing: `${box.font.letterSpacingEm}em`,
-                    fontWeight: box.font.weight,
-                    fontStyle: box.font.italic ? 'italic' : 'normal',
-                    color: box.font.color,
-                    textAlign: box.font.align,
-                    fontVariantCaps: box.font.transform === 'smallcaps' ? 'small-caps' : undefined,
-                    textTransform:
-                      box.font.transform === 'uppercase'
-                        ? 'uppercase'
-                        : box.font.transform === 'lowercase'
-                          ? 'lowercase'
-                          : box.font.transform === 'capitalize'
-                            ? 'capitalize'
-                            : undefined,
-                  }}
-                >
+                <div key={box.id} {...shared} style={type}>
                   {box.text}
                 </div>
               );
@@ -785,6 +831,29 @@ export function CoverDesigner<T extends CoverableBook>({
                 />
               </Field>
             </div>
+            <Field
+              label="Curve"
+              hint={
+                selected.curve
+                  ? `Bent through ${Math.round((Math.abs(selected.curve) / 100) * MAX_SWEEP_DEGREES)}° — ${
+                      selected.curve > 0 ? 'arching up' : 'hanging down'
+                    }`
+                  : 'Straight. Drag right to arch the words up, left to hang them down.'
+              }
+            >
+              {/* One snapshot per go at the slider: taking hold of it is the
+                  start of a gesture, and every step after that is the same
+                  gesture. A key press is a gesture of its own. */}
+              <div onPointerDown={coverHistory.remember} onKeyDown={coverHistory.remember}>
+                <Slider
+                  value={selected.curve}
+                  onChange={(curve) => patchBox(update, selected.id, { curve })}
+                  min={-100}
+                  max={100}
+                  step={1}
+                />
+              </div>
+            </Field>
             <FontControls
               spec={selected.font}
               onChange={(patch) =>

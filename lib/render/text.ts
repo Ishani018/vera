@@ -115,6 +115,21 @@ export function escapeVerseLine(line: string): string {
 }
 
 /** Renders arbitrary user prose (front matter, blurbs) preserving line breaks. */
+/**
+ * The same inline markup, for text that will be drawn inside an SVG.
+ *
+ * `<em>` and `<strong>` mean nothing to SVG — it would draw neither the emphasis
+ * nor the words. A tspan is what SVG has instead, and it nests the same way, so
+ * `**a *b* a**` survives intact. Without this a curved title would print its
+ * asterisks, which is not what anyone typing them meant.
+ */
+export function escapeSvgText(value: string): string {
+  return renderInlineMarkup(escapeHtml(value))
+    .replace(/<em>/g, '<tspan font-style="italic">')
+    .replace(/<strong>/g, '<tspan font-weight="bold">')
+    .replace(/<\/(em|strong)>/g, '</tspan>');
+}
+
 export function escapeBlock(value: string): string {
   return renderInlineMarkup(escapeHtml(value)).replace(/\n/g, '<br>');
 }

@@ -225,6 +225,12 @@ export type CoverTextBox = {
   font: FontSpec;
   /** Spine text is rotated 90deg automatically; this is extra rotation. */
   rotate: number;
+  /**
+   * How far the words bend around a circle: 0 is a straight line, 100 arches
+   * up into very nearly a full ring, -100 hangs down into one. The number is
+   * the sweep in degrees divided by 3.5, so 10 is a gentle title arch.
+   */
+  curve: number;
 };
 
 /**
