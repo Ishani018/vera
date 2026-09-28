@@ -159,7 +159,7 @@ export function Workspace() {
         </div>
       ) : (
         <div className="min-h-0 flex-1">
-          <CoverDesigner />
+          <PoetryCover />
         </div>
       )}
 
@@ -175,5 +175,26 @@ export function Workspace() {
         }}
       />
     </main>
+  );
+}
+
+/**
+ * The shared cover designer, given the poetry book to work on.
+ *
+ * A wrapper rather than a store read inside the designer, so the same
+ * component serves a coloring book without either side knowing about the
+ * other's state.
+ */
+function PoetryCover() {
+  const project = useStore((s) => s.project);
+  const update = useStore((s) => s.update);
+  const pageCount = useStore((s) => s.pageCount);
+  return (
+    <CoverDesigner
+      project={project}
+      update={update}
+      pageCount={pageCount}
+      displayFont={project?.typography.sectionTitle ?? { family: 'EB Garamond', fallback: 'serif' }}
+    />
   );
 }

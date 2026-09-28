@@ -6,8 +6,7 @@ import { MIN_COVER_DPI, effectiveDpi, padToEven, spineWidth } from '@/lib/kdp';
 import { coverLayout, spineTooThinForText } from '@/lib/render/coverLayout';
 import { id } from '@/lib/defaults';
 import { font } from '@/lib/defaults';
-import { useStore } from '@/lib/store';
-import type { CoverPanel, CoverTextBox } from '@/lib/types';
+import type { CoverPanel, CoverTextBox, CoverableBook, FontSpec } from '@/lib/types';
 import { validateCover } from '@/lib/validate';
 import { FontControls } from './FontControls';
 import { Button, ColorInput, Field, Notice, NumberInput, Select, TextArea, Toggle, cx } from './ui';
@@ -18,10 +17,26 @@ const PANEL_LABELS: Record<CoverPanel, string> = {
   front: 'Front cover',
 };
 
-export function CoverDesigner() {
-  const project = useStore((s) => s.project);
-  const update = useStore((s) => s.update);
-  const pageCount = useStore((s) => s.pageCount);
+/**
+ * The wraparound cover, for either kind of book.
+ *
+ * It takes its book as a prop rather than reading the poetry store, because a
+ * cover is about the outside of a book and the outside of a book of verse and
+ * of a book of pictures are the same thing: a back, a spine whose width comes
+ * from the page count, and a front.
+ */
+export function CoverDesigner<T extends CoverableBook>({
+  project,
+  update,
+  pageCount,
+  displayFont,
+}: {
+  project: T | null;
+  update: (recipe: (draft: T) => void) => void;
+  pageCount: number;
+  /** The face new text boxes start in — the book's own display face. */
+  displayFont: Pick<FontSpec, 'family' | 'fallback'>;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -108,8 +123,8 @@ export function CoverDesigner() {
         y: panel === 'spine' ? 0.9 : 1.2,
         widthIn: panel === 'spine' ? panelRect.height - 1.8 : panelRect.width - 1.2,
         font: font({
-          family: draft.typography.sectionTitle.family,
-          fallback: draft.typography.sectionTitle.fallback,
+          family: displayFont.family,
+          fallback: displayFont.fallback,
           sizePt: panel === 'spine' ? 11 : 26,
           lineHeight: 1.2,
           align: panel === 'front' ? 'center' : 'left',
@@ -524,8 +539,8 @@ export function CoverDesigner() {
   );
 }
 
-function patchBox(
-  update: (recipe: (draft: import('@/lib/types').Project) => void) => void,
+function patchBox<T extends CoverableBook>(
+  update: (recipe: (draft: T) => void) => void,
   boxId: string,
   patch: Partial<CoverTextBox>,
 ) {

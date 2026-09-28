@@ -8,11 +8,12 @@ import { sheetCount } from '@/lib/render/coloringLayout';
 import { StudioHeader } from '../StudioHeader';
 import { SegmentedControl } from '../ui';
 import { AssemblyPanel } from './AssemblyPanel';
+import { ColoringCover } from './ColoringCover';
 import { ColoringPreview } from './ColoringPreview';
 import { LineArtStudio } from './LineArtStudio';
 import { PageGrid } from './PageGrid';
 
-type Mode = 'pictures' | 'book';
+type Mode = 'pictures' | 'book' | 'cover';
 
 /**
  * The coloring-book editor.
@@ -82,6 +83,7 @@ export function ColoringWorkspace() {
             options={[
               { value: 'pictures', label: 'Pictures' },
               { value: 'book', label: 'Book' },
+              { value: 'cover', label: 'Cover' },
             ]}
           />
         </div>
@@ -91,7 +93,11 @@ export function ColoringWorkspace() {
         </span>
       </StudioHeader>
 
-      {mode === 'pictures' ? (
+      {mode === 'cover' ? (
+        <div className="min-h-0 flex-1">
+          <ColoringCover pageCount={pageCount} />
+        </div>
+      ) : mode === 'pictures' ? (
         <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
           <aside className="min-h-0 overflow-y-auto border-r border-ink-200 bg-paper px-6 py-6">
             <h2 className="text-[22px] font-semibold tracking-tight">Pictures</h2>

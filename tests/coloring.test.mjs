@@ -12,6 +12,9 @@ import {
 } from '../lib/coloring/quality.ts';
 import { TRACE_EDGE } from '../lib/lineart/pipeline.ts';
 import { validateColoringBook } from '../lib/coloring/validate.ts';
+import { buildCoverHtml } from '../lib/render/coverHtml.ts';
+import { coverLayout } from '../lib/render/coverLayout.ts';
+import { validateCover } from '../lib/validate.ts';
 import {
   artBox,
   frontMatterPages,
@@ -291,4 +294,86 @@ test('the warnings name what is actually wrong', () => {
 
   book.coloring.containsAiImages = true;
   assert.ok(ids(book, 24).includes('coloring-ai'));
+});
+
+// --- the cover ----------------------------------------------------------------
+
+test('a coloring book carries everything the cover machinery needs', () => {
+  // The designer, the layout, the renderer and the validator all take the same
+  // narrow view of a book. If a coloring book satisfies it, one component
+  // serves both kinds.
+  const book = createColoringBook('Ghosts');
+  const layout = coverLayout(book, 52);
+  assert.ok(layout.dimensions.width > 0 && layout.dimensions.height > 0);
+  assert.equal(layout.panels.front.width, 8.5);
+  assert.ok(layout.folds[1] > layout.folds[0]);
+});
+
+test('the spine widens with the book and with the paper', () => {
+  const book = createColoringBook();
+  const thin = coverLayout(book, 24).dimensions.spine;
+  const thick = coverLayout(book, 200).dimensions.spine;
+  assert.ok(thick > thin * 5, `${thin} then ${thick}`);
+
+  book.trim = { ...book.trim, paper: 'color' };
+  assert.ok(coverLayout(book, 200).dimensions.spine > thick, 'colour stock is thicker');
+});
+
+test('the barcode area stays clear of the trimmed edge, on the back', () => {
+  const book = createColoringBook();
+  const layout = coverLayout(book, 52);
+  const { barcode, panels } = layout;
+  assert.ok(barcode.x >= panels.back.x, 'it belongs on the back cover');
+  assert.ok(barcode.x + barcode.width <= panels.back.x + panels.back.width);
+  assert.ok(barcode.y + barcode.height <= panels.back.y + panels.back.height);
+  assert.equal(barcode.width, 2);
+  assert.equal(barcode.height, 1.2);
+});
+
+test('the cover renders with a picture from the book on its front', () => {
+  const book = createColoringBook('Ghosts');
+  book.cover.frontImage = {
+    assetId: 'src_0',
+    naturalWidth: 2600,
+    naturalHeight: 2600,
+    fit: 'cover',
+  };
+  const html = buildCoverHtml(book, {
+    pageCount: 52,
+    fontStyle: '',
+    guides: false,
+    assets: { src_0: 'data:image/png;base64,AAA' },
+  });
+  assert.ok(html.includes('class="cover-image"'));
+  assert.ok(html.includes('data:image/png;base64,AAA'));
+  // One page, at the exact wraparound size.
+  const d = coverLayout(book, 52).dimensions;
+  assert.ok(html.includes(`size: ${d.width}in ${d.height}in`));
+});
+
+test('a cover warns about a picture too small for the front', () => {
+  const book = createColoringBook();
+  book.cover.frontImage = { assetId: 'a', naturalWidth: 900, naturalHeight: 900, fit: 'cover' };
+  assert.ok(validateCover(book, 52).some((i) => i.id === 'cover-dpi'));
+
+  book.cover.frontImage = { assetId: 'a', naturalWidth: 2800, naturalHeight: 2800, fit: 'cover' };
+  assert.ok(!validateCover(book, 52).some((i) => i.id === 'cover-dpi'));
+});
+
+test('a cover warns when the spine is too thin to print text on', () => {
+  const book = createColoringBook();
+  book.cover.textBoxes = [
+    {
+      id: 'b1',
+      panel: 'spine',
+      text: 'Ghosts',
+      x: 0,
+      y: 0,
+      widthIn: 4,
+      rotate: 0,
+      font: book.typography.title,
+    },
+  ];
+  assert.ok(validateCover(book, 20).some((i) => i.id === 'spine-too-thin'));
+  assert.ok(!validateCover(book, 120).some((i) => i.id === 'spine-too-thin'));
 });

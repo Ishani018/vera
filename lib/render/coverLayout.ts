@@ -1,5 +1,5 @@
 import { BARCODE_ZONE, coverDimensions, getTrim, type CoverDimensions } from '../kdp';
-import type { CoverPanel, CoverTextBox, Project } from '../types';
+import type { CoverPanel, CoverTextBox, CoverableBook } from '../types';
 
 /**
  * Geometry for the wraparound cover, in inches, measured from the top-left of
@@ -20,7 +20,7 @@ export type CoverLayout = {
   bleed: number;
 };
 
-export function coverLayout(project: Project, pageCount: number): CoverLayout {
+export function coverLayout(project: CoverableBook, pageCount: number): CoverLayout {
   const trim = getTrim(project.trim.trimId);
   const d = coverDimensions(trim, pageCount, project.trim.paper);
 

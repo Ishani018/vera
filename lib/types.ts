@@ -400,6 +400,17 @@ export type ColoringBook = BookBase & {
   typography: ColoringTypography;
 };
 
+/**
+ * What the cover machinery needs from a book — the designer, the layout, the
+ * renderer and the validator. A cover is about the outside of the book, and
+ * the outside of a book of verse and of a book of pictures are the same thing.
+ */
+export type CoverableBook = {
+  meta: BookMeta;
+  trim: TrimSettings;
+  cover: CoverSpec;
+};
+
 /** What the font machinery needs from a book, whichever kind it is. */
 export type FontedBook = {
   typography: Record<string, FontSpec>;

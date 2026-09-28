@@ -10,7 +10,7 @@ import {
 import { illustrationsOf, poemsOf } from './contents';
 import { collidesWithBarcode, coverLayout, spineTooThinForText } from './render/coverLayout';
 import { countLines } from './render/text';
-import type { Project } from './types';
+import type { CoverableBook, Project } from './types';
 
 export type { ValidationIssue };
 
@@ -140,7 +140,7 @@ export function validateProject(project: Project, pageCount: number): Validation
   return issues;
 }
 
-export function validateCover(project: Project, pageCount: number): ValidationIssue[] {
+export function validateCover(project: CoverableBook, pageCount: number): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const trim = getTrim(project.trim.trimId);
   const image = project.cover.frontImage;

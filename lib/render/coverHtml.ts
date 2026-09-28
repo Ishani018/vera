@@ -1,4 +1,4 @@
-import type { CoverTextBox, Project } from '../types';
+import type { CoverTextBox, CoverableBook } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
 import { cssColor, cssFamily, escapeBlock, escapeHtml } from './text';
 
@@ -59,7 +59,7 @@ export type CoverRenderOptions = {
   assets?: Record<string, string>;
 };
 
-export function buildCoverHtml(project: Project, options: CoverRenderOptions): string {
+export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptions): string {
   const layout = coverLayout(project, options.pageCount);
   const { dimensions: d, panels, barcode } = layout;
   const cover = project.cover;
