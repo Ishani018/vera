@@ -14,7 +14,9 @@ function candidates(specifier, parentURL) {
   return [`${base}.ts`, `${base}.tsx`, resolvePath(base, 'index.ts')];
 }
 
-export async function resolve(specifier, context, nextResolve) {
+// Synchronous because `registerHooks` runs it in the caller's thread. It never
+// awaited anything, so this costs nothing.
+export function resolve(specifier, context, nextResolve) {
   if (!specifier.endsWith('.ts') && !specifier.endsWith('.tsx')) {
     for (const candidate of candidates(specifier, context.parentURL)) {
       if (existsSync(candidate)) {
