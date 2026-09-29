@@ -13,6 +13,8 @@
     "test": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs --test tests/*.test.mjs",
     "golden": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/golden.mjs",
     "golden:update": "npm run golden -- --update",
+    "golden:screen": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/screen-golden.mjs",
+    "golden:screen:update": "npm run golden:screen -- --update",
     "check:render": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/render-check.mjs",
     "trim-compare": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/trim-compare.mjs"
   },

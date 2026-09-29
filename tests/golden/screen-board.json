@@ -1,0 +1,84 @@
+{
+  "what": "an Instagram post, in the launch kit",
+  "board": {
+    "width": 810,
+    "height": 810
+  },
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "pages": null,
+  "assets": 3,
+  "layout": {
+    "stage": {
+      "widthPx": 1024,
+      "heightPx": 1024,
+      "aspect": 1
+    },
+    "items": [
+      {
+        "kind": "picture",
+        "x": 285,
+        "y": 240,
+        "width": 240,
+        "height": 180,
+        "transform": "none",
+        "radius": 45,
+        "drawn": true,
+        "source": "64x64"
+      },
+      {
+        "kind": "text",
+        "x": 90,
+        "y": 110,
+        "width": 630,
+        "height": "the type decides",
+        "sizePt": 40,
+        "weight": "700",
+        "italic": false,
+        "color": "rgb(58, 42, 31)",
+        "align": "center",
+        "letterSpacingPt": 0.8,
+        "lineHeight": 1.2,
+        "transform": "none",
+        "text": "The Lantern Hours"
+      },
+      {
+        "kind": "curved text",
+        "x": 109.6,
+        "y": 462,
+        "width": 590.9,
+        "height": 148.3,
+        "sizePt": 18,
+        "weight": "400",
+        "italic": false,
+        "color": "rgb(58, 42, 31)",
+        "align": "center",
+        "letterSpacingPt": 0,
+        "lineHeight": 1.2,
+        "transform": "none",
+        "text": "Forty pages to colour"
+      },
+      {
+        "kind": "painted area",
+        "x": 36,
+        "y": 36,
+        "width": 738,
+        "height": 738,
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0.79pt dashed oklab(0.696 -0.162114 0.0511766 / 0.7)",
+        "text": ""
+      }
+    ],
+    "readouts": [
+      "1080 × 1080 px",
+      "Instagram post · 1080 × 1080 px",
+      "PNG 1080×1080"
+    ]
+  },
+  "recordedWith": {
+    "engine": "Chrome/141.0.7390.37",
+    "platform": "linux"
+  }
+}

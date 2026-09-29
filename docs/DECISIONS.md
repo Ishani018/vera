@@ -284,3 +284,53 @@ observed, not theorised.
 can do — there is no tile for the sticker library or for importing a
 manuscript, because a tile is an answer to "what will you make", not a menu
 of features.
+
+---
+
+## 11. The screen gets its own golden, in two tiers, and only one of them travels
+
+*29 September 2026 — decided*
+
+`scripts/screen-golden.mjs`, `npm run golden:screen`. It drives a real browser
+to the cover designer and to a launch-kit board, and records two things about
+each.
+
+**Why at all.** The PDF goldens cannot see the screen, and the two worst bugs
+so far lived exactly there: every line of type on the cover drawn at a
+seventy-second of its size — in the DOM, selectable, invisible, with a
+perfect PDF coming out the other end — and an Instagram post that offered a
+3375-pixel export and wrote a 10547-pixel file. Nothing in a PDF fingerprint
+could have caught either. Both are caught now; both were re-introduced on
+purpose to prove it.
+
+**The layout tier** is measurements, in points: where each text box, picture
+and guide sits, how big it is, what size the type is, and every size the
+panel states out loud. It is compared on every machine. Two things are
+deliberately left out — a text box's height, and anything else the type
+decides, because that is decided by whichever typeface the machine managed to
+load. Google Fonts is blocked for the whole run for the same reason: whether
+the network was up is not a fact about this code, and which faces a book
+embeds is already checked in the PDF goldens.
+
+**The image tier** is the board rasterised and compared pixel by pixel, and it
+is keyed to the engine that recorded it, exactly as the PDF strict tier is.
+Two Chrome builds do not anti-alias the same glyph the same way, so a picture
+recorded on Chromium 141 cannot be a portable claim — decision 8 is the
+lesson that says so. On the same engine it is exact: two runs differ by zero
+pixels, so the tolerance (a difference of 8/255 or less is an edge blended
+differently, and no more than half a percent of the image may differ even
+that much) has never yet been needed. Both counts are printed on every run,
+passing or failing, so the allowance cannot quietly grow to cover a real
+change.
+
+**What the image tier adds over the layout tier.** Anything drawn rather than
+positioned: a changed typeface, a dash pattern, a shadow, a picture that
+failed to decode. Shrinking the barcode caption by two pixels is invisible to
+the layout tier and moves 699 pixels here, and the failure names where.
+
+**What it costs.** Two PNGs in the repository, about 110KB, re-recorded
+whenever the designer's appearance is meant to change — and a check that
+needs a browser, so it is its own command rather than part of `npm run
+golden`. A browser-driven check fails for reasons a PDF check cannot, and
+those reasons should not be able to redden the one that decides whether books
+print correctly.
