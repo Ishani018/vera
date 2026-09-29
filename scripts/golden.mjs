@@ -174,7 +174,10 @@ const apply = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[
  * document and the list is a fact about the encoder. Chrome versions split a
  * line of type into different numbers of runs, which changes every position in
  * the list and none of the extent, because a split lands inside the line it
- * splits. The baselines collected alongside it are a set for the same reason.
+ * splits.
+ *
+ * The baselines collected alongside it turned out not to share that property
+ * and live in the strict tier; see the note there.
  */
 function pageInk(content) {
   if (!content) return { box: null, baselines: [] };
@@ -311,14 +314,19 @@ function fingerprint(pdf, declared) {
       appFonts: embedded.filter(mine),
       images,
       inkBoxes: boxes,
-      // Closes the gap an ink box leaves: an object can shift inside a page
-      // without touching the page's widest or tallest element, and the box
-      // would not notice. Where each line of type sits does.
-      baselines,
     },
     // Facts about the encoder as much as the document. Only meaningful against
     // the same engine, so only compared against it.
     strict: {
+      // These were in the portable tier for one commit, on the strength of two
+      // engines agreeing. Chrome 153 disagreed: four of the cover's baselines
+      // are there on 141 and not on 153, none the other way about. The reason
+      // is that Chromium positions letter-spaced and curved type one glyph at a
+      // time, so a "baseline" is often a single glyph's own y rather than a
+      // line's — and where those land, and how many of them there are, is the
+      // encoder's business. Two engines agreeing was not evidence they were
+      // portable; it was evidence those two engines were alike.
+      baselines,
       glyphRuns: drawing.reduce((n, s) => n + (s.match(/ (Tj|TJ)\b/g) || []).length, 0),
       xobjectDraws: drawing.reduce((n, s) => n + (s.match(/ Do\b/g) || []).length, 0),
       embeddedFontPrograms: (raw.match(/\/FontFile\d?\b/g) || []).length,

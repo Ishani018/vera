@@ -182,3 +182,40 @@ tests check it: a fresh book must come back from the migration unchanged.
 
 **Reversible?** It is a version number; later shapes add to it. The thing that
 would not be reversible is the migration it prevents running twice.
+
+---
+
+## 8. Baselines are an encoder fact, not a document fact
+
+*29 September 2026 — decided, reversing a call made the same day*
+
+Where each line of type sits was added to the portable golden tier to close the
+gap an ink box leaves, then moved to the strict tier when it failed on Chrome
+153.
+
+**What went wrong.** The claim that baselines were portable rested on two
+engines agreeing — the pinned Chromium 141 and a HeadlessChrome 149 that
+`@sparticuz/chromium` unpacks. Eight major versions apart looked like a real
+test. It was not: those two build the same PDFs. Chrome 153 produced four fewer
+baselines on the cover, none of them new, and the golden failed on the first
+machine that was genuinely different.
+
+**Why it cannot be fixed by rounding.** Chromium positions letter-spaced and
+curved type one glyph at a time, so a "baseline" is frequently a single glyph's
+own y rather than a line's. How many of those there are, and where they land,
+is the encoder's business. Any quantisation has boundaries and two engines will
+eventually straddle one; the fix is not a coarser bucket.
+
+**The lesson, which is the part worth keeping.** Two things agreeing is
+evidence they are alike, not evidence either is right. A portability claim
+needs a case known to differ — and the one to hand, the user's own machine,
+was the one not consulted.
+
+**What this costs.** The portable tier is back to page count, media boxes,
+declared fonts, images and per-page ink boxes, and is once again blind to an
+object shifting inside a page while the page's widest and tallest elements stay
+put. The strict tier still catches it, on the machine that recorded it.
+
+Closing that gap portably means comparing rendered page images rather than
+drawing instructions, which is the only representation both engines are trying
+to make identical. That is a real piece of work and is not scheduled.

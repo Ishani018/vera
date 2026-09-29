@@ -22,7 +22,9 @@
         1245.5,
         630
       ]
-    ],
+    ]
+  },
+  "strict": {
     "baselines": [
       [
         93.5,
@@ -91,9 +93,7 @@
         535.5,
         541.5
       ]
-    ]
-  },
-  "strict": {
+    ],
     "glyphRuns": 143,
     "xobjectDraws": 4,
     "embeddedFontPrograms": 2,

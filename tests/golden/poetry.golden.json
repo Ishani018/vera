@@ -84,7 +84,9 @@
         543
       ],
       null
-    ],
+    ]
+  },
+  "strict": {
     "baselines": [
       [
         517
@@ -164,9 +166,7 @@
         543
       ],
       []
-    ]
-  },
-  "strict": {
+    ],
     "glyphRuns": 1023,
     "xobjectDraws": 4,
     "embeddedFontPrograms": 5,
