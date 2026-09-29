@@ -317,6 +317,22 @@ export type CoverSpec = {
   showBarcodeZone: boolean;
 };
 
+/**
+ * Something else made for the book: a post, a pin, a postcard, a bookmark.
+ *
+ * It holds a `CoverSpec` because a design and a cover are the same thing —
+ * text and pictures placed on a board — and the board it sits on comes from
+ * the preset rather than from the book's trim.
+ */
+export type Design = {
+  id: string;
+  name: string;
+  /** Which board, by `lib/presets.ts` id. */
+  presetId: string;
+  cover: CoverSpec;
+  createdAt: number;
+};
+
 export type BookKind = 'poetry' | 'coloring';
 
 /**
@@ -344,6 +360,8 @@ export type BookBase = {
   frontMatter: MatterPage[];
   backMatter: MatterPage[];
   cover: CoverSpec;
+  /** The launch kit: everything made for the book that is not the book. */
+  designs?: Design[];
 };
 
 export type PoetryProject = BookBase & {

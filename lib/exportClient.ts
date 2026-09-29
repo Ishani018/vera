@@ -11,7 +11,7 @@ import { buildColoringHtml } from './render/coloringHtml';
 import { keptAssetIds, listStickers, listTemplates, mergeLibrary } from './cover/library';
 import { matterArtwork } from './render/coloringLayout';
 import { buildCoverHtml } from './render/coverHtml';
-import type { AnyProject, CoverTemplate, LibrarySticker, Project } from './types';
+import type { AnyProject, CoverTemplate, Design, LibrarySticker, Project } from './types';
 
 /** Where the Paged.js polyfill is served from; see scripts/copy-vendor.mjs. */
 export const PAGEDJS_SRC = '/vendor/paged.polyfill.js';
@@ -134,6 +134,55 @@ export async function exportInteriorPdf(project: AnyProject): Promise<ExportOutc
     { project, assets },
     `${slug(project.meta.title)}-interior.pdf`,
     'Interior',
+  );
+}
+
+/**
+ * One piece of the launch kit, as a file.
+ *
+ * The design's pictures travel with the request like a cover's do, and a bent
+ * one is warped here first for the same reason — the server has never seen
+ * these bytes, and the warp has to be the one the designer showed.
+ */
+export async function exportDesign(
+  project: AnyProject,
+  design: Design,
+  format: 'png' | 'jpg' | 'pdf',
+  scale?: number,
+): Promise<ExportOutcome> {
+  const { presetById } = await import('./presets');
+  const preset = presetById(design.presetId);
+  if (!preset) return { ok: false, message: `That size is no longer available.` };
+
+  const ids = [
+    design.cover.frontImage?.assetId,
+    ...design.cover.stickers.map((s) => s.assetId),
+  ].filter((value): value is string => Boolean(value));
+
+  const assets = await assetsAsDataUrls(ids);
+  for (const sticker of design.cover.stickers) {
+    if (!sticker.arc) continue;
+    const source = assets[sticker.assetId];
+    if (!source) continue;
+    const bent = await bendToDataUrl(sticker, source);
+    if (bent) assets[stickerImageKey(sticker)] = bent;
+  }
+
+  const extension = format === 'jpg' ? 'jpg' : format;
+  return postForPdf(
+    '/api/export/board',
+    {
+      presetId: design.presetId,
+      cover: design.cover,
+      typography: project.typography as Record<string, unknown>,
+      title: `${project.meta.title} — ${design.name}`,
+      name: `${slug(project.meta.title)}-${slug(design.name)}`,
+      format,
+      ...(preset.kind === 'screen' ? { scale } : { dpi: 300 }),
+      assets,
+    },
+    `${slug(project.meta.title)}-${slug(design.name)}.${extension}`,
+    design.name,
   );
 }
 

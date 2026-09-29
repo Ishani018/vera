@@ -98,6 +98,8 @@ export function migrateProject(raw: unknown): AnyProject {
     sticker.arc ??= 0;
   }
   toPoints(record);
+  // A book saved before it could have a launch kit has an empty one.
+  record.designs ??= [];
 
   if (record.kind === 'coloring') {
     const book = record as unknown as ColoringBook;

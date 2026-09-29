@@ -774,7 +774,11 @@ export function CoverDesigner<T extends CoverableBook>({
         <div className="space-y-2">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Artwork</h4>
           <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-200">
-            {cover.frontImage ? 'Replace image…' : 'Upload cover image…'}
+            {cover.frontImage
+              ? 'Replace image…'
+              : isCover
+                ? 'Upload cover image…'
+                : 'Upload a picture…'}
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -830,26 +834,41 @@ export function CoverDesigner<T extends CoverableBook>({
         </div>
 
         <div className="grid grid-cols-1 gap-2">
-          <Field label="Back cover colour">
-            <ColorInput
-              value={cover.backColor}
-              onChange={(backColor) =>
-                update((draft) => {
-                  draft.cover.backColor = backColor;
-                })
-              }
-            />
-          </Field>
-          <Field label="Spine colour">
-            <ColorInput
-              value={cover.spineColor}
-              onChange={(spineColor) =>
-                update((draft) => {
-                  draft.cover.spineColor = spineColor;
-                })
-              }
-            />
-          </Field>
+          {isCover ? (
+            <>
+              <Field label="Back cover colour">
+                <ColorInput
+                  value={cover.backColor}
+                  onChange={(backColor) =>
+                    update((draft) => {
+                      draft.cover.backColor = backColor;
+                    })
+                  }
+                />
+              </Field>
+              <Field label="Spine colour">
+                <ColorInput
+                  value={cover.spineColor}
+                  onChange={(spineColor) =>
+                    update((draft) => {
+                      draft.cover.spineColor = spineColor;
+                    })
+                  }
+                />
+              </Field>
+            </>
+          ) : (
+            <Field label="Background">
+              <ColorInput
+                value={cover.backgroundColor}
+                onChange={(backgroundColor) =>
+                  update((draft) => {
+                    draft.cover.backgroundColor = backgroundColor;
+                  })
+                }
+              />
+            </Field>
+          )}
         </div>
 
         {isCover && (

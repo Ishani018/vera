@@ -8,13 +8,14 @@ import { sheetCount } from '@/lib/render/coloringLayout';
 import { StudioHeader } from '../StudioHeader';
 import { SegmentedControl } from '../ui';
 import { AssemblyPanel } from './AssemblyPanel';
+import { LaunchKit } from '../LaunchKit';
 import { ColoringCover } from './ColoringCover';
 import { ExportView } from './ExportView';
 import { ColoringPreview } from './ColoringPreview';
 import { LineArtStudio } from './LineArtStudio';
 import { PageGrid } from './PageGrid';
 
-type Mode = 'pictures' | 'book' | 'cover' | 'export';
+type Mode = 'pictures' | 'book' | 'cover' | 'export' | 'kit';
 
 /**
  * The coloring-book editor.
@@ -28,6 +29,7 @@ export function ColoringWorkspace() {
   const status = useColoring((s) => s.status);
   const book = useColoring((s) => s.book);
   const load = useColoring((s) => s.load);
+  const update = useColoring((s) => s.update);
   const [mode, setMode] = useState<Mode>('pictures');
 
   // What Paged.js actually laid out, once it has. Until then the count worked
@@ -85,6 +87,7 @@ export function ColoringWorkspace() {
               { value: 'pictures', label: 'Pictures' },
               { value: 'book', label: 'Book' },
               { value: 'cover', label: 'Cover' },
+              { value: 'kit', label: 'Launch kit' },
               { value: 'export', label: 'Export' },
             ]}
           />
@@ -102,6 +105,24 @@ export function ColoringWorkspace() {
       ) : mode === 'cover' ? (
         <div className="min-h-0 flex-1">
           <ColoringCover pageCount={pageCount} />
+        </div>
+      ) : mode === 'kit' ? (
+        <div className="min-h-0 flex-1">
+          <LaunchKit
+            project={book}
+            update={update}
+            displayFont={book.typography.title}
+            // The line art, so a page from inside the book can go on a post.
+            pictures={book.pages
+              .filter((page) => page.lineArtAssetId)
+              .map((page) => ({
+                key: page.id,
+                name: page.title || 'Picture',
+                assetId: page.lineArtAssetId!,
+                width: Math.round(page.naturalWidth * (page.upscaled || 1)),
+                height: Math.round(page.naturalHeight * (page.upscaled || 1)),
+              }))}
+          />
         </div>
       ) : mode === 'pictures' ? (
         <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
