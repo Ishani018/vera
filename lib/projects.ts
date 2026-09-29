@@ -1,7 +1,8 @@
 import { migrateContents } from './contents';
 import { getDb } from './db';
 import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
-import { DEFAULT_COLORING_TRIM } from './kdp';
+import { DEFAULT_COLORING_TRIM, inchesToPt } from './kdp';
+import { SCHEMA } from './schema';
 import type {
   AnyProject,
   ColoringBook,
@@ -40,6 +41,47 @@ export const DEFAULT_LINE_ART: LineArtSettings = {
  * The contents migration runs here too, so one call is enough to open anything
  * ever written to this database.
  */
+/**
+ * Brings a cover saved in inches up to points.
+ *
+ * Multiplying by seventy-two is the whole of it; what matters is doing it once.
+ * A record carries the shape it is in, so a book opened twice is not converted
+ * twice — which would put every sticker five thousand points off the page, and
+ * would be unrecoverable because nothing in the numbers says which unit they
+ * are already in.
+ *
+ * Inches are still what the panel shows and what KDP is told. They are just no
+ * longer what gets written down: a cover has to hold a board measured in pixels
+ * as readily as one measured in inches, and points are exact for both.
+ */
+function toPoints(record: Partial<AnyProject> & Record<string, unknown>): void {
+  if ((record.schema ?? 1) >= 2) return;
+  // Rounded, because multiplying by seventy-two is only exact for inches binary
+  // can hold exactly: six tenths of an inch comes out as 43.199999999999996.
+  // Nothing is lost at a millionth of a point, and stored numbers that read
+  // like the numbers someone typed are worth having.
+  const pt = (inches: number) => Math.round(inchesToPt(inches) * 1e6) / 1e6;
+  const cover = record.cover as CoverSpec | undefined;
+  if (cover) {
+    for (const box of cover.textBoxes ?? []) {
+      box.x = pt(box.x);
+      box.y = pt(box.y);
+      box.width = pt((box as unknown as { widthIn?: number }).widthIn ?? box.width);
+      delete (box as unknown as { widthIn?: number }).widthIn;
+    }
+    for (const sticker of cover.stickers ?? []) {
+      const old = sticker as unknown as { widthIn?: number; heightIn?: number };
+      sticker.x = pt(sticker.x);
+      sticker.y = pt(sticker.y);
+      sticker.width = pt(old.widthIn ?? sticker.width);
+      sticker.height = pt(old.heightIn ?? sticker.height);
+      delete old.widthIn;
+      delete old.heightIn;
+    }
+  }
+  record.schema = SCHEMA;
+}
+
 export function migrateProject(raw: unknown): AnyProject {
   const record = (raw ?? {}) as Partial<AnyProject> & Record<string, unknown>;
   // Every book has a cover, and a cover saved before stickers existed has no
@@ -55,6 +97,7 @@ export function migrateProject(raw: unknown): AnyProject {
   for (const sticker of (record.cover as CoverSpec | undefined)?.stickers ?? []) {
     sticker.arc ??= 0;
   }
+  toPoints(record);
 
   if (record.kind === 'coloring') {
     const book = record as unknown as ColoringBook;
@@ -111,7 +154,12 @@ export function migrateProject(raw: unknown): AnyProject {
  */
 export function needsRewrite(raw: unknown): boolean {
   const record = (raw ?? {}) as Record<string, unknown>;
-  return !record.kind || 'poems' in record || 'sections' in record;
+  return (
+    !record.kind ||
+    'poems' in record ||
+    'sections' in record ||
+    ((record.schema as number | undefined) ?? 1) < SCHEMA
+  );
 }
 
 export function createColoringBook(name = 'Untitled Coloring Book'): ColoringBook {
@@ -128,6 +176,8 @@ export function createColoringBook(name = 'Untitled Coloring Book'): ColoringBoo
   return {
     id: id('proj'),
     kind: 'coloring',
+    // As for a poetry book: born in the shape the app writes now.
+    schema: SCHEMA,
     name,
     createdAt: now,
     updatedAt: now,

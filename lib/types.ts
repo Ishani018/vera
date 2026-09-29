@@ -218,10 +218,15 @@ export type CoverTextBox = {
   id: string;
   panel: CoverPanel;
   text: string;
-  /** Inches from the top-left of the panel the box belongs to. */
+  /**
+   * Points from the top-left of the panel the box belongs to.
+   *
+   * Points, not inches, because a cover is only one of the things this
+   * coordinate space will have to hold. See `docs/DECISIONS.md`.
+   */
   x: number;
   y: number;
-  widthIn: number;
+  width: number;
   font: FontSpec;
   /** Spine text is rotated 90deg automatically; this is extra rotation. */
   rotate: number;
@@ -270,10 +275,11 @@ export type CoverSticker = {
   assetId: string;
   naturalWidth: number;
   naturalHeight: number;
+  /** Points from the top-left of the whole cover. */
   x: number;
   y: number;
-  widthIn: number;
-  heightIn: number;
+  width: number;
+  height: number;
   /** Degrees, clockwise, about the sticker's own centre. */
   rotate: number;
   /** 0–0.5, as a share of the shorter side. Half is a circle. */
@@ -317,6 +323,11 @@ export type BookKind = 'poetry' | 'coloring';
  */
 export type BookBase = {
   id: string;
+  /**
+   * What shape the stored record is in. Absent means 1, which is a book saved
+   * when the cover's coordinates were in inches.
+   */
+  schema?: number;
   kind: BookKind;
   name: string;
   createdAt: number;

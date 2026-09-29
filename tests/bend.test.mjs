@@ -7,15 +7,18 @@ import { stickerBounds, stickerDpi, stickerImageKey, stickerRect } from '../lib/
 import { buildCoverHtml } from '../lib/render/coverHtml.ts';
 import { createColoringBook } from '../lib/projects.ts';
 
+/** The cover stores points now; these tests still think in inches. */
+const IN = (inches) => inches * 72;
+
 const sticker = (over = {}) => ({
   id: 's1',
   assetId: 'a1',
   naturalWidth: 1200,
   naturalHeight: 1200,
-  x: 9,
-  y: 3,
-  widthIn: 4,
-  heightIn: 2,
+  x: IN(9),
+  y: IN(3),
+  width: IN(4),
+  height: IN(2),
   rotate: 0,
   cornerRadius: 0,
   border: null,
@@ -28,7 +31,7 @@ const sticker = (over = {}) => ({
 test('a picture nobody has bent is left entirely alone', () => {
   assert.equal(bendOf(sticker()), null);
   assert.equal(bendOf(sticker({ arc: 0 })), null);
-  assert.deepEqual(stickerRect(sticker()), { x: 9, y: 3, width: 4, height: 2 });
+  assert.deepEqual(stickerRect(sticker()), { x: IN(9), y: IN(3), width: IN(4), height: IN(2) });
   assert.equal(stickerDpi(sticker()), 300);
 });
 
@@ -36,31 +39,31 @@ test('bending keeps the middle line the length it was', () => {
   for (const arc of [5, 20, -20, 40]) {
     const bend = bendOf(sticker({ arc }));
     const middle = (bend.rIn + bend.rOut) / 2;
-    assert.ok(Math.abs(middle * bend.sweep - 4) < 1e-9, `arc ${arc}`);
+    assert.ok(Math.abs(middle * bend.sweep - IN(4)) < 1e-7, `arc ${arc}`);
   }
 });
 
 test('and keeps the picture as thick from top to bottom as it was', () => {
   for (const arc of [5, 20, -20, 40]) {
     const bend = bendOf(sticker({ arc }));
-    assert.ok(Math.abs(bend.rOut - bend.rIn - 2) < 1e-9, `arc ${arc}`);
+    assert.ok(Math.abs(bend.rOut - bend.rIn - IN(2)) < 1e-7, `arc ${arc}`);
   }
 });
 
 test('a tall picture stops before its inner edge folds through the middle', () => {
   // A square asked to bend right round would have to turn itself inside out.
-  const bend = bendOf(sticker({ arc: 100, widthIn: 3, heightIn: 3 }));
+  const bend = bendOf(sticker({ arc: 100, width: IN(3), height: IN(3) }));
   assert.ok(bend.rIn > 0, 'the inner edge crossed the centre');
   assert.ok(bend.sweep < (MAX_SWEEP_DEGREES * Math.PI) / 180);
   // A long thin one has room for the whole range.
-  const strip = bendOf(sticker({ arc: 100, widthIn: 8, heightIn: 0.5 }));
-  assert.ok(Math.abs(strip.sweep - (MAX_SWEEP_DEGREES * Math.PI) / 180) < 1e-9);
+  const strip = bendOf(sticker({ arc: 100, width: IN(8), height: IN(0.5) }));
+  assert.ok(Math.abs(strip.sweep - (MAX_SWEEP_DEGREES * Math.PI) / 180) < 1e-7);
 });
 
 test('every step of the slider moves the picture, whatever shape it is', () => {
   // A fixed scale of degrees would leave most stickers with a slider that
   // stopped doing anything partway along.
-  for (const shape of [{ widthIn: 4, heightIn: 2 }, { widthIn: 3, heightIn: 3 }, { widthIn: 8, heightIn: 0.5 }]) {
+  for (const shape of [{ width: IN(4), height: IN(2) }, { width: IN(3), height: IN(3) }, { width: IN(8), height: IN(0.5) }]) {
     let last = 0;
     for (const arc of [10, 25, 50, 75, 100]) {
       const { sweep } = bendOf(sticker({ ...shape, arc }));
@@ -82,8 +85,8 @@ test('the two halves of the slider are mirror images', () => {
 test('the bent picture stays centred on the box it was placed in', () => {
   for (const arc of [10, -10, 55, -55]) {
     const bend = bendOf(sticker({ arc }));
-    assert.ok(Math.abs(bend.box.x + bend.box.width / 2 - 4 / 2) < 1e-9, `arc ${arc} drifted across`);
-    assert.ok(Math.abs(bend.box.y + bend.box.height / 2 - 2 / 2) < 1e-9, `arc ${arc} drifted down`);
+    assert.ok(Math.abs(bend.box.x + bend.box.width / 2 - IN(4) / 2) < 1e-7, `arc ${arc} drifted across`);
+    assert.ok(Math.abs(bend.box.y + bend.box.height / 2 - IN(2) / 2) < 1e-7, `arc ${arc} drifted down`);
   }
 });
 
@@ -94,15 +97,15 @@ test('the box a bend covers is as wide as its outer edge reaches', () => {
     // The outer edge is the widest part, until the bend passes a quarter turn
     // and the sides of the circle itself become the widest part.
     const reach = half >= Math.PI / 2 ? bend.rOut : bend.rOut * Math.sin(half);
-    assert.ok(Math.abs(bend.box.width - 2 * reach) < 1e-9, `arc ${arc}`);
-    assert.ok(bend.box.height > 2, `arc ${arc} did not grow taller`);
+    assert.ok(Math.abs(bend.box.width - 2 * reach) < 1e-7, `arc ${arc}`);
+    assert.ok(bend.box.height > IN(2), `arc ${arc} did not grow taller`);
   }
 
   // Up and down are mirror images, so they cover the same area.
   const up = bendOf(sticker({ arc: 30 }));
   const down = bendOf(sticker({ arc: -30 }));
-  assert.ok(Math.abs(up.box.width - down.box.width) < 1e-9);
-  assert.ok(Math.abs(up.box.height - down.box.height) < 1e-9);
+  assert.ok(Math.abs(up.box.width - down.box.width) < 1e-7);
+  assert.ok(Math.abs(up.box.height - down.box.height) < 1e-7);
 });
 
 test('the DPI reading follows the outer edge, where the pixels are thinnest', () => {
@@ -120,12 +123,12 @@ test('the warnings are about where the bent picture is, not where it was placed'
   // trim flat may not clear it bent.
   const s = sticker({ arc: 45 });
   const rect = stickerRect(s);
-  assert.ok(rect.width > 4 && rect.height > 2);
-  assert.ok(Math.abs(rect.x + rect.width / 2 - (9 + 2)) < 1e-9);
+  assert.ok(rect.width > IN(4) && rect.height > IN(2));
+  assert.ok(Math.abs(rect.x + rect.width / 2 - IN(9 + 2)) < 1e-7);
   // Turning a bent picture still works off the bent shape.
   const turned = stickerBounds(sticker({ arc: 45, rotate: 90 }));
-  assert.ok(Math.abs(turned.width - rect.height) < 1e-9);
-  assert.ok(Math.abs(turned.height - rect.width) < 1e-9);
+  assert.ok(Math.abs(turned.width - rect.height) < 1e-7);
+  assert.ok(Math.abs(turned.height - rect.width) < 1e-7);
 });
 
 test('the warped raster is dense enough to keep every pixel of the original', () => {
@@ -138,7 +141,7 @@ test('the warped raster is dense enough to keep every pixel of the original', ()
 });
 
 test('a warp that would be enormous is held to a size a PDF can carry', () => {
-  const s = sticker({ arc: 30, widthIn: 12, heightIn: 6 });
+  const s = sticker({ arc: 30, width: IN(12), height: IN(6) });
   const size = warpSize(s, bendOf(s), 40000, 4096);
   assert.ok(Math.max(size.width, size.height) <= 4096);
   assert.ok(size.width > 0 && size.height > 0);
@@ -252,8 +255,8 @@ const render = (b, assets) =>
 test('a flat sticker still renders exactly the way it always did', () => {
   const s = sticker({ cornerRadius: 0.3, border: { widthPt: 3, color: '#111' }, shadow: true });
   const rule = render(book([s]), { a1: 'data:x' }).match(/#cs0 \{[\s\S]*?\n\}/)[0];
-  assert.match(rule, /left: 9in;/);
-  assert.match(rule, /width: 4in;/);
+  assert.match(rule, /left: 648pt;/);
+  assert.match(rule, /width: 288pt;/);
   assert.match(rule, /overflow: hidden;/);
   assert.match(rule, /border-radius:/);
   assert.match(rule, /border: 3pt solid/);
@@ -264,10 +267,10 @@ test('a bent sticker is drawn over the box its arc sweeps out', () => {
   const s = sticker({ arc: 40 });
   const rect = stickerRect(s);
   const rule = render(book([s]), { 'bend:s1': 'data:x' }).match(/#cs0 \{[\s\S]*?\n\}/)[0];
-  assert.match(rule, new RegExp(`left: ${rect.x}in;`));
-  assert.match(rule, new RegExp(`top: ${rect.y}in;`));
-  assert.match(rule, new RegExp(`width: ${rect.width}in;`));
-  assert.match(rule, new RegExp(`height: ${rect.height}in;`));
+  assert.match(rule, new RegExp(`left: ${rect.x}pt;`));
+  assert.match(rule, new RegExp(`top: ${rect.y}pt;`));
+  assert.match(rule, new RegExp(`width: ${rect.width}pt;`));
+  assert.match(rule, new RegExp(`height: ${rect.height}pt;`));
 });
 
 test('a frame around a shape that is no longer a rectangle is not drawn', () => {

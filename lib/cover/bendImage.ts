@@ -63,7 +63,7 @@ export async function bendToDataUrl(
   const bend = bendOf(sticker);
   if (!bend) return null;
 
-  const key = [sticker.assetId, sticker.arc, sticker.widthIn, sticker.heightIn, limit].join('|');
+  const key = [sticker.assetId, sticker.arc, sticker.width, sticker.height, limit].join('|');
   const known = results.get(key);
   if (known) return known;
 

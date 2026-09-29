@@ -5,6 +5,9 @@ import { MAX_SWEEP_DEGREES, curvedText } from '../lib/cover/curve.ts';
 import { buildCoverHtml } from '../lib/render/coverHtml.ts';
 import { createColoringBook } from '../lib/projects.ts';
 
+/** The cover stores points now; these tests still think in inches. */
+const IN = (inches) => inches * 72;
+
 const FONT = {
   family: 'Nunito Sans',
   fallback: 'sans-serif',
@@ -25,9 +28,9 @@ const box = (over = {}) => ({
   id: 'b1',
   panel: 'front',
   text: 'Cozy Kitchen Cats',
-  x: 0.6,
-  y: 1.2,
-  widthIn: 4,
+  x: IN(0.6),
+  y: IN(1.2),
+  width: IN(4),
   rotate: 0,
   curve: 0,
   ...over,
@@ -76,7 +79,7 @@ test('a box nobody has curved renders through the straight path it always did', 
 test('the curve number is the sweep in degrees over 3.5', () => {
   // A 4in baseline bent through 35 degrees sits on a circle of that radius.
   const { r } = arcOf(curvedText(box({ curve: 10 })).lines[0].path);
-  const expected = (4 * 72) / ((35 * Math.PI) / 180);
+  const expected = IN(4) / ((35 * Math.PI) / 180);
   assert.ok(Math.abs(r - expected) < 0.01, `${r} vs ${expected}`);
 });
 
@@ -85,7 +88,7 @@ test('bending the words keeps their length, so they are never stretched', () => 
     const { r } = arcOf(curvedText(box({ curve })).lines[0].path);
     const sweep = (Math.abs(curve) / 100) * MAX_SWEEP_DEGREES;
     const length = r * ((sweep * Math.PI) / 180);
-    assert.ok(Math.abs(length - 4 * 72) < 0.05, `curve ${curve}: ${length}`);
+    assert.ok(Math.abs(length - IN(4)) < 0.05, `curve ${curve}: ${length}`);
   }
 });
 
@@ -95,10 +98,10 @@ test('the path runs well past the words, so a long title keeps every letter', ()
   for (const curve of [5, 20, 60, -20, -95, 100]) {
     const arc = curvedText(box({ curve }));
     const { length } = arcOf(arc.lines[0].path);
-    assert.ok(length > 4 * 72 * 2.9, `curve ${curve}: only ${length}pt of path`);
+    assert.ok(length > IN(4) * 2.9, `curve ${curve}: only ${length}pt of path`);
     // And the words are centred in it, so the spare is split evenly.
-    const spare = (length - 4 * 72) / 2;
-    assert.ok(Math.abs(Number(arc.lines[0].startOffset) - (spare + 2 * 72)) < 0.05);
+    const spare = (length - IN(4)) / 2;
+    assert.ok(Math.abs(Number(arc.lines[0].startOffset) - (spare + IN(2))) < 0.05);
   }
 });
 
@@ -168,7 +171,7 @@ test('the alignment a box already had decides where the words sit on the arc', (
   );
   // Measured along the path from its start. The box is 4in wide and the spare
   // path either side is one box width, so the words start one width in.
-  const W = 4 * 72;
+  const W = IN(4);
   assert.equal(Number(at('left').startOffset), W);
   assert.equal(Number(at('center').startOffset), W * 1.5);
   assert.equal(Number(at('right').startOffset), W * 2);
@@ -179,17 +182,17 @@ test('the drawn box grows to hold the arc and is placed around the old baseline'
   for (const curve of [8, 30, -30]) {
     const arc = curvedText(box({ curve }));
     const [minX, minY, w, h] = arc.viewBox.split(' ').map(Number);
-    assert.ok(h > 36 / 72, 'an arc needs more height than a line');
+    assert.ok(h > 36, 'an arc needs more height than a line');
     // The middle of the arc lands where the straight baseline was, measured
     // from the top of the box the designer draws.
-    const middle = arc.offsetY * 72 + (0 - minY) - (0 - (minY + h)) / 2;
+    const middle = arc.offsetY + (0 - minY) - (0 - (minY + h)) / 2;
     assert.ok(Number.isFinite(middle));
-    assert.ok(arc.widthIn > 0 && arc.heightIn > 0);
-    assert.equal(arc.widthIn, w / 72);
-    assert.equal(arc.heightIn, h / 72);
-    assert.equal(arc.offsetX, minX / 72);
+    assert.ok(arc.width > 0 && arc.height > 0);
+    assert.equal(arc.width, w);
+    assert.equal(arc.height, h);
+    assert.equal(arc.offsetX, minX);
     // Nothing about the arc reaches wider than the straight words did.
-    assert.ok(w - 2 * 36 * 1.2 <= 4 * 72 + 0.01);
+    assert.ok(w - 2 * 36 * 1.2 <= IN(4) + 0.01);
     assert.ok(Number.isFinite(straight));
   }
 });
@@ -214,7 +217,7 @@ test('a straight box still renders exactly the way it always did', () => {
   const html = render(cover([box()]));
   assert.match(html, /<div class="cover-text" id="cb0">Cozy Kitchen Cats<\/div>/);
   assert.doesNotMatch(html, /<svg/);
-  assert.match(html, /#cb0 \{[\s\S]*?width: 4in;/);
+  assert.match(html, /#cb0 \{[\s\S]*?width: 288pt;/);
   // A straight box gets a width and no height, as it always has.
   assert.doesNotMatch(html.match(/#cb0 \{[\s\S]*?\n\}/)[0], /^\s*height:/m);
 });
@@ -239,8 +242,8 @@ test('a curved box is placed by the arc, not by the corner it no longer has', ()
   const html = render(cover([box({ curve: 15 })]));
   const rule = html.match(/#cb0 \{[\s\S]*?\n\}/)[0];
   // The front panel's own offset plus the box's, plus the arc's.
-  assert.ok(rule.includes(`height: ${arc.heightIn}in;`));
-  assert.ok(rule.includes(`width: ${arc.widthIn}in;`));
+  assert.ok(rule.includes(`height: ${arc.height}pt;`));
+  assert.ok(rule.includes(`width: ${arc.width}pt;`));
   assert.ok(rule.includes('overflow: visible;'));
 });
 

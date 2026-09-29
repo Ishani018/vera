@@ -118,3 +118,76 @@ test('the two kinds are told apart by their own field, never by guessing', () =>
   assert.ok(isColoring(createColoringBook()));
   assert.ok(isPoetry(migrateProject(legacy())));
 });
+
+/* ------------------------------------------------- inches to points (schema 2) */
+
+const inchCover = () => ({
+  id: 'old', kind: 'poetry', name: 'Old', createdAt: 0, updatedAt: 0,
+  meta: { title: 'Old', author: 'A', subtitle: '', year: '2020', copyrightExtra: '' },
+  trim: { trimId: '5.5x8.5', bleed: false, paper: 'cream' },
+  margins: { inside: 0.75, outside: 0.6, top: 0.75, bottom: 0.7 },
+  contents: [],
+  cover: {
+    backgroundColor: '#fff', backColor: '#fff', spineColor: '#fff',
+    frontImage: null, imageSpansWrap: false, showBarcodeZone: true,
+    textBoxes: [{ id: 't', panel: 'front', text: 'Title', x: 0.6, y: 1.2, widthIn: 4,
+      rotate: 0, curve: 0, font: { family: 'EB Garamond', fallback: 'serif', weight: 400,
+      italic: false, sizePt: 24, lineHeight: 1.2, letterSpacingEm: 0, transform: 'none',
+      align: 'center', color: '#000' } }],
+    stickers: [{ id: 's', assetId: 'a', naturalWidth: 600, naturalHeight: 300,
+      x: 2, y: 3, widthIn: 2, heightIn: 1, rotate: 0, cornerRadius: 0,
+      border: null, shadow: false, arc: 0, name: 'Badge' }],
+  },
+});
+
+test('a cover saved in inches comes back in points', () => {
+  const out = migrateProject(inchCover());
+  const [box] = out.cover.textBoxes;
+  const [sticker] = out.cover.stickers;
+
+  assert.equal(box.x, 43.2);
+  assert.equal(box.y, 86.4);
+  assert.equal(box.width, 288);
+  assert.equal(sticker.x, 144);
+  assert.equal(sticker.y, 216);
+  assert.equal(sticker.width, 144);
+  assert.equal(sticker.height, 72);
+  assert.equal(out.schema, 2);
+});
+
+test('the old field names do not survive, so nothing can read them by accident', () => {
+  const out = migrateProject(inchCover());
+  assert.ok(!('widthIn' in out.cover.textBoxes[0]));
+  assert.ok(!('widthIn' in out.cover.stickers[0]));
+  assert.ok(!('heightIn' in out.cover.stickers[0]));
+});
+
+test('converting twice would put everything off the page, so it happens once', () => {
+  // Nothing in the numbers says which unit they are already in, so a second
+  // pass is unrecoverable. The schema on the record is what prevents it.
+  const once = migrateProject(inchCover());
+  const twice = migrateProject(structuredClone(once));
+  assert.deepEqual(twice.cover.textBoxes[0], once.cover.textBoxes[0]);
+  assert.deepEqual(twice.cover.stickers[0], once.cover.stickers[0]);
+});
+
+test('a book made today is already in points and is left alone', () => {
+  const fresh = createProject({ name: 'New' });
+  fresh.cover.textBoxes = [{ ...inchCover().cover.textBoxes[0], x: 43.2, y: 86.4, width: 288 }];
+  delete fresh.cover.textBoxes[0].widthIn;
+  const out = migrateProject(structuredClone(fresh));
+  assert.equal(out.cover.textBoxes[0].x, 43.2);
+  assert.equal(out.cover.textBoxes[0].width, 288);
+});
+
+test('a book in inches is flagged for rewriting, and one in points is not', () => {
+  assert.equal(needsRewrite(inchCover()), true);
+  assert.equal(needsRewrite(migrateProject(inchCover())), false);
+});
+
+test('a coloring book saved in inches converts too', () => {
+  const old = { ...inchCover(), kind: 'coloring', pages: [], coloring: {}, typography: {} };
+  const out = migrateProject(old);
+  assert.equal(out.cover.stickers[0].width, 144);
+  assert.equal(out.schema, 2);
+});

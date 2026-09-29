@@ -22,7 +22,7 @@ import { cx } from '../ui';
 /**
  * The stickers on the cover, and the handles for moving them.
  *
- * Everything is positioned in inches scaled to the stage, so what is dragged
+ * Everything is positioned in points scaled to the stage, so what is dragged
  * here is what lands in the PDF — the same numbers, through the same layout.
  * The handles live inside the rotated box rather than outside it, so that a
  * turned sticker's corners are still its corners.
@@ -146,8 +146,8 @@ export function StickerLayer({
           )}
           style={
             guide.axis === 'x'
-              ? { left: guide.at * scale, height: layout.dimensions.height * scale }
-              : { top: guide.at * scale, width: layout.dimensions.width * scale }
+              ? { left: guide.at * scale, height: layout.height * scale }
+              : { top: guide.at * scale, width: layout.width * scale }
           }
         />
       ))}
@@ -212,9 +212,9 @@ function Sticker({
     };
     // The warp depends on the shape of the bend, not on everything else a
     // sticker has; redoing it when a shadow is switched on would be waste.
-  }, [url, sticker.arc, sticker.widthIn, sticker.heightIn, previewEdge]);
+  }, [url, sticker.arc, sticker.width, sticker.height, previewEdge]);
 
-  const shorter = Math.min(sticker.widthIn, sticker.heightIn);
+  const shorter = Math.min(sticker.width, sticker.height);
   const soft = stickerDpi(sticker) < MIN_COVER_DPI;
 
   return (
@@ -236,8 +236,8 @@ function Sticker({
       style={{
         left: sticker.x * scale,
         top: sticker.y * scale,
-        width: sticker.widthIn * scale,
-        height: sticker.heightIn * scale,
+        width: sticker.width * scale,
+        height: sticker.height * scale,
         transform: sticker.rotate ? `rotate(${sticker.rotate}deg)` : undefined,
         // A bent picture reaches outside the box it was placed in. The box is
         // still what the handles move and resize — it is the thing being bent —

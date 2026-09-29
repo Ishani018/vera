@@ -153,11 +153,11 @@ export function validateCover(project: CoverableBook, pageCount: number): Valida
       fix: 'Upload a front cover image in the Cover tab.',
     });
   } else {
-    const widthIn = project.cover.imageSpansWrap
+    const width = project.cover.imageSpansWrap
       ? coverLayout(project, padToEven(pageCount || 24)).dimensions.width
       : trim.width;
     const dpi = Math.min(
-      effectiveDpi(image.naturalWidth, widthIn),
+      effectiveDpi(image.naturalWidth, width),
       effectiveDpi(image.naturalHeight, trim.height),
     );
     if (dpi < MIN_COVER_DPI) {
@@ -165,7 +165,7 @@ export function validateCover(project: CoverableBook, pageCount: number): Valida
         id: 'cover-dpi',
         level: 'warning',
         message: `The cover image is about ${Math.round(dpi)} DPI at its printed size. KDP asks for ${MIN_COVER_DPI}.`,
-        fix: `Supply an image at least ${Math.ceil(widthIn * MIN_COVER_DPI)}px wide.`,
+        fix: `Supply an image at least ${Math.ceil(width * MIN_COVER_DPI)}px wide.`,
       });
     }
   }

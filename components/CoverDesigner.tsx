@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { UnsupportedImageError, forgetAssetUrl, getAssetUrl, putAsset } from '@/lib/assets';
-import { MIN_COVER_DPI, effectiveDpi, padToEven, spineWidth } from '@/lib/kdp';
+import {
+  MIN_COVER_DPI,
+  PT_PER_INCH,
+  effectiveDpi,
+  inchesToPt,
+  padToEven,
+  ptToInches,
+  spineWidth,
+} from '@/lib/kdp';
 import { coverLayout, spineTooThinForText } from '@/lib/render/coverLayout';
 import { id } from '@/lib/defaults';
 import { font } from '@/lib/defaults';
@@ -127,7 +135,10 @@ export function CoverDesigner<T extends CoverableBook>({
     };
   }, [assetId]);
 
-  const scale = layout && stageWidth ? Math.min(96, (stageWidth - 48) / layout.dimensions.width) : 0;
+  // Pixels per *point*, because that is what the cover is measured in. The cap
+  // is the old ninety-six per inch said the same way.
+  const scale =
+    layout && stageWidth ? Math.min(96 / PT_PER_INCH, (stageWidth - 48) / layout.width) : 0;
 
   /**
    * Arrow keys nudge the selected sticker, and Delete removes it.
@@ -256,12 +267,12 @@ export function CoverDesigner<T extends CoverableBook>({
    * proportions, so nothing arrives stretched.
    */
   const placeSticker = (item: TrayItem, at: { x: number; y: number } | null) => {
-    const widthIn = 2.5;
-    const heightIn = item.width ? (widthIn * item.height) / item.width : widthIn;
+    const width = inchesToPt(2.5);
+    const height = item.width ? (width * item.height) / item.width : width;
     const back = layout.panels.back;
     const point = at ?? {
-      x: back.x + back.width / 2 - widthIn / 2,
-      y: back.y + back.height / 2 - heightIn / 2,
+      x: back.x + back.width / 2 - width / 2,
+      y: back.y + back.height / 2 - height / 2,
     };
     const newId = id('cs');
     coverHistory.remember();
@@ -273,8 +284,8 @@ export function CoverDesigner<T extends CoverableBook>({
         naturalHeight: item.height,
         x: point.x,
         y: point.y,
-        widthIn,
-        heightIn,
+        width,
+        height,
         rotate: 0,
         cornerRadius: 0,
         border: null,
@@ -295,9 +306,12 @@ export function CoverDesigner<T extends CoverableBook>({
         id: newId,
         panel,
         text: panel === 'spine' ? `${draft.meta.title} · ${draft.meta.author}` : draft.meta.title,
-        x: panel === 'spine' ? panelRect.width / 2 : 0.6,
-        y: panel === 'spine' ? 0.9 : 1.2,
-        widthIn: panel === 'spine' ? panelRect.height - 1.8 : panelRect.width - 1.2,
+        x: panel === 'spine' ? panelRect.width / 2 : inchesToPt(0.6),
+        y: inchesToPt(panel === 'spine' ? 0.9 : 1.2),
+        width:
+          panel === 'spine'
+            ? panelRect.height - inchesToPt(1.8)
+            : panelRect.width - inchesToPt(1.2),
         font: font({
           family: displayFont.family,
           fallback: displayFont.fallback,
@@ -341,7 +355,11 @@ export function CoverDesigner<T extends CoverableBook>({
   const imageDpi = cover.frontImage
     ? effectiveDpi(
         cover.frontImage.naturalWidth,
-        cover.imageSpansWrap ? layout.dimensions.width : layout.panels.front.width,
+        // Dots per inch, so the width it covers has to be in inches. The
+        // wrap figure is KDP's own and already is; the panel is points.
+        cover.imageSpansWrap
+          ? layout.dimensions.width
+          : ptToInches(layout.panels.front.width),
       )
     : 0;
 
@@ -353,8 +371,8 @@ export function CoverDesigner<T extends CoverableBook>({
             data-cover-stage
             className="relative mx-auto shadow-2xl"
             style={{
-              width: layout.dimensions.width * scale,
-              height: layout.dimensions.height * scale,
+              width: layout.width * scale,
+              height: layout.height * scale,
               background: cover.backgroundColor,
             }}
             onMouseDown={(e) => {
@@ -377,11 +395,11 @@ export function CoverDesigner<T extends CoverableBook>({
               // Where it was dropped, less half its own size, so the picture
               // lands under the pointer rather than hanging off it.
               const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
-              const widthIn = 2.5;
-              const heightIn = item.width ? (widthIn * item.height) / item.width : widthIn;
+              const width = inchesToPt(2.5);
+              const height = item.width ? (width * item.height) / item.width : width;
               placeSticker(item, {
-                x: (e.clientX - box.left) / scale - widthIn / 2,
-                y: (e.clientY - box.top) / scale - heightIn / 2,
+                x: (e.clientX - box.left) / scale - width / 2,
+                y: (e.clientY - box.top) / scale - height / 2,
               });
             }}
           >
@@ -391,7 +409,7 @@ export function CoverDesigner<T extends CoverableBook>({
                 left: 0,
                 top: 0,
                 width: layout.panels.spine.x * scale,
-                height: layout.dimensions.height * scale,
+                height: layout.height * scale,
                 background: cover.backColor,
               }}
             />
@@ -401,7 +419,7 @@ export function CoverDesigner<T extends CoverableBook>({
                 left: layout.panels.spine.x * scale,
                 top: 0,
                 width: layout.panels.spine.width * scale,
-                height: layout.dimensions.height * scale,
+                height: layout.height * scale,
                 background: cover.spineColor,
               }}
             />
@@ -416,9 +434,9 @@ export function CoverDesigner<T extends CoverableBook>({
                   left: cover.imageSpansWrap ? 0 : (layout.panels.front.x - layout.bleed) * scale,
                   top: 0,
                   width: cover.imageSpansWrap
-                    ? layout.dimensions.width * scale
+                    ? layout.width * scale
                     : (layout.panels.front.width + layout.bleed) * scale,
-                  height: layout.dimensions.height * scale,
+                  height: layout.height * scale,
                   objectFit: cover.frontImage.fit,
                 }}
               />
@@ -480,7 +498,7 @@ export function CoverDesigner<T extends CoverableBook>({
               const type: React.CSSProperties = {
                 left: (panel.x + box.x + (arc?.offsetX ?? 0)) * scale,
                 top: (panel.y + box.y + (arc?.offsetY ?? 0)) * scale,
-                width: (arc?.widthIn ?? box.widthIn) * scale,
+                width: (arc?.width ?? box.width) * scale,
                 transform: rotate ? `rotate(${rotate}deg)` : undefined,
                 transformOrigin: 'left top',
                 fontFamily: `'${box.font.family}', ${box.font.fallback}`,
@@ -508,7 +526,7 @@ export function CoverDesigner<T extends CoverableBook>({
                     key={box.id}
                     {...shared}
                     viewBox={arc.viewBox}
-                    style={{ ...type, height: arc.heightIn * scale, overflow: 'visible' }}
+                    style={{ ...type, height: arc.height * scale, overflow: 'visible' }}
                   >
                     <defs>
                       {arc.lines.map((line, i) => (
@@ -546,7 +564,7 @@ export function CoverDesigner<T extends CoverableBook>({
               <div
                 key={i}
                 className="pointer-events-none absolute border-l border-dashed border-sky-500/80"
-                style={{ left: fold * scale, top: 0, height: layout.dimensions.height * scale }}
+                style={{ left: fold * scale, top: 0, height: layout.height * scale }}
               />
             ))}
             <div
@@ -554,8 +572,8 @@ export function CoverDesigner<T extends CoverableBook>({
               style={{
                 left: layout.bleed * scale,
                 top: layout.bleed * scale,
-                width: (layout.dimensions.width - 2 * layout.bleed) * scale,
-                height: (layout.dimensions.height - 2 * layout.bleed) * scale,
+                width: (layout.width - 2 * layout.bleed) * scale,
+                height: (layout.height - 2 * layout.bleed) * scale,
               }}
             />
           </div>
@@ -811,24 +829,24 @@ export function CoverDesigner<T extends CoverableBook>({
             <div className="grid grid-cols-3 gap-2">
               <Field label="X">
                 <NumberInput
-                  value={selected.x}
-                  onChange={(x) => patchBox(update, selected.id, { x })}
+                  value={round(ptToInches(selected.x))}
+                  onChange={(x) => patchBox(update, selected.id, { x: inchesToPt(x) })}
                   step={0.05}
                   suffix="in"
                 />
               </Field>
               <Field label="Y">
                 <NumberInput
-                  value={selected.y}
-                  onChange={(y) => patchBox(update, selected.id, { y })}
+                  value={round(ptToInches(selected.y))}
+                  onChange={(y) => patchBox(update, selected.id, { y: inchesToPt(y) })}
                   step={0.05}
                   suffix="in"
                 />
               </Field>
               <Field label="Width">
                 <NumberInput
-                  value={selected.widthIn}
-                  onChange={(widthIn) => patchBox(update, selected.id, { widthIn })}
+                  value={round(ptToInches(selected.width))}
+                  onChange={(width) => patchBox(update, selected.id, { width: inchesToPt(width) })}
                   step={0.05}
                   min={0.2}
                   suffix="in"
@@ -984,15 +1002,16 @@ function StickerInspector({
       <div className="grid grid-cols-2 gap-2">
         <Field label="Width">
           <NumberInput
-            value={round(sticker.widthIn)}
-            onChange={(widthIn) =>
+            value={round(ptToInches(sticker.width))}
+            onChange={(inches) => {
+              const width = inchesToPt(inches);
               onPatch({
-                widthIn,
+                width,
                 // Keep the proportions: a number typed into a box is no more a
                 // request to stretch something than a corner dragged is.
-                heightIn: round((widthIn * sticker.heightIn) / sticker.widthIn),
-              })
-            }
+                height: round((width * sticker.height) / sticker.width),
+              });
+            }}
             step={0.1}
             min={0.2}
             suffix="in"

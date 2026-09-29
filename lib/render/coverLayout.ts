@@ -1,17 +1,32 @@
-import { BARCODE_ZONE, coverDimensions, getTrim, type CoverDimensions } from '../kdp';
+import {
+  BARCODE_ZONE,
+  coverDimensions,
+  getTrim,
+  inchesToPt,
+  type CoverDimensions,
+} from '../kdp';
 import type { CoverPanel, CoverTextBox, CoverableBook } from '../types';
 
 /**
- * Geometry for the wraparound cover, in inches, measured from the top-left of
- * the cover PDF (bleed included). The designer scales these by a pixels-per-inch
- * factor and the export writes them out as inches, so what is dragged on screen
- * is what lands in the PDF.
+ * Geometry for the wraparound cover, in points, measured from the top-left of
+ * the cover PDF (bleed included). The designer scales these by a
+ * pixels-per-point factor and the export writes them out as points, so what is
+ * dragged on screen is what lands in the PDF.
+ *
+ * Points, because this coordinate space will have to hold a 1200x628 pixel
+ * board as readily as an 8.5 inch one, and points are exact for both. KDP's own
+ * numbers stay in inches — they are inches — and are converted here, at the one
+ * boundary between the two.
  */
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
 export type CoverLayout = {
+  /** KDP's own figures, in inches, unconverted. */
   dimensions: CoverDimensions;
+  /** The same size in points, which is what everything else here is in. */
+  width: number;
+  height: number;
   panels: Record<CoverPanel, Rect>;
   /** KDP's reserved barcode area, bottom-right of the back cover. */
   barcode: Rect;
@@ -24,26 +39,29 @@ export function coverLayout(project: CoverableBook, pageCount: number): CoverLay
   const trim = getTrim(project.trim.trimId);
   const d = coverDimensions(trim, pageCount, project.trim.paper);
 
+  const pt = inchesToPt;
   const panels: Record<CoverPanel, Rect> = {
-    back: { x: d.bleed, y: d.bleed, width: trim.width, height: trim.height },
-    spine: { x: d.spineStart, y: d.bleed, width: d.spine, height: trim.height },
-    front: { x: d.spineEnd, y: d.bleed, width: trim.width, height: trim.height },
+    back: { x: pt(d.bleed), y: pt(d.bleed), width: pt(trim.width), height: pt(trim.height) },
+    spine: { x: pt(d.spineStart), y: pt(d.bleed), width: pt(d.spine), height: pt(trim.height) },
+    front: { x: pt(d.spineEnd), y: pt(d.bleed), width: pt(trim.width), height: pt(trim.height) },
   };
 
   const back = panels.back;
   const barcode: Rect = {
-    x: back.x + back.width - BARCODE_ZONE.marginFromTrim - BARCODE_ZONE.width,
-    y: back.y + back.height - BARCODE_ZONE.marginFromTrim - BARCODE_ZONE.height,
-    width: BARCODE_ZONE.width,
-    height: BARCODE_ZONE.height,
+    x: back.x + back.width - pt(BARCODE_ZONE.marginFromTrim + BARCODE_ZONE.width),
+    y: back.y + back.height - pt(BARCODE_ZONE.marginFromTrim + BARCODE_ZONE.height),
+    width: pt(BARCODE_ZONE.width),
+    height: pt(BARCODE_ZONE.height),
   };
 
   return {
     dimensions: d,
+    width: pt(d.width),
+    height: pt(d.height),
     panels,
     barcode,
-    folds: [d.spineStart, d.spineEnd],
-    bleed: d.bleed,
+    folds: [pt(d.spineStart), pt(d.spineEnd)],
+    bleed: pt(d.bleed),
   };
 }
 
@@ -53,7 +71,7 @@ export function textBoxRect(box: CoverTextBox, layout: CoverLayout): Rect {
   return {
     x: panel.x + box.x,
     y: panel.y + box.y,
-    width: box.widthIn,
+    width: box.width,
     height: 0,
   };
 }

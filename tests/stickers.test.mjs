@@ -12,15 +12,18 @@ import {
 import { createColoringBook } from '../lib/projects.ts';
 import { projectAssetIds } from '../lib/exportClient.ts';
 
+/** The cover stores points now; these tests still think in inches. */
+const IN = (inches) => inches * 72;
+
 const sticker = (over = {}) => ({
   id: 's1',
   assetId: 'a1',
   naturalWidth: 1200,
   naturalHeight: 1200,
-  x: 9,
-  y: 3,
-  widthIn: 2,
-  heightIn: 2,
+  x: IN(9),
+  y: IN(3),
+  width: IN(2),
+  height: IN(2),
   rotate: 0,
   cornerRadius: 0,
   border: null,
@@ -38,14 +41,14 @@ const book = (stickers = []) => {
 const render = (b, assets = { a1: 'data:image/png;base64,AAA' }) =>
   buildCoverHtml(b, { pageCount: 52, fontStyle: '', guides: false, assets });
 
-test('a sticker lands in the exported cover at the inches it was given', () => {
+test('a sticker lands in the exported cover at the place it was given', () => {
   const html = render(book([sticker()]));
   assert.ok(html.includes('data:image/png;base64,AAA'));
   const rule = html.match(/#cs0 \{[^}]*\}/)?.[0] ?? '';
-  assert.match(rule, /left: 9in;/);
-  assert.match(rule, /top: 3in;/);
-  assert.match(rule, /width: 2in;/);
-  assert.match(rule, /height: 2in;/);
+  assert.match(rule, /left: 648pt;/);
+  assert.match(rule, /top: 216pt;/);
+  assert.match(rule, /width: 144pt;/);
+  assert.match(rule, /height: 144pt;/);
 });
 
 test('stickers are drawn in array order, so the last one is on top', () => {
@@ -74,7 +77,7 @@ test('rounding, borders and shadows only appear when asked for', () => {
     book([sticker({ cornerRadius: 0.5, border: { widthPt: 2, color: '#112233' }, shadow: true })]),
   ).match(/#cs0 \{[^}]*\}/)[0];
   // Half the shorter side is a circle: a 2in square rounds by 1in.
-  assert.match(dressed, /border-radius: 1\.0000in;/);
+  assert.match(dressed, /border-radius: 72\.0000pt;/);
   assert.match(dressed, /border: 2pt solid #112233;/);
   assert.match(dressed, /box-shadow:/);
 });
@@ -88,49 +91,49 @@ test('a sticker turns about its own centre, not its corner', () => {
 
 test('a turned sticker is measured by the box that contains it', () => {
   // A 2 × 1 turned 90° occupies 1 × 2, and at 45° it covers more than either.
-  const flat = stickerBounds(sticker({ widthIn: 2, heightIn: 1 }));
-  assert.ok(Math.abs(flat.width - 2) < 1e-9 && Math.abs(flat.height - 1) < 1e-9);
+  const flat = stickerBounds(sticker({ width: IN(2), height: IN(1) }));
+  assert.ok(Math.abs(flat.width - IN(2)) < 1e-7 && Math.abs(flat.height - IN(1)) < 1e-7);
 
-  const right = stickerBounds(sticker({ widthIn: 2, heightIn: 1, rotate: 90 }));
-  assert.ok(Math.abs(right.width - 1) < 1e-6 && Math.abs(right.height - 2) < 1e-6);
+  const right = stickerBounds(sticker({ width: IN(2), height: IN(1), rotate: 90 }));
+  assert.ok(Math.abs(right.width - IN(1)) < 1e-5 && Math.abs(right.height - IN(2)) < 1e-5);
 
-  const diagonal = stickerBounds(sticker({ widthIn: 2, heightIn: 1, rotate: 45 }));
-  assert.ok(diagonal.width > 2 && diagonal.height > 1.4, 'a corner sticks out further');
+  const diagonal = stickerBounds(sticker({ width: IN(2), height: IN(1), rotate: 45 }));
+  assert.ok(diagonal.width > IN(2) && diagonal.height > IN(1.4), 'a corner sticks out further');
 });
 
 test('resolution is judged by whichever way the picture is stretched further', () => {
   // A wide picture squeezed into a tall box is as soft as its worst axis.
-  const squeezed = sticker({ naturalWidth: 2000, naturalHeight: 400, widthIn: 2, heightIn: 2 });
+  const squeezed = sticker({ naturalWidth: 2000, naturalHeight: 400, width: IN(2), height: IN(2) });
   assert.equal(stickerDpi(squeezed), 200);
-  assert.equal(stickerDpi(sticker({ widthIn: 4, heightIn: 4 })), 300);
+  assert.equal(stickerDpi(sticker({ width: IN(4), height: IN(4) })), 300);
 });
 
 test('a sticker is told when it is soft, cut, folded or under the barcode', () => {
   const layout = coverLayout(createColoringBook(), 52);
   const { dimensions: d, folds, barcode } = layout;
 
-  assert.deepEqual(stickerWarnings(sticker({ x: 10, y: 3 }), layout), []);
+  assert.deepEqual(stickerWarnings(sticker({ x: IN(10), y: IN(3) }), layout), []);
 
-  const soft = sticker({ x: 10, y: 3, naturalWidth: 300, naturalHeight: 300 });
+  const soft = sticker({ x: IN(10), y: IN(3), naturalWidth: 300, naturalHeight: 300 });
   assert.deepEqual(stickerWarnings(soft, layout), ['soft']);
 
-  const offEdge = sticker({ x: -0.5, y: 3 });
+  const offEdge = sticker({ x: IN(-0.5), y: IN(3) });
   assert.ok(stickerWarnings(offEdge, layout).includes('off-the-trim'));
 
-  const onFold = sticker({ x: folds[0] - 1, y: 3 });
+  const onFold = sticker({ x: folds[0] - IN(1), y: IN(3) });
   assert.ok(stickerWarnings(onFold, layout).includes('across-the-spine'));
 
   const onBarcode = sticker({ x: barcode.x, y: barcode.y });
   assert.ok(stickerWarnings(onBarcode, layout).includes('under-the-barcode'));
 
   // The bottom edge is as much an edge as the left one.
-  const offBottom = sticker({ x: 10, y: d.height - d.bleed - 1 });
+  const offBottom = sticker({ x: IN(10), y: d.height - d.bleed - 1 });
   assert.ok(stickerWarnings(offBottom, layout).includes('off-the-trim'));
 });
 
 test('every warning has something to say', () => {
   const layout = coverLayout(createColoringBook(), 52);
-  const all = stickerWarnings(sticker({ x: -1, y: -1, naturalWidth: 10, naturalHeight: 10 }), layout);
+  const all = stickerWarnings(sticker({ x: IN(-1), y: IN(-1), naturalWidth: 10, naturalHeight: 10 }), layout);
   assert.ok(all.length >= 2);
   for (const warning of all) assert.ok(WARNING_TEXT[warning]?.length > 10, warning);
 });
@@ -166,7 +169,7 @@ test('a sticker catches on the cover centre and on the spine folds', () => {
   const lines = snapLines(layout, []);
   const fold = layout.folds[0];
 
-  const near = sticker({ x: fold - 0.03, y: 3 });
+  const near = sticker({ x: fold - 0.03, y: IN(3) });
   const moved = snapMove(near, lines);
   assert.ok(Math.abs(moved.x - fold) < 1e-9, 'its left edge should land on the fold');
   assert.ok(moved.guides.some((g) => g.axis === 'x' && Math.abs(g.at - fold) < 1e-9));
@@ -174,7 +177,7 @@ test('a sticker catches on the cover centre and on the spine folds', () => {
 
 test('nothing catches from further away than the snap distance', () => {
   const lines = snapLines(layoutOf(), []);
-  const far = sticker({ x: 5.31, y: 3.17 });
+  const far = sticker({ x: IN(5.31), y: IN(3.17) });
   const moved = snapMove(far, lines, SNAP_DISTANCE);
   assert.equal(moved.x, far.x);
   assert.equal(moved.y, far.y);
@@ -184,37 +187,37 @@ test('nothing catches from further away than the snap distance', () => {
 test('the two axes snap independently, so one can line up without the other', () => {
   const layout = layoutOf();
   const lines = snapLines(layout, []);
-  const middle = layout.dimensions.height / 2;
+  const middle = layout.height / 2;
   // Vertically almost centred, horizontally nowhere near anything.
-  const s = sticker({ x: 5.37, y: middle - 1 - 0.02 });
+  const s = sticker({ x: IN(5.37), y: middle - IN(1) - 1.4 });
   const moved = snapMove(s, lines);
   assert.equal(moved.x, s.x, 'x had nothing to catch on');
-  assert.ok(Math.abs(moved.y + 1 - middle) < 1e-9, 'y centred itself');
+  assert.ok(Math.abs(moved.y + IN(1) - middle) < 1e-7, 'y centred itself');
 });
 
 test('stickers line up with each other, which is what makes a row of badges', () => {
-  const first = sticker({ id: 'a', x: 4, y: 2 });
+  const first = sticker({ id: 'a', x: IN(4), y: IN(2) });
   const lines = snapLines(layoutOf(), [first]);
-  const second = sticker({ id: 'b', x: 8, y: 2.04 });
+  const second = sticker({ id: 'b', x: IN(8), y: IN(2) + 3 });
   const moved = snapMove(second, lines);
-  assert.ok(Math.abs(moved.y - 2) < 1e-9, 'their tops should line up');
+  assert.ok(Math.abs(moved.y - IN(2)) < 1e-7, 'their tops should line up');
 });
 
 test('resizing from a corner leaves the opposite corner where it was', () => {
-  const s = sticker({ x: 4, y: 2, widthIn: 2, heightIn: 2 });
+  const s = sticker({ x: IN(4), y: IN(2), width: IN(2), height: IN(2) });
   for (const corner of ['nw', 'ne', 'se', 'sw']) {
-    const out = resizeFromCorner(s, corner, 0.5, 0.5, { free: true });
+    const out = resizeFromCorner(s, corner, IN(0.5), IN(0.5), { free: true });
     const anchored = {
-      nw: [s.x + s.widthIn, s.y + s.heightIn],
-      ne: [s.x, s.y + s.heightIn],
+      nw: [s.x + s.width, s.y + s.height],
+      ne: [s.x, s.y + s.height],
       se: [s.x, s.y],
-      sw: [s.x + s.widthIn, s.y],
+      sw: [s.x + s.width, s.y],
     }[corner];
     const now = {
-      nw: [out.x + out.widthIn, out.y + out.heightIn],
-      ne: [out.x, out.y + out.heightIn],
+      nw: [out.x + out.width, out.y + out.height],
+      ne: [out.x, out.y + out.height],
       se: [out.x, out.y],
-      sw: [out.x + out.widthIn, out.y],
+      sw: [out.x + out.width, out.y],
     }[corner];
     assert.ok(Math.abs(now[0] - anchored[0]) < 1e-9, `${corner} x drifted`);
     assert.ok(Math.abs(now[1] - anchored[1]) < 1e-9, `${corner} y drifted`);
@@ -222,35 +225,38 @@ test('resizing from a corner leaves the opposite corner where it was', () => {
 });
 
 test('resizing keeps the proportions unless it is told not to', () => {
-  const s = sticker({ widthIn: 2, heightIn: 1 });
-  const locked = resizeFromCorner(s, 'se', 1, 0.05);
-  assert.ok(Math.abs(locked.widthIn / locked.heightIn - 2) < 1e-9, 'it should stay twice as wide');
+  const s = sticker({ width: IN(2), height: IN(1) });
+  const locked = resizeFromCorner(s, 'se', IN(1), IN(0.05));
+  assert.ok(Math.abs(locked.width / locked.height - 2) < 1e-7, 'it should stay twice as wide');
 
-  const free = resizeFromCorner(s, 'se', 1, 0.05, { free: true });
-  assert.ok(Math.abs(free.widthIn - 3) < 1e-9);
-  assert.ok(Math.abs(free.heightIn - 1.05) < 1e-9);
+  const free = resizeFromCorner(s, 'se', IN(1), IN(0.05), { free: true });
+  assert.ok(Math.abs(free.width - IN(3)) < 1e-7);
+  assert.ok(Math.abs(free.height - IN(1.05)) < 1e-7);
 });
 
 test('a locked resize follows whichever way the hand actually moved', () => {
-  const s = sticker({ widthIn: 2, heightIn: 1 });
+  const s = sticker({ width: IN(2), height: IN(1) });
   // Mostly downwards: the height leads and the width follows.
-  const tall = resizeFromCorner(s, 'se', 0.05, 1);
-  assert.ok(Math.abs(tall.heightIn - 2) < 1e-9);
-  assert.ok(Math.abs(tall.widthIn - 4) < 1e-9);
+  const tall = resizeFromCorner(s, 'se', IN(0.05), IN(1));
+  assert.ok(Math.abs(tall.height - IN(2)) < 1e-7);
+  assert.ok(Math.abs(tall.width - IN(4)) < 1e-7);
 });
 
 test('a sticker cannot be dragged smaller than nothing', () => {
-  const s = sticker({ widthIn: 2, heightIn: 2 });
-  const out = resizeFromCorner(s, 'se', -10, -10, { free: true, minimum: 0.2 });
-  assert.equal(out.widthIn, 0.2);
-  assert.equal(out.heightIn, 0.2);
+  const s = sticker({ width: IN(2), height: IN(2) });
+  // Dragged far enough inwards to cross zero, whatever the unit.
+  const out = resizeFromCorner(s, 'se', -IN(10), -IN(10), { free: true, minimum: 0.2 });
+  assert.equal(out.width, 0.2, 'an explicit floor is honoured whatever the unit');
+  assert.equal(out.height, 0.2);
 });
 
 test('the angle to a point is measured from up, clockwise', () => {
-  const s = sticker({ x: 0, y: 0, widthIn: 2, heightIn: 2 });
-  assert.equal(Math.round(angleTo(s, 1, -5)), 0, 'straight up');
-  assert.equal(Math.round(angleTo(s, 5, 1)), 90, 'to the right');
-  assert.equal(Math.round(angleTo(s, 1, 5)), 180, 'straight down');
+  const s = sticker({ x: IN(0), y: IN(0), width: IN(2), height: IN(2) });
+  const cx = IN(1);
+  const cy = IN(1);
+  assert.equal(Math.round(angleTo(s, cx, cy - IN(5))), 0, 'straight up');
+  assert.equal(Math.round(angleTo(s, cx + IN(5), cy)), 90, 'to the right');
+  assert.equal(Math.round(angleTo(s, cx, cy + IN(5))), 180, 'straight down');
 });
 
 test('rotation catches on the twelfths of a turn but not from far off', () => {

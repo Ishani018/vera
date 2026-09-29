@@ -11,7 +11,8 @@ import { stickerBounds } from '../render/stickers';
  */
 
 /** How close, in inches on the page, a line has to be to catch. */
-export const SNAP_DISTANCE = 0.06;
+/** Points. Was six hundredths of an inch, which is what this still is. */
+export const SNAP_DISTANCE = 4.32;
 
 export type Guide = { axis: 'x' | 'y'; at: number };
 
@@ -26,16 +27,17 @@ export function snapLines(
   layout: CoverLayout,
   others: CoverSticker[],
 ): { x: number[]; y: number[] } {
-  const { dimensions: d, folds, panels } = layout;
+  // The layout's own points, not `dimensions`, which is KDP's figure in inches.
+  const { bleed, width, height, folds, panels } = layout;
   const x = [
-    d.bleed,
-    d.width - d.bleed,
-    d.width / 2,
+    bleed,
+    width - bleed,
+    width / 2,
     ...folds,
     panels.back.x + panels.back.width / 2,
     panels.front.x + panels.front.width / 2,
   ];
-  const y = [d.bleed, d.height - d.bleed, d.height / 2];
+  const y = [bleed, height - bleed, height / 2];
 
   for (const other of others) {
     const box = stickerBounds(other);
@@ -102,16 +104,17 @@ export function resizeFromCorner(
   corner: Corner,
   deltaX: number,
   deltaY: number,
-  { free = false, minimum = 0.2 }: { free?: boolean; minimum?: number } = {},
-): Pick<CoverSticker, 'x' | 'y' | 'widthIn' | 'heightIn'> {
+  // Points. Was a fifth of an inch, which is what this still is.
+  { free = false, minimum = 14.4 }: { free?: boolean; minimum?: number } = {},
+): Pick<CoverSticker, 'x' | 'y' | 'width' | 'height'> {
   const west = corner === 'nw' || corner === 'sw';
   const north = corner === 'nw' || corner === 'ne';
 
-  let width = sticker.widthIn + (west ? -deltaX : deltaX);
-  let height = sticker.heightIn + (north ? -deltaY : deltaY);
+  let width = sticker.width + (west ? -deltaX : deltaX);
+  let height = sticker.height + (north ? -deltaY : deltaY);
 
   if (!free) {
-    const ratio = sticker.widthIn / sticker.heightIn;
+    const ratio = sticker.width / sticker.height;
     // Follow the axis the pointer committed to, so the sticker does not fight
     // the hand that is dragging it.
     if (Math.abs(deltaX) > Math.abs(deltaY)) height = width / ratio;
@@ -124,17 +127,17 @@ export function resizeFromCorner(
   return {
     // The anchored corner does not move, so a west or north drag moves the
     // origin by exactly what the size gained.
-    x: west ? sticker.x + sticker.widthIn - width : sticker.x,
-    y: north ? sticker.y + sticker.heightIn - height : sticker.y,
-    widthIn: width,
-    heightIn: height,
+    x: west ? sticker.x + sticker.width - width : sticker.x,
+    y: north ? sticker.y + sticker.height - height : sticker.y,
+    width: width,
+    height: height,
   };
 }
 
 /** The angle from a sticker's centre to a point, in degrees clockwise from up. */
 export function angleTo(sticker: CoverSticker, pointX: number, pointY: number): number {
-  const centreX = sticker.x + sticker.widthIn / 2;
-  const centreY = sticker.y + sticker.heightIn / 2;
+  const centreX = sticker.x + sticker.width / 2;
+  const centreY = sticker.y + sticker.height / 2;
   const degrees = (Math.atan2(pointY - centreY, pointX - centreX) * 180) / Math.PI + 90;
   return ((degrees % 360) + 360) % 360;
 }

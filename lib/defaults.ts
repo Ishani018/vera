@@ -1,4 +1,5 @@
 import { DEFAULT_TRIM_ID } from './kdp';
+import { SCHEMA } from './schema';
 import type {
   ColoringTypography,
   FontSpec,
@@ -179,6 +180,8 @@ export function createProject(overrides: Partial<Project> = {}): Project {
   return {
     id: overrides.id ?? id('proj'),
     kind: 'poetry',
+    // Written in the shape the app writes now, so the migration leaves it be.
+    schema: SCHEMA,
     name: overrides.name ?? meta.title,
     createdAt: now,
     updatedAt: now,

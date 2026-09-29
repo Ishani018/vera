@@ -1,3 +1,4 @@
+import { ptToInches } from '../kdp';
 import type { CoverSticker } from '../types';
 import { MAX_SWEEP_DEGREES } from './curve';
 
@@ -47,16 +48,16 @@ const clamp = (value: number, low: number, high: number) =>
 const FULL = (MAX_SWEEP_DEGREES * Math.PI) / 180;
 
 /** As far round as a picture of this shape can go before it folds in on itself. */
-export function sweepLimit(widthIn: number, heightIn: number): number {
-  if (heightIn <= 0) return FULL;
-  return Math.min(FULL, widthIn / (heightIn * (0.5 + MIN_INNER)));
+export function sweepLimit(width: number, height: number): number {
+  if (height <= 0) return FULL;
+  return Math.min(FULL, width / (height * (0.5 + MIN_INNER)));
 }
 
 /** The geometry for a bent sticker, or null when it is flat. */
 export function bendOf(sticker: CoverSticker): Bend | null {
   const arc = sticker.arc ?? 0;
-  const width = sticker.widthIn;
-  const height = sticker.heightIn;
+  const width = sticker.width;
+  const height = sticker.height;
   if (!arc || width <= 0 || height <= 0) return null;
 
   // The slider runs across what this particular picture can do rather than
@@ -179,9 +180,10 @@ export function warpSize(
 ): { width: number; height: number } {
   // Dense enough that the outer edge, where the picture is pulled thinnest, is
   // still carrying every pixel the original had.
-  const density = sourceWidth / sticker.widthIn;
-  const width = Math.max(1, Math.round(bend.box.width * density));
-  const height = Math.max(1, Math.round(bend.box.height * density));
+  // Per inch, since that is what a resolution is; the sticker is in points.
+  const density = sourceWidth / ptToInches(sticker.width);
+  const width = Math.max(1, Math.round(ptToInches(bend.box.width) * density));
+  const height = Math.max(1, Math.round(ptToInches(bend.box.height) * density));
   const over = Math.max(width, height) / limit;
   if (over <= 1) return { width, height };
   return {

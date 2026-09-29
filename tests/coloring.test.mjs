@@ -327,7 +327,7 @@ test('a coloring book carries everything the cover machinery needs', () => {
   const book = createColoringBook('Ghosts');
   const layout = coverLayout(book, 52);
   assert.ok(layout.dimensions.width > 0 && layout.dimensions.height > 0);
-  assert.equal(layout.panels.front.width, 8.5);
+  assert.equal(layout.panels.front.width, 8.5 * 72);
   assert.ok(layout.folds[1] > layout.folds[0]);
 });
 
@@ -348,8 +348,8 @@ test('the barcode area stays clear of the trimmed edge, on the back', () => {
   assert.ok(barcode.x >= panels.back.x, 'it belongs on the back cover');
   assert.ok(barcode.x + barcode.width <= panels.back.x + panels.back.width);
   assert.ok(barcode.y + barcode.height <= panels.back.y + panels.back.height);
-  assert.equal(barcode.width, 2);
-  assert.equal(barcode.height, 1.2);
+  assert.equal(barcode.width, 2 * 72);
+  assert.equal(barcode.height, 1.2 * 72);
 });
 
 test('the cover renders with a picture from the book on its front', () => {
@@ -369,8 +369,8 @@ test('the cover renders with a picture from the book on its front', () => {
   assert.ok(html.includes('class="cover-image"'));
   assert.ok(html.includes('data:image/png;base64,AAA'));
   // One page, at the exact wraparound size.
-  const d = coverLayout(book, 52).dimensions;
-  assert.ok(html.includes(`size: ${d.width}in ${d.height}in`));
+  const layout = coverLayout(book, 52);
+  assert.ok(html.includes(`size: ${layout.width}pt ${layout.height}pt`));
 });
 
 test('a cover warns about a picture too small for the front', () => {

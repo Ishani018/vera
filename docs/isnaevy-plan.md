@@ -193,7 +193,10 @@ to hold both 8.5 × 11 inches and 1080 × 1080 pixels without either becoming ug
 
 Store **points** (1/72 inch) as the single canonical unit:
 
-- inches → points is `× 72`. Exact.
+- inches → points is `× 72`, exact for any inch value binary holds exactly, and
+  out by a rounding error for the rest — six tenths of an inch lands on
+  43.199999999999996. The migration rounds to a millionth of a point, which is
+  far below anything that could reach paper.
 - CSS pixels → points is `× 0.75`. Exact for every integer pixel size.
 - Facebook's 1200 × 628 px = 900 × 471 pt exactly. Stored as inches it would be
   6.541666…, and round-tripping the display would show 627.9999.

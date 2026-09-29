@@ -50,12 +50,12 @@ function boxCss(
   const left = panel.x + box.x + (arc?.offsetX ?? 0);
   const top = panel.y + box.y + (arc?.offsetY ?? 0);
   const size = arc
-    ? `width: ${arc.widthIn}in;\n  height: ${arc.heightIn}in;\n  overflow: visible;`
-    : `width: ${box.widthIn}in;`;
+    ? `width: ${arc.width}pt;\n  height: ${arc.height}pt;\n  overflow: visible;`
+    : `width: ${box.width}pt;`;
   return `#cb${index} {
   position: absolute;
-  left: ${left}in;
-  top: ${top}in;
+  left: ${left}pt;
+  top: ${top}pt;
   ${size}
   ${fontCss(box)}${transform}
 }`;
@@ -97,21 +97,21 @@ function stickerCss(sticker: CoverSticker, index: number): string {
   // Where the picture actually lands, which a bend moves and resizes.
   const rect = stickerRect(sticker);
   const bent = Boolean(sticker.arc);
-  const shorter = Math.min(sticker.widthIn, sticker.heightIn);
+  const shorter = Math.min(sticker.width, sticker.height);
   const radius = sticker.cornerRadius * shorter;
   const rules = [
     'position: absolute;',
-    `left: ${rect.x}in;`,
-    `top: ${rect.y}in;`,
-    `width: ${rect.width}in;`,
-    `height: ${rect.height}in;`,
+    `left: ${rect.x}pt;`,
+    `top: ${rect.y}pt;`,
+    `width: ${rect.width}pt;`,
+    `height: ${rect.height}pt;`,
   ];
   if (!bent) rules.push('overflow: hidden;');
   if (sticker.rotate) rules.push(`transform: rotate(${sticker.rotate}deg);`);
   // A bent picture is no longer a rectangle, so a rounded corner and a border
   // would be drawing a frame around a shape that is not there any more. The
   // panel hides both rather than letting them be set and ignored.
-  if (!bent && radius > 0) rules.push(`border-radius: ${radius.toFixed(4)}in;`);
+  if (!bent && radius > 0) rules.push(`border-radius: ${radius.toFixed(4)}pt;`);
   if (!bent && sticker.border) {
     rules.push(`border: ${sticker.border.widthPt}pt solid ${cssColor(sticker.border.color)};`);
   }
@@ -150,8 +150,13 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
   const image = cover.frontImage;
   const imageSrc = image ? (options.assets?.[image.assetId] ?? '') : '';
   const imageRect = cover.imageSpansWrap
-    ? { x: 0, y: 0, width: d.width, height: d.height }
-    : { x: panels.front.x - d.bleed, y: 0, width: panels.front.width + d.bleed, height: d.height };
+    ? { x: 0, y: 0, width: layout.width, height: layout.height }
+    : {
+        x: panels.front.x - layout.bleed,
+        y: 0,
+        width: panels.front.width + layout.bleed,
+        height: layout.height,
+      };
 
   const imageHtml = image && imageSrc
     ? `<img class="cover-image" src="${escapeHtml(imageSrc)}" alt="">`
@@ -200,13 +205,13 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
 <title>${escapeHtml(project.meta.title)} — cover</title>
 ${options.fontStyle}
 <style>
-@page { size: ${d.width}in ${d.height}in; margin: 0; }
+@page { size: ${layout.width}pt ${layout.height}pt; margin: 0; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 .cover {
   position: relative;
-  width: ${d.width}in;
-  height: ${d.height}in;
+  width: ${layout.width}pt;
+  height: ${layout.height}pt;
   overflow: hidden;
   background: ${cssColor(cover.backgroundColor)};
   -webkit-print-color-adjust: exact;
@@ -215,22 +220,22 @@ html, body { margin: 0; padding: 0; }
 .panel { position: absolute; }
 #panel-back {
   left: 0; top: 0;
-  width: ${panels.spine.x}in;
-  height: ${d.height}in;
+  width: ${panels.spine.x}pt;
+  height: ${layout.height}pt;
   background: ${cssColor(cover.backColor)};
 }
 #panel-spine {
-  left: ${panels.spine.x}in; top: 0;
-  width: ${panels.spine.width}in;
-  height: ${d.height}in;
+  left: ${panels.spine.x}pt; top: 0;
+  width: ${panels.spine.width}pt;
+  height: ${layout.height}pt;
   background: ${cssColor(cover.spineColor)};
 }
 .cover-image {
   position: absolute;
-  left: ${imageRect.x}in;
-  top: ${imageRect.y}in;
-  width: ${imageRect.width}in;
-  height: ${imageRect.height}in;
+  left: ${imageRect.x}pt;
+  top: ${imageRect.y}pt;
+  width: ${imageRect.width}pt;
+  height: ${imageRect.height}pt;
   object-fit: ${image?.fit ?? 'cover'};
   object-position: center;
 }
@@ -248,25 +253,25 @@ ${stickerStyles}
 ${boxStyles}
 .barcode-zone {
   position: absolute;
-  left: ${barcode.x}in; top: ${barcode.y}in;
-  width: ${barcode.width}in; height: ${barcode.height}in;
+  left: ${barcode.x}pt; top: ${barcode.y}pt;
+  width: ${barcode.width}pt; height: ${barcode.height}pt;
   border: 1px dashed rgba(0,0,0,0.45);
   background: rgba(255,255,255,0.55);
   display: flex; align-items: center; justify-content: center;
   font: italic 7pt Georgia, serif; color: rgba(0,0,0,0.6); text-align: center;
 }
 .guide { position: absolute; pointer-events: none; }
-.guide-fold { top: 0; height: ${d.height}in; border-left: 1px dashed rgba(0,90,255,0.85); }
-#fold-a { left: ${layout.folds[0]}in; }
-#fold-b { left: ${layout.folds[1]}in; }
+.guide-fold { top: 0; height: ${layout.height}pt; border-left: 1px dashed rgba(0,90,255,0.85); }
+#fold-a { left: ${layout.folds[0]}pt; }
+#fold-b { left: ${layout.folds[1]}pt; }
 .guide-bleed {
-  left: ${d.bleed}in; top: ${d.bleed}in;
-  width: ${d.width - 2 * d.bleed}in; height: ${d.height - 2 * d.bleed}in;
+  left: ${layout.bleed}pt; top: ${layout.bleed}pt;
+  width: ${layout.width - 2 * layout.bleed}pt; height: ${layout.height - 2 * layout.bleed}pt;
   border: 1px solid rgba(220,38,38,0.85);
 }
-.guide-safe { top: ${d.bleed + 0.25}in; height: ${d.height - 2 * d.bleed - 0.5}in; border: 1px dashed rgba(16,185,129,0.8); }
-#safe-back { left: ${panels.back.x + 0.25}in; width: ${panels.back.width - 0.5}in; }
-#safe-front { left: ${panels.front.x + 0.25}in; width: ${panels.front.width - 0.5}in; }
+.guide-safe { top: ${layout.bleed + 18}pt; height: ${layout.height - 2 * layout.bleed - 36}pt; border: 1px dashed rgba(16,185,129,0.8); }
+#safe-back { left: ${panels.back.x + 18}pt; width: ${panels.back.width - 36}pt; }
+#safe-front { left: ${panels.front.x + 18}pt; width: ${panels.front.width - 36}pt; }
 ${
   options.guides
     ? ''

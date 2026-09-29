@@ -8,9 +8,8 @@ import type { CoverTextBox } from '../types';
  * right on screen and printed a little lower would be worse than no curve at
  * all: you would only find out after paying for a proof copy.
  *
- * Everything inside the returned SVG is in points, so a font size can be used
- * as-is; the element that holds it is sized in inches like everything else on
- * the cover.
+ * Everything is in points — the SVG's own coordinates, the type size, and the
+ * cover around it — so nothing here converts between units at all.
  */
 
 /** A whole turn would close the path on itself, which an SVG arc cannot express. */
@@ -25,8 +24,6 @@ export const MAX_SWEEP_DEGREES = 350;
  * costs it identically on screen and on paper, which is the part that matters.
  */
 const ASCENT = 0.8;
-
-const PT_PER_IN = 72;
 
 export type CurvedLine = {
   /** An SVG path, left to right, that the line's letters sit on. */
@@ -47,13 +44,13 @@ export type CurvedText = {
    */
   grabPath: string;
   /**
-   * Where to put the SVG, in inches from the text box's own top-left corner.
+   * Where to put the SVG, in points from the text box's own top-left corner.
    * Vertical is usually negative: an arch rises above the line it replaces.
    */
   offsetX: number;
   offsetY: number;
-  widthIn: number;
-  heightIn: number;
+  width: number;
+  height: number;
   viewBox: string;
   lines: CurvedLine[];
 };
@@ -115,7 +112,8 @@ export function curvedText(box: CoverTextBox): CurvedText | null {
   const curve = box.curve ?? 0;
   if (!curve) return null;
 
-  const width = box.widthIn * PT_PER_IN;
+  // Already points, which is also what the SVG works in, so nothing converts.
+  const width = box.width;
   const size = box.font.sizePt;
   if (width <= 0 || size <= 0) return null;
 
@@ -196,10 +194,10 @@ export function curvedText(box: CoverTextBox): CurvedText | null {
 
   return {
     grabPath,
-    offsetX: boxMinX / PT_PER_IN,
-    offsetY: pt(straightBaseline - centreY + boxMinY) / PT_PER_IN,
-    widthIn: boxWidth / PT_PER_IN,
-    heightIn: boxHeight / PT_PER_IN,
+    offsetX: boxMinX,
+    offsetY: pt(straightBaseline - centreY + boxMinY),
+    width: boxWidth,
+    height: boxHeight,
     viewBox: `${boxMinX} ${boxMinY} ${boxWidth} ${boxHeight}`,
     lines: paths.map((path, i) => ({
       path,
