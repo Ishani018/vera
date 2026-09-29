@@ -170,16 +170,18 @@ const apply = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[
  * not in page space — collecting the numbers as they appear would mix several
  * coordinate systems into one meaningless box.
  *
- * Why a box and not the list of positions: a box is a fact about the document
- * and the list is a fact about the encoder. Chrome versions split a line of
- * type into different numbers of runs, which changes every position in the
- * list and none of the extent, because a split lands inside the line it splits.
+ * Why a box rather than the list of positions: a box is a fact about the
+ * document and the list is a fact about the encoder. Chrome versions split a
+ * line of type into different numbers of runs, which changes every position in
+ * the list and none of the extent, because a split lands inside the line it
+ * splits. The baselines collected alongside it are a set for the same reason.
  */
-function inkBox(content) {
-  if (!content) return null;
+function pageInk(content) {
+  if (!content) return { box: null, baselines: [] };
   let ctm = [1, 0, 0, 1, 0, 0];
   const stack = [];
   let text = null;
+  const baselines = new Set();
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
   const note = (x, y) => {
@@ -190,20 +192,40 @@ function inkBox(content) {
     if (y > maxY) maxY = y;
   };
 
-  const token = /(-?[\d.]+(?:\s+-?[\d.]+){5})\s+(cm|Tm)\b|\b(q|Q|BT|ET)\b|\/\w+\s+Do\b/g;
+  const sit = () => {
+    if (!text) return;
+    const [x, y] = apply(text, 0, 0);
+    note(x, y);
+    // Where the line of type sits, which is the thing that moves when a poem
+    // moves. Collected as a set: a run split within a line repeats the same
+    // baseline rather than inventing a new one, which is exactly why this
+    // survives an engine that breaks lines up differently.
+    if (Number.isFinite(y)) baselines.add(half(y));
+  };
+
+  const token =
+    /(-?[\d.]+(?:\s+-?[\d.]+){5})\s+(cm|Tm)\b|(-?[\d.]+)\s+(-?[\d.]+)\s+(Td|TD)\b|\b(q|Q|BT|ET)\b|\/\w+\s+Do\b/g;
   for (const m of content.matchAll(token)) {
     if (m[2]) {
       const v = m[1].trim().split(/\s+/).map(Number);
       if (m[2] === 'cm') ctm = mul(v, ctm);
       else {
         text = mul(v, ctm);
-        note(...apply(text, 0, 0));
+        sit();
       }
       continue;
     }
-    if (m[3] === 'q') stack.push([...ctm]);
-    else if (m[3] === 'Q') ctm = stack.pop() ?? ctm;
-    else if (m[3] === 'ET') text = null;
+    if (m[5]) {
+      // Moves to the next line, within whatever text space is current.
+      if (text) {
+        text = mul([1, 0, 0, 1, Number(m[3]), Number(m[4])], text);
+        sit();
+      }
+      continue;
+    }
+    if (m[6] === 'q') stack.push([...ctm]);
+    else if (m[6] === 'Q') ctm = stack.pop() ?? ctm;
+    else if (m[6] === 'ET') text = null;
     else if (m[0].endsWith('Do')) {
       // An XObject is drawn into the unit square, so its corners under the
       // current transform are its corners on the page.
@@ -211,8 +233,10 @@ function inkBox(content) {
     }
   }
 
-  if (minX === Infinity) return null;
-  return [half(minX), half(minY), half(maxX), half(maxY)];
+  return {
+    box: minX === Infinity ? null : [half(minX), half(minY), half(maxX), half(maxY)],
+    baselines: [...baselines].sort((a, b) => a - b),
+  };
 }
 
 /**
@@ -243,7 +267,12 @@ function fingerprint(pdf, declared) {
   const refs = pagesInOrder(raw, objs);
 
   const boxes = [];
-  for (const ref of refs) boxes.push(inkBox(pageContent(pdf, raw, objs, ref)));
+  const baselines = [];
+  for (const ref of refs) {
+    const ink = pageInk(pageContent(pdf, raw, objs, ref));
+    boxes.push(ink.box);
+    baselines.push(ink.baselines);
+  }
 
   const mediaBoxes = [...raw.matchAll(/\/MediaBox\s*\[\s*([\d.\s-]+?)\]/g)].map((m) => {
     const [, , w, h] = m[1].trim().split(/\s+/).map(Number);
@@ -282,6 +311,10 @@ function fingerprint(pdf, declared) {
       appFonts: embedded.filter(mine),
       images,
       inkBoxes: boxes,
+      // Closes the gap an ink box leaves: an object can shift inside a page
+      // without touching the page's widest or tallest element, and the box
+      // would not notice. Where each line of type sits does.
+      baselines,
     },
     // Facts about the encoder as much as the document. Only meaningful against
     // the same engine, so only compared against it.
