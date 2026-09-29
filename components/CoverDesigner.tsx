@@ -30,6 +30,13 @@ import type {
   FontSpec,
 } from '@/lib/types';
 import { StickerLayer } from './cover/StickerLayer';
+import {
+  TEXT_PRESETS,
+  presetBox,
+  presetByKind,
+  presetSizePt,
+  type TextPresetKind,
+} from '@/lib/textPresets';
 import { ColourField } from './cover/ColourField';
 import { Rail } from './cover/Rail';
 import {
@@ -476,6 +483,40 @@ export function CoverDesigner<T extends CoverableBook>({
     setSelectedId(null);
   };
 
+  /**
+   * A line of type at one of three sizes, placed for the board it is on.
+   *
+   * Only offered on a board: a cover's three faces each want their own
+   * position, which is what `addBox` below already works out.
+   */
+  const addPreset = (kind: TextPresetKind) => {
+    const preset = presetByKind(kind);
+    const newId = id('cb');
+    const where = presetBox(preset, layout);
+    update((draft) => {
+      draft.cover.textBoxes.push({
+        id: newId,
+        panel: 'board' as CoverPanel,
+        text: preset.text,
+        x: where.x,
+        y: where.y,
+        width: where.width,
+        font: font({
+          family: displayFont.family,
+          fallback: displayFont.fallback,
+          sizePt: presetSizePt(preset, layout),
+          weight: preset.weight,
+          lineHeight: preset.lineHeight,
+          align: 'center',
+          color: '#1a1a1a',
+        }),
+        rotate: 0,
+        curve: 0,
+      });
+    });
+    setSelectedId(newId);
+  };
+
   const addBox = (panel: CoverPanel) => {
     const newId = id('cb');
     const panelRect = layout.panels[panel];
@@ -818,13 +859,45 @@ export function CoverDesigner<T extends CoverableBook>({
       <>
         <div className="space-y-2 border-t border-ink-200 pt-3">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
-          <div className={cx('grid gap-1.5', isCover ? 'grid-cols-3' : 'grid-cols-1')}>
-            {(isCover ? ADDABLE_PANELS : (['board'] as CoverPanel[])).map((panel) => (
-              <Button key={panel} onClick={() => addBox(panel)}>
-                {PANEL_LABEL[panel] ?? panel}
-              </Button>
-            ))}
-          </div>
+          {rail ? (
+            /*
+              Three sizes rather than one button, because the first thing
+              anyone does after adding a text box is make it bigger or smaller,
+              and each of these is already the size it should be for this
+              board.
+            */
+            <div className="grid gap-2">
+              {TEXT_PRESETS.map((preset) => (
+                <button
+                  key={preset.kind}
+                  type="button"
+                  onClick={() => addPreset(preset.kind)}
+                  className="rounded-xl border border-ink-200 bg-ink-50 px-3 py-3 text-left transition-colors hover:border-accent-500 hover:bg-paper"
+                >
+                  <span
+                    className="block truncate text-ink-900"
+                    style={{
+                      fontSize: preset.kind === 'heading' ? 22 : preset.kind === 'subheading' ? 16 : 13,
+                      fontWeight: preset.weight,
+                    }}
+                  >
+                    {preset.label}
+                  </span>
+                  <span className="mt-0.5 block text-[11.5px] text-ink-500">
+                    {presetSizePt(preset, layout)} pt on this board
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5">
+              {ADDABLE_PANELS.map((panel) => (
+                <Button key={panel} onClick={() => addBox(panel)}>
+                  {PANEL_LABEL[panel] ?? panel}
+                </Button>
+              ))}
+            </div>
+          )}
           {cover.textBoxes.length === 0 && (
             <p className="text-[11px] text-ink-500">
               {isCover ? 'No text yet. Add a box to a panel.' : 'No text yet.'}

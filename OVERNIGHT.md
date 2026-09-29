@@ -304,3 +304,63 @@ something on it.
 Before and after screenshots of the home screen and the editor are in the
 sandbox only — they cannot be committed to the repo without adding binaries to
 it, and they are of a browser you can open yourself in ten seconds.
+
+---
+
+## Stage 5 — text presets, and why the shapes are not here
+
+### Text presets: done
+
+`lib/textPresets.ts`. Heading, Subheading and Body, each a share of the
+board's **shorter side** rather than a fixed number of points, because forty
+points is a title on a post and most of the width of a bookmark. Eight per
+cent, four and a half, two point eight — clamped at both ends, because
+proportion stops being sensible eventually and a heading under eighteen points
+is not a heading.
+
+The panel shows what each will actually be: "Heading · 64.75 pt on this board"
+on an Instagram post, "Heading · 18 pt on this board" on a bookmark. One press
+puts it on the board, already the right size, already placed — a heading a
+fifth of the way down, the other two underneath it, inset by a twelfth of the
+width on both sides so nothing lands on the safe margin.
+
+Five tests in `tests/textPresets.test.mjs`: the three are in descending order;
+a heading is 64.75 pt on a post and floors at 18 pt on a bookmark; nothing is
+ever sized outside its own bounds, including on absurd boards of 10 pt and
+5000 pt; a new box always lands inside the board, symmetrically inset; and the
+three do not start on top of each other. Checked in a browser on both boards.
+
+### Rectangles and ellipses: not done, deliberately
+
+**They cannot be built without touching the renderer, and your hard rules say
+the renderer must not be touched.**
+
+A shape needs four things: a model, a migration, drawing on screen, and drawing
+in the export. The fourth is `lib/render/coverHtml.ts`, which walks
+`cover.stickers` and `cover.textBoxes` and would need to walk `cover.shapes`
+too. There is no way round it that is not worse:
+
+- Rendering shapes on screen only would mean a rectangle you can see while you
+  work and that is missing from the PDF you send to a printer. That is the
+  same failure as the 1/72 text bug, deliberately introduced.
+- Making a shape a sticker with a generated SVG behind it keeps the renderer
+  untouched, but writes a new asset to the database every time you change a
+  fill, and leaves the shape uneditable as a shape. Twenty lines of renderer
+  replaced by a hundred lines of workaround and a worse model.
+
+So it stopped, rather than half-doing it or breaking the rule. **What it would
+take, in daylight:** a `CoverShape` type, `shapes ??= []` in the two
+migrations, a block in `CoverDesigner`'s stage beside the sticker layer, and
+about twenty lines in `buildBoardHtml`. The PDF goldens would prove it safe —
+their fixtures contain no shapes, so an empty `shapes` array must leave both
+digests exactly where they are. That is a good morning's work with the goldens
+watching, and it is not something to do unsupervised against a rule that says
+not to.
+
+### Stage 6 — starter templates: not started
+
+Gated on stage 5, and the gate was right. Your six templates are "built only
+from text, rectangles and my own pictures". Two of those three exist. I could
+have made six text-and-picture layouts tonight and you would have wanted them
+rebuilt the moment rectangles arrived, which is the churn the gate exists to
+prevent.
