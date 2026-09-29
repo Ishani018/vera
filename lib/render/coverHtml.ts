@@ -1,7 +1,8 @@
 import { curvedText, type CurvedText } from '../cover/curve';
-import type { CoverSticker, CoverTextBox, CoverableBook } from '../types';
+import type { CoverSpec, CoverSticker, CoverTextBox, CoverableBook } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
-import { trimOf } from '../board';
+import type { Board, Rect } from '../board';
+import { reservedOf, trimOf, wholeOf } from '../board';
 import { stickerImageKey, stickerRect } from './stickers';
 import { cssColor, cssFamily, escapeBlock, escapeHtml, escapeSvgText } from './text';
 
@@ -36,10 +37,12 @@ function fontCss(box: CoverTextBox): string {
 function boxCss(
   box: CoverTextBox,
   arc: CurvedText | null,
-  layout: CoverLayout,
+  board: Board,
   index: number,
 ): string {
-  const panel = layout.panels[box.panel];
+  // A board that has no such panel measures from itself. That is what lets a
+  // cover's text box survive being put on a board with no front and no spine.
+  const panel = board.panels[box.panel] ?? board.panels.board ?? wholeOf(board);
   // Spine text runs top-to-bottom, the convention for English-language spines,
   // and is rotated about its own start so the box position stays meaningful.
   const spine = box.panel === 'spine';
@@ -143,22 +146,58 @@ export type CoverRenderOptions = {
   assets?: Record<string, string>;
 };
 
-export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptions): string {
-  const layout = coverLayout(project, options.pageCount);
-  const { dimensions: d, panels, barcode } = layout;
-  const trim = trimOf(layout);
-  const cover = project.cover;
+export type BoardRenderOptions = {
+  /** Only for the document's own title bar; nothing on the board uses it. */
+  title: string;
+  fontStyle: string;
+  /** Draw the trim, the safe areas and any folds. Designer preview only. */
+  guides: boolean;
+  autoPrint?: boolean;
+  /** Asset id to URL. Without an entry the image is simply not drawn. */
+  assets?: Record<string, string>;
+  /**
+   * Flat colour laid down before anything else, in order.
+   *
+   * Supplied rather than worked out here, because which areas want a colour of
+   * their own is a fact about the kind of board this is: a cover paints
+   * everything left of the spine one colour and the spine another, and a
+   * postcard paints nothing.
+   */
+  paints?: Array<{ rect: Rect; color: string }>;
+  /** Draw a label over the board's reserved areas, if it has any. */
+  showReserved?: boolean;
+};
+
+/**
+ * Any board, with text and pictures on it.
+ *
+ * A cover goes through here, and so does an Instagram post. What differs
+ * between them arrives as the board and as `paints`; nothing below this line
+ * knows which it is looking at.
+ */
+export function buildBoardHtml(
+  board: Board,
+  cover: CoverSpec,
+  options: BoardRenderOptions,
+): string {
+  const layout = board;
+  const trim = trimOf(board);
+  const reserved = options.showReserved ? reservedOf(board) : [];
 
   const image = cover.frontImage;
   const imageSrc = image ? (options.assets?.[image.assetId] ?? '') : '';
-  const imageRect = cover.imageSpansWrap
-    ? { x: 0, y: 0, width: layout.width, height: layout.height }
-    : {
-        x: panels.front.x - layout.bleed,
-        y: 0,
-        width: panels.front.width + layout.bleed,
-        height: layout.height,
-      };
+  const front = board.panels.front;
+  // A picture fills the whole board unless the board has a front to put it on,
+  // and then it fills that plus the bleed running off the outer edge.
+  const imageRect =
+    cover.imageSpansWrap || !front
+      ? wholeOf(board)
+      : {
+          x: front.x - board.bleed,
+          y: 0,
+          width: front.width + board.bleed,
+          height: board.height,
+        };
 
   const imageHtml = image && imageSrc
     ? `<img class="cover-image" src="${escapeHtml(imageSrc)}" alt="">`
@@ -170,7 +209,7 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
   const boxes = cover.textBoxes.map((box, i) => curvedHtml(box, arcs[i], i)).join('');
 
   const boxStyles = cover.textBoxes
-    .map((box, i) => boxCss(box, arcs[i], layout, i))
+    .map((box, i) => boxCss(box, arcs[i], board, i))
     .join('\n');
 
   // Stickers are written in array order, which is what puts the last one on
@@ -219,15 +258,37 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
         .join('\n')
     : '';
 
-  const barcodeHtml = cover.showBarcodeZone
-    ? `<div class="barcode-zone"><span>Barcode area reserved by KDP<br>2" × 1.2"</span></div>`
-    : '';
+  const reservedHtml = reserved
+    .map(
+      (area, i) =>
+        `<div class="reserved" id="r${i}"><span>${escapeHtml(area.label)} goes here</span></div>`,
+    )
+    .join('');
+
+  const reservedStyles = reserved
+    .map(
+      (area, i) =>
+        `#r${i} { left: ${area.rect.x}pt; top: ${area.rect.y}pt;` +
+        ` width: ${area.rect.width}pt; height: ${area.rect.height}pt; }`,
+    )
+    .join('\n');
+
+  const paintHtml = (options.paints ?? [])
+    .map((_, i) => `<div class="paint" id="p${i}"></div>`)
+    .join('');
+  const paintStyles = (options.paints ?? [])
+    .map(
+      ({ rect, color }, i) =>
+        `#p${i} { left: ${rect.x}pt; top: ${rect.y}pt; width: ${rect.width}pt;` +
+        ` height: ${rect.height}pt; background: ${cssColor(color)}; }`,
+    )
+    .join('\n');
 
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>${escapeHtml(project.meta.title)} — cover</title>
+<title>${escapeHtml(options.title)}</title>
 ${options.fontStyle}
 <style>
 @page { size: ${layout.width}pt ${layout.height}pt; margin: 0; }
@@ -242,19 +303,8 @@ html, body { margin: 0; padding: 0; }
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-.panel { position: absolute; }
-#panel-back {
-  left: 0; top: 0;
-  width: ${panels.spine.x}pt;
-  height: ${layout.height}pt;
-  background: ${cssColor(cover.backColor)};
-}
-#panel-spine {
-  left: ${panels.spine.x}pt; top: 0;
-  width: ${panels.spine.width}pt;
-  height: ${layout.height}pt;
-  background: ${cssColor(cover.spineColor)};
-}
+.paint { position: absolute; }
+${paintStyles}
 .cover-image {
   position: absolute;
   left: ${imageRect.x}pt;
@@ -276,15 +326,14 @@ ${stickerStyles}
    SVG would otherwise paint them solid black whatever the box said. */
 .cover-curved text { fill: currentColor; }
 ${boxStyles}
-.barcode-zone {
+.reserved {
   position: absolute;
-  left: ${barcode.x}pt; top: ${barcode.y}pt;
-  width: ${barcode.width}pt; height: ${barcode.height}pt;
   border: 1px dashed rgba(0,0,0,0.45);
   background: rgba(255,255,255,0.55);
   display: flex; align-items: center; justify-content: center;
   font: italic 7pt Georgia, serif; color: rgba(0,0,0,0.6); text-align: center;
 }
+${reservedStyles}
 .guide { position: absolute; pointer-events: none; }
 .guide-fold { border-left: 1px dashed rgba(0,90,255,0.85); }
 .guide-safe { border: 1px dashed rgba(16,185,129,0.8); }
@@ -306,17 +355,16 @@ ${
       // machine happened to have, for text nobody can see. It never showed on
       // paper, but a print PDF should contain what the book asks for and
       // nothing else.
-      '.barcode-zone { display: none; }'
+      '.reserved { display: none; }'
 }
 </style>
 </head>
 <body>
 <div class="cover">
-  <div class="panel" id="panel-back"></div>
-  <div class="panel" id="panel-spine"></div>
+  ${paintHtml}
   ${imageHtml}
   ${stickers}
-  ${barcodeHtml}
+  ${reservedHtml}
   ${boxes}
   ${marks}
 </div>
@@ -331,4 +379,43 @@ document.fonts.ready.then(function () {
 }
 </body>
 </html>`;
+}
+
+/**
+ * The wraparound cover: a board with three panels, worked out from the book.
+ *
+ * Everything cover-specific is decided here and handed down — which areas take
+ * a colour of their own, and that the barcode reserve should be shown. The
+ * renderer below is told, not asked.
+ */
+export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptions): string {
+  const layout = coverLayout(project, options.pageCount);
+  const cover = project.cover;
+
+  return buildBoardHtml(layout, cover, {
+    title: `${project.meta.title} — cover`,
+    fontStyle: options.fontStyle,
+    guides: options.guides,
+    autoPrint: options.autoPrint,
+    assets: options.assets,
+    showReserved: cover.showBarcodeZone,
+    // Everything left of the spine takes the back colour, out to the board's
+    // edge rather than to the panel's, so the bleed that gets trimmed off is
+    // the same colour as the cover it is trimmed from.
+    paints: [
+      {
+        rect: { x: 0, y: 0, width: layout.panels.spine.x, height: layout.height },
+        color: cover.backColor,
+      },
+      {
+        rect: {
+          x: layout.panels.spine.x,
+          y: 0,
+          width: layout.panels.spine.width,
+          height: layout.height,
+        },
+        color: cover.spineColor,
+      },
+    ],
+  });
 }

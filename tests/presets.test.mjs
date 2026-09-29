@@ -54,3 +54,82 @@ test("a story keeps its safe area clear of the controls over each end", () => {
   assert.equal(safe.y + safe.height, 1440 - 187.5);
   assert.match(safe.label ?? safeOf(story)[0].label, /visible/);
 });
+
+/* --------------------------------------------- rendering a board that is not a cover */
+
+import { buildBoardHtml } from '../lib/render/coverHtml.ts';
+
+const spec = (over = {}) => ({
+  backgroundColor: '#f4efe4',
+  backColor: '#fff',
+  spineColor: '#fff',
+  frontImage: null,
+  imageSpansWrap: false,
+  showBarcodeZone: true,
+  textBoxes: [],
+  stickers: [],
+  ...over,
+});
+
+const font = {
+  family: 'Nunito Sans', fallback: 'sans-serif', weight: 700, italic: false,
+  sizePt: 36, lineHeight: 1.2, letterSpacingEm: 0, transform: 'none',
+  align: 'center', color: '#3a2a1f',
+};
+
+const post = () => boardFor(presetById('instagram-post'));
+const render = (board, s, over = {}) =>
+  buildBoardHtml(board, s, { title: 'A post', fontStyle: '', guides: false, ...over });
+
+test('a post is one page at the size the platform asked for', () => {
+  const html = render(post(), spec());
+  assert.match(html, /@page \{ size: 810pt 810pt;/);
+  assert.match(html, /width: 810pt;\n  height: 810pt;/);
+});
+
+test('text placed on the board lands on the board, with no panel to look up', () => {
+  const box = { id: 't', panel: 'board', text: 'Out today', x: 72, y: 144, width: 666,
+    rotate: 0, curve: 0, font };
+  const html = render(post(), spec({ textBoxes: [box] }));
+  assert.match(html, /#cb0 \{[\s\S]*?left: 72pt;/);
+  assert.match(html, /#cb0 \{[\s\S]*?top: 144pt;/);
+  assert.ok(html.includes('Out today'));
+});
+
+test('a cover text box survives being put on a board with no front or spine', () => {
+  // Nothing should crash or land at NaN just because the panel is missing;
+  // a board with no such face measures from itself.
+  const box = { id: 't', panel: 'front', text: 'Moved house', x: 36, y: 36, width: 400,
+    rotate: 0, curve: 0, font };
+  const html = render(post(), spec({ textBoxes: [box] }));
+  assert.match(html, /#cb0 \{[\s\S]*?left: 36pt;/);
+  assert.doesNotMatch(html, /NaN/);
+});
+
+test('a post paints nothing but its background, and reserves nothing', () => {
+  const html = render(post(), spec());
+  assert.doesNotMatch(html, /class="paint"/, 'no back cover and no spine to colour');
+  // showBarcodeZone is on in the spec and irrelevant here: the board has no
+  // reserved area, so there is nothing to draw whatever the spec says.
+  assert.doesNotMatch(html, /class="reserved"/);
+  assert.match(html, /background: #f4efe4/);
+});
+
+test('a picture with no front panel to sit on fills the whole board', () => {
+  const html = render(
+    post(),
+    spec({ frontImage: { assetId: 'a', naturalWidth: 2000, naturalHeight: 2000, fit: 'cover' } }),
+    { assets: { a: 'data:image/png;base64,AAA' } },
+  );
+  assert.match(html, /\.cover-image \{[\s\S]*?left: 0pt;[\s\S]*?width: 810pt;/);
+});
+
+test('a printed preset draws its trim where the guillotine goes', () => {
+  const card = boardFor(presetById('postcard-a6'));
+  const html = render(card, spec(), { guides: true });
+  assert.match(html, /guide-trim/);
+  assert.match(html, new RegExp(`left: ${card.bleed}pt`));
+  // The element, not the CSS class that styles it — that is always in the sheet.
+  assert.equal((html.match(/class="guide guide-fold"/g) ?? []).length, 0, 'a postcard does not fold');
+  assert.equal((html.match(/class="guide guide-safe"/g) ?? []).length, 1);
+});
