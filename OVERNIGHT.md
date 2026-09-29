@@ -162,3 +162,68 @@ in-book launch kit render what they always did — which is the same proof stage
 `npm test` 355 passing · `npm run golden` unchanged (`e3e2a36e0ac60ce1`,
 `d4eeeb9e99cb1bfe`) · `npm run golden:screen` all match · `npx tsc --noEmit`
 and `npm run build` clean.
+
+---
+
+## Stage 3 — colour system (commit 3 of 4)
+
+`lib/palette.ts` and `components/cover/ColourField.tsx`.
+
+**The palette** is 24 colours in four rows of six: neutrals, greens and blues,
+reds and pinks, then the warm end. They are chosen to sit with the paper and
+ink the rest of the app is made of, and there are enough dark ones that a cover
+can be set in something other than black. Every one is a plain hex string,
+which is exactly what the cover model already stores, so nothing converts on
+the way in or out.
+
+**Recently used** lives under a new key, `versecraft:recentColours` — a new
+key, no existing one touched or renamed. Every read and write is wrapped:
+storage is missing in a private window, refused by some settings, and empty
+after site data is cleared, and a colour list nobody can read is not a reason
+for the editor to fall over. It keeps eight, newest first, and the same colour
+typed three ways is one entry because everything is normalised to six upper-case
+digits first.
+
+**The picker** is a colour wheel and a hex box. Dragging the wheel sends
+hundreds of changes and only the last is remembered; typing in the hex box
+changes nothing until what is typed is a colour, so half a code on the way to a
+whole one does not repaint the board six times.
+
+**Where it is used:** the Background panel, the text colour in the floating
+toolbar, and a sticker's border colour in the toolbar.
+
+**Shadow has no colour to choose.** The brief lists "sticker border and
+shadow". `CoverSticker.shadow` is a boolean — there is no shadow colour in the
+model, and adding one means changing the renderer, which tonight's rules put
+out of bounds. The shadow is a switch in the toolbar; its colour is the
+renderer's to decide, as it always has been.
+
+**The cover keeps its old colour input.** A board gets `ColourField`; a cover
+gets the control it has always had. The cover editor is not being redesigned
+tonight, and a control that changes shape under someone in the middle of a book
+is its own kind of bug.
+
+### Checked in a real browser
+
+- The popover offers 24 swatches under "Palette" and a wheel and hex box under
+  "Anything else".
+- Pressing Teal turned the board `rgb(11, 106, 98)`, which is `#0B6A62`.
+- After two colours, `versecraft:recentColours` held `["#A23E63","#0B6A62"]`
+  and a "Just used" row appeared above the palette.
+- Typing `#123456` into the hex box turned the board `rgb(18, 52, 86)`.
+- The text colour in the floating toolbar is the same component.
+
+### Tests
+
+`tests/palette.test.mjs`: all 24 are valid, normalised and distinct; `#abc`
+and `#AaBbCc` and a pasted `"  #0b6a62 "` all come out as the same six-digit
+code; and eight things that are not colours are refused, including `rgb(0,0,0)`
+and a bare `0B6A62`.
+
+### Checks run
+
+`npm test` **358 passing** · `npm run golden` unchanged (`e3e2a36e0ac60ce1`,
+`d4eeeb9e99cb1bfe`) · `npm run golden:screen` **all match, zero pixels, nothing
+re-recorded** · `tsc` and `npm run build` clean.
+
+No new dependencies.

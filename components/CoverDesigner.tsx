@@ -30,6 +30,7 @@ import type {
   FontSpec,
 } from '@/lib/types';
 import { StickerLayer } from './cover/StickerLayer';
+import { ColourField } from './cover/ColourField';
 import { Rail } from './cover/Rail';
 import {
   SelectionToolbar,
@@ -770,14 +771,29 @@ export function CoverDesigner<T extends CoverableBook>({
             </>
           ) : (
             <Field label="Background">
-              <ColorInput
-                value={cover.backgroundColor}
-                onChange={(backgroundColor) =>
-                  update((draft) => {
-                    draft.cover.backgroundColor = backgroundColor;
-                  })
-                }
-              />
+              {/* The palette on a board, the old input on a cover: the cover
+                  editor is not being redesigned tonight, and a control that
+                  changes under someone mid-book is its own kind of bug. */}
+              {rail ? (
+                <ColourField
+                  label="Background colour"
+                  value={cover.backgroundColor}
+                  onChange={(backgroundColor) =>
+                    update((draft) => {
+                      draft.cover.backgroundColor = backgroundColor;
+                    })
+                  }
+                />
+              ) : (
+                <ColorInput
+                  value={cover.backgroundColor}
+                  onChange={(backgroundColor) =>
+                    update((draft) => {
+                      draft.cover.backgroundColor = backgroundColor;
+                    })
+                  }
+                />
+              )}
             </Field>
           )}
         </div>
@@ -1384,12 +1400,11 @@ export function CoverDesigner<T extends CoverableBook>({
                     onChange={(e) => patchFont({ sizePt: Number(e.target.value) || 1 })}
                     className="h-8 w-[58px] rounded-lg border border-ink-200 px-1.5 text-[13px] tabular-nums"
                   />
-                  <input
-                    type="color"
-                    aria-label="Text colour"
+                  <ColourField
+                    compact
+                    label="Text colour"
                     value={selected.font.color}
-                    onChange={(e) => patchFont({ color: e.target.value })}
-                    className="h-7 w-8 cursor-pointer rounded border border-ink-200 bg-paper"
+                    onChange={(color) => patchFont({ color })}
                   />
                   <ToolButton
                     label="Bold"
@@ -1518,16 +1533,13 @@ export function CoverDesigner<T extends CoverableBook>({
                     ▢
                   </ToolButton>
                   {sticker.border && (
-                    <input
-                      type="color"
-                      aria-label="Border colour"
+                    <ColourField
+                      compact
+                      label="Border colour"
                       value={sticker.border.color}
-                      onChange={(e) =>
-                        patchSticker(sticker.id, {
-                          border: { ...sticker.border!, color: e.target.value },
-                        })
+                      onChange={(color) =>
+                        patchSticker(sticker.id, { border: { ...sticker.border!, color } })
                       }
-                      className="h-7 w-8 cursor-pointer rounded border border-ink-200 bg-paper"
                     />
                   )}
                   <ToolButton
