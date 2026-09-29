@@ -9,7 +9,7 @@ import { buildBookHtml } from '../render/bookHtml';
 import { buildColoringHtml } from '../render/coloringHtml';
 import { buildCoverHtml } from '../render/coverHtml';
 import { RUNTIME_SCRIPT } from '../render/runtime';
-import type { AnyProject, CoverableBook, FontedBook } from '../types';
+import type { AnyProject, CoverSpec, CoverableBook, FontSpec, FontedBook } from '../types';
 import { launchBrowser } from './browser';
 import { embedGoogleFonts } from './fontEmbed';
 
@@ -176,6 +176,130 @@ export async function renderCoverPdf(
       spineIn: layout.dimensions.spine,
       via,
       engine,
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
+/* ------------------------------------------------------------ a board, rendered */
+
+export type BoardResult = {
+  bytes: Uint8Array;
+  /** What the file is, so the caller can name and serve it. */
+  contentType: string;
+  widthPx: number;
+  heightPx: number;
+  dpi: number;
+  via: string;
+  engine: string;
+  fontsFailed: string[];
+};
+
+export type BoardRequest = {
+  presetId: string;
+  assets?: Record<string, string>;
+  cover: CoverSpec;
+  typography: Record<string, FontSpec>;
+  title: string;
+  format: 'png' | 'jpg' | 'pdf';
+  /**
+   * How much of it to make, in whichever terms the board is stated in.
+   *
+   * A screen board is a number of pixels and this is a multiple of them: 1 is
+   * Instagram's 1080 square, 2 is the same design at 2160 for a retina
+   * screen. A printed board is a number of inches and this is dots per inch.
+   *
+   * Asking a screen board for 300 DPI is the mistake this exists to prevent —
+   * it produces a 3375 pixel square, three times what the platform asked for,
+   * which the platform then throws away.
+   */
+  scale?: number;
+  dpi?: number;
+};
+
+/** A CSS pixel is a ninety-sixth of an inch, and a point a seventy-second. */
+const CSS_PX_PER_PT = 96 / 72;
+
+
+/**
+ * Anything that is not a book: a post, a pin, a postcard, a bookmark.
+ *
+ * Screen boards come out as pixels and printed ones as a PDF, but both go
+ * through the same page and the same browser as a cover does, so a postcard is
+ * laid out by the machinery that has already been made to get a cover right.
+ *
+ * The raster is taken with a device scale rather than by resizing afterwards,
+ * so the type is rendered at the final size instead of being drawn small and
+ * enlarged. It is the difference between crisp lettering and soft lettering,
+ * and it costs nothing.
+ */
+export async function renderBoard(request: BoardRequest): Promise<BoardResult> {
+  const { boardFor, outputSize, presetById } = await import('../presets');
+  const { buildBoardHtml } = await import('../render/coverHtml');
+
+  const preset = presetById(request.presetId);
+  if (!preset) throw new Error(`No such size: ${request.presetId}`);
+  const board = boardFor(preset);
+
+  const fonts = await embedGoogleFonts({
+    typography: request.typography,
+    cover: request.cover,
+  });
+  const { browser, via, engine } = await launchBrowser();
+
+  try {
+    const page = await browser.newPage();
+
+    // Worked out next door, where it can be tested — this arithmetic is the
+    // part that was wrong first time round.
+    const size = outputSize(preset, { scale: request.scale, dpi: request.dpi });
+    const { cssWidth, cssHeight, shotScale } = size;
+
+    await page.setViewport({ width: cssWidth, height: cssHeight, deviceScaleFactor: 1 });
+
+    const html = buildBoardHtml(board, request.cover, {
+      title: request.title,
+      fontStyle: fonts.style,
+      guides: false,
+      assets: request.assets,
+    });
+    await page.setContent(html, { waitUntil: 'load' });
+    await page.evaluateHandle('document.fonts.ready');
+
+    if (request.format === 'pdf') {
+      const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true, pageRanges: '1' });
+      return {
+        bytes: pdf,
+        contentType: 'application/pdf',
+        widthPx: cssWidth,
+        heightPx: cssHeight,
+        dpi: 72,
+        via,
+        engine,
+        fontsFailed: fonts.failed,
+      };
+    }
+
+    const shot = await page.screenshot({
+      type: request.format === 'jpg' ? 'jpeg' : 'png',
+      quality: request.format === 'jpg' ? 92 : undefined,
+      // Scaled in the capture rather than afterwards, so the type is rendered
+      // at the size it ends up rather than drawn small and enlarged.
+      clip: { x: 0, y: 0, width: cssWidth, height: cssHeight, scale: shotScale },
+      captureBeyondViewport: true,
+      omitBackground: false,
+    });
+
+    return {
+      bytes: shot,
+      contentType: request.format === 'jpg' ? 'image/jpeg' : 'image/png',
+      widthPx: size.widthPx,
+      heightPx: size.heightPx,
+      dpi: size.dpi,
+      via,
+      engine,
+      fontsFailed: fonts.failed,
     };
   } finally {
     await browser.close();

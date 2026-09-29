@@ -126,3 +126,61 @@ export function boardFor(preset: Preset): Board<'board'> {
     safeLabel: preset.kind === 'screen' ? 'the visible area' : 'the safe margin',
   });
 }
+
+/** A CSS pixel is a ninety-sixth of an inch, and a point a seventy-second. */
+const CSS_PX_PER_PT = 96 / 72;
+
+/** Chromium refuses past eight, and a tall story at 600 DPI is already six. */
+const clamp = (n: number, low: number, high: number, fallback: number) =>
+  Number.isFinite(n) ? Math.max(low, Math.min(high, n)) : fallback;
+
+export type OutputSize = {
+  /** The board laid out at browser scale, which is what gets rendered. */
+  cssWidth: number;
+  cssHeight: number;
+  /** How many device pixels to put in each of those. */
+  shotScale: number;
+  /** What comes out. */
+  widthPx: number;
+  heightPx: number;
+  /** What that works out to on paper, however it was asked for. */
+  dpi: number;
+};
+
+/**
+ * How big to make the file, in whichever terms the board is stated in.
+ *
+ * A screen board is a number of pixels, so `scale` is a multiple of them: 1 is
+ * Instagram's 1080 square, 2 is the same design at 2160 for a dense screen. A
+ * printed board is a number of inches, so `dpi` is dots per inch.
+ *
+ * Asking a screen board for 300 DPI is the mistake this exists to prevent. It
+ * produces a 3375 pixel square where the platform asked for 1080, and the
+ * platform throws the difference away — a file three times the size for a
+ * picture no better. The kind of board decides which question is being asked,
+ * because only one of the two is meaningful for each.
+ */
+export function outputSize(
+  preset: Pick<Preset, 'kind' | 'width' | 'height' | 'bleed'>,
+  { scale, dpi }: { scale?: number; dpi?: number } = {},
+): OutputSize {
+  const boardWidth = preset.width + 2 * preset.bleed;
+  const boardHeight = preset.height + 2 * preset.bleed;
+  const cssWidth = Math.round(boardWidth * CSS_PX_PER_PT);
+  const cssHeight = Math.round(boardHeight * CSS_PX_PER_PT);
+
+  const shotScale =
+    preset.kind === 'screen'
+      ? clamp(scale ?? 1, 0.25, 8, 1)
+      : clamp(clamp(dpi ?? 300, 72, 600, 300) / 96, 0.25, 8, 1);
+
+  const widthPx = Math.round(cssWidth * shotScale);
+  return {
+    cssWidth,
+    cssHeight,
+    shotScale,
+    widthPx,
+    heightPx: Math.round(cssHeight * shotScale),
+    dpi: Math.round(widthPx / (boardWidth / 72)),
+  };
+}

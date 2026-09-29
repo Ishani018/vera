@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { PRESETS, boardFor, presetById } from '../lib/presets.ts';
+import { PRESETS, boardFor, outputSize, presetById } from '../lib/presets.ts';
 import { foldsOf, reservedOf, safeOf, trimOf } from '../lib/board.ts';
 
 test('every preset is distinct, named and the right way up for its job', () => {
@@ -132,4 +132,55 @@ test('a printed preset draws its trim where the guillotine goes', () => {
   // The element, not the CSS class that styles it — that is always in the sheet.
   assert.equal((html.match(/class="guide guide-fold"/g) ?? []).length, 0, 'a postcard does not fold');
   assert.equal((html.match(/class="guide guide-safe"/g) ?? []).length, 1);
+});
+
+/* ------------------------------------------------------- how big the file comes out */
+
+const sizeOf = (id, opts) => outputSize(presetById(id), opts);
+
+test('a screen board comes out at the pixels the platform asked for', () => {
+  assert.deepEqual(
+    [sizeOf('instagram-post').widthPx, sizeOf('instagram-post').heightPx],
+    [1080, 1080],
+  );
+  assert.deepEqual([sizeOf('instagram-story').widthPx, sizeOf('instagram-story').heightPx], [1080, 1920]);
+  assert.deepEqual([sizeOf('pinterest-pin').widthPx, sizeOf('pinterest-pin').heightPx], [1000, 1500]);
+  assert.deepEqual([sizeOf('link-image').widthPx, sizeOf('link-image').heightPx], [1200, 628]);
+});
+
+test('asking a screen board for 300 DPI does not make it three times too big', () => {
+  // This is the whole reason the two are not one control. 810 points at 300
+  // DPI is a 3375 pixel square; Instagram asked for 1080 and discards the rest.
+  const asked = sizeOf('instagram-post', { dpi: 300 });
+  assert.equal(asked.widthPx, 1080, 'dpi is ignored on a board measured in pixels');
+  assert.notEqual(asked.widthPx, 3375);
+});
+
+test('a multiple gives the same design at more pixels', () => {
+  assert.equal(sizeOf('instagram-post', { scale: 2 }).widthPx, 2160);
+  assert.equal(sizeOf('instagram-post', { scale: 3 }).widthPx, 3240);
+  // And is held to what Chromium will actually do.
+  assert.equal(sizeOf('instagram-post', { scale: 99 }).shotScale, 8);
+  assert.equal(sizeOf('instagram-post', { scale: 0 }).shotScale, 0.25);
+  assert.equal(sizeOf('instagram-post', { scale: NaN }).widthPx, 1080);
+});
+
+test('a printed board comes out at the resolution the printer needs', () => {
+  // A 4.25 x 6in postcard is laid out on 4.5 x 6.25in with the bleed.
+  const card = sizeOf('postcard-a6', { dpi: 300 });
+  assert.deepEqual([card.widthPx, card.heightPx], [1350, 1875]);
+  assert.equal(card.dpi, 300);
+
+  assert.equal(sizeOf('bookmark', { dpi: 300 }).widthPx, 675);
+  assert.equal(sizeOf('postcard-a6', { dpi: 600 }).widthPx, 2700);
+  // And never below what KDP would reject or above what is worth carrying.
+  assert.equal(sizeOf('postcard-a6', { dpi: 10 }).dpi, 72);
+  assert.equal(sizeOf('postcard-a6', { dpi: 5000 }).dpi, 600);
+});
+
+test('a screen board reports the resolution it would print at, honestly', () => {
+  // 1080px across 11.25in is 96 dpi: fine on a screen, soft on paper. Saying so
+  // is better than saying 300 because the number 300 was in the request.
+  assert.equal(sizeOf('instagram-post').dpi, 96);
+  assert.equal(sizeOf('instagram-post', { scale: 2 }).dpi, 192);
 });
