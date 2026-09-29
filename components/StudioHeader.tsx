@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Wordmark } from './Wordmark';
 
 /**
  * The bar across the top of every screen.
@@ -12,13 +12,7 @@ import type { ReactNode } from 'react';
 export function StudioHeader({ children }: { children?: ReactNode }) {
   return (
     <header className="flex items-center gap-4 border-b border-ink-200 bg-paper px-5">
-      <Link
-        href="/"
-        className="rounded-lg py-4 pr-1 text-[20px] font-semibold tracking-tight transition-colors hover:text-accent-500"
-        title="Everything you have made"
-      >
-        Isna<span className="text-accent-500">evy</span>
-      </Link>
+      <Wordmark />
       {children}
     </header>
   );

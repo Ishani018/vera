@@ -16,6 +16,20 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        {/*
+          The wordmark's face. Loaded the same way every other Google face in
+          this app is — a stylesheet link at runtime — rather than baked in at
+          build time, so building has never needed the network and still
+          doesn't. If it cannot be reached the wordmark falls back to whichever
+          script the machine ships.
+        */}
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap"
+        />
+      </head>
       {/*
         Grammarly and friends write their own attributes onto <body> before
         React gets to it, and React then reports the body it rendered and the

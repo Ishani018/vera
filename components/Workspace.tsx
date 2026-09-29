@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { illustrationsOf } from '@/lib/contents';
 import { useStore } from '@/lib/store';
@@ -13,6 +12,7 @@ import { MODES, ModePanel, type Mode } from './Modes';
 import { useOpenIntent } from './openIntent';
 import { PoemEditor } from './PoemEditor';
 import { Walkthrough, useWalkthrough } from './Walkthrough';
+import { Wordmark } from './Wordmark';
 import { Button, SegmentedControl, cx } from './ui';
 
 type Tab = 'book' | 'cover' | 'kit';
@@ -87,13 +87,7 @@ export function Workspace() {
   return (
     <main className="flex h-dvh flex-col">
       <header className="flex items-center gap-4 border-b border-ink-200 bg-paper px-5">
-        <Link
-          href="/"
-          title="Everything you have made"
-          className="rounded-lg py-4 pr-1 text-[20px] font-semibold tracking-tight transition-colors hover:text-accent-500"
-        >
-          Isna<span className="text-accent-500">evy</span>
-        </Link>
+        <Wordmark />
         <span className="truncate rounded-lg px-3 py-2 text-ink-700">{project.meta.title}</span>
 
         <SegmentedControl<Tab>
