@@ -11,8 +11,9 @@ import {
   ptToInches,
   spineWidth,
 } from '@/lib/kdp';
-import { foldsOf, trimOf } from '@/lib/board';
-import { coverLayout, spineTooThinForText } from '@/lib/render/coverLayout';
+import type { Board } from '@/lib/board';
+import { foldsOf, safeOf, trimOf } from '@/lib/board';
+import { coverLayout, spineTooThinForText, type CoverLayout } from '@/lib/render/coverLayout';
 import { id } from '@/lib/defaults';
 import { font } from '@/lib/defaults';
 import { useCoverHistory } from '@/lib/cover/history';
@@ -80,12 +81,16 @@ export type CoverPicture = {
   height: number;
 };
 
+/** A cover, or any other board, which has none of a cover's particulars. */
+type DesignBoard = Board<string> & Partial<Pick<CoverLayout, 'dimensions' | 'barcode' | 'folds'>>;
+
 export function CoverDesigner<T extends CoverableBook>({
   project,
   update,
   pageCount,
   displayFont,
   pictures = [],
+  board,
 }: {
   project: T | null;
   update: (recipe: (draft: T) => void) => void;
@@ -94,6 +99,14 @@ export function CoverDesigner<T extends CoverableBook>({
   displayFont: Pick<FontSpec, 'family' | 'fallback'>;
   /** What is already inside the book, offered as stickers for the outside. */
   pictures?: CoverPicture[];
+  /**
+   * A board to lay out on instead of the book's cover.
+   *
+   * Given one, this is a design of some other size — a post, a pin, a postcard
+   * — and the parts that are only true of a wraparound cover, the spine
+   * reading, the barcode reserve and the three faces, go away with it.
+   */
+  board?: Board<string> | null;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
@@ -117,8 +130,11 @@ export function CoverDesigner<T extends CoverableBook>({
   );
 
   const finalPages = padToEven(pageCount || 24);
-  const layout = useMemo(
-    () => (project ? coverLayout(project, finalPages) : null),
+  // A cover carries three named faces, a spine reading and a barcode reserve;
+  // any other board carries none of them. Everything below that touches one
+  // asks first.
+  const layout: DesignBoard | null = useMemo(
+    () => board ?? (project ? coverLayout(project, finalPages) : null),
     [project, finalPages],
   );
 
@@ -252,9 +268,11 @@ export function CoverDesigner<T extends CoverableBook>({
   if (!project || !layout) return null;
 
   const cover = project.cover;
+  /** Whether this board is a wraparound cover, with the particulars one has. */
+  const isCover = Boolean(layout.dimensions);
   const selected = cover.textBoxes.find((b) => b.id === selectedId) ?? null;
   const sticker = cover.stickers.find((s) => s.id === selectedSticker) ?? null;
-  const issues = validateCover(project, pageCount);
+  const issues = isCover ? validateCover(project, pageCount) : [];
 
   /** Everything in the book, offered as something to stick on the cover. */
   const trayItems: TrayItem[] = pictures.map((picture) => ({
@@ -281,7 +299,7 @@ export function CoverDesigner<T extends CoverableBook>({
   const placeSticker = (item: TrayItem, at: { x: number; y: number } | null) => {
     const width = inchesToPt(2.5);
     const height = item.width ? (width * item.height) / item.width : width;
-    const back = layout.panels.back;
+    const back = layout.panels.back ?? layout.panels.board;
     const point = at ?? {
       x: back.x + back.width / 2 - width / 2,
       y: back.y + back.height / 2 - height / 2,
@@ -369,8 +387,8 @@ export function CoverDesigner<T extends CoverableBook>({
         cover.frontImage.naturalWidth,
         // Dots per inch, so the width it covers has to be in inches. The
         // wrap figure is KDP's own and already is; the panel is points.
-        cover.imageSpansWrap
-          ? layout.dimensions.width
+        cover.imageSpansWrap || !layout.panels.front
+          ? ptToInches(layout.width)
           : ptToInches(layout.panels.front.width),
       )
     : 0;
@@ -415,26 +433,33 @@ export function CoverDesigner<T extends CoverableBook>({
               });
             }}
           >
-            <div
-              className="absolute"
-              style={{
-                left: 0,
-                top: 0,
-                width: layout.panels.spine.x * scale,
-                height: layout.height * scale,
-                background: cover.backColor,
-              }}
-            />
-            <div
-              className="absolute"
-              style={{
-                left: layout.panels.spine.x * scale,
-                top: 0,
-                width: layout.panels.spine.width * scale,
-                height: layout.height * scale,
-                background: cover.spineColor,
-              }}
-            />
+            {/* A cover paints everything left of the spine one colour and the
+                spine another. A board with neither paints neither, and shows
+                the background it already has. */}
+            {layout.panels.spine && (
+              <>
+                <div
+                  className="absolute"
+                  style={{
+                    left: 0,
+                    top: 0,
+                    width: layout.panels.spine.x * scale,
+                    height: layout.height * scale,
+                    background: cover.backColor,
+                  }}
+                />
+                <div
+                  className="absolute"
+                  style={{
+                    left: layout.panels.spine.x * scale,
+                    top: 0,
+                    width: layout.panels.spine.width * scale,
+                    height: layout.height * scale,
+                    background: cover.spineColor,
+                  }}
+                />
+              </>
+            )}
 
             {cover.frontImage && imageUrl && (
               /* eslint-disable-next-line @next/next/no-img-element */
@@ -443,11 +468,16 @@ export function CoverDesigner<T extends CoverableBook>({
                 src={imageUrl}
                 className="pointer-events-none absolute"
                 style={{
-                  left: cover.imageSpansWrap ? 0 : (layout.panels.front.x - layout.bleed) * scale,
+                  // With no front panel to sit on, a picture fills the board.
+                  left:
+                    cover.imageSpansWrap || !layout.panels.front
+                      ? 0
+                      : (layout.panels.front.x - layout.bleed) * scale,
                   top: 0,
-                  width: cover.imageSpansWrap
-                    ? layout.width * scale
-                    : (layout.panels.front.width + layout.bleed) * scale,
+                  width:
+                    cover.imageSpansWrap || !layout.panels.front
+                      ? layout.width * scale
+                      : (layout.panels.front.width + layout.bleed) * scale,
                   height: layout.height * scale,
                   objectFit: cover.frontImage.fit,
                 }}
@@ -458,10 +488,10 @@ export function CoverDesigner<T extends CoverableBook>({
               <div
                 className="pointer-events-none absolute flex items-center justify-center border border-dashed border-black/45 bg-white/55 text-center text-[9px] italic text-black/60"
                 style={{
-                  left: layout.barcode.x * scale,
-                  top: layout.barcode.y * scale,
-                  width: layout.barcode.width * scale,
-                  height: layout.barcode.height * scale,
+                  left: layout.barcode!.x * scale,
+                  top: layout.barcode!.y * scale,
+                  width: layout.barcode!.width * scale,
+                  height: layout.barcode!.height * scale,
                 }}
               >
                 Barcode area
@@ -514,7 +544,10 @@ export function CoverDesigner<T extends CoverableBook>({
                 transform: rotate ? `rotate(${rotate}deg)` : undefined,
                 transformOrigin: 'left top',
                 fontFamily: `'${box.font.family}', ${box.font.fallback}`,
-                fontSize: (box.font.sizePt / 72) * scale,
+                // Points times pixels-per-point. It was divided by 72 first,
+                // from when the scale was per inch, which put every text box on
+                // the stage at a seventy-second of its size.
+                fontSize: box.font.sizePt * scale,
                 lineHeight: box.font.lineHeight,
                 letterSpacing: `${box.font.letterSpacingEm}em`,
                 fontWeight: box.font.weight,
@@ -587,37 +620,68 @@ export function CoverDesigner<T extends CoverableBook>({
                 }
               />
             ))}
-            <div
-              className="pointer-events-none absolute border border-red-500/80"
-              style={{
-                left: trimOf(layout).x * scale,
-                top: trimOf(layout).y * scale,
-                width: trimOf(layout).width * scale,
-                height: trimOf(layout).height * scale,
-              }}
-            />
+            {/* The trim is where the guillotine goes, so it is drawn only on
+                something that gets cut. Nothing trims a screen. */}
+            {layout.bleed > 0 && (
+              <div
+                className="pointer-events-none absolute border border-red-500/80"
+                style={{
+                  left: trimOf(layout).x * scale,
+                  top: trimOf(layout).y * scale,
+                  width: trimOf(layout).width * scale,
+                  height: trimOf(layout).height * scale,
+                }}
+              />
+            )}
+
+            {/* And the safe area, which every board has and a story badly needs:
+                its top and bottom are under the controls. */}
+            {safeOf(layout).map((area, i) => (
+              <div
+                key={`safe-${i}`}
+                className="pointer-events-none absolute border border-dashed border-emerald-500/70"
+                style={{
+                  left: area.rect.x * scale,
+                  top: area.rect.y * scale,
+                  width: area.rect.width * scale,
+                  height: area.rect.height * scale,
+                }}
+              />
+            ))}
           </div>
         )}
 
         <p className="mx-auto mt-4 max-w-lg text-center text-[11px] text-white/70">
-          Red is the trim line — anything outside it is cut off. Blue dashes are the spine folds.
-          Drag any text box to move it.
+          {isCover
+            ? 'Red is the trim line — anything outside it is cut off. Blue dashes are the spine folds. Drag any text box to move it.'
+            : layout.bleed
+              ? 'Red is the trim line — anything outside it is cut off. Green is the safe margin. Drag any text box to move it.'
+              : 'Green is the safe area — feeds and overlays crop outside it. Drag any text box to move it.'}
         </p>
       </div>
 
       <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
-          <dt>Full cover</dt>
-          <dd className="text-right tabular-nums text-ink-700">
-            {layout.dimensions.width.toFixed(3)}″ × {layout.dimensions.height.toFixed(3)}″
-          </dd>
-          <dt>Spine at {finalPages} pages</dt>
-          <dd className="text-right tabular-nums text-ink-700">
-            {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
-          </dd>
-        </dl>
+        {isCover ? (
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
+            <dt>Full cover</dt>
+            <dd className="text-right tabular-nums text-ink-700">
+              {layout.dimensions!.width.toFixed(3)}″ × {layout.dimensions!.height.toFixed(3)}″
+            </dd>
+            <dt>Spine at {finalPages} pages</dt>
+            <dd className="text-right tabular-nums text-ink-700">
+              {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
+            </dd>
+          </dl>
+        ) : (
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
+            <dt>Size</dt>
+            <dd className="text-right tabular-nums text-ink-700">
+              {Math.round(layout.width * (96 / 72))} × {Math.round(layout.height * (96 / 72))} px
+            </dd>
+          </dl>
+        )}
 
-        {spineTooThinForText(layout) && (
+        {isCover && spineTooThinForText(layout as CoverLayout) && (
           <Notice level="warning">
             The spine is under 0.0625″, KDP's minimum for printing spine text.
           </Notice>
@@ -630,7 +694,7 @@ export function CoverDesigner<T extends CoverableBook>({
           <Button onClick={coverHistory.redo} disabled={!coverHistory.canRedo} title="Redo (Cmd+Shift+Z)">
             ↻
           </Button>
-          <span className="text-[11px] text-ink-500">Undo covers the cover</span>
+          <span className="text-[11px] text-ink-500">Undo covers the {isCover ? 'cover' : 'design'}</span>
         </div>
 
         <StickerTray
@@ -788,6 +852,7 @@ export function CoverDesigner<T extends CoverableBook>({
           </Field>
         </div>
 
+        {isCover && (
         <Toggle
           label="Show the barcode reserve"
           checked={cover.showBarcodeZone}
@@ -797,11 +862,12 @@ export function CoverDesigner<T extends CoverableBook>({
             })
           }
         />
+        )}
 
         <div className="space-y-2 border-t border-ink-200 pt-3">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
           <div className="grid grid-cols-3 gap-1.5">
-            {ADDABLE_PANELS.map((panel) => (
+            {(isCover ? ADDABLE_PANELS : (['board'] as CoverPanel[])).map((panel) => (
               <Button key={panel} onClick={() => addBox(panel)}>
                 + {panel}
               </Button>
@@ -982,7 +1048,7 @@ function StickerInspector({
   saved,
 }: {
   sticker: CoverSticker;
-  layout: import('@/lib/render/coverLayout').CoverLayout;
+  layout: Board<string>;
   onPatch: (patch: Partial<CoverSticker>) => void;
   /**
    * The same, without touching the history. A slider sends a few hundred of

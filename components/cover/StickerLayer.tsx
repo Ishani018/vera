@@ -13,7 +13,7 @@ import {
   type Corner,
   type Guide,
 } from '@/lib/cover/stickerEdit';
-import type { CoverLayout } from '@/lib/render/coverLayout';
+import type { Board } from '@/lib/board';
 import { stickerDpi } from '@/lib/render/stickers';
 import { MIN_COVER_DPI } from '@/lib/kdp';
 import type { CoverSticker } from '@/lib/types';
@@ -37,7 +37,7 @@ export function StickerLayer({
   onCommit,
 }: {
   stickers: CoverSticker[];
-  layout: CoverLayout;
+  layout: Board;
   scale: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -247,7 +247,7 @@ function Sticker({
         filter: sticker.shadow && bend ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.33))' : undefined,
         border:
           sticker.border && !bend
-            ? `${(sticker.border.widthPt / 72) * scale}px solid ${sticker.border.color}`
+            ? `${sticker.border.widthPt * scale}px solid ${sticker.border.color}`
             : undefined,
         overflow: bend ? 'visible' : 'hidden',
       }}
