@@ -154,12 +154,18 @@ export function snapAngle(degrees: number, within = 4): number {
   return Math.abs(nearest - degrees) <= within ? ((nearest % 360) + 360) % 360 : degrees;
 }
 
-/** Moves a sticker one place up or down the stack, without renumbering anything. */
-export function restack(stickers: CoverSticker[], id: string, direction: 1 | -1): CoverSticker[] {
-  const from = stickers.findIndex((s) => s.id === id);
+/**
+ * Moves one thing a place up or down its stack, without renumbering anything.
+ *
+ * Written for stickers and now used for text boxes too: drawing order is the
+ * order of the array either way, so the only thing this needs to know about
+ * what it is moving is which one it is.
+ */
+export function restack<T extends { id: string }>(items: T[], id: string, direction: 1 | -1): T[] {
+  const from = items.findIndex((item) => item.id === id);
   const to = from + direction;
-  if (from < 0 || to < 0 || to >= stickers.length) return stickers;
-  const next = [...stickers];
+  if (from < 0 || to < 0 || to >= items.length) return items;
+  const next = [...items];
   [next[from], next[to]] = [next[to], next[from]];
   return next;
 }

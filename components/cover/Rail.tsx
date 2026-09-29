@@ -58,7 +58,12 @@ export function Rail({
             <span aria-hidden className="text-[19px] leading-none">
               {panel.glyph}
             </span>
-            <span className="text-[11px] font-[570]">{panel.label}</span>
+            {/* Centred and allowed to wrap: "Background" does not fit a rail
+                this narrow on one line, and a label cut off mid-word is worse
+                than a label on two. */}
+            <span className="text-center text-[10.5px] font-[570] leading-tight">
+              {panel.label}
+            </span>
           </button>
         ))}
 
@@ -72,7 +77,7 @@ export function Rail({
             <span aria-hidden className="text-[19px] leading-none">
               {item.glyph}
             </span>
-            <span className="text-[11px] font-[570]">{item.label}</span>
+            <span className="text-center text-[10.5px] font-[570] leading-tight">{item.label}</span>
             <span className="text-[9px] uppercase tracking-wide">Soon</span>
           </span>
         ))}

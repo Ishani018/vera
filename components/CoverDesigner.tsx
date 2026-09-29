@@ -31,12 +31,20 @@ import type {
 } from '@/lib/types';
 import { StickerLayer } from './cover/StickerLayer';
 import { Rail } from './cover/Rail';
+import {
+  SelectionToolbar,
+  ToolButton,
+  ToolDivider,
+  ToolSlider,
+  type SelectionBox,
+} from './cover/SelectionToolbar';
 import { StickerTray, type TrayItem } from './cover/StickerTray';
 import { StickerLibrary } from './cover/StickerLibrary';
 import { CoverTemplates } from './cover/CoverTemplates';
 import { saveToLibrary } from '@/lib/cover/library';
 import { validateCover } from '@/lib/validate';
 import { FontControls } from './FontControls';
+import { FontPicker } from './FontPicker';
 import {
   Button,
   ColorInput,
@@ -169,6 +177,15 @@ export function CoverDesigner<T extends CoverableBook>({
   const [guidesOn, setGuidesOn] = useState(() => !board || board.bleed > 0);
   /** Which door is open. Text first: a blank board most often wants words. */
   const [openPanel, setOpenPanel] = useState<string | null>('text');
+  /**
+   * Where the board sits inside the canvas, and how big the canvas is.
+   *
+   * Both are needed to put the floating toolbar over the selected thing: the
+   * board moves when the pane is scrolled, when the window changes and when
+   * the zoom does, and the toolbar has to move with it.
+   */
+  const [stageAt, setStageAt] = useState({ x: 0, y: 0 });
+  const [paneBox, setPaneBox] = useState({ width: 0, height: 0 });
 
   // Undo covers the cover only, and a snapshot is taken at the start of each
   // gesture, so one undo puts back what was there before a drag rather than
@@ -201,6 +218,44 @@ export function CoverDesigner<T extends CoverableBook>({
     measure(stage.clientWidth, stage.clientHeight);
     return () => observer.disconnect();
   }, []);
+
+  /**
+   * Kept up to date on every render, and on scroll and resize.
+   *
+   * No dependency list on purpose: the board moves when anything moves it —
+   * a zoom, a scroll, a panel opening, the window — and a list of the reasons
+   * is a list to be wrong about. The setters bail out when nothing changed,
+   * so this settles rather than loops.
+   */
+  useEffect(() => {
+    const pane = stageRef.current;
+    if (!pane) return;
+    const same = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
+    const measure = () => {
+      const box = pane.getBoundingClientRect();
+      setPaneBox((was) =>
+        was.width === pane.clientWidth && was.height === pane.clientHeight
+          ? was
+          : { width: pane.clientWidth, height: pane.clientHeight },
+      );
+      const stage = pane.querySelector('[data-cover-stage]');
+      if (!stage) return;
+      const at = stage.getBoundingClientRect();
+      const next = { x: at.left - box.left, y: at.top - box.top };
+      setStageAt((was) => (same(was, next) ? was : next));
+    };
+    measure();
+    pane.addEventListener('scroll', measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    const stage = pane.querySelector('[data-cover-stage]');
+    if (stage) observer.observe(stage);
+    return () => {
+      pane.removeEventListener('scroll', measure);
+      observer.disconnect();
+    };
+  });
 
   // The project holds an asset id; the canvas needs a URL for it.
   const assetId = project?.cover.frontImage?.assetId ?? null;
@@ -573,6 +628,7 @@ export function CoverDesigner<T extends CoverableBook>({
           <StickerInspector
             sticker={sticker}
             layout={layout}
+            compact={rail}
             onPatch={(patch) => {
               coverHistory.remember();
               patchSticker(sticker.id, patch);
@@ -824,6 +880,10 @@ export function CoverDesigner<T extends CoverableBook>({
                 />
               </Field>
             </div>
+            {/* On a board, curve and the face of the type are in the floating
+                toolbar over the words themselves. Hidden here rather than
+                repeated. */}
+            {!rail && (
             <Field
               label="Curve"
               hint={
@@ -847,6 +907,7 @@ export function CoverDesigner<T extends CoverableBook>({
                 />
               </div>
             </Field>
+            )}
             <FontControls
               spec={selected.font}
               onChange={(patch) =>
@@ -855,18 +916,38 @@ export function CoverDesigner<T extends CoverableBook>({
                   if (found) Object.assign(found.font, patch);
                 })
               }
+              // What the toolbar has taken: the face, the size, the weight,
+              // italic, the colour and the alignment. What is left here is the
+              // fine work — leading, letter spacing, case — which nobody wants
+              // in a bar over their words.
+              options={
+                rail
+                  ? {
+                      showFamily: false,
+                      showSize: false,
+                      showWeight: false,
+                      showItalic: false,
+                      showColor: false,
+                      showAlign: false,
+                    }
+                  : {}
+              }
             />
-            <Button
-              variant="danger"
-              onClick={() => {
-                update((draft) => {
-                  draft.cover.textBoxes = draft.cover.textBoxes.filter((b) => b.id !== selected.id);
-                });
-                setSelectedId(null);
-              }}
-            >
-              Delete this text
-            </Button>
+            {!rail && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  update((draft) => {
+                    draft.cover.textBoxes = draft.cover.textBoxes.filter(
+                      (b) => b.id !== selected.id,
+                    );
+                  });
+                  setSelectedId(null);
+                }}
+              >
+                Delete this text
+              </Button>
+            )}
           </div>
         )}
 
@@ -886,6 +967,78 @@ export function CoverDesigner<T extends CoverableBook>({
       </>
     ),
   };
+
+  /**
+   * Zooming keeps what you were looking at in the middle.
+   *
+   * A zoom that anchors on the top-left corner throws the thing being worked
+   * on off the screen, and at two hundred per cent that means the selection
+   * and its toolbar both vanish. The selection is the anchor when there is
+   * one, the middle of the board when there is not.
+   */
+  const lastScale = useRef(scale);
+  useEffect(() => {
+    const pane = stageRef.current;
+    if (!pane || lastScale.current === scale || scale <= 0) {
+      lastScale.current = scale;
+      return;
+    }
+    lastScale.current = scale;
+    const frame = requestAnimationFrame(() => {
+      const stage = pane.querySelector('[data-cover-stage]');
+      if (!stage || !layout) return;
+      const paneRect = pane.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      const panel = selected ? layout.panels[selected.panel] ?? layout.panels.board : null;
+      const focus = sticker
+        ? { x: sticker.x + sticker.width / 2, y: sticker.y + sticker.height / 2 }
+        : selected && panel
+          ? { x: panel.x + selected.x + selected.width / 2, y: panel.y + selected.y }
+          : { x: layout.width / 2, y: layout.height / 2 };
+      pane.scrollLeft += stageRect.left - paneRect.left + focus.x * scale - pane.clientWidth / 2;
+      pane.scrollTop += stageRect.top - paneRect.top + focus.y * scale - pane.clientHeight / 2;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scale, layout, selected, sticker]);
+
+  /**
+   * Where the selected thing is on the canvas, in pane pixels.
+   *
+   * Worked out from the same numbers the board is drawn from rather than by
+   * measuring the DOM: the model is what moves during a drag, and reading it
+   * means the toolbar arrives with the picture rather than a frame behind it.
+   */
+  const selectionBox: SelectionBox | null = (() => {
+    if (!rail || scale <= 0) return null;
+    if (sticker) {
+      return {
+        x: stageAt.x + sticker.x * scale,
+        y: stageAt.y + sticker.y * scale,
+        width: sticker.width * scale,
+        height: sticker.height * scale,
+      };
+    }
+    if (selected) {
+      const panel = layout.panels[selected.panel] ?? layout.panels.board;
+      if (!panel) return null;
+      const arc = curvedText(selected);
+      return {
+        x: stageAt.x + (panel.x + selected.x + (arc?.offsetX ?? 0)) * scale,
+        y: stageAt.y + (panel.y + selected.y + (arc?.offsetY ?? 0)) * scale,
+        width: (arc?.width ?? selected.width) * scale,
+        // A straight box is as tall as one line of its own type; a curved one
+        // knows its own height, because the arc worked it out.
+        height: (arc?.height ?? selected.font.sizePt * selected.font.lineHeight) * scale,
+      };
+    }
+    return null;
+  })();
+
+  const patchFont = (patch: Partial<FontSpec>) =>
+    update((draft) => {
+      const found = draft.cover.textBoxes.find((b) => b.id === selected?.id);
+      if (found) Object.assign(found.font, patch);
+    });
 
   const empty =
     !cover.frontImage && !cover.stickers.length && !cover.textBoxes.length;
@@ -1206,6 +1359,252 @@ export function CoverDesigner<T extends CoverableBook>({
         </div>
 
         {/*
+          The controls for what is selected, over the thing they belong to.
+          Only on a board: a cover keeps its sidebar, where these have always
+          been, and having both would be two places to look.
+        */}
+        {rail && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <SelectionToolbar box={selectionBox} pane={paneBox}>
+              {selected && (
+                <>
+                  <div className="w-[136px]">
+                    <FontPicker
+                      value={selected.font.family}
+                      onChange={(family, fallback) => patchFont({ family, fallback })}
+                    />
+                  </div>
+                  <input
+                    type="number"
+                    aria-label="Type size"
+                    value={selected.font.sizePt}
+                    min={5}
+                    max={200}
+                    step={1}
+                    onChange={(e) => patchFont({ sizePt: Number(e.target.value) || 1 })}
+                    className="h-8 w-[58px] rounded-lg border border-ink-200 px-1.5 text-[13px] tabular-nums"
+                  />
+                  <input
+                    type="color"
+                    aria-label="Text colour"
+                    value={selected.font.color}
+                    onChange={(e) => patchFont({ color: e.target.value })}
+                    className="h-7 w-8 cursor-pointer rounded border border-ink-200 bg-paper"
+                  />
+                  <ToolButton
+                    label="Bold"
+                    active={selected.font.weight >= 600}
+                    onClick={() => patchFont({ weight: selected.font.weight >= 600 ? 400 : 700 })}
+                  >
+                    <span className="font-bold">B</span>
+                  </ToolButton>
+                  <ToolButton
+                    label="Italic"
+                    active={selected.font.italic}
+                    onClick={() => patchFont({ italic: !selected.font.italic })}
+                  >
+                    <span className="italic">I</span>
+                  </ToolButton>
+                  <ToolDivider />
+                  {(['left', 'center', 'right'] as const).map((align) => (
+                    <ToolButton
+                      key={align}
+                      label={`Align ${align}`}
+                      active={selected.font.align === align}
+                      onClick={() => patchFont({ align })}
+                    >
+                      {align === 'left' ? '⯇' : align === 'center' ? '≡' : '⯈'}
+                    </ToolButton>
+                  ))}
+                  <ToolDivider />
+                  <ToolSlider
+                    label="Curve"
+                    value={selected.curve}
+                    min={-100}
+                    max={100}
+                    onStart={coverHistory.remember}
+                    onChange={(curve) => patchBox(update, selected.id, { curve })}
+                  />
+                  <ToolDivider />
+                  <ToolButton
+                    label="Duplicate"
+                    onClick={() => {
+                      const newId = id('cb');
+                      coverHistory.remember();
+                      update((draft) => {
+                        const source = draft.cover.textBoxes.find((b) => b.id === selected.id);
+                        if (source) {
+                          draft.cover.textBoxes.push({
+                            ...structuredClone(source),
+                            id: newId,
+                            x: source.x + 12,
+                            y: source.y + 12,
+                          });
+                        }
+                      });
+                      setSelectedId(newId);
+                    }}
+                  >
+                    ⧉
+                  </ToolButton>
+                  <ToolButton
+                    label="Delete"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.textBoxes = draft.cover.textBoxes.filter(
+                          (b) => b.id !== selected.id,
+                        );
+                      });
+                      setSelectedId(null);
+                    }}
+                  >
+                    🗑
+                  </ToolButton>
+                  <ToolButton
+                    label="Bring forward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.textBoxes = restack(draft.cover.textBoxes, selected.id, 1);
+                      });
+                    }}
+                  >
+                    ↑
+                  </ToolButton>
+                  <ToolButton
+                    label="Send backward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.textBoxes = restack(draft.cover.textBoxes, selected.id, -1);
+                      });
+                    }}
+                  >
+                    ↓
+                  </ToolButton>
+                </>
+              )}
+
+              {sticker && (
+                <>
+                  <ToolSlider
+                    label="Arc"
+                    value={sticker.arc}
+                    min={-100}
+                    max={100}
+                    onStart={coverHistory.remember}
+                    onChange={(arc) => patchSticker(sticker.id, { arc })}
+                  />
+                  <ToolSlider
+                    label="Corners"
+                    value={Math.round(sticker.cornerRadius * 100)}
+                    min={0}
+                    max={50}
+                    onStart={coverHistory.remember}
+                    onChange={(value) => patchSticker(sticker.id, { cornerRadius: value / 100 })}
+                  />
+                  <ToolDivider />
+                  <ToolButton
+                    label="Border"
+                    active={Boolean(sticker.border)}
+                    onClick={() => {
+                      coverHistory.remember();
+                      patchSticker(sticker.id, {
+                        border: sticker.border ? null : { widthPt: 2, color: '#1a1a1a' },
+                      });
+                    }}
+                  >
+                    ▢
+                  </ToolButton>
+                  {sticker.border && (
+                    <input
+                      type="color"
+                      aria-label="Border colour"
+                      value={sticker.border.color}
+                      onChange={(e) =>
+                        patchSticker(sticker.id, {
+                          border: { ...sticker.border!, color: e.target.value },
+                        })
+                      }
+                      className="h-7 w-8 cursor-pointer rounded border border-ink-200 bg-paper"
+                    />
+                  )}
+                  <ToolButton
+                    label="Shadow"
+                    active={sticker.shadow}
+                    onClick={() => {
+                      coverHistory.remember();
+                      patchSticker(sticker.id, { shadow: !sticker.shadow });
+                    }}
+                  >
+                    ◗
+                  </ToolButton>
+                  <ToolDivider />
+                  <ToolButton
+                    label="Duplicate"
+                    onClick={() => {
+                      const newId = id('cs');
+                      coverHistory.remember();
+                      update((draft) => {
+                        const source = draft.cover.stickers.find((s) => s.id === sticker.id);
+                        if (source) {
+                          draft.cover.stickers.push({
+                            ...source,
+                            id: newId,
+                            x: source.x + 12,
+                            y: source.y + 12,
+                          });
+                        }
+                      });
+                      setSelectedSticker(newId);
+                    }}
+                  >
+                    ⧉
+                  </ToolButton>
+                  <ToolButton
+                    label="Delete"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.stickers = draft.cover.stickers.filter(
+                          (s) => s.id !== sticker.id,
+                        );
+                      });
+                      setSelectedSticker(null);
+                    }}
+                  >
+                    🗑
+                  </ToolButton>
+                  <ToolButton
+                    label="Bring forward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.stickers = restack(draft.cover.stickers, sticker.id, 1);
+                      });
+                    }}
+                  >
+                    ↑
+                  </ToolButton>
+                  <ToolButton
+                    label="Send backward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.stickers = restack(draft.cover.stickers, sticker.id, -1);
+                      });
+                    }}
+                  >
+                    ↓
+                  </ToolButton>
+                </>
+              )}
+            </SelectionToolbar>
+          </div>
+        )}
+
+        {/*
           The view controls, over the canvas rather than in the panel: they are
           about looking at the board, not about changing it.
         */}
@@ -1326,9 +1725,12 @@ function StickerInspector({
   onDelete,
   onKeep,
   saved,
+  compact = false,
 }: {
   sticker: CoverSticker;
   layout: Board<string>;
+  /** True where a floating toolbar already carries the frequent controls. */
+  compact?: boolean;
   onPatch: (patch: Partial<CoverSticker>) => void;
   /**
    * The same, without touching the history. A slider sends a few hundred of
@@ -1393,31 +1795,39 @@ function StickerInspector({
         </Field>
       </div>
 
-      <Field
-        label="Arc"
-        hint={
-          bend
-            ? `Bent through ${Math.round((bend.sweep * 180) / Math.PI)}° — ${
-                bend.up ? 'arching up' : 'hanging down'
-              }`
-            : 'Flat. Drag right to bend the picture up, left to bend it down.'
-        }
-      >
-        <div onPointerDown={onCommit} onKeyDown={onCommit}>
-          <Slider
-            value={sticker.arc}
-            onChange={(arc) => onSlide({ arc })}
-            min={-100}
-            max={100}
-            step={1}
-          />
-        </div>
-      </Field>
+      {/*
+        Everything from here to the buttons is in the floating toolbar on a
+        board, so it is hidden rather than repeated: the same setting in two
+        places is two places to look and one to be wrong about. A cover has no
+        toolbar and keeps all of it.
+      */}
+      {!compact && (
+        <Field
+          label="Arc"
+          hint={
+            bend
+              ? `Bent through ${Math.round((bend.sweep * 180) / Math.PI)}° — ${
+                  bend.up ? 'arching up' : 'hanging down'
+                }`
+              : 'Flat. Drag right to bend the picture up, left to bend it down.'
+          }
+        >
+          <div onPointerDown={onCommit} onKeyDown={onCommit}>
+            <Slider
+              value={sticker.arc}
+              onChange={(arc) => onSlide({ arc })}
+              min={-100}
+              max={100}
+              step={1}
+            />
+          </div>
+        </Field>
+      )}
 
       {/* A bent picture is no longer a rectangle, so a border and rounded
           corners would frame a shape that is not there. Out of the way rather
           than sitting there doing nothing. */}
-      {!bend && (
+      {!compact && !bend && (
         <Field label="Rounded corners">
           <div onPointerDown={onCommit} onKeyDown={onCommit}>
             <Slider
@@ -1431,12 +1841,14 @@ function StickerInspector({
         </Field>
       )}
 
-      <Toggle
-        label="Soft shadow"
-        checked={sticker.shadow}
-        onChange={(shadow) => onPatch({ shadow })}
-      />
-      {!bend && (
+      {!compact && (
+        <Toggle
+          label="Soft shadow"
+          checked={sticker.shadow}
+          onChange={(shadow) => onPatch({ shadow })}
+        />
+      )}
+      {!compact && !bend && (
         <Toggle
           label="Border"
           checked={Boolean(sticker.border)}
@@ -1454,21 +1866,25 @@ function StickerInspector({
               suffix="pt"
             />
           </Field>
-          <Field label="Colour">
-            <ColorInput
-              value={sticker.border.color}
-              onChange={(color) => onPatch({ border: { ...sticker.border!, color } })}
-            />
-          </Field>
+          {!compact && (
+            <Field label="Colour">
+              <ColorInput
+                value={sticker.border.color}
+                onChange={(color) => onPatch({ border: { ...sticker.border!, color } })}
+              />
+            </Field>
+          )}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-1.5">
-        <Button onClick={() => onRestack(1)}>Bring forward</Button>
-        <Button onClick={() => onRestack(-1)}>Send backward</Button>
-        <Button onClick={onDuplicate}>Duplicate</Button>
-        <Button onClick={onDelete}>Delete</Button>
-      </div>
+      {!compact && (
+        <div className="grid grid-cols-2 gap-1.5">
+          <Button onClick={() => onRestack(1)}>Bring forward</Button>
+          <Button onClick={() => onRestack(-1)}>Send backward</Button>
+          <Button onClick={onDuplicate}>Duplicate</Button>
+          <Button onClick={onDelete}>Delete</Button>
+        </div>
+      )}
       <Button onClick={onKeep}>{saved ? 'Kept in My stickers' : 'Save to My stickers'}</Button>
       <p className="text-[11px] leading-snug text-ink-500">
         Drag to move, corners to resize, the handle above to turn. Hold Shift while resizing to
