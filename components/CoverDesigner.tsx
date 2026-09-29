@@ -11,6 +11,7 @@ import {
   ptToInches,
   spineWidth,
 } from '@/lib/kdp';
+import type { ReactNode } from 'react';
 import type { Board } from '@/lib/board';
 import { foldsOf, safeOf, trimOf } from '@/lib/board';
 import { coverLayout, spineTooThinForText, type CoverLayout } from '@/lib/render/coverLayout';
@@ -29,6 +30,7 @@ import type {
   FontSpec,
 } from '@/lib/types';
 import { StickerLayer } from './cover/StickerLayer';
+import { Rail } from './cover/Rail';
 import { StickerTray, type TrayItem } from './cover/StickerTray';
 import { StickerLibrary } from './cover/StickerLibrary';
 import { CoverTemplates } from './cover/CoverTemplates';
@@ -109,6 +111,8 @@ export function CoverDesigner<T extends CoverableBook>({
   pictures = [],
   board,
   bookTray = { title: 'Stickers from this book', empty: 'Nothing in the book yet. Its pictures will appear here.' },
+  rail = false,
+  borrow = null,
 }: {
   project: T | null;
   update: (recipe: (draft: T) => void) => void;
@@ -134,6 +138,17 @@ export function CoverDesigner<T extends CoverableBook>({
    * feature.
    */
   bookTray?: { title: string; empty: string } | null;
+  /**
+   * The rail: a column of doors down the left, one panel open at a time,
+   * instead of one strip holding everything down the right.
+   *
+   * Opt-in per caller, and off by default, so the cover editor keeps the
+   * arrangement it has until it has been looked at rather than as a side
+   * effect of a design that was for boards.
+   */
+  rail?: boolean;
+  /** Offered inside the Pictures panel: where a board borrows from a book. */
+  borrow?: ReactNode;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
@@ -152,6 +167,8 @@ export function CoverDesigner<T extends CoverableBook>({
    * is a dashed rectangle over the thing you are trying to look at.
    */
   const [guidesOn, setGuidesOn] = useState(() => !board || board.bleed > 0);
+  /** Which door is open. Text first: a blank board most often wants words. */
+  const [openPanel, setOpenPanel] = useState<string | null>('text');
 
   // Undo covers the cover only, and a snapshot is taken at the start of each
   // gesture, so one undo puts back what was there before a drag rather than
@@ -468,15 +485,453 @@ export function CoverDesigner<T extends CoverableBook>({
       )
     : 0;
 
+  /**
+   * The panel's contents, named.
+   *
+   * One list, two arrangements: a cover stacks them all down the right-hand
+   * side exactly as it always has, and a board deals them into the panels
+   * behind its rail. Naming them rather than copying them is what keeps the
+   * two from drifting — there is one Artwork section, not two.
+   */
+  const sections = {
+    measurements: (
+      <>
+        {isCover ? (
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
+            <dt>Full cover</dt>
+            <dd className="text-right tabular-nums text-ink-700">
+              {layout.dimensions!.width.toFixed(3)}″ × {layout.dimensions!.height.toFixed(3)}″
+            </dd>
+            <dt>Spine at {finalPages} pages</dt>
+            <dd className="text-right tabular-nums text-ink-700">
+              {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
+            </dd>
+          </dl>
+        ) : null}
+
+        {isCover && spineTooThinForText(layout as CoverLayout) && (
+          <Notice level="warning">
+            The spine is under 0.0625″, KDP's minimum for printing spine text.
+          </Notice>
+        )}
+      </>
+    ),
+    history: (
+      <>
+        <div className="flex items-center gap-1.5">
+          <Button onClick={coverHistory.undo} disabled={!coverHistory.canUndo} title="Undo (Cmd+Z)">
+            ↺
+          </Button>
+          <Button onClick={coverHistory.redo} disabled={!coverHistory.canRedo} title="Redo (Cmd+Shift+Z)">
+            ↻
+          </Button>
+          <span className="text-[11px] text-ink-500">Undo</span>
+        </div>
+      </>
+    ),
+    bookPictures: (
+      <>
+        {bookTray && (
+          <StickerTray
+            title={bookTray.title}
+            items={trayItems}
+            empty={bookTray.empty}
+            onPlace={placeSticker}
+          />
+        )}
+      </>
+    ),
+    library: (
+      <>
+        <StickerLibrary
+          onPlace={placeSticker}
+          reloadKey={libraryVersion}
+          onChanged={() => setLibraryVersion((n) => n + 1)}
+        />
+      </>
+    ),
+    templates: (
+      <>
+        {/* A saved cover layout is a cover's business. Offering it on a post
+            is offering to make the post into somebody's back cover. */}
+        {isCover && (
+        <CoverTemplates
+          cover={cover}
+          onApply={(spec) => {
+            coverHistory.remember();
+            update((draft) => void (draft.cover = spec));
+            setSelectedSticker(null);
+            setSelectedId(null);
+          }}
+        />
+        )}
+      </>
+    ),
+    stickerInspector: (
+      <>
+        {sticker && (
+          <StickerInspector
+            sticker={sticker}
+            layout={layout}
+            onPatch={(patch) => {
+              coverHistory.remember();
+              patchSticker(sticker.id, patch);
+            }}
+            onSlide={(patch) => patchSticker(sticker.id, patch)}
+            onCommit={coverHistory.remember}
+            onRestack={(direction) => {
+              coverHistory.remember();
+              update((draft) => {
+                draft.cover.stickers = restack(draft.cover.stickers, sticker.id, direction);
+              });
+            }}
+            onDuplicate={() => {
+              const newId = id('cs');
+              coverHistory.remember();
+              update((draft) => {
+                const source = draft.cover.stickers.find((s) => s.id === sticker.id);
+                if (!source) return;
+                // Offset a little, or the copy hides exactly behind the original
+                // and looks like nothing happened.
+                draft.cover.stickers.push({ ...source, id: newId, x: source.x + 0.2, y: source.y + 0.2 });
+              });
+              setSelectedSticker(newId);
+            }}
+            onDelete={() => {
+              coverHistory.remember();
+              update((draft) => {
+                draft.cover.stickers = draft.cover.stickers.filter((s) => s.id !== sticker.id);
+              });
+              setSelectedSticker(null);
+            }}
+            saved={savedToLibrary}
+            onKeep={() => {
+              void saveToLibrary({
+                name: sticker.name,
+                assetId: sticker.assetId,
+                width: sticker.naturalWidth,
+                height: sticker.naturalHeight,
+              }).then(() => {
+                setLibraryVersion((n) => n + 1);
+                setSavedToLibrary(true);
+                setTimeout(() => setSavedToLibrary(false), 2200);
+              });
+            }}
+          />
+        )}
+      </>
+    ),
+    artwork: (
+      <>
+        <div className="space-y-2">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Artwork</h4>
+          <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-200">
+            {cover.frontImage
+              ? 'Replace image…'
+              : isCover
+                ? 'Upload cover image…'
+                : 'Upload a picture…'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => void onImage(e.target.files?.[0])}
+            />
+          </label>
+          {imageError && <Notice level="error">{imageError}</Notice>}
+          {cover.frontImage && (
+            <>
+              <p className="text-[11px] text-ink-500">
+                {cover.frontImage.naturalWidth} × {cover.frontImage.naturalHeight}px ·{' '}
+                <span className={imageDpi < MIN_COVER_DPI ? 'text-amber-300' : 'text-emerald-300'}>
+                  {Math.round(imageDpi)} DPI at print size
+                </span>
+              </p>
+              <Toggle
+                label="Stretch across back, spine and front"
+                checked={cover.imageSpansWrap}
+                onChange={(imageSpansWrap) =>
+                  update((draft) => {
+                    draft.cover.imageSpansWrap = imageSpansWrap;
+                  })
+                }
+              />
+              <Field label="Fit">
+                <Select
+                  value={cover.frontImage.fit}
+                  onChange={(fit) =>
+                    update((draft) => {
+                      if (draft.cover.frontImage) draft.cover.frontImage.fit = fit;
+                    })
+                  }
+                  options={[
+                    { value: 'cover', label: 'Fill the panel (crop)' },
+                    { value: 'contain', label: 'Fit inside (letterbox)' },
+                  ]}
+                />
+              </Field>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (assetId) forgetAssetUrl(assetId);
+                  update((draft) => {
+                    draft.cover.frontImage = null;
+                  });
+                }}
+              >
+                Remove image
+              </Button>
+            </>
+          )}
+        </div>
+      </>
+    ),
+    colours: (
+      <>
+        <div className="grid grid-cols-1 gap-2">
+          {isCover ? (
+            <>
+              <Field label="Back cover colour">
+                <ColorInput
+                  value={cover.backColor}
+                  onChange={(backColor) =>
+                    update((draft) => {
+                      draft.cover.backColor = backColor;
+                    })
+                  }
+                />
+              </Field>
+              <Field label="Spine colour">
+                <ColorInput
+                  value={cover.spineColor}
+                  onChange={(spineColor) =>
+                    update((draft) => {
+                      draft.cover.spineColor = spineColor;
+                    })
+                  }
+                />
+              </Field>
+            </>
+          ) : (
+            <Field label="Background">
+              <ColorInput
+                value={cover.backgroundColor}
+                onChange={(backgroundColor) =>
+                  update((draft) => {
+                    draft.cover.backgroundColor = backgroundColor;
+                  })
+                }
+              />
+            </Field>
+          )}
+        </div>
+      </>
+    ),
+    barcode: (
+      <>
+        {isCover && (
+        <Toggle
+          label="Show the barcode reserve"
+          checked={cover.showBarcodeZone}
+          onChange={(showBarcodeZone) =>
+            update((draft) => {
+              draft.cover.showBarcodeZone = showBarcodeZone;
+            })
+          }
+        />
+        )}
+      </>
+    ),
+    text: (
+      <>
+        <div className="space-y-2 border-t border-ink-200 pt-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
+          <div className={cx('grid gap-1.5', isCover ? 'grid-cols-3' : 'grid-cols-1')}>
+            {(isCover ? ADDABLE_PANELS : (['board'] as CoverPanel[])).map((panel) => (
+              <Button key={panel} onClick={() => addBox(panel)}>
+                {PANEL_LABEL[panel] ?? panel}
+              </Button>
+            ))}
+          </div>
+          {cover.textBoxes.length === 0 && (
+            <p className="text-[11px] text-ink-500">
+              {isCover ? 'No text yet. Add a box to a panel.' : 'No text yet.'}
+            </p>
+          )}
+          <ul className="space-y-1">
+            {cover.textBoxes.map((box) => (
+              <li key={box.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(box.id)}
+                  className={cx(
+                    'flex w-full items-center gap-2 rounded px-2 py-1 text-left transition-colors',
+                    selectedId === box.id ? 'bg-accent-500/15 text-accent-600' : 'hover:bg-ink-50',
+                  )}
+                >
+                  <span className="w-10 shrink-0 text-[10px] uppercase text-ink-500">
+                    {box.panel}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{box.text || 'Empty'}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </>
+    ),
+    textInspector: (
+      <>
+        {selected && (
+          <div className="space-y-3 border-t border-ink-200 pt-3">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
+              {PANEL_LABELS[selected.panel]} text
+            </h4>
+            <TextArea
+              value={selected.text}
+              rows={3}
+              onChange={(e) =>
+                update((draft) => {
+                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
+                  if (found) found.text = e.target.value;
+                })
+              }
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="X">
+                <NumberInput
+                  value={round(ptToInches(selected.x))}
+                  onChange={(x) => patchBox(update, selected.id, { x: inchesToPt(x) })}
+                  step={0.05}
+                  suffix="in"
+                />
+              </Field>
+              <Field label="Y">
+                <NumberInput
+                  value={round(ptToInches(selected.y))}
+                  onChange={(y) => patchBox(update, selected.id, { y: inchesToPt(y) })}
+                  step={0.05}
+                  suffix="in"
+                />
+              </Field>
+              <Field label="Width">
+                <NumberInput
+                  value={round(ptToInches(selected.width))}
+                  onChange={(width) => patchBox(update, selected.id, { width: inchesToPt(width) })}
+                  step={0.05}
+                  min={0.2}
+                  suffix="in"
+                />
+              </Field>
+            </div>
+            <Field
+              label="Curve"
+              hint={
+                selected.curve
+                  ? `Bent through ${Math.round((Math.abs(selected.curve) / 100) * MAX_SWEEP_DEGREES)}° — ${
+                      selected.curve > 0 ? 'arching up' : 'hanging down'
+                    }`
+                  : 'Straight. Drag right to arch the words up, left to hang them down.'
+              }
+            >
+              {/* One snapshot per go at the slider: taking hold of it is the
+                  start of a gesture, and every step after that is the same
+                  gesture. A key press is a gesture of its own. */}
+              <div onPointerDown={coverHistory.remember} onKeyDown={coverHistory.remember}>
+                <Slider
+                  value={selected.curve}
+                  onChange={(curve) => patchBox(update, selected.id, { curve })}
+                  min={-100}
+                  max={100}
+                  step={1}
+                />
+              </div>
+            </Field>
+            <FontControls
+              spec={selected.font}
+              onChange={(patch) =>
+                update((draft) => {
+                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
+                  if (found) Object.assign(found.font, patch);
+                })
+              }
+            />
+            <Button
+              variant="danger"
+              onClick={() => {
+                update((draft) => {
+                  draft.cover.textBoxes = draft.cover.textBoxes.filter((b) => b.id !== selected.id);
+                });
+                setSelectedId(null);
+              }}
+            >
+              Delete this text
+            </Button>
+          </div>
+        )}
+
+        {issues.length > 0 && (
+          <div className="space-y-1.5 border-t border-ink-200 pt-3">
+            {issues.map((issue) => (
+              <Notice
+                key={issue.id}
+                level={issue.level === 'warning' ? 'warning' : issue.level === 'error' ? 'error' : 'info'}
+              >
+                <p>{issue.message}</p>
+                {issue.fix && <p className="mt-1 opacity-80">{issue.fix}</p>}
+              </Notice>
+            ))}
+          </div>
+        )}
+      </>
+    ),
+  };
+
   const empty =
     !cover.frontImage && !cover.stickers.length && !cover.textBoxes.length;
 
   return (
     <div className="flex h-full min-w-0">
+      {rail && (
+        <Rail
+          panels={[
+            { id: 'text', label: 'Text', glyph: 'T', node: <>{sections.text}{sections.textInspector}</> },
+            {
+              id: 'pictures',
+              label: 'Pictures',
+              glyph: '▣',
+              node: (
+                <>
+                  {sections.artwork}
+                  {borrow}
+                  {sections.bookPictures}
+                </>
+              ),
+            },
+            {
+              id: 'stickers',
+              label: 'Stickers',
+              glyph: '☺',
+              node: <>{sections.library}{sections.stickerInspector}</>,
+            },
+            { id: 'background', label: 'Background', glyph: '▦', node: sections.colours },
+          ]}
+          soon={[
+            { label: 'Elements', glyph: '◇' },
+            { label: 'Templates', glyph: '▤' },
+          ]}
+          footer={sections.history}
+          open={openPanel}
+          onOpen={setOpenPanel}
+        />
+      )}
+
       <div className="relative min-w-0 flex-1">
         <div
           ref={stageRef}
-          className="flex h-full overflow-auto bg-ink-600 px-3 pb-12 pt-3"
+          // A calm neutral grey: the board is the only thing on this screen
+          // with a colour of its own, and a warm canvas argues with a warm cover.
+          className="flex h-full overflow-auto bg-[#6f6f6f] px-3 pb-12 pt-3"
           // Safe centring: centred while it fits, and pinned to the top-left
           // rather than cut off at both ends once it does not.
           style={{ alignItems: 'safe center', justifyContent: 'safe center' }}
@@ -809,365 +1264,21 @@ export function CoverDesigner<T extends CoverableBook>({
         </div>
       </div>
 
-      <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
-        {isCover ? (
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
-            <dt>Full cover</dt>
-            <dd className="text-right tabular-nums text-ink-700">
-              {layout.dimensions!.width.toFixed(3)}″ × {layout.dimensions!.height.toFixed(3)}″
-            </dd>
-            <dt>Spine at {finalPages} pages</dt>
-            <dd className="text-right tabular-nums text-ink-700">
-              {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
-            </dd>
-          </dl>
-        ) : null}
-
-        {isCover && spineTooThinForText(layout as CoverLayout) && (
-          <Notice level="warning">
-            The spine is under 0.0625″, KDP's minimum for printing spine text.
-          </Notice>
-        )}
-
-        <div className="flex items-center gap-1.5">
-          <Button onClick={coverHistory.undo} disabled={!coverHistory.canUndo} title="Undo (Cmd+Z)">
-            ↺
-          </Button>
-          <Button onClick={coverHistory.redo} disabled={!coverHistory.canRedo} title="Redo (Cmd+Shift+Z)">
-            ↻
-          </Button>
-          <span className="text-[11px] text-ink-500">Undo</span>
-        </div>
-
-        {bookTray && (
-          <StickerTray
-            title={bookTray.title}
-            items={trayItems}
-            empty={bookTray.empty}
-            onPlace={placeSticker}
-          />
-        )}
-
-        <StickerLibrary
-          onPlace={placeSticker}
-          reloadKey={libraryVersion}
-          onChanged={() => setLibraryVersion((n) => n + 1)}
-        />
-
-        {/* A saved cover layout is a cover's business. Offering it on a post
-            is offering to make the post into somebody's back cover. */}
-        {isCover && (
-        <CoverTemplates
-          cover={cover}
-          onApply={(spec) => {
-            coverHistory.remember();
-            update((draft) => void (draft.cover = spec));
-            setSelectedSticker(null);
-            setSelectedId(null);
-          }}
-        />
-        )}
-
-        {sticker && (
-          <StickerInspector
-            sticker={sticker}
-            layout={layout}
-            onPatch={(patch) => {
-              coverHistory.remember();
-              patchSticker(sticker.id, patch);
-            }}
-            onSlide={(patch) => patchSticker(sticker.id, patch)}
-            onCommit={coverHistory.remember}
-            onRestack={(direction) => {
-              coverHistory.remember();
-              update((draft) => {
-                draft.cover.stickers = restack(draft.cover.stickers, sticker.id, direction);
-              });
-            }}
-            onDuplicate={() => {
-              const newId = id('cs');
-              coverHistory.remember();
-              update((draft) => {
-                const source = draft.cover.stickers.find((s) => s.id === sticker.id);
-                if (!source) return;
-                // Offset a little, or the copy hides exactly behind the original
-                // and looks like nothing happened.
-                draft.cover.stickers.push({ ...source, id: newId, x: source.x + 0.2, y: source.y + 0.2 });
-              });
-              setSelectedSticker(newId);
-            }}
-            onDelete={() => {
-              coverHistory.remember();
-              update((draft) => {
-                draft.cover.stickers = draft.cover.stickers.filter((s) => s.id !== sticker.id);
-              });
-              setSelectedSticker(null);
-            }}
-            saved={savedToLibrary}
-            onKeep={() => {
-              void saveToLibrary({
-                name: sticker.name,
-                assetId: sticker.assetId,
-                width: sticker.naturalWidth,
-                height: sticker.naturalHeight,
-              }).then(() => {
-                setLibraryVersion((n) => n + 1);
-                setSavedToLibrary(true);
-                setTimeout(() => setSavedToLibrary(false), 2200);
-              });
-            }}
-          />
-        )}
-
-        <div className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Artwork</h4>
-          <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-200">
-            {cover.frontImage
-              ? 'Replace image…'
-              : isCover
-                ? 'Upload cover image…'
-                : 'Upload a picture…'}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => void onImage(e.target.files?.[0])}
-            />
-          </label>
-          {imageError && <Notice level="error">{imageError}</Notice>}
-          {cover.frontImage && (
-            <>
-              <p className="text-[11px] text-ink-500">
-                {cover.frontImage.naturalWidth} × {cover.frontImage.naturalHeight}px ·{' '}
-                <span className={imageDpi < MIN_COVER_DPI ? 'text-amber-300' : 'text-emerald-300'}>
-                  {Math.round(imageDpi)} DPI at print size
-                </span>
-              </p>
-              <Toggle
-                label="Stretch across back, spine and front"
-                checked={cover.imageSpansWrap}
-                onChange={(imageSpansWrap) =>
-                  update((draft) => {
-                    draft.cover.imageSpansWrap = imageSpansWrap;
-                  })
-                }
-              />
-              <Field label="Fit">
-                <Select
-                  value={cover.frontImage.fit}
-                  onChange={(fit) =>
-                    update((draft) => {
-                      if (draft.cover.frontImage) draft.cover.frontImage.fit = fit;
-                    })
-                  }
-                  options={[
-                    { value: 'cover', label: 'Fill the panel (crop)' },
-                    { value: 'contain', label: 'Fit inside (letterbox)' },
-                  ]}
-                />
-              </Field>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  if (assetId) forgetAssetUrl(assetId);
-                  update((draft) => {
-                    draft.cover.frontImage = null;
-                  });
-                }}
-              >
-                Remove image
-              </Button>
-            </>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-2">
-          {isCover ? (
-            <>
-              <Field label="Back cover colour">
-                <ColorInput
-                  value={cover.backColor}
-                  onChange={(backColor) =>
-                    update((draft) => {
-                      draft.cover.backColor = backColor;
-                    })
-                  }
-                />
-              </Field>
-              <Field label="Spine colour">
-                <ColorInput
-                  value={cover.spineColor}
-                  onChange={(spineColor) =>
-                    update((draft) => {
-                      draft.cover.spineColor = spineColor;
-                    })
-                  }
-                />
-              </Field>
-            </>
-          ) : (
-            <Field label="Background">
-              <ColorInput
-                value={cover.backgroundColor}
-                onChange={(backgroundColor) =>
-                  update((draft) => {
-                    draft.cover.backgroundColor = backgroundColor;
-                  })
-                }
-              />
-            </Field>
-          )}
-        </div>
-
-        {isCover && (
-        <Toggle
-          label="Show the barcode reserve"
-          checked={cover.showBarcodeZone}
-          onChange={(showBarcodeZone) =>
-            update((draft) => {
-              draft.cover.showBarcodeZone = showBarcodeZone;
-            })
-          }
-        />
-        )}
-
-        <div className="space-y-2 border-t border-ink-200 pt-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
-          <div className={cx('grid gap-1.5', isCover ? 'grid-cols-3' : 'grid-cols-1')}>
-            {(isCover ? ADDABLE_PANELS : (['board'] as CoverPanel[])).map((panel) => (
-              <Button key={panel} onClick={() => addBox(panel)}>
-                {PANEL_LABEL[panel] ?? panel}
-              </Button>
-            ))}
-          </div>
-          {cover.textBoxes.length === 0 && (
-            <p className="text-[11px] text-ink-500">
-              {isCover ? 'No text yet. Add a box to a panel.' : 'No text yet.'}
-            </p>
-          )}
-          <ul className="space-y-1">
-            {cover.textBoxes.map((box) => (
-              <li key={box.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(box.id)}
-                  className={cx(
-                    'flex w-full items-center gap-2 rounded px-2 py-1 text-left transition-colors',
-                    selectedId === box.id ? 'bg-accent-500/15 text-accent-600' : 'hover:bg-ink-50',
-                  )}
-                >
-                  <span className="w-10 shrink-0 text-[10px] uppercase text-ink-500">
-                    {box.panel}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{box.text || 'Empty'}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {selected && (
-          <div className="space-y-3 border-t border-ink-200 pt-3">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-              {PANEL_LABELS[selected.panel]} text
-            </h4>
-            <TextArea
-              value={selected.text}
-              rows={3}
-              onChange={(e) =>
-                update((draft) => {
-                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
-                  if (found) found.text = e.target.value;
-                })
-              }
-            />
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="X">
-                <NumberInput
-                  value={round(ptToInches(selected.x))}
-                  onChange={(x) => patchBox(update, selected.id, { x: inchesToPt(x) })}
-                  step={0.05}
-                  suffix="in"
-                />
-              </Field>
-              <Field label="Y">
-                <NumberInput
-                  value={round(ptToInches(selected.y))}
-                  onChange={(y) => patchBox(update, selected.id, { y: inchesToPt(y) })}
-                  step={0.05}
-                  suffix="in"
-                />
-              </Field>
-              <Field label="Width">
-                <NumberInput
-                  value={round(ptToInches(selected.width))}
-                  onChange={(width) => patchBox(update, selected.id, { width: inchesToPt(width) })}
-                  step={0.05}
-                  min={0.2}
-                  suffix="in"
-                />
-              </Field>
-            </div>
-            <Field
-              label="Curve"
-              hint={
-                selected.curve
-                  ? `Bent through ${Math.round((Math.abs(selected.curve) / 100) * MAX_SWEEP_DEGREES)}° — ${
-                      selected.curve > 0 ? 'arching up' : 'hanging down'
-                    }`
-                  : 'Straight. Drag right to arch the words up, left to hang them down.'
-              }
-            >
-              {/* One snapshot per go at the slider: taking hold of it is the
-                  start of a gesture, and every step after that is the same
-                  gesture. A key press is a gesture of its own. */}
-              <div onPointerDown={coverHistory.remember} onKeyDown={coverHistory.remember}>
-                <Slider
-                  value={selected.curve}
-                  onChange={(curve) => patchBox(update, selected.id, { curve })}
-                  min={-100}
-                  max={100}
-                  step={1}
-                />
-              </div>
-            </Field>
-            <FontControls
-              spec={selected.font}
-              onChange={(patch) =>
-                update((draft) => {
-                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
-                  if (found) Object.assign(found.font, patch);
-                })
-              }
-            />
-            <Button
-              variant="danger"
-              onClick={() => {
-                update((draft) => {
-                  draft.cover.textBoxes = draft.cover.textBoxes.filter((b) => b.id !== selected.id);
-                });
-                setSelectedId(null);
-              }}
-            >
-              Delete this text
-            </Button>
-          </div>
-        )}
-
-        {issues.length > 0 && (
-          <div className="space-y-1.5 border-t border-ink-200 pt-3">
-            {issues.map((issue) => (
-              <Notice
-                key={issue.id}
-                level={issue.level === 'warning' ? 'warning' : issue.level === 'error' ? 'error' : 'info'}
-              >
-                <p>{issue.message}</p>
-                {issue.fix && <p className="mt-1 opacity-80">{issue.fix}</p>}
-              </Notice>
-            ))}
-          </div>
-        )}
-      </aside>
+      {!rail && (
+        <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
+          {sections.measurements}
+          {sections.history}
+          {sections.bookPictures}
+          {sections.library}
+          {sections.templates}
+          {sections.stickerInspector}
+          {sections.artwork}
+          {sections.colours}
+          {sections.barcode}
+          {sections.text}
+          {sections.textInspector}
+        </aside>
+      )}
     </div>
   );
 }
