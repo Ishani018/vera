@@ -1,0 +1,327 @@
+{
+  "what": "A cover exercising every path: straight, curved and spine text; flat, turned and bent stickers; a front image; the barcode reserve.",
+  "pageCount": 52,
+  "project": {
+    "id": "golden-cover",
+    "kind": "coloring",
+    "name": "The Lantern Hours",
+    "createdAt": 0,
+    "updatedAt": 0,
+    "meta": {
+      "title": "The Lantern Hours",
+      "subtitle": "A colouring book",
+      "author": "A. Placeholder",
+      "publisher": "",
+      "isbn": "",
+      "year": "2026",
+      "copyrightExtra": ""
+    },
+    "trim": {
+      "trimId": "8.5x8.5",
+      "bleed": true,
+      "paper": "white"
+    },
+    "margins": {
+      "inside": 0.75,
+      "outside": 0.5,
+      "top": 0.5,
+      "bottom": 0.5
+    },
+    "frontMatter": [
+      {
+        "id": "mt_5bd942032",
+        "kind": "halfTitle",
+        "label": "Half title",
+        "enabled": true,
+        "heading": "",
+        "body": "Untitled Collection",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 0
+      },
+      {
+        "id": "mt_71e914a53",
+        "kind": "title",
+        "label": "Title page",
+        "enabled": true,
+        "heading": "",
+        "body": "Untitled Collection\n\n\nAnonymous",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 1
+      },
+      {
+        "id": "mt_659143b44",
+        "kind": "copyright",
+        "label": "Copyright",
+        "enabled": true,
+        "heading": "",
+        "body": "Copyright © 2026 Anonymous\n\nAll rights reserved. No part of this book may be reproduced in any form\nwithout written permission from the publisher, except for brief\nquotations in a review.\n\nFirst edition.",
+        "align": "left",
+        "verticalPosition": "bottom",
+        "startsRecto": false,
+        "order": 2
+      },
+      {
+        "id": "mt_56d642815",
+        "kind": "dedication",
+        "label": "Dedication",
+        "enabled": true,
+        "heading": "",
+        "body": "For those who read slowly.",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 3
+      },
+      {
+        "id": "mt_89ea33086",
+        "kind": "epigraph",
+        "label": "Epigraph",
+        "enabled": false,
+        "heading": "",
+        "body": "“I dwell in Possibility—”\n\n— Emily Dickinson",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 4
+      }
+    ],
+    "backMatter": [
+      {
+        "id": "mt_0a30e1677",
+        "kind": "acknowledgements",
+        "label": "Acknowledgements",
+        "enabled": true,
+        "heading": "Acknowledgements",
+        "body": "Thanks are due to the editors of the journals in which several of these poems first appeared.",
+        "align": "left",
+        "verticalPosition": "top",
+        "startsRecto": true,
+        "order": 0
+      },
+      {
+        "id": "mt_7f9a6f7f8",
+        "kind": "aboutAuthor",
+        "label": "About the author",
+        "enabled": true,
+        "heading": "About the Author",
+        "body": "A short biographical note goes here.",
+        "align": "left",
+        "verticalPosition": "top",
+        "startsRecto": true,
+        "order": 1
+      }
+    ],
+    "cover": {
+      "backgroundColor": "#f4efe4",
+      "backColor": "#efe7d8",
+      "spineColor": "#e6dcc9",
+      "frontImage": {
+        "assetId": "img-front",
+        "naturalWidth": 4,
+        "naturalHeight": 4,
+        "fit": "cover"
+      },
+      "imageSpansWrap": false,
+      "textBoxes": [
+        {
+          "id": "tb-title",
+          "panel": "front",
+          "text": "The Lantern Hours",
+          "x": 0.5,
+          "y": 1.2,
+          "widthIn": 7.5,
+          "rotate": 0,
+          "curve": 16,
+          "font": {
+            "family": "Nunito Sans",
+            "fallback": "sans-serif",
+            "weight": 700,
+            "italic": false,
+            "sizePt": 40,
+            "lineHeight": 1.2,
+            "letterSpacingEm": 0.02,
+            "transform": "none",
+            "align": "center",
+            "color": "#3a2a1f"
+          }
+        },
+        {
+          "id": "tb-sub",
+          "panel": "front",
+          "text": "Forty pages to colour",
+          "x": 0.5,
+          "y": 6.6,
+          "widthIn": 7.5,
+          "rotate": 0,
+          "curve": -18,
+          "font": {
+            "family": "Nunito Sans",
+            "fallback": "sans-serif",
+            "weight": 400,
+            "italic": false,
+            "sizePt": 18,
+            "lineHeight": 1.2,
+            "letterSpacingEm": 0,
+            "transform": "none",
+            "align": "center",
+            "color": "#3a2a1f"
+          }
+        },
+        {
+          "id": "tb-blurb",
+          "panel": "back",
+          "text": "Forty drawings, made from paintings.\nOne to a page, printed on one side.",
+          "x": 0.75,
+          "y": 1.4,
+          "widthIn": 6.5,
+          "rotate": 0,
+          "curve": 0,
+          "font": {
+            "family": "Nunito Sans",
+            "fallback": "sans-serif",
+            "weight": 400,
+            "italic": false,
+            "sizePt": 13,
+            "lineHeight": 1.45,
+            "letterSpacingEm": 0,
+            "transform": "none",
+            "align": "left",
+            "color": "#3a2a1f"
+          }
+        },
+        {
+          "id": "tb-spine",
+          "panel": "spine",
+          "text": "The Lantern Hours · A. Placeholder",
+          "x": 0.06,
+          "y": 1.1,
+          "widthIn": 6.3,
+          "rotate": 0,
+          "curve": 0,
+          "font": {
+            "family": "Nunito Sans",
+            "fallback": "sans-serif",
+            "weight": 700,
+            "italic": false,
+            "sizePt": 10,
+            "lineHeight": 1.2,
+            "letterSpacingEm": 0,
+            "transform": "none",
+            "align": "left",
+            "color": "#3a2a1f"
+          }
+        }
+      ],
+      "stickers": [
+        {
+          "id": "st-flat",
+          "assetId": "img-a",
+          "naturalWidth": 4,
+          "naturalHeight": 4,
+          "x": 1.1,
+          "y": 4.2,
+          "widthIn": 1.6,
+          "heightIn": 1.6,
+          "rotate": 0,
+          "cornerRadius": 0.25,
+          "border": {
+            "widthPt": 2,
+            "color": "#3a2a1f"
+          },
+          "shadow": true,
+          "arc": 0,
+          "name": "Badge"
+        },
+        {
+          "id": "st-turned",
+          "assetId": "img-b",
+          "naturalWidth": 4,
+          "naturalHeight": 4,
+          "x": 3.4,
+          "y": 4.6,
+          "widthIn": 1.2,
+          "heightIn": 1.2,
+          "rotate": 17,
+          "cornerRadius": 0,
+          "border": null,
+          "shadow": false,
+          "arc": 0,
+          "name": "Turned"
+        },
+        {
+          "id": "st-bent",
+          "assetId": "img-a",
+          "naturalWidth": 4,
+          "naturalHeight": 4,
+          "x": 5.2,
+          "y": 4.4,
+          "widthIn": 2,
+          "heightIn": 1.4,
+          "rotate": 0,
+          "cornerRadius": 0,
+          "border": null,
+          "shadow": false,
+          "arc": 35,
+          "name": "Bent"
+        }
+      ],
+      "showBarcodeZone": true
+    },
+    "pages": [],
+    "coloring": {
+      "lineArt": {
+        "mode": "threshold",
+        "detail": 50,
+        "thickness": 45,
+        "cleanup": 40,
+        "smoothing": 50,
+        "invert": false
+      },
+      "singleSided": true,
+      "titlePage": true,
+      "copyrightPage": true,
+      "belongsToPage": true,
+      "colorTestPage": true,
+      "titleArt": null,
+      "belongsArt": null,
+      "colorTestArt": null,
+      "containsAiImages": false
+    },
+    "typography": {
+      "title": {
+        "fallback": "'Inter', 'Helvetica Neue', Arial, sans-serif",
+        "weight": 700,
+        "italic": false,
+        "sizePt": 30,
+        "lineHeight": 1.2,
+        "letterSpacingEm": 0,
+        "transform": "none",
+        "align": "center",
+        "color": "#111111",
+        "family": "Nunito Sans"
+      },
+      "body": {
+        "fallback": "'Inter', 'Helvetica Neue', Arial, sans-serif",
+        "weight": 400,
+        "italic": false,
+        "sizePt": 11,
+        "lineHeight": 1.6,
+        "letterSpacingEm": 0,
+        "transform": "none",
+        "align": "center",
+        "color": "#111111",
+        "family": "Nunito Sans"
+      }
+    }
+  },
+  "assets": {
+    "img-front": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFElEQVR4nGNkYPjPgAcw4ZMcHAoAYRwB4VSJZGQAAAAASUVORK5CYII=",
+    "img-a": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFUlEQVR4nGP8z8DwnwEPYMInOTgUAACdmgPD8i9FpwAAAABJRU5ErkJggg==",
+    "img-b": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFElEQVR4nGNkYPjPgAcw4ZMcHAoAYRwB4VSJZGQAAAAASUVORK5CYII=",
+    "bend:st-bent": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFUlEQVR4nGP8z8DwnwEPYMInOTgUAACdmgPD8i9FpwAAAABJRU5ErkJggg=="
+  }
+}

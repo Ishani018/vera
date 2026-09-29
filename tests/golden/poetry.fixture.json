@@ -1,0 +1,289 @@
+{
+  "what": "A poetry interior exercising the flow engine: a section opener, three poems, front matter, running heads, folios and a contents page.",
+  "project": {
+    "id": "golden-poetry",
+    "kind": "poetry",
+    "name": "The Lantern Hours",
+    "createdAt": 0,
+    "updatedAt": 0,
+    "meta": {
+      "title": "The Lantern Hours",
+      "subtitle": "",
+      "author": "A. Placeholder",
+      "publisher": "",
+      "isbn": "",
+      "year": "2026",
+      "copyrightExtra": ""
+    },
+    "trim": {
+      "trimId": "5.5x8.5",
+      "bleed": false,
+      "paper": "cream"
+    },
+    "margins": {
+      "inside": 0.75,
+      "outside": 0.6,
+      "top": 0.75,
+      "bottom": 0.7
+    },
+    "layout": {
+      "poemStart": "newPage",
+      "stanzaSpacingEm": 1,
+      "hangingIndentEm": 1.5,
+      "titleSpaceAboveEm": 0,
+      "titleSpaceBelowEm": 1.4,
+      "verticalCenterShortPoems": false,
+      "shortPoemMaxLines": 14,
+      "sectionStartsRecto": true,
+      "continuedMarker": "(continued)",
+      "showContinuedMarker": true
+    },
+    "typography": {
+      "body": {
+        "fallback": "'EB Garamond', Garamond, 'Times New Roman', Georgia, serif",
+        "weight": 400,
+        "italic": false,
+        "sizePt": 11.5,
+        "lineHeight": 1.5,
+        "letterSpacingEm": 0,
+        "transform": "none",
+        "align": "left",
+        "color": "#111111",
+        "family": "EB Garamond"
+      },
+      "poemTitle": {
+        "fallback": "'EB Garamond', Garamond, 'Times New Roman', Georgia, serif",
+        "weight": 400,
+        "italic": false,
+        "sizePt": 13,
+        "lineHeight": 1.25,
+        "letterSpacingEm": 0.06,
+        "transform": "smallcaps",
+        "align": "left",
+        "color": "#111111",
+        "family": "EB Garamond"
+      },
+      "sectionTitle": {
+        "fallback": "'EB Garamond', Garamond, 'Times New Roman', Georgia, serif",
+        "weight": 400,
+        "italic": false,
+        "sizePt": 24,
+        "lineHeight": 1.2,
+        "letterSpacingEm": 0.04,
+        "transform": "none",
+        "align": "center",
+        "color": "#111111",
+        "family": "Cormorant Garamond"
+      },
+      "matter": {
+        "fallback": "'EB Garamond', Garamond, 'Times New Roman', Georgia, serif",
+        "weight": 400,
+        "italic": false,
+        "sizePt": 11,
+        "lineHeight": 1.5,
+        "letterSpacingEm": 0,
+        "transform": "none",
+        "align": "center",
+        "color": "#111111",
+        "family": "EB Garamond"
+      },
+      "runningHead": {
+        "fallback": "'EB Garamond', Garamond, 'Times New Roman', Georgia, serif",
+        "weight": 400,
+        "italic": true,
+        "sizePt": 9,
+        "lineHeight": 1.5,
+        "letterSpacingEm": 0.05,
+        "transform": "none",
+        "align": "left",
+        "color": "#444444",
+        "family": "EB Garamond"
+      },
+      "pageNumber": {
+        "fallback": "'EB Garamond', Garamond, 'Times New Roman', Georgia, serif",
+        "weight": 400,
+        "italic": false,
+        "sizePt": 9.5,
+        "lineHeight": 1.5,
+        "letterSpacingEm": 0,
+        "transform": "none",
+        "align": "center",
+        "color": "#333333",
+        "family": "EB Garamond"
+      },
+      "toc": {
+        "fallback": "'EB Garamond', Garamond, 'Times New Roman', Georgia, serif",
+        "weight": 400,
+        "italic": false,
+        "sizePt": 10.5,
+        "lineHeight": 1.7,
+        "letterSpacingEm": 0,
+        "transform": "none",
+        "align": "left",
+        "color": "#111111",
+        "family": "EB Garamond"
+      }
+    },
+    "border": {
+      "enabled": false,
+      "style": "thin",
+      "color": "#8a7a5c",
+      "weightPt": 0.75,
+      "insetIn": 0.15,
+      "scope": "poemOpen"
+    },
+    "ornament": {
+      "betweenPoems": true,
+      "glyph": "asterism",
+      "color": "#8a7a5c",
+      "sizePt": 11,
+      "spacingEm": 1.6
+    },
+    "headers": {
+      "verso": "bookTitle",
+      "recto": "author",
+      "pageNumberPosition": "bottomCenter",
+      "suppressOnPoemOpen": false,
+      "suppressOnSectionOpen": true
+    },
+    "toc": {
+      "enabled": true,
+      "heading": "Contents",
+      "includePoems": true,
+      "leaderDots": true,
+      "firstLineIndex": false,
+      "firstLineIndexHeading": "Index of First Lines"
+    },
+    "frontMatter": [
+      {
+        "id": "mt_ed15a53db",
+        "kind": "halfTitle",
+        "label": "Half title",
+        "enabled": true,
+        "heading": "",
+        "body": "Untitled Collection",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 0
+      },
+      {
+        "id": "mt_1710203dc",
+        "kind": "title",
+        "label": "Title page",
+        "enabled": true,
+        "heading": "",
+        "body": "Untitled Collection\n\n\nAnonymous",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 1
+      },
+      {
+        "id": "mt_88597be4d",
+        "kind": "copyright",
+        "label": "Copyright",
+        "enabled": true,
+        "heading": "",
+        "body": "Copyright © 2026 Anonymous\n\nAll rights reserved. No part of this book may be reproduced in any form\nwithout written permission from the publisher, except for brief\nquotations in a review.\n\nFirst edition.",
+        "align": "left",
+        "verticalPosition": "bottom",
+        "startsRecto": false,
+        "order": 2
+      },
+      {
+        "id": "mt_769dc0c8e",
+        "kind": "dedication",
+        "label": "Dedication",
+        "enabled": true,
+        "heading": "",
+        "body": "For those who read slowly.",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 3
+      },
+      {
+        "id": "mt_19049f35f",
+        "kind": "epigraph",
+        "label": "Epigraph",
+        "enabled": false,
+        "heading": "",
+        "body": "“I dwell in Possibility—”\n\n— Emily Dickinson",
+        "align": "center",
+        "verticalPosition": "center",
+        "startsRecto": true,
+        "order": 4
+      }
+    ],
+    "backMatter": [
+      {
+        "id": "mt_1f9d0bc6g",
+        "kind": "acknowledgements",
+        "label": "Acknowledgements",
+        "enabled": true,
+        "heading": "Acknowledgements",
+        "body": "Thanks are due to the editors of the journals in which several of these poems first appeared.",
+        "align": "left",
+        "verticalPosition": "top",
+        "startsRecto": true,
+        "order": 0
+      },
+      {
+        "id": "mt_a5cc6de8h",
+        "kind": "aboutAuthor",
+        "label": "About the author",
+        "enabled": true,
+        "heading": "About the Author",
+        "body": "A short biographical note goes here.",
+        "align": "left",
+        "verticalPosition": "top",
+        "startsRecto": true,
+        "order": 1
+      }
+    ],
+    "contents": [
+      {
+        "kind": "section",
+        "id": "sec-1",
+        "title": "First Light",
+        "subtitle": ""
+      },
+      {
+        "kind": "poem",
+        "id": "poem-0",
+        "title": "Inventory",
+        "body": "Three cups, one cracked along the rim,\na window with a view of rain,\nthe kettle arguing with itself,\nand nothing here I need explain.",
+        "dedication": "",
+        "note": "after nobody in particular"
+      },
+      {
+        "kind": "poem",
+        "id": "poem-1",
+        "title": "Hours",
+        "body": "The morning keeps its own accounts.\nThe afternoon forgets to write.\nBy evening every sum is wrong\nand somehow settles up by night.",
+        "dedication": "",
+        "note": ""
+      },
+      {
+        "kind": "poem",
+        "id": "poem-2",
+        "title": "Small Weather",
+        "body": "A draught came in beneath the door\nand made the candle lean and stay.\nI let it lean. I let the room\nbe smaller than it was by day.",
+        "dedication": "",
+        "note": ""
+      }
+    ],
+    "cover": {
+      "backgroundColor": "#f4efe4",
+      "backColor": "#f4efe4",
+      "spineColor": "#f4efe4",
+      "frontImage": null,
+      "imageSpansWrap": false,
+      "textBoxes": [],
+      "stickers": [],
+      "showBarcodeZone": true
+    }
+  },
+  "assets": {}
+}

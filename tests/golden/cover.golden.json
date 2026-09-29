@@ -1,0 +1,28 @@
+{
+  "pages": 1,
+  "mediaBoxes": [
+    "17.36x8.75in"
+  ],
+  "fonts": [
+    "NunitoSans-Bold",
+    "NunitoSans-Regular"
+  ],
+  "embeddedFontPrograms": 2,
+  "images": [
+    "4x4/FlateDecode",
+    "4x4/FlateDecode",
+    "4x4/FlateDecode",
+    "4x4/FlateDecode",
+    "552x556/DCTDecode"
+  ],
+  "glyphRuns": 143,
+  "imageDraws": 4,
+  "placements": 191,
+  "placementDigest": "e3e2a36e0ac60ce1",
+  "reported": {
+    "size": "17.3671x8.7500in",
+    "spine": "0.1171in",
+    "pages": null,
+    "padded": null
+  }
+}

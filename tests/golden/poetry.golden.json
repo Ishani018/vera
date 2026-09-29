@@ -1,0 +1,23 @@
+{
+  "pages": 18,
+  "mediaBoxes": [
+    "5.5x8.5in"
+  ],
+  "fonts": [
+    "CormorantGaramond-Regular",
+    "EBGaramond-Italic",
+    "EBGaramond-Regular"
+  ],
+  "embeddedFontPrograms": 5,
+  "images": [],
+  "glyphRuns": 1023,
+  "imageDraws": 4,
+  "placements": 1058,
+  "placementDigest": "d4eeeb9e99cb1bfe",
+  "reported": {
+    "size": null,
+    "spine": null,
+    "pages": "18",
+    "padded": "1"
+  }
+}
