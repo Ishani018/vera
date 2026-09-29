@@ -159,3 +159,26 @@ generalises the board that lets a finished sticker be placed without a special c
 **Noted for launch, not for the build:** terms of service must say uploaded artwork
 is the user's responsibility. A tool that makes stickers from any image will be
 pointed at copyrighted characters on day one.
+
+---
+
+## 7. A stored book carries its own schema number
+
+*29 September 2026 — decided, while doing M0*
+
+`BookBase.schema`. Absent means 1, a book whose cover is in inches; 2 means
+points. `migrateProject` converts when it sees 1 and sets 2.
+
+**Why a marker rather than detection.** Nothing in the numbers says which unit
+they are in. A text box at x = 43.2 is as plausible in points as 0.6 is in
+inches, so a second pass over an already-converted cover would multiply by
+seventy-two again and put every sticker thousands of points off the page — and
+there would be no way back, because the wrong answer looks exactly like a
+right one.
+
+The cost is that a book made today has to be born carrying the marker, in both
+places books are made. That is the kind of thing that gets forgotten, so the
+tests check it: a fresh book must come back from the migration unchanged.
+
+**Reversible?** It is a version number; later shapes add to it. The thing that
+would not be reversible is the migration it prevents running twice.
