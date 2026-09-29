@@ -161,7 +161,10 @@ async function ensureServer() {
     throw new Error(`Nothing is listening at ${BASE}.`);
   }
   process.stdout.write('starting a dev server… ');
-  const child = spawn('npm', ['run', 'dev'], { cwd: ROOT, stdio: 'ignore', detached: false });
+  // Its own process group, because `npm run dev` spawns `next dev` as a
+  // grandchild: killing the child alone leaves the server running and the next
+  // run silently reuses it, which is how this leaked one the first time.
+  const child = spawn('npm', ['run', 'dev'], { cwd: ROOT, stdio: 'ignore', detached: true });
   for (let i = 0; i < 60; i += 1) {
     await new Promise((r) => setTimeout(r, 1000));
     if (await reachable(BASE)) {
@@ -169,8 +172,22 @@ async function ensureServer() {
       return child;
     }
   }
-  child.kill();
+  stop(child);
   throw new Error('the dev server did not come up within a minute');
+}
+
+/** Takes the whole group down, not just the process we happen to hold. */
+function stop(child) {
+  if (!child?.pid) return;
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    try {
+      child.kill('SIGKILL');
+    } catch {
+      /* already gone */
+    }
+  }
 }
 
 async function renderPdf(route, body) {
@@ -274,7 +291,7 @@ try {
     }
   }
 } finally {
-  if (server) server.kill();
+  if (server) stop(server);
 }
 
 if (failures) {
