@@ -15,9 +15,9 @@ export function StudioHeader({ children }: { children?: ReactNode }) {
       <Link
         href="/"
         className="rounded-lg py-4 pr-1 text-[20px] font-semibold tracking-tight transition-colors hover:text-accent-500"
-        title="All your books"
+        title="Everything you have made"
       >
-        Verse<span className="text-accent-500">craft</span>
+        Isna<span className="text-accent-500">evy</span>
       </Link>
       {children}
     </header>

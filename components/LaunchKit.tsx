@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { boardFor, outputSize, PRESETS, presetById } from '@/lib/presets';
-import { id } from '@/lib/defaults';
+import { createDesign } from '@/lib/defaults';
 import { exportDesign } from '@/lib/exportClient';
 import type { AnyProject, FontSpec } from '@/lib/types';
 import { CoverDesigner, type CoverPicture } from './CoverDesigner';
@@ -21,14 +21,22 @@ export function LaunchKit<T extends AnyProject>({
   update,
   displayFont,
   pictures = [],
+  openDesign = null,
 }: {
   project: T;
   update: (recipe: (draft: T) => void) => void;
   displayFont: Pick<FontSpec, 'family' | 'fallback'>;
   pictures?: CoverPicture[];
+  /**
+   * A design to open straight away, when the front page sent someone here for
+   * one. It is already in the book by the time this mounts: the front page
+   * writes it before it navigates, so nothing has to be created here while the
+   * book is still being read off the disk.
+   */
+  openDesign?: string | null;
 }) {
   const designs = project.designs ?? [];
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(openDesign);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -38,27 +46,12 @@ export function LaunchKit<T extends AnyProject>({
   const add = (presetId: string) => {
     const chosen = presetById(presetId);
     if (!chosen) return;
-    const newId = id('dsn');
+    const design = createDesign(presetId, chosen.name);
     update((draft) => {
       draft.designs ??= [];
-      draft.designs.push({
-        id: newId,
-        name: chosen.name,
-        presetId,
-        createdAt: Date.now(),
-        cover: {
-          backgroundColor: '#f4efe4',
-          backColor: '#f4efe4',
-          spineColor: '#f4efe4',
-          frontImage: null,
-          imageSpansWrap: false,
-          showBarcodeZone: false,
-          textBoxes: [],
-          stickers: [],
-        },
-      });
+      draft.designs.push(design);
     });
-    setOpenId(newId);
+    setOpenId(design.id);
   };
 
   /* ------------------------------------------------------------- editing one */

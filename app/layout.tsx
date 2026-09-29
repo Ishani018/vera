@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Versecraft — poetry book typesetter',
+  title: 'Isnaevy — the design tool for people who self-publish books',
   description:
-    'Typeset a poetry collection and export print-ready KDP interior and cover PDFs, in the browser.',
+    'Book interiors, covers and the launch kit around a release. Print-ready KDP PDFs, made in the browser and kept on your own computer.',
 };
 
 export const viewport: Viewport = {

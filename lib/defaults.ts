@@ -2,6 +2,7 @@ import { DEFAULT_TRIM_ID } from './kdp';
 import { SCHEMA } from './schema';
 import type {
   ColoringTypography,
+  Design,
   FontSpec,
   MatterPage,
   Project,
@@ -163,6 +164,32 @@ export function defaultBackMatter(): MatterPage[] {
       body: 'A short biographical note goes here.',
     }),
   ];
+}
+
+/**
+ * A launch-kit design with nothing on it yet.
+ *
+ * Here rather than in the kit itself because a design can now be started from
+ * the front page as well, and two places making one would eventually make two
+ * slightly different ones.
+ */
+export function createDesign(presetId: string, name: string): Design {
+  return {
+    id: id('dsn'),
+    name,
+    presetId,
+    createdAt: Date.now(),
+    cover: {
+      backgroundColor: '#f4efe4',
+      backColor: '#f4efe4',
+      spineColor: '#f4efe4',
+      frontImage: null,
+      imageSpansWrap: false,
+      showBarcodeZone: false,
+      textBoxes: [],
+      stickers: [],
+    },
+  };
 }
 
 export function createProject(overrides: Partial<Project> = {}): Project {

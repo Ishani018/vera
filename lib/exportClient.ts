@@ -260,7 +260,7 @@ export async function exportProjectJson(project: AnyProject): Promise<void> {
   const assets = await assetsAsDataUrls([...projectAssetIds(project), ...shared]);
   const payload = { versecraft: 2, project, assets, library: { stickers, templates } };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  download(blob, `${slug(project.meta.title)}-versecraft.json`);
+  download(blob, `${slug(project.meta.title)}-isnaevy.json`);
 }
 
 export async function importProjectJson(file: File): Promise<Project> {
@@ -279,7 +279,7 @@ export async function importProjectJson(file: File): Promise<Project> {
   const assets = 'assets' in parsed && parsed.assets ? parsed.assets : {};
 
   if (!project || typeof project !== 'object' || !looksLikeProject(project)) {
-    throw new Error('That file is not a Versecraft project.');
+    throw new Error('That file is not an Isnaevy project.');
   }
   await importAssets(assets);
   // Merged rather than replaced: restoring one book's backup must not empty a

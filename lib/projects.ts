@@ -1,13 +1,15 @@
 import { migrateContents } from './contents';
 import { getDb } from './db';
-import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
-import { DEFAULT_COLORING_TRIM, inchesToPt } from './kdp';
+import { DEFAULT_COLORING_TYPOGRAPHY, createDesign, createProject, id } from './defaults';
+import { DEFAULT_COLORING_TRIM, getTrim, inchesToPt } from './kdp';
+import { boardFor, presetById } from './presets';
 import { SCHEMA } from './schema';
 import type {
   AnyProject,
   ColoringBook,
   CoverSpec,
   ColoringPage,
+  Design,
   LineArtSettings,
   PoetryProject,
 } from './types';
@@ -252,4 +254,189 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   return rows
     .map((row) => summarise(migrateProject(row)))
     .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/* --------------------------------------------------------------- the library */
+
+/**
+ * A drawn stand-in for something saved, worked out from what it holds.
+ *
+ * Not a render — there is no renderer on the front page, and starting one for
+ * every card would be slow and would need Chromium for the ones that are
+ * print boards. It is the real aspect, the real background colour and the real
+ * positions of the things on it, which is enough to tell two designs apart at
+ * thumbnail size, and cannot claim anything the design does not contain.
+ */
+export type Thumb = {
+  /** Points; only the ratio is used. */
+  width: number;
+  height: number;
+  background: string;
+  marks: Array<{ x: number; y: number; w: number; h: number; kind: 'text' | 'picture' }>;
+};
+
+export type LibraryEntry = {
+  /** Unique across both kinds, so it can key a list. */
+  key: string;
+  projectId: string;
+  /** Set when the entry is a launch-kit design rather than the book itself. */
+  designId?: string;
+  kind: AnyProject['kind'] | 'design';
+  /** Which editor it opens in — a design opens inside the book that holds it. */
+  bookKind: AnyProject['kind'];
+  name: string;
+  /** What it is, in the words the interface uses elsewhere. */
+  type: string;
+  at: number;
+  thumb: Thumb;
+};
+
+function bookThumb(project: AnyProject): Thumb {
+  // A record old enough to be missing its trim still gets a card rather
+  // than taking the whole front page down with it.
+  const trim = getTrim(project.trim?.trimId ?? '');
+  return {
+    width: inchesToPt(trim.width),
+    height: inchesToPt(trim.height),
+    background: project.cover?.backgroundColor ?? '#f4efe4',
+    marks: [],
+  };
+}
+
+function designThumb(design: Design): Thumb {
+  const preset = presetById(design.presetId);
+  const board = preset ? boardFor(preset) : null;
+  const size = board
+    ? { width: board.width, height: board.height }
+    : { width: 100, height: 100 };
+  const marks: Thumb['marks'] = [];
+  for (const sticker of design.cover.stickers ?? []) {
+    marks.push({ x: sticker.x, y: sticker.y, w: sticker.width, h: sticker.height, kind: 'picture' });
+  }
+  for (const box of design.cover.textBoxes ?? []) {
+    // A box stores where it starts and how wide it is, never how tall it ends
+    // up; one line of its own type is the honest guess at thumbnail size.
+    marks.push({
+      x: box.x,
+      y: box.y,
+      w: box.width,
+      h: box.font.sizePt * 1.2,
+      kind: 'text',
+    });
+  }
+  return { ...size, background: design.cover.backgroundColor ?? '#f4efe4', marks };
+}
+
+/**
+ * Everything saved on this computer, whatever kind it is, newest first.
+ *
+ * Books and the designs inside them come back in one list because that is how
+ * they are looked for: someone wants the thing they were working on, not the
+ * category it belongs to.
+ */
+export async function listLibrary(): Promise<LibraryEntry[]> {
+  const db = getDb();
+  if (!db) return [];
+  const rows = await db.projects.toArray();
+  const entries: LibraryEntry[] = [];
+  for (const row of rows) {
+    const project = migrateProject(row);
+    const summary = summarise(project);
+    entries.push({
+      key: project.id,
+      projectId: project.id,
+      kind: project.kind,
+      bookKind: project.kind,
+      name: summary.name,
+      type: `${isColoring(project) ? 'Colouring book' : 'Poetry book'} · ${summary.items} ${
+        isColoring(project) ? 'picture' : 'poem'
+      }${summary.items === 1 ? '' : 's'}`,
+      at: project.updatedAt,
+      thumb: bookThumb(project),
+    });
+    for (const design of project.designs ?? []) {
+      entries.push({
+        key: `${project.id}:${design.id}`,
+        projectId: project.id,
+        designId: design.id,
+        kind: 'design',
+        bookKind: project.kind,
+        name: design.name,
+        type: `${presetById(design.presetId)?.name ?? 'Design'} · in ${summary.name}`,
+        at: design.createdAt,
+        thumb: designThumb(design),
+      });
+    }
+  }
+  return entries.sort((a, b) => b.at - a.at);
+}
+
+/**
+ * Renames what the library calls a book, and nothing else.
+ *
+ * Deliberately not `meta.title`: that one is printed on the title page and set
+ * on the cover, so renaming a card here would quietly change a book's
+ * exported pages. The editor still has the field for that.
+ */
+/**
+ * Starts a launch-kit design on a book from outside it, and says which one.
+ *
+ * Written to the database before anything opens, so the editor reads a book
+ * that already contains it. Making it on the way in instead means a design
+ * racing the book it belongs to as that book is being loaded, and the loser
+ * is the design.
+ */
+export async function addDesign(projectId: string, presetId: string): Promise<string | null> {
+  const db = getDb();
+  if (!db) return null;
+  const preset = presetById(presetId);
+  const row = await db.projects.get(projectId);
+  if (!preset || !row) return null;
+  const project = migrateProject(row);
+  const design = createDesign(presetId, preset.name);
+  await db.projects.put({
+    ...project,
+    designs: [...(project.designs ?? []), design],
+    updatedAt: Date.now(),
+  });
+  return design.id;
+}
+
+export async function renameProject(id: string, name: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const row = await db.projects.get(id);
+  if (!row) return;
+  await db.projects.put({ ...migrateProject(row), name, updatedAt: Date.now() });
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const db = getDb();
+  await db?.projects.delete(id);
+}
+
+export async function renameDesign(
+  projectId: string,
+  designId: string,
+  name: string,
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const row = await db.projects.get(projectId);
+  if (!row) return;
+  const project = migrateProject(row);
+  const design = project.designs?.find((d) => d.id === designId);
+  if (!design) return;
+  design.name = name;
+  await db.projects.put({ ...project, updatedAt: Date.now() });
+}
+
+export async function deleteDesign(projectId: string, designId: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const row = await db.projects.get(projectId);
+  if (!row) return;
+  const project = migrateProject(row);
+  const designs = (project.designs ?? []).filter((d) => d.id !== designId);
+  await db.projects.put({ ...project, designs, updatedAt: Date.now() });
 }

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useConversionQueue } from '@/lib/coloring/convert';
 import { useColoring } from '@/lib/coloring/store';
 import { sheetCount } from '@/lib/render/coloringLayout';
+import { useOpenIntent } from '../openIntent';
 import { StudioHeader } from '../StudioHeader';
 import { SegmentedControl } from '../ui';
 import { AssemblyPanel } from './AssemblyPanel';
@@ -31,6 +32,13 @@ export function ColoringWorkspace() {
   const load = useColoring((s) => s.load);
   const update = useColoring((s) => s.update);
   const [mode, setMode] = useState<Mode>('pictures');
+
+  // The front page can ask for a part of the book directly, so that a tile
+  // called "Instagram post" opens one rather than the picture tray.
+  const intent = useOpenIntent();
+  useEffect(() => {
+    if (intent) setMode(intent.open === 'cover' ? 'cover' : 'kit');
+  }, [intent]);
 
   // What Paged.js actually laid out, once it has. Until then the count worked
   // out from the settings, so the panel is never blank.
@@ -111,6 +119,7 @@ export function ColoringWorkspace() {
           <LaunchKit
             project={book}
             update={update}
+            openDesign={intent?.open === 'kit' ? intent.designId : null}
             displayFont={book.typography.title}
             // The line art, so a page from inside the book can go on a post.
             pictures={book.pages

@@ -253,3 +253,34 @@ reading all run on an 810 x 810 point board that is not a book, in the tests.
 
 **Reversible?** Yes, and cheaply — it is additive. `CoverLayout` is a `Board`
 with two extra named fields, so every existing caller reads what it always did.
+
+---
+
+## 10. A tile may only say it is ready if it opens something that exists
+
+*29 September 2026 — decided, building the front page*
+
+`lib/tiles.ts` holds every tile the front page offers, one entry each:
+category, size, status, destination. A tile is `ready` or `soon`; a `soon`
+one is muted and cannot be clicked, and its destination must be `none`. The
+rule is checked in `tests/tiles.test.mjs` rather than trusted: a ready tile
+has to have a destination, and a tile pointing at a launch-kit board has to
+name a board that `lib/presets.ts` actually has.
+
+**Why a test rather than care.** A front page is where a tool makes its
+promises, and the cheapest thing in the world is to add a tile for something
+that is nearly finished. The test is what stops "nearly" from shipping. It
+also means the size line under each board tile is read from the preset, so a
+tile cannot advertise a size the board would not produce.
+
+**Why designs are created before navigating.** The front page writes the new
+design into the book and then opens the editor on it by id. Creating it on
+arrival instead puts the design in a race with the book being read off the
+disk, and the design loses: it is written to the database, then wiped out of
+memory when the load finishes, so it exists but is not on screen. That was
+observed, not theorised.
+
+**What is deliberately not here.** The tiles do not cover everything the app
+can do — there is no tile for the sticker library or for importing a
+manuscript, because a tile is an answer to "what will you make", not a menu
+of features.

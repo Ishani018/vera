@@ -8,12 +8,14 @@ import { BookPreview } from './BookPreview';
 import { CoverDesigner } from './CoverDesigner';
 import { HelpPanel } from './HelpPanel';
 import { IllustrationEditor } from './IllustrationEditor';
+import { LaunchKit } from './LaunchKit';
 import { MODES, ModePanel, type Mode } from './Modes';
+import { useOpenIntent } from './openIntent';
 import { PoemEditor } from './PoemEditor';
 import { Walkthrough, useWalkthrough } from './Walkthrough';
 import { Button, SegmentedControl, cx } from './ui';
 
-type Tab = 'book' | 'cover';
+type Tab = 'book' | 'cover' | 'kit';
 
 export function Workspace() {
   const status = useStore((s) => s.status);
@@ -28,6 +30,13 @@ export function Workspace() {
   const [tab, setTab] = useState<Tab>('book');
   const [mode, setMode] = useState<Mode>('write');
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // A tile on the front page can point straight at a cover or a launch-kit
+  // board; without this the tile would have to lie about where it goes.
+  const intent = useOpenIntent();
+  useEffect(() => {
+    if (intent) setTab(intent.open === 'cover' ? 'cover' : 'kit');
+  }, [intent]);
   const walkthrough = useWalkthrough();
 
   /**
@@ -80,10 +89,10 @@ export function Workspace() {
       <header className="flex items-center gap-4 border-b border-ink-200 bg-paper px-5">
         <Link
           href="/"
-          title="All your books"
+          title="Everything you have made"
           className="rounded-lg py-4 pr-1 text-[20px] font-semibold tracking-tight transition-colors hover:text-accent-500"
         >
-          Verse<span className="text-accent-500">craft</span>
+          Isna<span className="text-accent-500">evy</span>
         </Link>
         <span className="truncate rounded-lg px-3 py-2 text-ink-700">{project.meta.title}</span>
 
@@ -93,6 +102,7 @@ export function Workspace() {
           options={[
             { value: 'book', label: 'Book' },
             { value: 'cover', label: 'Cover' },
+            { value: 'kit', label: 'Launch kit' },
           ]}
         />
 
@@ -158,9 +168,13 @@ export function Workspace() {
             <BookPreview />
           </div>
         </div>
-      ) : (
+      ) : tab === 'cover' ? (
         <div className="min-h-0 flex-1">
           <PoetryCover />
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1">
+          <PoetryKit openDesign={intent?.open === 'kit' ? intent.designId : null} />
         </div>
       )}
 
@@ -202,6 +216,36 @@ function PoetryCover() {
           key: plate.id,
           name: plate.title || plate.caption || 'Illustration',
           assetId: plate.assetId,
+          width: plate.naturalWidth,
+          height: plate.naturalHeight,
+        }))}
+    />
+  );
+}
+
+/**
+ * The launch kit, given the poetry book to hang designs on.
+ *
+ * The same wrapper shape as the cover above: the kit is written against any
+ * book, and the store read stays out here so neither side learns about the
+ * other's state.
+ */
+function PoetryKit({ openDesign }: { openDesign?: string | null }) {
+  const project = useStore((s) => s.project);
+  const update = useStore((s) => s.update);
+  if (!project) return null;
+  return (
+    <LaunchKit
+      project={project}
+      update={update}
+      displayFont={project.typography.sectionTitle}
+      openDesign={openDesign}
+      pictures={illustrationsOf(project)
+        .filter((plate) => plate.assetId)
+        .map((plate) => ({
+          key: plate.id,
+          name: plate.title || plate.caption || 'Illustration',
+          assetId: plate.assetId!,
           width: plate.naturalWidth,
           height: plate.naturalHeight,
         }))}
