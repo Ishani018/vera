@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { AssetRecord } from './assets';
-import type { AnyProject, CoverTemplate, LibrarySticker } from './types';
+import type { AnyProject, CoverTemplate, LibrarySticker, StandaloneDesign } from './types';
 
 /**
  * Everything lives in the browser. There is no server-side store: the export
@@ -28,6 +28,15 @@ export class VersecraftDatabase extends Dexie {
   stickers!: Table<LibrarySticker, string>;
   /** Saved cover layouts, so a series can start from one design. */
   coverTemplates!: Table<CoverTemplate, string>;
+  /**
+   * Designs that belong to no book.
+   *
+   * Their own table rather than a field on a project, because a post made
+   * before there is a book to announce is not a fact about any book. Designs
+   * already saved inside books stay where they are and keep working; nothing
+   * here moves them.
+   */
+  designs!: Table<StandaloneDesign, string>;
 
   constructor() {
     super('versecraft');
@@ -41,6 +50,14 @@ export class VersecraftDatabase extends Dexie {
       assets: 'id, createdAt',
       stickers: 'id, name, createdAt, *tags',
       coverTemplates: 'id, name, createdAt',
+    });
+    // Additive: a new table, and not a line of existing data read or rewritten.
+    this.version(4).stores({
+      projects: 'id, updatedAt, name',
+      assets: 'id, createdAt',
+      stickers: 'id, name, createdAt, *tags',
+      coverTemplates: 'id, name, createdAt',
+      designs: 'id, updatedAt, name',
     });
   }
 }

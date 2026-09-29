@@ -1,6 +1,7 @@
 import { migrateContents } from './contents';
 import { getDb } from './db';
-import { DEFAULT_COLORING_TYPOGRAPHY, createDesign, createProject, id } from './defaults';
+import { listStandaloneDesigns } from './designs';
+import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
 import { DEFAULT_COLORING_TRIM, getTrim, inchesToPt } from './kdp';
 import { boardFor, presetById } from './presets';
 import { SCHEMA } from './schema';
@@ -276,14 +277,15 @@ export type Thumb = {
 };
 
 export type LibraryEntry = {
-  /** Unique across both kinds, so it can key a list. */
+  /** Unique across every kind, so it can key a list. */
   key: string;
-  projectId: string;
-  /** Set when the entry is a launch-kit design rather than the book itself. */
+  /** The book it lives in, or null for a design that belongs to none. */
+  projectId: string | null;
+  /** Set when the entry is a design rather than a book. */
   designId?: string;
   kind: AnyProject['kind'] | 'design';
-  /** Which editor it opens in — a design opens inside the book that holds it. */
-  bookKind: AnyProject['kind'];
+  /** Which editor an entry inside a book opens in. Null when it is on its own. */
+  bookKind: AnyProject['kind'] | null;
   name: string;
   /** What it is, in the words the interface uses elsewhere. */
   type: string;
@@ -363,11 +365,29 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
         bookKind: project.kind,
         name: design.name,
         type: `${presetById(design.presetId)?.name ?? 'Design'} · in ${summary.name}`,
-        at: design.createdAt,
+        at: design.updatedAt ?? design.createdAt,
         thumb: designThumb(design),
       });
     }
   }
+
+  // And the ones that belong to nobody, listed beside the rest rather than
+  // under a heading of their own: someone looking for the post they made is
+  // not thinking about where it is stored.
+  for (const design of await listStandaloneDesigns()) {
+    entries.push({
+      key: design.id,
+      projectId: null,
+      designId: design.id,
+      kind: 'design',
+      bookKind: null,
+      name: design.name,
+      type: presetById(design.presetId)?.name ?? 'Design',
+      at: design.updatedAt,
+      thumb: designThumb(design),
+    });
+  }
+
   return entries.sort((a, b) => b.at - a.at);
 }
 
@@ -378,30 +398,6 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
  * on the cover, so renaming a card here would quietly change a book's
  * exported pages. The editor still has the field for that.
  */
-/**
- * Starts a launch-kit design on a book from outside it, and says which one.
- *
- * Written to the database before anything opens, so the editor reads a book
- * that already contains it. Making it on the way in instead means a design
- * racing the book it belongs to as that book is being loaded, and the loser
- * is the design.
- */
-export async function addDesign(projectId: string, presetId: string): Promise<string | null> {
-  const db = getDb();
-  if (!db) return null;
-  const preset = presetById(presetId);
-  const row = await db.projects.get(projectId);
-  if (!preset || !row) return null;
-  const project = migrateProject(row);
-  const design = createDesign(presetId, preset.name);
-  await db.projects.put({
-    ...project,
-    designs: [...(project.designs ?? []), design],
-    updatedAt: Date.now(),
-  });
-  return design.id;
-}
-
 export async function renameProject(id: string, name: string): Promise<void> {
   const db = getDb();
   if (!db) return;

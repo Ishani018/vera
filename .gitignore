@@ -12,3 +12,4 @@ next-env.d.ts
 public/vendor/
 .render-check/
 .trim-compare/
+tests/golden/*.actual.png

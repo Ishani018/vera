@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { boardFor, outputSize, PRESETS, presetById } from '@/lib/presets';
+import { PRESETS, presetById } from '@/lib/presets';
 import { createDesign } from '@/lib/defaults';
 import { exportDesign } from '@/lib/exportClient';
 import type { AnyProject, FontSpec } from '@/lib/types';
-import { CoverDesigner, type CoverPicture } from './CoverDesigner';
-import { Button, Notice, TextInput, cx } from './ui';
+import type { CoverPicture } from './CoverDesigner';
+import { DesignEditor } from './DesignEditor';
+import { cx } from './ui';
 
 /**
  * Everything made for the book that is not the book.
@@ -37,11 +38,7 @@ export function LaunchKit<T extends AnyProject>({
 }) {
   const designs = project.designs ?? [];
   const [openId, setOpenId] = useState<string | null>(openDesign);
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-
   const open = designs.find((d) => d.id === openId) ?? null;
-  const preset = open ? presetById(open.presetId) : null;
 
   const add = (presetId: string) => {
     const chosen = presetById(presetId);
@@ -56,94 +53,23 @@ export function LaunchKit<T extends AnyProject>({
 
   /* ------------------------------------------------------------- editing one */
 
-  if (open && preset) {
-    const board = boardFor(preset);
-    const size = outputSize(preset, {});
-    const download = async (format: 'png' | 'jpg' | 'pdf', scale?: number) => {
-      setBusy(true);
-      setStatus(null);
-      try {
-        const outcome = await exportDesign(project, open, format, scale);
-        setStatus({ ok: outcome.ok, text: outcome.message });
-      } finally {
-        setBusy(false);
-      }
-    };
-
+  if (open) {
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center gap-3 border-b border-ink-200 bg-paper px-5 py-3">
-          <button
-            type="button"
-            onClick={() => setOpenId(null)}
-            className="text-[13px] text-accent-500 underline"
-          >
-            ← Launch kit
-          </button>
-          <TextInput
-            value={open.name}
-            onChange={(e) =>
-              update((draft) => {
-                const found = draft.designs?.find((d) => d.id === open.id);
-                if (found) found.name = e.target.value;
-              })
-            }
-          />
-          <span className="shrink-0 text-[12.5px] text-ink-500">
-            {preset.name} · {preset.stated}
-          </span>
-          <div className="ml-auto flex shrink-0 gap-1.5">
-            {preset.kind === 'screen' ? (
-              <>
-                <Button disabled={busy} onClick={() => void download('png', 1)}>
-                  {busy ? 'Rendering…' : `PNG ${size.widthPx}×${size.heightPx}`}
-                </Button>
-                <Button disabled={busy} onClick={() => void download('png', 2)}>
-                  PNG ×2
-                </Button>
-                <Button disabled={busy} onClick={() => void download('jpg', 1)}>
-                  JPG
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="primary" disabled={busy} onClick={() => void download('pdf')}>
-                  {busy ? 'Rendering…' : 'Print PDF'}
-                </Button>
-                <Button disabled={busy} onClick={() => void download('png')}>
-                  PNG at 300
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {status && (
-          <div className="border-b border-ink-200 px-5 py-2">
-            <Notice level={status.ok ? 'ok' : 'error'}>{status.text}</Notice>
-          </div>
-        )}
-
-        <div className="min-h-0 flex-1">
-          <CoverDesigner
-            project={{ meta: project.meta, trim: project.trim, cover: open.cover }}
-            update={(recipe) =>
-              update((draft) => {
-                const found = draft.designs?.find((d) => d.id === open.id);
-                if (!found) return;
-                // The recipe is handed a live draft, so what it writes to
-                // `cover` lands inside this design rather than on the book's
-                // own cover. `meta` and `trim` are only read.
-                recipe({ meta: draft.meta, trim: draft.trim, cover: found.cover });
-              })
-            }
-            pageCount={24}
-            displayFont={displayFont}
-            pictures={pictures}
-            board={board}
-          />
-        </div>
-      </div>
+      <DesignEditor
+        design={open}
+        update={(recipe) =>
+          update((draft) => {
+            const found = draft.designs?.find((d) => d.id === open.id);
+            if (!found) return;
+            recipe(found);
+            found.updatedAt = Date.now();
+          })
+        }
+        displayFont={displayFont}
+        pictures={pictures}
+        onExport={(format, scale) => exportDesign(project, open, format, scale)}
+        onBack={() => setOpenId(null)}
+      />
     );
   }
 

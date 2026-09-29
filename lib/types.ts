@@ -331,6 +331,26 @@ export type Design = {
   presetId: string;
   cover: CoverSpec;
   createdAt: number;
+  /** Absent on designs made before anything recorded it; fall back to createdAt. */
+  updatedAt?: number;
+};
+
+/**
+ * A design that belongs to nobody.
+ *
+ * The same shape as one inside a book, in its own table rather than in a
+ * field. Most of what someone makes around a book — a post, a pin, a bookmark
+ * — is not made while a book is open, and asking which book it belongs to
+ * before showing them a blank board is a question with no right answer.
+ *
+ * It carries the schema number for the same reason a book does: nothing in the
+ * numbers says which unit they are in, so a future migration has to be told.
+ */
+export type StandaloneDesign = Design & {
+  schema: number;
+  updatedAt: number;
+  /** A book whose pictures were borrowed into the tray, if one was. */
+  borrowedFrom?: string;
 };
 
 export type BookKind = 'poetry' | 'coloring';

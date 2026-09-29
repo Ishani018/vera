@@ -37,7 +37,7 @@
 
 import { spawn } from 'node:child_process';
 import { deflateSync } from 'node:zlib';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -57,8 +57,17 @@ const { sheetCount } = await import(join(ROOT, 'lib', 'render', 'coloringLayout.
 
 const round = (n) => Number(n.toFixed(4));
 
-/** The window the screen is measured in. Everything recorded is in points. */
-const VIEWPORT = { width: 1440, height: 900 };
+/**
+ * The window the screen is measured in. Everything recorded is in points.
+ *
+ * Tall enough for the biggest board to be on screen all at once. An element
+ * screenshot photographs what is painted, and a board taller than the window
+ * is clipped by the pane it scrolls in — so at 900 the bottom quarter of an
+ * Instagram post was not in the picture, and a change down there would have
+ * gone unnoticed. The designer scales a board to the width it has, never the
+ * height, so a taller window changes what can be seen and nothing else.
+ */
+const VIEWPORT = { width: 1440, height: 1280 };
 /**
  * Below this, a difference is anti-aliasing: the same shape with its edge
  * pixels blended slightly differently. Above it, something moved or changed
@@ -733,6 +742,8 @@ try {
       continue;
     }
 
+    const actualPath = join(DIR, `screen-${kase.name}.actual.png`);
+    if (existsSync(actualPath)) rmSync(actualPath);
     const want = JSON.parse(readFileSync(jsonPath, 'utf8'));
     let ok = compare(kase.name, 'layout', got.layout, want.layout);
     ok = compare(kase.name, 'board', got.board, want.board) && ok;
@@ -764,6 +775,12 @@ try {
           `${diff.width}x${diff.height}, ${diff.hard} pixel(s) changed, ` +
           `${diff.soft} edge pixel(s) shaded differently (worst ${diff.worst}/255, ` +
           `allowance ${budget})${diff.where ? `, first change around ${diff.where}` : ''}`;
+        if (bad) {
+          // What this run actually drew, kept beside the golden. A count of
+          // changed pixels says something moved; only the picture says what.
+          writeFileSync(actualPath, shot);
+          imageNote += `\n    what this run drew: ${actualPath}`;
+        }
       }
     }
 

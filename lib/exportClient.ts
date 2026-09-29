@@ -1,9 +1,12 @@
 'use client';
 
 import { assetsAsDataUrls, importAssets } from './assets';
+import { buildBackup, designAssetIds, readBackup } from './backup';
+import { getDb } from './db';
+import { listStandaloneDesigns } from './designs';
 import { bendToDataUrl } from './cover/bendImage';
 import { stickerImageKey } from './render/stickers';
-import { illustrationsOf, looksLikeProject, migrateContents } from './contents';
+import { illustrationsOf } from './contents';
 import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
 import { buildBookHtml } from './render/bookHtml';
@@ -11,7 +14,7 @@ import { buildColoringHtml } from './render/coloringHtml';
 import { keptAssetIds, listStickers, listTemplates, mergeLibrary } from './cover/library';
 import { matterArtwork } from './render/coloringLayout';
 import { buildCoverHtml } from './render/coverHtml';
-import type { AnyProject, CoverTemplate, Design, LibrarySticker, Project } from './types';
+import type { AnyProject, Design, Project } from './types';
 
 /** Where the Paged.js polyfill is served from; see scripts/copy-vendor.mjs. */
 export const PAGEDJS_SRC = '/vendor/paged.polyfill.js';
@@ -150,16 +153,44 @@ export async function exportDesign(
   format: 'png' | 'jpg' | 'pdf',
   scale?: number,
 ): Promise<ExportOutcome> {
+  return postDesign(design, format, scale, {
+    typography: project.typography as Record<string, unknown>,
+    title: `${project.meta.title} — ${design.name}`,
+    name: `${slug(project.meta.title)}-${slug(design.name)}`,
+  });
+}
+
+/**
+ * The same, for a design that belongs to no book.
+ *
+ * `typography` is a book's named faces — its body, its titles — and a board
+ * has none. Nor does it need any: the font machinery collects every text box's
+ * own face as well, so an empty record still embeds exactly the faces this
+ * design sets, and no others.
+ */
+export async function exportStandaloneDesign(
+  design: Design,
+  format: 'png' | 'jpg' | 'pdf',
+  scale?: number,
+): Promise<ExportOutcome> {
+  return postDesign(design, format, scale, {
+    typography: {},
+    title: design.name,
+    name: slug(design.name) || 'design',
+  });
+}
+
+async function postDesign(
+  design: Design,
+  format: 'png' | 'jpg' | 'pdf',
+  scale: number | undefined,
+  about: { typography: Record<string, unknown>; title: string; name: string },
+): Promise<ExportOutcome> {
   const { presetById } = await import('./presets');
   const preset = presetById(design.presetId);
   if (!preset) return { ok: false, message: `That size is no longer available.` };
 
-  const ids = [
-    design.cover.frontImage?.assetId,
-    ...design.cover.stickers.map((s) => s.assetId),
-  ].filter((value): value is string => Boolean(value));
-
-  const assets = await assetsAsDataUrls(ids);
+  const assets = await assetsAsDataUrls(designAssetIds(design));
   for (const sticker of design.cover.stickers) {
     if (!sticker.arc) continue;
     const source = assets[sticker.assetId];
@@ -174,14 +205,14 @@ export async function exportDesign(
     {
       presetId: design.presetId,
       cover: design.cover,
-      typography: project.typography as Record<string, unknown>,
-      title: `${project.meta.title} — ${design.name}`,
-      name: `${slug(project.meta.title)}-${slug(design.name)}`,
+      typography: about.typography,
+      title: about.title,
+      name: about.name,
       format,
       ...(preset.kind === 'screen' ? { scale } : { dpi: 300 }),
       assets,
     },
-    `${slug(project.meta.title)}-${slug(design.name)}.${extension}`,
+    `${about.name}.${extension}`,
     design.name,
   );
 }
@@ -255,38 +286,39 @@ export async function exportProjectJson(project: AnyProject): Promise<void> {
   // browser like everything else, so clearing site data would take them with
   // it — and they are the one thing here that is not tied to a single book,
   // which makes losing them cost more than losing any one of them.
-  const [stickers, templates] = await Promise.all([listStickers(), listTemplates()]);
+  //
+  // So do the designs that belong to no book. They are in the same browser and
+  // the same danger, and no other backup carries them, because there is no
+  // book whose backup would.
+  const [stickers, templates, designs] = await Promise.all([
+    listStickers(),
+    listTemplates(),
+    listStandaloneDesigns(),
+  ]);
   const shared = await keptAssetIds();
-  const assets = await assetsAsDataUrls([...projectAssetIds(project), ...shared]);
-  const payload = { versecraft: 2, project, assets, library: { stickers, templates } };
+  const assets = await assetsAsDataUrls([
+    ...projectAssetIds(project),
+    ...shared,
+    ...designs.flatMap(designAssetIds),
+  ]);
+  const payload = buildBackup({ project, assets, stickers, templates, designs });
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   download(blob, `${slug(project.meta.title)}-isnaevy.json`);
 }
 
 export async function importProjectJson(file: File): Promise<Project> {
-  const parsed = JSON.parse(await file.text()) as
-    | Partial<Project>
-    | {
-        versecraft?: number;
-        project?: Project;
-        assets?: Record<string, string>;
-        library?: { stickers?: LibrarySticker[]; templates?: CoverTemplate[] };
-      };
-
-  // A backup made before assets were split out is the project itself.
-  const project =
-    'project' in parsed && parsed.project ? parsed.project : (parsed as Project);
-  const assets = 'assets' in parsed && parsed.assets ? parsed.assets : {};
-
-  if (!project || typeof project !== 'object' || !looksLikeProject(project)) {
-    throw new Error('That file is not an Isnaevy project.');
-  }
+  const { project, assets, library, designs } = readBackup(await file.text());
   await importAssets(assets);
   // Merged rather than replaced: restoring one book's backup must not empty a
   // library that has grown since, and anything already here wins on a clash.
-  if ('library' in parsed && parsed.library) {
-    await mergeLibrary(parsed.library.stickers ?? [], parsed.library.templates ?? []);
+  await mergeLibrary(library.stickers, library.templates);
+  const db = getDb();
+  if (db) {
+    for (const design of designs) {
+      // Anything already here wins, for the same reason the library merges:
+      // restoring an old backup must not undo work done since.
+      if (!(await db.designs.get(design.id))) await db.designs.put(design);
+    }
   }
-  // A file saved before poems and parts became one list still opens.
-  return { ...project, contents: migrateContents(project) } as Project;
+  return project;
 }

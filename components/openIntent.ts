@@ -11,7 +11,6 @@ import { useEffect, useState } from 'react';
  */
 export type OpenIntent = {
   open: 'cover' | 'kit';
-  presetId: string | null;
   designId: string | null;
 };
 
@@ -21,7 +20,7 @@ export function useOpenIntent(): OpenIntent | null {
     const params = new URLSearchParams(window.location.search);
     const open = params.get('open');
     if (open !== 'cover' && open !== 'kit') return;
-    setIntent({ open, presetId: params.get('preset'), designId: params.get('design') });
+    setIntent({ open, designId: params.get('design') });
   }, []);
   return intent;
 }

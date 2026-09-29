@@ -3,9 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ACTIVE_PROJECT_KEY, getDb } from '@/lib/db';
+import {
+  deleteStandaloneDesign,
+  renameStandaloneDesign,
+  startDesign,
+} from '@/lib/designs';
 import { createProject } from '@/lib/defaults';
 import {
-  addDesign,
   createColoringBook,
   deleteDesign,
   deleteProject,
@@ -56,32 +60,31 @@ export function Landing() {
 
   const books = (entries ?? []).filter((entry) => entry.kind !== 'design');
 
-  /**
-   * Open a book, at whichever part of it the tile asked for.
-   *
-   * A new launch-kit design is written into the book here, before anything
-   * navigates, and the editor is told which one to open. Asking the editor to
-   * make it on arrival puts a design in a race with the book it belongs to.
-   */
+  /** Open a book, at whichever part of it was asked for. */
   const go = async (
     projectId: string,
     kind: AnyProject['kind'],
     destination: TileDestination,
     designId?: string,
   ) => {
-    let open = designId;
-    if (!open && destination.kind === 'design') {
-      open = (await addDesign(projectId, destination.presetId)) ?? undefined;
-    }
     window.localStorage.setItem(ACTIVE_PROJECT_KEY, projectId);
     const path = kind === 'coloring' ? '/coloring' : '/poetry';
     const query =
-      open !== undefined
-        ? `?open=kit&design=${encodeURIComponent(open)}`
+      designId !== undefined
+        ? `?open=kit&design=${encodeURIComponent(designId)}`
         : destination.kind === 'cover'
           ? '?open=cover'
           : '';
     router.push(path + query);
+  };
+
+  /** Opens whatever a card stands for, wherever it is kept. */
+  const open = async (entry: LibraryEntry) => {
+    if (!entry.projectId || !entry.bookKind) {
+      router.push(`/design?id=${encodeURIComponent(entry.designId!)}`);
+      return;
+    }
+    await go(entry.projectId, entry.bookKind, { kind: 'none' }, entry.designId);
   };
 
   /** Make a book of the given kind, then carry on to where the tile pointed. */
@@ -92,9 +95,21 @@ export function Landing() {
     await go(book.id, kind, destination);
   };
 
-  const onTile = (tile: Tile) => {
+  /**
+   * A tile, acted on.
+   *
+   * A board of a stated size needs nothing from anybody: it is made, saved and
+   * opened. Only a wrap cover asks which book, and it asks because it genuinely
+   * needs one — its width is the trim size and its spine is the page count.
+   */
+  const onTile = async (tile: Tile) => {
     if (tile.status !== 'ready') return;
     if (tile.destination.kind === 'interior') return setInteriors(true);
+    if (tile.destination.kind === 'design') {
+      const design = await startDesign(tile.destination.presetId);
+      if (design) router.push(`/design?id=${encodeURIComponent(design.id)}`);
+      return;
+    }
     setPending(tile);
   };
 
@@ -150,7 +165,7 @@ export function Landing() {
                 <button
                   type="button"
                   disabled={tile.status !== 'ready'}
-                  onClick={() => onTile(tile)}
+                  onClick={() => void onTile(tile)}
                   title={tile.status === 'ready' ? undefined : 'Not built yet'}
                   className={cx(
                     'w-full rounded-2xl border bg-paper p-3 text-left transition-colors',
@@ -196,9 +211,7 @@ export function Landing() {
                   <li key={entry.key} className="group relative">
                     <button
                       type="button"
-                      onClick={() =>
-                        void go(entry.projectId, entry.bookKind, { kind: 'none' }, entry.designId)
-                      }
+                      onClick={() => void open(entry)}
                       className="w-full rounded-2xl border border-ink-200 bg-paper p-3 text-left transition-colors hover:border-accent-500"
                     >
                       <span className="grid h-24 place-items-center overflow-hidden rounded-xl bg-ink-100 p-2">
@@ -279,9 +292,9 @@ export function Landing() {
         >
           <div className="flex flex-col gap-2.5 p-5">
             <p className="text-[14px] leading-relaxed text-ink-500">
-              {pending.destination.kind === 'cover'
-                ? 'A cover belongs to a book: it takes its trim size and its spine from one.'
-                : 'Launch-kit pieces are kept with the book they announce, and every picture in that book is in the tray while you work.'}
+              A wrap cover is the one thing here that cannot be made on its own: it is as wide as
+              the book&rsquo;s trim size twice over, and its spine is as thick as the book has
+              pages.
             </p>
             {books.map((book) => (
               <button
@@ -289,7 +302,7 @@ export function Landing() {
                 type="button"
                 onClick={() => {
                   setPending(null);
-                  void go(book.projectId, book.bookKind, pending.destination);
+                  void go(book.projectId!, book.bookKind!, pending.destination);
                 }}
                 className="rounded-xl border border-ink-200 p-3.5 text-left transition-colors hover:border-accent-500"
               >
@@ -340,9 +353,11 @@ export function Landing() {
             <p className="text-[15px] leading-relaxed">
               <strong className="font-[570]">{deleting.name || 'Untitled'}</strong> will be removed
               from this browser.{' '}
-              {deleting.kind === 'design'
-                ? 'The book it belongs to is not touched.'
-                : 'Everything in it goes with it, including its launch kit.'}{' '}
+              {deleting.kind !== 'design'
+                ? 'Everything in it goes with it, including its launch kit.'
+                : deleting.projectId
+                  ? 'The book it belongs to is not touched.'
+                  : 'It belongs to no book, so nothing else changes.'}{' '}
               There is no undo for this.
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -352,9 +367,11 @@ export function Landing() {
                 onClick={() => {
                   const entry = deleting;
                   setDeleting(null);
-                  void (entry.designId
-                    ? deleteDesign(entry.projectId, entry.designId)
-                    : deleteProject(entry.projectId)
+                  void (!entry.projectId
+                    ? deleteStandaloneDesign(entry.designId!)
+                    : entry.designId
+                      ? deleteDesign(entry.projectId, entry.designId)
+                      : deleteProject(entry.projectId)
                   ).then(refresh);
                 }}
               >
@@ -381,9 +398,11 @@ function RenameDialog({
   const save = () => {
     const trimmed = name.trim();
     if (!trimmed) return onClose();
-    void (entry.designId
-      ? renameDesign(entry.projectId, entry.designId, trimmed)
-      : renameProject(entry.projectId, trimmed)
+    void (!entry.projectId
+      ? renameStandaloneDesign(entry.designId!, trimmed)
+      : entry.designId
+        ? renameDesign(entry.projectId, entry.designId, trimmed)
+        : renameProject(entry.projectId, trimmed)
     ).then(onDone);
   };
   return (
