@@ -41,6 +41,7 @@ export async function POST(request: Request) {
         'X-Versecraft-Cover-Size': `${result.widthIn.toFixed(4)}x${result.heightIn.toFixed(4)}in`,
         'X-Versecraft-Spine': `${result.spineIn.toFixed(4)}in`,
         'X-Versecraft-Renderer': result.via,
+        'X-Versecraft-Engine': result.engine,
       },
     });
   } catch (error) {

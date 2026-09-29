@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         'X-Versecraft-Padded': String(result.paddedPages),
         'X-Versecraft-Fonts-Failed': result.fontsFailed.join(',') || 'none',
         'X-Versecraft-Renderer': result.via,
+        'X-Versecraft-Engine': result.engine,
       },
     });
   } catch (error) {

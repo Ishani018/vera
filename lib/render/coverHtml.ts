@@ -267,7 +267,20 @@ ${boxStyles}
 .guide-safe { top: ${d.bleed + 0.25}in; height: ${d.height - 2 * d.bleed - 0.5}in; border: 1px dashed rgba(16,185,129,0.8); }
 #safe-back { left: ${panels.back.x + 0.25}in; width: ${panels.back.width - 0.5}in; }
 #safe-front { left: ${panels.front.x + 0.25}in; width: ${panels.front.width - 0.5}in; }
-${options.guides ? '' : '.barcode-zone { border-color: transparent; background: transparent; color: transparent; }'}
+${
+  options.guides
+    ? ''
+    : // Not merely painted invisible: not drawn at all.
+      //
+      // Painting it transparent still left a label on the page, set in the
+      // `Georgia, serif` this rule asks for — and some Chrome builds write
+      // fully transparent text into the PDF while others drop it. The result
+      // was a cover that embedded a font subset of whatever serif the printing
+      // machine happened to have, for text nobody can see. It never showed on
+      // paper, but a print PDF should contain what the book asks for and
+      // nothing else.
+      '.barcode-zone { display: none; }'
+}
 </style>
 </head>
 <body>

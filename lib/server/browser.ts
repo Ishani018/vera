@@ -38,7 +38,15 @@ const BASE_ARGS = [
   '--font-render-hinting=none',
 ];
 
-export type LaunchedBrowser = { browser: Browser; via: string };
+export type LaunchedBrowser = {
+  browser: Browser;
+  /** Which binary was chosen. */
+  via: string;
+  /** Which engine it turned out to be, e.g. "Chrome/141.0.7390.37".
+   *  Two Chrome builds do not lay out or subset identically, so a PDF is only
+   *  comparable with another from the same engine. */
+  engine: string;
+};
 
 export async function launchBrowser(): Promise<LaunchedBrowser> {
   const puppeteer = (await import('puppeteer-core')).default;
@@ -46,7 +54,7 @@ export async function launchBrowser(): Promise<LaunchedBrowser> {
   for (const executablePath of LOCAL_PATHS) {
     if (!existsSync(executablePath)) continue;
     const browser = await puppeteer.launch({ executablePath, args: BASE_ARGS });
-    return { browser, via: executablePath };
+    return { browser, via: executablePath, engine: await browser.version() };
   }
 
   try {
@@ -60,7 +68,7 @@ export async function launchBrowser(): Promise<LaunchedBrowser> {
         executablePath,
         args: [...chromium.args, ...BASE_ARGS],
       });
-      return { browser, via: '@sparticuz/chromium' };
+      return { browser, via: '@sparticuz/chromium', engine: await browser.version() };
     }
   } catch {
     /* not installed, or not runnable here — fall through to the error below */

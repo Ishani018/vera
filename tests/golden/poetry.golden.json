@@ -1,23 +1,108 @@
 {
-  "pages": 18,
-  "mediaBoxes": [
-    "5.5x8.5in"
-  ],
-  "fonts": [
-    "CormorantGaramond-Regular",
-    "EBGaramond-Italic",
-    "EBGaramond-Regular"
-  ],
-  "embeddedFontPrograms": 5,
-  "images": [],
-  "glyphRuns": 1023,
-  "xobjectDraws": 4,
-  "placements": 1058,
-  "placementDigest": "d4eeeb9e99cb1bfe",
+  "portable": {
+    "pages": 18,
+    "mediaBoxes": [
+      "5.5x8.5in"
+    ],
+    "appFonts": [
+      "CormorantGaramond-Regular",
+      "EBGaramond-Italic",
+      "EBGaramond-Regular"
+    ],
+    "images": [],
+    "inkBoxes": [
+      [
+        114,
+        517,
+        114,
+        517
+      ],
+      null,
+      [
+        105,
+        484,
+        154,
+        513
+      ],
+      [
+        43,
+        56.5,
+        189.5,
+        543
+      ],
+      [
+        151,
+        523,
+        151,
+        523
+      ],
+      null,
+      [
+        54,
+        56.5,
+        347.5,
+        543
+      ],
+      null,
+      [
+        148.5,
+        513,
+        148.5,
+        513
+      ],
+      [
+        43,
+        56.5,
+        190.5,
+        543
+      ],
+      [
+        54,
+        56.5,
+        201,
+        543
+      ],
+      [
+        43,
+        56.5,
+        190.5,
+        543
+      ],
+      null,
+      null,
+      [
+        54,
+        56.5,
+        341.5,
+        543
+      ],
+      null,
+      [
+        54,
+        56.5,
+        199,
+        543
+      ],
+      null
+    ]
+  },
+  "strict": {
+    "glyphRuns": 1023,
+    "xobjectDraws": 4,
+    "embeddedFontPrograms": 5,
+    "placements": 1058,
+    "placementDigest": "d4eeeb9e99cb1bfe"
+  },
+  "foreignFonts": [],
   "reported": {
     "size": null,
     "spine": null,
     "pages": "18",
     "padded": "1"
+  },
+  "recordedWith": {
+    "engine": "Chrome/141.0.7390.37",
+    "via": "/opt/pw-browsers/chromium",
+    "platform": "linux"
   }
 }

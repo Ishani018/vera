@@ -60,6 +60,7 @@ export type InteriorResult = {
   fontsEmbedded: string[];
   fontsFailed: string[];
   via: string;
+  engine: string;
 };
 
 /**
@@ -74,7 +75,7 @@ export async function renderInteriorPdf(
 ): Promise<InteriorResult> {
   const fonts = await embedGoogleFonts(project);
   const pagedJs = await loadPagedJs();
-  const { browser, via } = await launchBrowser();
+  const { browser, via, engine } = await launchBrowser();
 
   try {
     const page = await browser.newPage();
@@ -117,6 +118,7 @@ export async function renderInteriorPdf(
       fontsEmbedded: fonts.embedded,
       fontsFailed: fonts.failed,
       via,
+      engine,
     };
   } finally {
     await browser.close();
@@ -129,6 +131,7 @@ export type CoverResult = {
   heightIn: number;
   spineIn: number;
   via: string;
+  engine: string;
 };
 
 export async function renderCoverPdf(
@@ -141,7 +144,7 @@ export async function renderCoverPdf(
   const layout = coverLayout(project, evenPages);
 
   const fonts = await embedGoogleFonts(project);
-  const { browser, via } = await launchBrowser();
+  const { browser, via, engine } = await launchBrowser();
 
   try {
     const page = await browser.newPage();
@@ -172,6 +175,7 @@ export async function renderCoverPdf(
       heightIn: layout.dimensions.height,
       spineIn: layout.dimensions.spine,
       via,
+      engine,
     };
   } finally {
     await browser.close();
