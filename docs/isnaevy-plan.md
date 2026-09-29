@@ -390,3 +390,139 @@ through your own line art pipeline.** Nobody can copy that and no licence covers
 If step 3 lands cleanly, the rest of this plan is credible. If it fights back, the
 seams are not where this document claims they are, and the plan should be revised
 before going further rather than pushed through.
+
+---
+
+# Part two: the approved plan
+
+Added 29 September 2026, after review. **§9–§11 supersede §6 and §7 for planning.**
+Everything above stands as the analysis; what follows is what is actually being
+built, at the pace actually available.
+
+Scope, architecture, units and assets are settled — see `DECISIONS.md`.
+
+## 9. The half-time MVP
+
+### The constraint
+
+About half a working week, alongside a job starting in February and continuing to
+publish books. Call one **FTE week** two calendar weeks.
+
+The full plan in §6 is 14–18 FTE weeks. At half time that is **seven to nine
+months**, which is not a plan, it is a way to be disappointed in June. So the MVP
+has to fit in 4–5 FTE weeks, and that means cutting something structural, not
+trimming.
+
+### What gets cut, and it is the big one
+
+**The `Artboard`/`Node` document model (§3.1) is deferred entirely.**
+
+The MVP ships the launch kit on the existing `CoverSpec` shape. That sounds like
+a compromise and mostly isn't, because of two things already true of this code:
+
+- **Stickers are already board-absolute.** `sticker.x` is measured from the top-left
+  of the whole cover, not from a panel. `stickerCss` writes `rect.x` straight out.
+  A sticker needs *nothing* to work on an Instagram board.
+- **Text is the only thing tied to the cover's structure**, via
+  `CoverTextBox.panel: 'front' | 'spine' | 'back'`. A one-panel board needs one new
+  value — `'board'`, meaning the whole thing — which is an additive change to a union,
+  not a refactor.
+
+So "generalise the board" is genuinely a small job, where "introduce a document
+model" is a large one. Do the small one, learn whether anybody wants this, and buy
+the large one later with evidence.
+
+### Deferred, explicitly
+
+| Deferred | Why it can wait |
+|---|---|
+| `Artboard`/`Node` model | The MVP does not need it; §4's migration path stays valid whenever it is paid for |
+| `lib/canvas/` as a clean extracted module | Same. Extraction is cheaper once you know which parts the launch kit actually uses |
+| Shapes, groups, layers panel | See §11 — a thin slice may fit in the buffer |
+| Rich text runs | The most-underestimated item in the plan. Not in the MVP under any circumstances |
+| Font browser | The Google Fonts picker already works |
+| SVG export | Nobody has asked; it needs a text-to-paths decision first |
+| Icons, stock photos | Cut by decision, not deferred |
+
+### The stages
+
+| | What | FTE | Calendar |
+|---|---|---:|---:|
+| **M0** | Golden-file PDF tests, then units → points, then re-verify | 1 | wks 1–2 |
+| **M1** | Generalise the board in place: `Board` = size + guides + bleed. `coverLayout` becomes one producer of it. `panel: 'board'`. Cover output unchanged | 1.5 | wks 3–5 |
+| **M2** | Raster target (PNG/JPG at a chosen DPI), preset picker, "new design" flow, arbitrary board sizes | 1 | wks 6–7 |
+| **M3** | Launch-kit presets + 6–8 starter templates built from your own line art | 1 | wks 8–9 |
+| **M4** | Buffer: the things that always turn up | 0.5 | wk 10 |
+
+**5 FTE weeks — 10 calendar weeks at half time.** That lands at the top of the
+8–10 window, not the bottom, and M4 is the only slack in it. If M1 overruns, M3
+loses templates before anything else is cut.
+
+### What exists at the end
+
+One picture → a print-ready KDP cover PDF *and* an Instagram post, a Pinterest pin,
+a postcard and a bookmark, each correctly sized, exported as PNG or print PDF as
+appropriate. Book interiors completely untouched, still going through Paged.js,
+still passing the same golden tests they pass today.
+
+Not a Canva. A thing that does one job that nothing else does well.
+
+## 10. When this is showable to real KDP sellers
+
+Two answers, and the first matters more.
+
+**Week zero — before M0 starts.** You already have a working KDP book maker with a
+cover designer, stickers, curved text and real print output. Show *that*, plus four
+flat mockups of the launch kit made in the existing cover designer at the right
+sizes, and ask whether the launch kit is the thing they would pay for. This costs
+nothing and can change what gets built. Do it before the units migration, not after.
+
+The question to ask is not "would you use this" (everyone says yes). It is "what did
+you use to make the graphics for your last book launch, and what went wrong?"
+
+**Calendar week 7, end of M2 — the first working demo.** The same picture coming out
+as both a cover PDF and an Instagram PNG, in front of someone, live. That is the
+whole pitch in one gesture and it does not need templates to land.
+
+**Calendar week 9, end of M3** is when it stops looking like a demo. That is the
+point to put it in front of people who did not agree to look at a prototype.
+
+Payments, accounts and a marketing site are behind all of this. None of them belong
+in the MVP, and a Stripe integration before a single seller has said "I would use
+this weekly" is the classic way to spend a month learning nothing.
+
+## 11. Stage 3, split
+
+The original stage 3 was "shapes, groups, layers panel, rich text runs" at 3–4 FTE
+weeks, flagged as the item people underestimate. Split into three, smallest first:
+
+### 3a — Blocks (~1 FTE week)
+
+Rectangles and ellipses. Fill, stroke, corner radius, opacity. A layers list that
+reorders, locks and hides. **No groups, no paths, no lines, no text changes.**
+
+This is the slice worth doing first because a coloured rectangle behind text is
+most of what a social template is, and nearly every piece of it exists already:
+`restack` does z-order, `ColorInput` does fills, `cornerRadius` and `border` are on
+every sticker, and `StickerLayer` already moves, resizes and rotates a box. A block
+is a sticker with a fill instead of an image.
+
+**If M4's buffer survives M0–M3, spend it here.** It is the highest ratio of
+visible capability to work in the whole plan.
+
+### 3b — Groups (~1 FTE week)
+
+Select several, group, move and scale as one. This is where it stops being cheap:
+it needs a transform hierarchy, so every piece of geometry that currently takes a
+flat `x, y, rotate` has to compose a parent transform instead. `snapMove`,
+`resizeFromCorner`, `stickerBounds` and `bendOf` all assume flat coordinates today.
+
+### 3c — Rich text runs (~2 FTE weeks, and that is optimistic)
+
+Mixed styling inside one text box: a selection model, a caret, run splitting and
+merging, and then the same again inside `curvedText`, which currently takes one
+string and puts it on one path.
+
+Nothing before this needs it. Schedule it when there is evidence someone wants it,
+and not before — this is the single item most likely to eat a month and produce
+something worse than a plain text box.
