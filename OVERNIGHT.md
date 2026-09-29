@@ -19,7 +19,7 @@ unchanged and the screen goldens matching at **zero pixels**.
 | 3 | colour system | `6e9381e` |
 | 4 | accent and tints | `f9bae19` |
 | 5 | text presets (shapes not done — see below) | `bf40a0a` |
-| 7 | docs and this summary | last on the branch |
+| 7 | docs and this summary | `9f83151`, plus this line |
 
 **Look at these first, in this order:**
 
