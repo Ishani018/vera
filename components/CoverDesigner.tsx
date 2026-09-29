@@ -65,6 +65,23 @@ const PANEL_LABELS: Record<CoverPanel, string> = {
  */
 const ADDABLE_PANELS: CoverPanel[] = ['back', 'spine', 'front'];
 
+/** What each face is called when you are putting words on it. */
+const PANEL_LABEL: Record<string, string> = {
+  back: 'Add to back',
+  spine: 'Add to spine',
+  front: 'Add to front',
+  board: 'Add text',
+};
+
+/** Pixels per point at a hundred per cent: ninety-six to the inch. */
+const ACTUAL_SIZE = 96 / PT_PER_INCH;
+
+/** Far enough out to see a whole wrap cover, far enough in to place a hairline. */
+const clampZoom = (zoom: number) => Math.min(4, Math.max(0.1, zoom));
+
+/** What the zoom control offers, besides fit. */
+const ZOOM_STEPS = [0.5, 1, 2];
+
 /**
  * The wraparound cover, for either kind of book.
  *
@@ -91,6 +108,7 @@ export function CoverDesigner<T extends CoverableBook>({
   displayFont,
   pictures = [],
   board,
+  bookTray = { title: 'Stickers from this book', empty: 'Nothing in the book yet. Its pictures will appear here.' },
 }: {
   project: T | null;
   update: (recipe: (draft: T) => void) => void;
@@ -107,6 +125,15 @@ export function CoverDesigner<T extends CoverableBook>({
    * reading, the barcode reserve and the three faces, go away with it.
    */
   board?: Board<string> | null;
+  /**
+   * The tray of pictures that came from somewhere else, and what to call it.
+   *
+   * A book's cover says "from this book" because there is one. A design that
+   * belongs to no book is given null until it borrows from one, because a
+   * tray labelled after a book nobody chose is furniture pretending to be a
+   * feature.
+   */
+  bookTray?: { title: string; empty: string } | null;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
@@ -116,7 +143,15 @@ export function CoverDesigner<T extends CoverableBook>({
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const [stageWidth, setStageWidth] = useState(0);
+  const [pane, setPane] = useState({ width: 0, height: 0 });
+  /** 'fit' or a multiple of actual size, where 1 is a hundred per cent. */
+  const [zoom, setZoom] = useState<'fit' | number>('fit');
+  /**
+   * Guides are on for anything that gets printed and off for anything that
+   * does not. A trim line matters when a guillotine is involved; on a post it
+   * is a dashed rectangle over the thing you are trying to look at.
+   */
+  const [guidesOn, setGuidesOn] = useState(() => !board || board.bleed > 0);
 
   // Undo covers the cover only, and a snapshot is taken at the start of each
   // gesture, so one undo puts back what was there before a drag rather than
@@ -141,9 +176,12 @@ export function CoverDesigner<T extends CoverableBook>({
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
-    const observer = new ResizeObserver(([entry]) => setStageWidth(entry.contentRect.width));
+    const measure = (width: number, height: number) => setPane({ width, height });
+    const observer = new ResizeObserver(([entry]) =>
+      measure(entry.contentRect.width, entry.contentRect.height),
+    );
     observer.observe(stage);
-    setStageWidth(stage.clientWidth);
+    measure(stage.clientWidth, stage.clientHeight);
     return () => observer.disconnect();
   }, []);
 
@@ -163,10 +201,47 @@ export function CoverDesigner<T extends CoverableBook>({
     };
   }, [assetId]);
 
-  // Pixels per *point*, because that is what the cover is measured in. The cap
-  // is the old ninety-six per inch said the same way.
-  const scale =
-    layout && stageWidth ? Math.min(96 / PT_PER_INCH, (stageWidth - 48) / layout.width) : 0;
+  /**
+   * Pixels per *point*, because that is what a board is measured in.
+   *
+   * Actual size is ninety-six pixels to the inch, which is what a hundred per
+   * cent means here. Fit is whichever of the two directions runs out first,
+   * never magnified past actual size — the whole board on screen without
+   * scrolling for it, which is the only sensible thing to open on.
+   */
+  const fit =
+    layout && pane.width && pane.height
+      ? Math.min(
+          ACTUAL_SIZE,
+          (pane.width - 16) / layout.width,
+          (pane.height - 16) / layout.height,
+        )
+      : 0;
+  const scale = zoom === 'fit' ? fit : ACTUAL_SIZE * zoom;
+
+  /**
+   * Ctrl or Cmd with the wheel zooms, as it does in every other canvas.
+   *
+   * Listened for rather than handed to React, because the default has to be
+   * prevented and React attaches wheel handlers passively, where preventing
+   * it does nothing and the page zooms instead.
+   */
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      setZoom((current) => {
+        const from = current === 'fit' ? fit / ACTUAL_SIZE : current;
+        // A wheel notch is about 100, and a tenth per notch is a step you can
+        // aim with rather than a jump you have to undo.
+        return clampZoom(from * Math.exp(-event.deltaY / 400));
+      });
+    };
+    stage.addEventListener('wheel', onWheel, { passive: false });
+    return () => stage.removeEventListener('wheel', onWheel);
+  }, [fit]);
 
   /**
    * Arrow keys nudge the selected sticker, and Delete removes it.
@@ -393,9 +468,20 @@ export function CoverDesigner<T extends CoverableBook>({
       )
     : 0;
 
+  const empty =
+    !cover.frontImage && !cover.stickers.length && !cover.textBoxes.length;
+
   return (
     <div className="flex h-full min-w-0">
-      <div ref={stageRef} className="min-w-0 flex-1 overflow-auto bg-[#6f6f6f] p-6">
+      <div className="relative min-w-0 flex-1">
+        <div
+          ref={stageRef}
+          className="flex h-full overflow-auto bg-ink-600 px-3 pb-12 pt-3"
+          // Safe centring: centred while it fits, and pinned to the top-left
+          // rather than cut off at both ends once it does not.
+          style={{ alignItems: 'safe center', justifyContent: 'safe center' }}
+        >
+          <div className="shrink-0">
         {scale > 0 && (
           <div
             data-cover-stage
@@ -604,9 +690,18 @@ export function CoverDesigner<T extends CoverableBook>({
               );
             })}
 
+            {empty && (
+              <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                <span className="rounded-full bg-black/35 px-4 py-2 text-[13px] text-white">
+                  Add text, or drag a picture here
+                </span>
+              </div>
+            )}
+
             {/* Guides sit above everything: they are what makes the folds legible.
                 Read off the board, so a board with one fold draws one. */}
-            {foldsOf(layout).map((fold, i) => (
+            {guidesOn &&
+              foldsOf(layout).map((fold, i) => (
               <div
                 key={i}
                 className={cx(
@@ -619,10 +714,10 @@ export function CoverDesigner<T extends CoverableBook>({
                     : { top: fold.at * scale, left: 0, width: layout.width * scale }
                 }
               />
-            ))}
+              ))}
             {/* The trim is where the guillotine goes, so it is drawn only on
                 something that gets cut. Nothing trims a screen. */}
-            {layout.bleed > 0 && (
+            {guidesOn && layout.bleed > 0 && (
               <div
                 className="pointer-events-none absolute border border-red-500/80"
                 style={{
@@ -636,7 +731,8 @@ export function CoverDesigner<T extends CoverableBook>({
 
             {/* And the safe area, which every board has and a story badly needs:
                 its top and bottom are under the controls. */}
-            {safeOf(layout).map((area, i) => (
+            {guidesOn &&
+              safeOf(layout).map((area, i) => (
               <div
                 key={`safe-${i}`}
                 className="pointer-events-none absolute border border-dashed border-emerald-500/70"
@@ -647,17 +743,70 @@ export function CoverDesigner<T extends CoverableBook>({
                   height: area.rect.height * scale,
                 }}
               />
-            ))}
+              ))}
           </div>
         )}
 
-        <p className="mx-auto mt-4 max-w-lg text-center text-[11px] text-white/70">
-          {isCover
-            ? 'Red is the trim line — anything outside it is cut off. Blue dashes are the spine folds. Drag any text box to move it.'
-            : layout.bleed
-              ? 'Red is the trim line — anything outside it is cut off. Green is the safe margin. Drag any text box to move it.'
-              : 'Green is the safe area — feeds and overlays crop outside it. Drag any text box to move it.'}
-        </p>
+          </div>
+        </div>
+
+        {/*
+          The view controls, over the canvas rather than in the panel: they are
+          about looking at the board, not about changing it.
+        */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 p-3">
+          <p className="max-w-sm text-[11px] leading-snug text-white/70">
+            {!guidesOn
+              ? 'Drag any text box to move it.'
+              : isCover
+                ? 'Red is the trim line — anything outside it is cut off. Blue dashes are the spine folds.'
+                : layout.bleed
+                  ? 'Red is the trim line — anything outside it is cut off. Green is the safe margin.'
+                  : 'Green is the safe area — feeds and overlays crop outside it.'}
+          </p>
+          <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-ink-200 bg-paper/95 px-1.5 py-1 shadow-lg">
+            <button
+              type="button"
+              onClick={() => setGuidesOn((on) => !on)}
+              aria-pressed={guidesOn}
+              className={cx(
+                'rounded-full px-2.5 py-1 text-[12px] transition-colors',
+                guidesOn ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+              )}
+            >
+              Guides
+            </button>
+            <span className="h-4 w-px bg-ink-200" />
+            <button
+              type="button"
+              onClick={() => setZoom('fit')}
+              aria-pressed={zoom === 'fit'}
+              className={cx(
+                'rounded-full px-2.5 py-1 text-[12px] transition-colors',
+                zoom === 'fit' ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+              )}
+            >
+              Fit
+            </button>
+            {ZOOM_STEPS.map((step) => (
+              <button
+                key={step}
+                type="button"
+                onClick={() => setZoom(step)}
+                aria-pressed={zoom === step}
+                className={cx(
+                  'rounded-full px-2.5 py-1 text-[12px] tabular-nums transition-colors',
+                  zoom === step ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+                )}
+              >
+                {step * 100}%
+              </button>
+            ))}
+            <span className="pl-1 pr-1.5 text-[11px] tabular-nums text-ink-500">
+              {Math.round((scale / ACTUAL_SIZE) * 100)}%
+            </span>
+          </div>
+        </div>
       </div>
 
       <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
@@ -672,14 +821,7 @@ export function CoverDesigner<T extends CoverableBook>({
               {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
             </dd>
           </dl>
-        ) : (
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
-            <dt>Size</dt>
-            <dd className="text-right tabular-nums text-ink-700">
-              {Math.round(layout.width * (96 / 72))} × {Math.round(layout.height * (96 / 72))} px
-            </dd>
-          </dl>
-        )}
+        ) : null}
 
         {isCover && spineTooThinForText(layout as CoverLayout) && (
           <Notice level="warning">
@@ -694,15 +836,17 @@ export function CoverDesigner<T extends CoverableBook>({
           <Button onClick={coverHistory.redo} disabled={!coverHistory.canRedo} title="Redo (Cmd+Shift+Z)">
             ↻
           </Button>
-          <span className="text-[11px] text-ink-500">Undo covers the {isCover ? 'cover' : 'design'}</span>
+          <span className="text-[11px] text-ink-500">Undo</span>
         </div>
 
-        <StickerTray
-          title="Stickers from this book"
-          items={trayItems}
-          empty="Nothing in the book yet. Its pictures will appear here."
-          onPlace={placeSticker}
-        />
+        {bookTray && (
+          <StickerTray
+            title={bookTray.title}
+            items={trayItems}
+            empty={bookTray.empty}
+            onPlace={placeSticker}
+          />
+        )}
 
         <StickerLibrary
           onPlace={placeSticker}
@@ -710,6 +854,9 @@ export function CoverDesigner<T extends CoverableBook>({
           onChanged={() => setLibraryVersion((n) => n + 1)}
         />
 
+        {/* A saved cover layout is a cover's business. Offering it on a post
+            is offering to make the post into somebody's back cover. */}
+        {isCover && (
         <CoverTemplates
           cover={cover}
           onApply={(spec) => {
@@ -719,6 +866,7 @@ export function CoverDesigner<T extends CoverableBook>({
             setSelectedId(null);
           }}
         />
+        )}
 
         {sticker && (
           <StickerInspector
@@ -885,15 +1033,17 @@ export function CoverDesigner<T extends CoverableBook>({
 
         <div className="space-y-2 border-t border-ink-200 pt-3">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className={cx('grid gap-1.5', isCover ? 'grid-cols-3' : 'grid-cols-1')}>
             {(isCover ? ADDABLE_PANELS : (['board'] as CoverPanel[])).map((panel) => (
               <Button key={panel} onClick={() => addBox(panel)}>
-                + {panel}
+                {PANEL_LABEL[panel] ?? panel}
               </Button>
             ))}
           </div>
           {cover.textBoxes.length === 0 && (
-            <p className="text-[11px] text-ink-500">No text yet. Add a box to a panel.</p>
+            <p className="text-[11px] text-ink-500">
+              {isCover ? 'No text yet. Add a box to a panel.' : 'No text yet.'}
+            </p>
           )}
           <ul className="space-y-1">
             {cover.textBoxes.map((box) => (

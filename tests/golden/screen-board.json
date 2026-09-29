@@ -12,8 +12,8 @@
   "assets": 3,
   "layout": {
     "stage": {
-      "widthPx": 1024,
-      "heightPx": 1024,
+      "widthPx": 1066.8,
+      "heightPx": 1066.8,
       "aspect": 1
     },
     "items": [
@@ -59,22 +59,14 @@
         "lineHeight": 1.2,
         "transform": "none",
         "text": "Forty pages to colour"
-      },
-      {
-        "kind": "painted area",
-        "x": 36,
-        "y": 36,
-        "width": 738,
-        "height": 738,
-        "background": "rgba(0, 0, 0, 0)",
-        "border": "0.79pt dashed rgba(0, 188, 124, 0.702)",
-        "text": ""
       }
     ],
     "readouts": [
-      "1080 × 1080 px",
       "Instagram post · 1080 × 1080 px",
-      "PNG 1080×1080"
+      "download: JPG",
+      "download: PDF",
+      "download: PNG · 1080 × 1080",
+      "download: PNG ×2 · 2160 × 2160"
     ]
   },
   "recordedWith": {

@@ -12,8 +12,8 @@
   "assets": 3,
   "layout": {
     "stage": {
-      "widthPx": 1024,
-      "heightPx": 519,
+      "widthPx": 1080,
+      "heightPx": 547.4,
       "aspect": 1.973
     },
     "items": [
@@ -54,7 +54,7 @@
         "width": 144,
         "height": 86.4,
         "background": "rgba(255, 255, 255, 0.549)",
-        "border": "1.21pt dashed rgba(0, 0, 0, 0.451)",
+        "border": "1px dashed rgba(0, 0, 0, 0.451)",
         "text": "Barcode area2″ × 1.2″"
       },
       {
@@ -181,7 +181,7 @@
         "width": 1225,
         "height": 612,
         "background": "rgba(0, 0, 0, 0)",
-        "border": "1.21pt solid rgba(251, 44, 54, 0.8)",
+        "border": "1px solid rgba(251, 44, 54, 0.8)",
         "text": ""
       },
       {
@@ -191,7 +191,7 @@
         "width": 576,
         "height": 576,
         "background": "rgba(0, 0, 0, 0)",
-        "border": "1.21pt dashed rgba(0, 188, 124, 0.702)",
+        "border": "1px dashed rgba(0, 188, 124, 0.702)",
         "text": ""
       },
       {
@@ -201,7 +201,7 @@
         "width": 576,
         "height": 576,
         "background": "rgba(0, 0, 0, 0)",
-        "border": "1.21pt dashed rgba(0, 188, 124, 0.702)",
+        "border": "1px dashed rgba(0, 188, 124, 0.702)",
         "text": ""
       }
     ],

@@ -55,7 +55,7 @@ export const TILES: Tile[] = [
     id: 'book-interior',
     label: 'Book interior',
     category: 'books',
-    size: 'Every KDP trim, square and landscape too',
+    size: 'Any KDP trim size',
     status: 'ready',
     destination: { kind: 'interior' },
     art: 'interior',

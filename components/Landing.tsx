@@ -178,7 +178,9 @@ export function Landing() {
                       </span>
                     )}
                   </span>
-                  <span className="mt-0.5 block truncate text-[13px] text-ink-500">
+                  {/* Wrapped rather than cut: a size line that ends in an
+                      ellipsis is a size line that failed to say the size. */}
+                  <span className="mt-0.5 block text-[13px] leading-snug text-ink-500">
                     {tileSize(tile)}
                   </span>
                 </button>

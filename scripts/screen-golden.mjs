@@ -513,10 +513,12 @@ const MEASURE = (boardWidthPt) => {
       background: colour(style.backgroundColor),
       // Reported only when there is one: Tailwind's reset leaves every element
       // with a border style and no width, which would put a border on
-      // everything here.
+      // everything here. In pixels rather than points, because a guide is a
+      // hairline on a screen however far the board is zoomed — measured in
+      // points it changes every time the view does and says nothing.
       border:
         parseFloat(style.borderTopWidth) > 0
-          ? `${pt(parseFloat(style.borderTopWidth), 2)}pt ${style.borderStyle} ${colour(style.borderColor)}`
+          ? `${Number(parseFloat(style.borderTopWidth).toFixed(2))}px ${style.borderStyle} ${colour(style.borderColor)}`
           : 'none',
       text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40),
     });
@@ -549,6 +551,28 @@ const MEASURE = (boardWidthPt) => {
     readouts: readouts.sort(),
   };
 };
+
+/**
+ * What the download menu says it will make.
+ *
+ * Opened, read and closed. The sizes moved into a menu, and this is the check
+ * that caught an Instagram post offering 3375 pixels and writing 10547: a
+ * number nobody can see is a number nobody can check.
+ */
+async function exportChoices(page) {
+  const button = await page.$('[aria-haspopup="menu"]');
+  if (!button) return [];
+  await button.click();
+  await new Promise((r) => setTimeout(r, 300));
+  const labels = await page
+    .$$eval('[role="menu"] [role="menuitem"]', (nodes) =>
+      nodes.map((node) => node.textContent.trim()),
+    )
+    .catch(() => []);
+  await page.keyboard.press('Escape');
+  await new Promise((r) => setTimeout(r, 300));
+  return labels.map((label) => `download: ${label}`);
+}
 
 async function settle(page) {
   // Pictures first: a sticker measured before its bytes arrive has no size.
@@ -701,7 +725,9 @@ try {
     await page.waitForSelector('[data-cover-stage]', { timeout: 30000 });
     await settle(page);
 
+    const choices = await exportChoices(page);
     const layout = await page.evaluate(MEASURE, kase.board.width);
+    layout.readouts = [...layout.readouts, ...choices].sort();
     // The board this was measured against has to be the board on screen. If
     // the two disagree, every point in the record is scaled by the difference
     // and the whole thing is quietly wrong rather than loudly.

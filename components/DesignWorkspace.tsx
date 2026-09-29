@@ -12,7 +12,7 @@ import type { Design, StandaloneDesign } from '@/lib/types';
 import { DesignEditor } from './DesignEditor';
 import { Modal } from './Modal';
 import { StudioHeader } from './StudioHeader';
-import { Button } from './ui';
+import { Button, TextInput } from './ui';
 
 /** What a new text box is set in, on a board with no book to take it from. */
 const DEFAULT_FACE = { family: 'EB Garamond', fallback: 'serif' };
@@ -137,11 +137,22 @@ export function DesignWorkspace() {
 
   return (
     <main className="flex h-dvh flex-col">
+      {/* The name lives here, and only here: the editor's own bar used to say
+          it again, and the size after it, which made a header out of a header. */}
       <StudioHeader>
-        <span className="truncate text-ink-700">{design.name}</span>
-        <span className="ml-auto shrink-0 text-[14px] text-ink-500">
-          {preset ? `${preset.name} · ${preset.stated} · ` : ''}saved on this computer
+        <TextInput
+          value={design.name}
+          onChange={(e) => {
+            const name = e.target.value;
+            update((draft) => void (draft.name = name));
+          }}
+          aria-label="Design name"
+          className="max-w-xs border-transparent bg-transparent text-[16px] font-[560] hover:border-ink-200 focus:border-ink-300"
+        />
+        <span className="shrink-0 text-[13px] text-ink-500">
+          {preset ? `${preset.name} · ${preset.stated}` : ''}
         </span>
+        <span className="ml-auto shrink-0 text-[13px] text-ink-500">saved on this computer</span>
       </StudioHeader>
 
       <div className="min-h-0 flex-1">
@@ -150,6 +161,11 @@ export function DesignWorkspace() {
           update={update}
           displayFont={DEFAULT_FACE}
           pictures={pictures}
+          showName={false}
+          // Named after the book only once there is one to name.
+          bookTray={
+            pictures.length ? { title: 'Pictures from a book', empty: '' } : null
+          }
           onExport={(format, scale) => {
             flush();
             return exportStandaloneDesign(design, format, scale);
