@@ -732,3 +732,54 @@ on a cover or a launch-kit design without a special case.
 uploaded artwork is the user's responsibility. A tool that turns any image into a
 sticker will be pointed at copyrighted characters on day one. That is a launch
 checklist item, not an engineering one, but it should not be discovered at launch.
+
+---
+
+# Part three: what was built after M2
+
+Written up after the fact, so the plan above stops being a description of a
+future that already happened.
+
+## The front page, and designs that belong to nobody
+
+M2 left the launch kit inside a book: a post was a field on a project, and the
+front page had to ask which book a post was for before it could show anyone a
+blank board. That question has no right answer — most of what somebody makes
+around a book is made before there is a book open — so designs became their own
+records in their own table (`designs`, database version 4), reachable from
+`/design?id=…`, and the four launch-kit tiles now open a board immediately.
+
+Nothing moved: designs already inside books stayed there and still work, and
+the in-book launch kit is still the same component. See `DECISIONS.md` 13 for
+how the two arrangements are kept from drifting.
+
+The Book cover tile still asks which book, and always will: a wrap cover is as
+wide as the trim size twice over and its spine is as thick as the book has
+pages.
+
+## The editor, reworked
+
+Four commits, in this order, on the `overnight` branch:
+
+1. **Rail and panels.** A board opens on a left rail — Text, Pictures,
+   Stickers, Background, then Elements and Templates shown muted and marked
+   Soon — with one panel open at a time. The canvas is a neutral grey with the
+   board fitted and centred; zoom is Fit / 50 / 100 / 200 with ctrl or cmd and
+   the wheel.
+2. **A floating toolbar** over whatever is selected, following it through
+   drags, scrolls and zooms, and clamped inside the canvas. Zoom anchors on the
+   selection so that zooming in does not throw the work off the screen.
+3. **One way to choose a colour**: 24 swatches, the ones just used, and a wheel
+   with a hex box. Used for the background, text, and a sticker's border.
+4. **Deep teal** as the accent, and a soft tint per category on the home tiles.
+
+## What is deliberately still missing
+
+- **Rectangles and ellipses.** They need drawing in the export as well as on
+  screen, which is the renderer. Shapes on screen that are missing from the PDF
+  would be the 1/72 text bug all over again. A `CoverShape` type, two
+  migrations, a block in the stage and about twenty lines in `buildBoardHtml`
+  — with the PDF goldens proving an empty `shapes` array changes nothing.
+- **Starter templates**, which are made of rectangles, and wait for them.
+- **Flip on a picture.** Same reason: a mirror that exists on screen and not in
+  the PDF is worse than no mirror.

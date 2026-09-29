@@ -334,3 +334,71 @@ needs a browser, so it is its own command rather than part of `npm run
 golden`. A browser-driven check fails for reasons a PDF check cannot, and
 those reasons should not be able to redden the one that decides whether books
 print correctly.
+
+---
+
+## 12. The accent is a deep teal, and it is the only cool thing on the page
+
+*30 September 2026 — decided*
+
+`--color-accent-500: #0b6a62`, with `#08554f` for hover, `#e6f0ee` for the tint
+behind a selected thing, and `#9cc7c1` for borders. Four candidates were
+rendered on the real chrome at the real sizes and measured off the painted
+pixels: deep teal, burnt terracotta, deep plum, and the old brown darkened.
+
+**Why the teal.** The other three are cousins of the paper. Everything in this
+app is warm — the beige, the cream, the ink with a little brown in it — and a
+warm accent on a warm page reads as a shade rather than as a signal. A selected
+rail item, a primary button and a focus ring all have exactly one job, which is
+to be unmistakable, and the teal is the only one of the four that cannot be
+mistaken for the page having a slightly different mood.
+
+**What it costs.** Nothing measurable: white on it is 6.46:1 where the brown
+was 5.30, a selected rail item is 7.46:1 where it was 5.98, and a link is
+6.46:1 where it was 5.30. Every number went up.
+
+**What it revealed.** Sweeping four screens for AA afterwards found twelve
+failures that had nothing to do with the accent, the worst of them `ink-500` at
+4.28:1 against the app's own beige — the colour of every muted line in the
+product, under AA everywhere at once. The lesson is the same one the goldens
+keep teaching: a thing nobody measured is not a thing that passes.
+
+**Reversible?** Four tokens. The tints on the home tiles are four more, in
+`lib/tiles.ts`.
+
+---
+
+## 13. The rail lives inside CoverDesigner, not in a BoardEditor beside it
+
+*30 September 2026 — decided, against the brief that asked for a new component*
+
+A board opens on a left rail with one panel at a time; a cover keeps its
+right-hand sidebar. Both arrangements are rendered by `CoverDesigner`, chosen
+by a `rail` prop that defaults to false.
+
+**Why not a separate component.** Selection — which text box, which picture —
+lives in `CoverDesigner`, with the undo history, the drag handlers, the
+snapping and the placement arithmetic. A `BoardEditor` owning the rail would
+have to duplicate that state or have it lifted out and threaded back in, and
+lifting selection out of the component that owns dragging is the one genuinely
+risky seam in this rework. Doing it in the same change that introduced the rail
+would have meant two changes at once with no way to tell which broke what.
+
+**What keeps the two arrangements honest.** The sidebar's contents are named
+once, in a single object, and either stacked down the right or dealt into
+panels. There is one Artwork section, not two. A control that moves to the
+floating toolbar is hidden from the panel rather than repeated, through flags
+on `FontControls` and `StickerInspector`, because the same setting in two
+places is two places to look and one to be wrong about.
+
+**How the cover is protected, and how it is proved.** The flag defaults to
+false, so every existing caller renders what it did. The proof is not that
+claim: the screen goldens drive the in-book cover designer and the in-book
+launch kit, and they passed with **zero pixels changed** through all four
+commits of the rework. A pixel of movement in either arrangement would have
+failed them.
+
+**Reversible?** Yes, and that is the point. When the rail has been used in
+anger and the cover is ready to follow, the flag becomes the default and then
+goes away. Until then the cover editor is exactly the one that has been making
+books.

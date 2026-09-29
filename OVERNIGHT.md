@@ -6,6 +6,70 @@ the bottom is the thing to read first in the morning.
 **The PDF goldens must not move, and have not:** `e3e2a36e0ac60ce1` (cover) and
 `d4eeeb9e99cb1bfe` (poetry interior) after every commit below.
 
+## The night in one page
+
+Six commits on `overnight`, pushed, **not merged**. Nothing was reverted and no
+golden was re-recorded — every one of the six passed with the PDF digests
+unchanged and the screen goldens matching at **zero pixels**.
+
+| | stage | commit |
+|---|---|---|
+| 1 | rail and panels | `eb3bdfa` |
+| 2 | floating toolbar | `3eff34e` |
+| 3 | colour system | `6e9381e` |
+| 4 | accent and tints | `f9bae19` |
+| 5 | text presets (shapes not done — see below) | `bf40a0a` |
+| 7 | docs and this summary | last on the branch |
+
+**Look at these first, in this order:**
+
+1. **A standalone design** — `Instagram post` from the front page. The rail,
+   one panel at a time, the board fitted and centred on a neutral grey, the
+   zoom pill, and the toolbar that appears over whatever you select. This is
+   the stage you said you wanted to review before the toolbar was built; both
+   are here now, in separate commits, so you can stop at `eb3bdfa` if the
+   toolbar is wrong.
+2. **A book's cover** — it should be *exactly* what it was, sidebar and all.
+   The goldens say so on my machine; your eyes are the check that matters.
+3. **The teal**, and the home tiles' tints.
+4. **Three text presets** in the Text panel, which say what size they will be
+   on the board in front of you before you press them.
+
+**Two things are deliberately not built**, both for the same reason — they
+cannot be done without changing the renderer, which your hard rules put out of
+bounds, and doing them on screen only would mean something you can see while
+you work and that is missing from the PDF you send to a printer:
+
+- **Rectangles and ellipses** (and therefore the six starter templates, which
+  are made of them).
+- **Flip** on a picture.
+
+Both are written up where they belong: what it would take, and why the PDF
+goldens make it a safe morning's work rather than a safe night's.
+
+**Commands for your Mac:**
+
+```
+cd ~/book
+git fetch origin
+git checkout overnight
+npm install                # nothing new was added; this is habit
+npm test                   # expect 363 passing
+npm run golden             # expect e3e2a36e0ac60ce1 and d4eeeb9e99cb1bfe
+npm run golden:screen      # layout tiers pass; the image tier will skip
+npm run dev
+```
+
+The image tier of the screen goldens is keyed to the engine that recorded it,
+so on Chrome 153 it will say it skipped. That is correct and not a failure.
+
+**One sandbox habit worth knowing:** running `npm run build` while `npm run
+dev` is up wipes the dev server's chunks and the page then loads with no
+JavaScript at all. It cost me three debugging detours tonight. Restart `dev`
+after any `build`.
+
+---
+
 ## Note on the shell
 
 The sandbox's shell — everything that runs `npm`, `git` or a browser — went
