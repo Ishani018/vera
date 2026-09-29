@@ -395,3 +395,36 @@ test('the preview draws whatever the board says is marked on it', () => {
   });
   assert.doesNotMatch(plain, /class="guide/);
 });
+
+test('the same geometry works on a board that is not a cover', () => {
+  // 1080 x 1080 pixels, which is 810pt exactly, with a 0.5in safe margin.
+  // Nothing about it is a book, and none of the code below knows that.
+  const post = plainBoard({ width: 810, height: 810, safeInset: 36 });
+
+  const middle = sticker({ x: 300, y: 300, width: 200, height: 200 });
+  assert.deepEqual(stickerWarnings(middle, post).map((w) => w.kind), []);
+
+  // No spine, so nothing is ever folded; no barcode, so nothing is covered.
+  // Both fall out of the board having no such guides, not out of a special case.
+  const everywhere = sticker({ x: -50, y: -50, width: 900, height: 900 });
+  const kinds = stickerWarnings(everywhere, post).map((w) => w.kind);
+  assert.ok(kinds.includes('off-the-trim'));
+  assert.ok(!kinds.includes('across-a-fold'), 'a post has no spine to cross');
+  assert.ok(!kinds.includes('in-a-reserved-area'), 'and no barcode to hide under');
+
+  // Snapping offers the board's own centre and edges, and nothing else.
+  const lines = snapLines(post, []);
+  assert.deepEqual([...new Set(lines.x)].sort((a, b) => a - b), [0, 405, 810]);
+  assert.deepEqual([...new Set(lines.y)].sort((a, b) => a - b), [0, 405, 810]);
+
+  const near = sticker({ x: 405 - 100 + 2, y: 20, width: 200, height: 200 });
+  assert.equal(snapMove(near, lines).x, 305, 'it catches on the middle of the post');
+});
+
+test('a sticker on a board is measured in inches, whatever the board is for', () => {
+  // A DPI is dots per inch even on a board nobody measures in inches.
+  const post = plainBoard({ width: 810, height: 810 });
+  const s = sticker({ x: 0, y: 0, width: 360, height: 360, naturalWidth: 1500, naturalHeight: 1500 });
+  assert.equal(stickerDpi(s), 300, '360pt is five inches; 1500px across it is 300 dpi');
+  assert.deepEqual(stickerWarnings(s, post).map((w) => w.kind), []);
+});

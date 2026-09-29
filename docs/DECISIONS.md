@@ -219,3 +219,37 @@ put. The strict tier still catches it, on the machine that recorded it.
 Closing that gap portably means comparing rendered page images rather than
 drawing instructions, which is the only representation both engines are trying
 to make identical. That is a real piece of work and is not scheduled.
+
+---
+
+## 9. A board is the unit of layout, and it carries its own guides
+
+*29 September 2026 — decided, doing M1*
+
+`lib/board.ts`. A board is a size, a bleed, some named panels and a list of
+guides. A KDP cover is one, produced by `coverLayout`; a social post is one,
+produced by `plainBoard`.
+
+**Why guides carry their own wording.** The alternative is a table downstream
+mapping a warning to a sentence, which has to learn every board there will ever
+be. "The spine" is a fact about covers. The board that has a spine is the only
+thing that should be saying so, and a board without one then needs no special
+case to stay quiet about it — it simply has no fold guide, and no warning is
+produced.
+
+**Why panels are walked rather than named.** `snapLines` used to reach for
+`panels.back` and `panels.front`. Walking `Object.values(panels)` gives a
+one-panel board its own centre and a cover its three, out of the same code.
+
+**Why `panel: 'board'` exists on a cover too.** So that anything written for a
+board with no faces places things on a cover without knowing it has any. It is
+deliberately not offered as a fourth button in the designer: it would do what
+the back cover already does, with worse arithmetic.
+
+**What this is not.** The renderer still takes a book and asks `coverLayout`
+for its board. Rendering an arbitrary board is M2. M1 is the model and the
+geometry; the proof it is real is that the warnings, the snapping and the DPI
+reading all run on an 810 x 810 point board that is not a book, in the tests.
+
+**Reversible?** Yes, and cheaply — it is additive. `CoverLayout` is a `Board`
+with two extra named fields, so every existing caller reads what it always did.
