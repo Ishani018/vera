@@ -4,6 +4,7 @@ import { listStandaloneDesigns } from './designs';
 import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
 import { DEFAULT_COLORING_TRIM, getTrim, inchesToPt } from './kdp';
 import { boardFor, presetById } from './presets';
+import { coverLayout } from './render/coverLayout';
 import { SCHEMA } from './schema';
 import type {
   AnyProject,
@@ -268,12 +269,42 @@ export async function listProjects(): Promise<ProjectSummary[]> {
  * positions of the things on it, which is enough to tell two designs apart at
  * thumbnail size, and cannot claim anything the design does not contain.
  */
+export type ThumbItem =
+  | {
+      kind: 'picture';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      assetId: string;
+      rotate: number;
+      /** Points, not the 0–0.5 share the sticker stores. */
+      radius: number;
+      /** How it fills its box, which the designer decides per picture. */
+      fit: 'cover' | 'contain';
+    }
+  | {
+      kind: 'text';
+      x: number;
+      y: number;
+      width: number;
+      text: string;
+      sizePt: number;
+      color: string;
+      weight: number;
+      italic: boolean;
+      align: 'left' | 'center' | 'right';
+      rotate: number;
+      family: string;
+      fallback: string;
+    };
+
 export type Thumb = {
-  /** Points; only the ratio is used. */
+  /** Points. The ratio sets the shape; the numbers place what is on it. */
   width: number;
   height: number;
   background: string;
-  marks: Array<{ x: number; y: number; w: number; h: number; kind: 'text' | 'picture' }>;
+  items: ThumbItem[];
 };
 
 export type LibraryEntry = {
@@ -293,40 +324,144 @@ export type LibraryEntry = {
   thumb: Thumb;
 };
 
+/** The part of a board a thumbnail shows, in board points. */
+type Region = { x: number; y: number; width: number; height: number };
+
+/**
+ * What is on a board, placed inside the part of it being shown.
+ *
+ * The same arithmetic the designer uses, because it is the same question:
+ * where does each thing sit on this rectangle. A picture is carried by the id
+ * of its bytes rather than the bytes, so the card fetches it once and the
+ * list stays cheap to build.
+ */
+function itemsOn(
+  cover: CoverSpec,
+  panels: Record<string, { x: number; y: number; width: number; height: number }>,
+  board: { width: number; height: number; bleed: number },
+  region: Region,
+): ThumbItem[] {
+  const items: ThumbItem[] = [];
+  const front = panels.front;
+
+  if (cover.frontImage?.assetId) {
+    // Exactly the designer's rule: a picture either fills the whole board or
+    // sits on the front panel and bleeds off its three outer edges.
+    const spans = cover.imageSpansWrap || !front;
+    items.push({
+      kind: 'picture',
+      x: (spans ? 0 : front.x - board.bleed) - region.x,
+      y: -region.y,
+      width: spans ? board.width : front.width + board.bleed,
+      height: board.height,
+      assetId: cover.frontImage.assetId,
+      rotate: 0,
+      radius: 0,
+      fit: cover.frontImage.fit,
+    });
+  }
+
+  for (const sticker of cover.stickers ?? []) {
+    items.push({
+      kind: 'picture',
+      x: sticker.x - region.x,
+      y: sticker.y - region.y,
+      width: sticker.width,
+      height: sticker.height,
+      assetId: sticker.assetId,
+      rotate: sticker.rotate ?? 0,
+      // A sticker is fitted inside its box in the designer, never cropped.
+      fit: 'contain',
+      // Stored as a share of the shorter side, which is what a corner radius
+      // in points has to be worked out from.
+      radius: (sticker.cornerRadius ?? 0) * Math.min(sticker.width, sticker.height),
+    });
+  }
+
+  for (const box of cover.textBoxes ?? []) {
+    const panel = panels[box.panel] ?? panels.board;
+    if (!panel) continue;
+    items.push({
+      kind: 'text',
+      x: panel.x + box.x - region.x,
+      y: panel.y + box.y - region.y,
+      width: box.width,
+      // Long enough to fill a thumbnail, short enough not to carry a whole
+      // poem around in a list.
+      text: (box.text ?? '').slice(0, 120),
+      sizePt: box.font.sizePt,
+      color: box.font.color,
+      weight: box.font.weight,
+      italic: box.font.italic,
+      align: box.font.align,
+      rotate: box.panel === 'spine' ? 90 + box.rotate : box.rotate,
+      family: box.font.family,
+      fallback: box.font.fallback,
+    });
+  }
+
+  // Anything entirely outside the part being shown is left out rather than
+  // drawn and clipped: a back-cover blurb is not part of a book's face.
+  return items.filter(
+    (item) =>
+      item.x < region.width &&
+      item.y < region.height &&
+      item.x + (item.kind === 'picture' ? item.width : item.width) > 0 &&
+      item.y + (item.kind === 'picture' ? item.height : item.sizePt * 1.4) > 0,
+  );
+}
+
+/**
+ * A book, shown as its front cover.
+ *
+ * The front is what a book looks like; the back and the spine are not how
+ * anyone recognises one on a shelf. The spine's width depends on the page
+ * count, which nothing here knows without paginating the whole book, so a
+ * nominal one is used: it moves the front panel by a fraction of a percent
+ * of the board, which is less than one pixel at this size.
+ */
+const NOMINAL_PAGES = 24;
+
 function bookThumb(project: AnyProject): Thumb {
-  // A record old enough to be missing its trim still gets a card rather
-  // than taking the whole front page down with it.
+  // A record old enough to be missing its trim still gets a card rather than
+  // taking the whole front page down with it.
   const trim = getTrim(project.trim?.trimId ?? '');
+  const cover = project.cover;
+  if (!cover) {
+    return {
+      width: inchesToPt(trim.width),
+      height: inchesToPt(trim.height),
+      background: '#f4efe4',
+      items: [],
+    };
+  }
+  const layout = coverLayout(project, NOMINAL_PAGES);
+  const front = layout.panels.front;
+  const region: Region = {
+    x: front.x - layout.bleed,
+    y: 0,
+    width: front.width + layout.bleed,
+    height: layout.height,
+  };
   return {
-    width: inchesToPt(trim.width),
-    height: inchesToPt(trim.height),
-    background: project.cover?.backgroundColor ?? '#f4efe4',
-    marks: [],
+    width: region.width,
+    height: region.height,
+    background: cover.backgroundColor ?? '#f4efe4',
+    items: itemsOn(cover, layout.panels, layout, region),
   };
 }
 
 function designThumb(design: Design): Thumb {
   const preset = presetById(design.presetId);
   const board = preset ? boardFor(preset) : null;
-  const size = board
-    ? { width: board.width, height: board.height }
-    : { width: 100, height: 100 };
-  const marks: Thumb['marks'] = [];
-  for (const sticker of design.cover.stickers ?? []) {
-    marks.push({ x: sticker.x, y: sticker.y, w: sticker.width, h: sticker.height, kind: 'picture' });
-  }
-  for (const box of design.cover.textBoxes ?? []) {
-    // A box stores where it starts and how wide it is, never how tall it ends
-    // up; one line of its own type is the honest guess at thumbnail size.
-    marks.push({
-      x: box.x,
-      y: box.y,
-      w: box.width,
-      h: box.font.sizePt * 1.2,
-      kind: 'text',
-    });
-  }
-  return { ...size, background: design.cover.backgroundColor ?? '#f4efe4', marks };
+  if (!board) return { width: 100, height: 100, background: '#f4efe4', items: [] };
+  const region: Region = { x: 0, y: 0, width: board.width, height: board.height };
+  return {
+    width: board.width,
+    height: board.height,
+    background: design.cover.backgroundColor ?? '#f4efe4',
+    items: itemsOn(design.cover, board.panels, board, region),
+  };
 }
 
 /**
