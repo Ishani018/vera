@@ -1,6 +1,7 @@
 import { curvedText, type CurvedText } from '../cover/curve';
 import type { CoverSticker, CoverTextBox, CoverableBook } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
+import { trimOf } from '../board';
 import { stickerImageKey, stickerRect } from './stickers';
 import { cssColor, cssFamily, escapeBlock, escapeHtml, escapeSvgText } from './text';
 
@@ -145,6 +146,7 @@ export type CoverRenderOptions = {
 export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptions): string {
   const layout = coverLayout(project, options.pageCount);
   const { dimensions: d, panels, barcode } = layout;
+  const trim = trimOf(layout);
   const cover = project.cover;
 
   const image = cover.frontImage;
@@ -186,12 +188,35 @@ export function buildCoverHtml(project: CoverableBook, options: CoverRenderOptio
     .map((sticker, i) => stickerCss(sticker, i))
     .join('\n');
 
-  const guides = options.guides
-    ? `<div class="guide guide-fold" id="fold-a"></div>
-<div class="guide guide-fold" id="fold-b"></div>
-<div class="guide guide-bleed"></div>
-<div class="guide guide-safe" id="safe-back"></div>
-<div class="guide guide-safe" id="safe-front"></div>`
+  // Drawn from the board's own guides rather than from a cover's named parts,
+  // so a board with one fold, or none, draws one or none without being asked.
+  const marks = options.guides
+    ? [
+        `<div class="guide guide-trim"></div>`,
+        ...layout.guides.map((guide, i) =>
+          guide.kind === 'fold' || guide.kind === 'safe'
+            ? `<div class="guide guide-${guide.kind}" id="g${i}"></div>`
+            : '',
+        ),
+      ].join('\n')
+    : '';
+
+  const markStyles = options.guides
+    ? layout.guides
+        .map((guide, i) => {
+          if (guide.kind === 'fold') {
+            return guide.axis === 'x'
+              ? `#g${i} { left: ${guide.at}pt; top: 0; height: ${layout.height}pt; }`
+              : `#g${i} { top: ${guide.at}pt; left: 0; width: ${layout.width}pt; }`;
+          }
+          if (guide.kind === 'safe') {
+            const r = guide.rect;
+            return `#g${i} { left: ${r.x}pt; top: ${r.y}pt; width: ${r.width}pt; height: ${r.height}pt; }`;
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join('\n')
     : '';
 
   const barcodeHtml = cover.showBarcodeZone
@@ -261,17 +286,14 @@ ${boxStyles}
   font: italic 7pt Georgia, serif; color: rgba(0,0,0,0.6); text-align: center;
 }
 .guide { position: absolute; pointer-events: none; }
-.guide-fold { top: 0; height: ${layout.height}pt; border-left: 1px dashed rgba(0,90,255,0.85); }
-#fold-a { left: ${layout.folds[0]}pt; }
-#fold-b { left: ${layout.folds[1]}pt; }
-.guide-bleed {
-  left: ${layout.bleed}pt; top: ${layout.bleed}pt;
-  width: ${layout.width - 2 * layout.bleed}pt; height: ${layout.height - 2 * layout.bleed}pt;
+.guide-fold { border-left: 1px dashed rgba(0,90,255,0.85); }
+.guide-safe { border: 1px dashed rgba(16,185,129,0.8); }
+.guide-trim {
+  left: ${trim.x}pt; top: ${trim.y}pt;
+  width: ${trim.width}pt; height: ${trim.height}pt;
   border: 1px solid rgba(220,38,38,0.85);
 }
-.guide-safe { top: ${layout.bleed + 18}pt; height: ${layout.height - 2 * layout.bleed - 36}pt; border: 1px dashed rgba(16,185,129,0.8); }
-#safe-back { left: ${panels.back.x + 18}pt; width: ${panels.back.width - 36}pt; }
-#safe-front { left: ${panels.front.x + 18}pt; width: ${panels.front.width - 36}pt; }
+${markStyles}
 ${
   options.guides
     ? ''
@@ -296,7 +318,7 @@ ${
   ${stickers}
   ${barcodeHtml}
   ${boxes}
-  ${guides}
+  ${marks}
 </div>
 ${
   options.autoPrint

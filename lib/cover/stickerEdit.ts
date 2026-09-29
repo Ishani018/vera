@@ -1,5 +1,7 @@
 import type { CoverSticker } from '../types';
 import type { CoverLayout } from '../render/coverLayout';
+import type { Board } from '../board';
+import { foldsOf } from '../board';
 import { stickerBounds } from '../render/stickers';
 
 /**
@@ -17,27 +19,31 @@ export const SNAP_DISTANCE = 4.32;
 export type Guide = { axis: 'x' | 'y'; at: number };
 
 /**
- * Every line worth snapping to: the cover's own centres and trim edges, the
- * spine folds, and the edges and centres of the other stickers.
+ * Every line worth snapping to: the board's own centres and trim edges, any
+ * folds, the centre of each panel, and the edges and centres of the other
+ * stickers.
  *
  * The other stickers are what makes a row of badges line up, and they are the
- * reason this takes a list rather than just the layout.
+ * reason this takes a list rather than just the board.
+ *
+ * Panels are walked rather than named, so a board with one panel offers its
+ * centre and a cover offers three, from the same four lines of code.
  */
 export function snapLines(
-  layout: CoverLayout,
+  board: Board,
   others: CoverSticker[],
 ): { x: number[]; y: number[] } {
-  // The layout's own points, not `dimensions`, which is KDP's figure in inches.
-  const { bleed, width, height, folds, panels } = layout;
-  const x = [
-    bleed,
-    width - bleed,
-    width / 2,
-    ...folds,
-    panels.back.x + panels.back.width / 2,
-    panels.front.x + panels.front.width / 2,
-  ];
+  const { bleed, width, height, panels } = board;
+  const x = [bleed, width - bleed, width / 2];
   const y = [bleed, height - bleed, height / 2];
+
+  for (const fold of foldsOf(board)) {
+    (fold.axis === 'x' ? x : y).push(fold.at);
+  }
+  for (const panel of Object.values(panels)) {
+    x.push(panel.x + panel.width / 2);
+    y.push(panel.y + panel.height / 2);
+  }
 
   for (const other of others) {
     const box = stickerBounds(other);

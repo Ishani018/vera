@@ -46,6 +46,9 @@ export function coverLayout(project: CoverableBook, pageCount: number): CoverLay
 
   const pt = inchesToPt;
   const panels: Record<CoverPanel, Rect> = {
+    // The whole cover, so anything written against a plain board can be placed
+    // on this one without knowing it has panels at all.
+    board: { x: 0, y: 0, width: pt(d.width), height: pt(d.height) },
     back: { x: pt(d.bleed), y: pt(d.bleed), width: pt(trim.width), height: pt(trim.height) },
     spine: { x: pt(d.spineStart), y: pt(d.bleed), width: pt(d.spine), height: pt(trim.height) },
     front: { x: pt(d.spineEnd), y: pt(d.bleed), width: pt(trim.width), height: pt(trim.height) },

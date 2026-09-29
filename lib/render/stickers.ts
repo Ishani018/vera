@@ -1,7 +1,8 @@
+import type { Board, Rect } from '../board';
+import { foldsOf, reservedOf, trimOf } from '../board';
 import { bendOf } from '../cover/bend';
 import { MIN_COVER_DPI, ptToInches } from '../kdp';
 import type { CoverSticker } from '../types';
-import type { CoverLayout, Rect } from './coverLayout';
 
 /**
  * What a sticker is doing on the cover, in the terms someone placing one cares
@@ -93,11 +94,12 @@ export function stickerImageKey(sticker: CoverSticker): string {
   return sticker.arc ? `bend:${sticker.id}` : sticker.assetId;
 }
 
-export type StickerWarning =
-  | 'soft'
-  | 'off-the-trim'
-  | 'across-the-spine'
-  | 'under-the-barcode';
+export type StickerWarning = {
+  /** Stable enough to use as a key and to test against. */
+  kind: 'soft' | 'off-the-trim' | 'across-a-fold' | 'in-a-reserved-area';
+  /** Already worded, because only the board knows what its own marks are. */
+  text: string;
+};
 
 /**
  * Everything worth saying about where a sticker has been put.
@@ -105,44 +107,59 @@ export type StickerWarning =
  * None of it stops anyone: a picture running off the trimmed edge is a
  * perfectly ordinary design, and a sticker may cross the spine on purpose.
  * They are things to have been told, not rules.
+ *
+ * Read off the board's guides rather than off a cover's named parts, so a
+ * board with no spine and no barcode simply produces neither warning instead
+ * of needing to be special-cased. The wording comes from the guide, because
+ * "the spine" is a fact about covers and this function is not about covers.
  */
-export function stickerWarnings(sticker: CoverSticker, layout: CoverLayout): StickerWarning[] {
+export function stickerWarnings(sticker: CoverSticker, board: Board): StickerWarning[] {
   const warnings: StickerWarning[] = [];
   const box = stickerBounds(sticker);
-  // The layout's points, not `dimensions`, which is KDP's figure in inches.
-  const { folds, barcode } = layout;
 
-  if (stickerDpi(sticker) < MIN_COVER_DPI) warnings.push('soft');
+  if (stickerDpi(sticker) < MIN_COVER_DPI) {
+    warnings.push({
+      kind: 'soft',
+      text: `Under ${MIN_COVER_DPI} DPI at this size — it will print soft.`,
+    });
+  }
 
-  // The trim line, which is the bleed inset from every edge.
-  const trim: Rect = {
-    x: layout.bleed,
-    y: layout.bleed,
-    width: layout.width - 2 * layout.bleed,
-    height: layout.height - 2 * layout.bleed,
-  };
+  const trim = trimOf(board);
   if (
     box.x < trim.x ||
     box.y < trim.y ||
     box.x + box.width > trim.x + trim.width ||
     box.y + box.height > trim.y + trim.height
   ) {
-    warnings.push('off-the-trim');
+    warnings.push({
+      kind: 'off-the-trim',
+      text: 'Part of this runs past the trim line and will be cut off.',
+    });
   }
 
-  // A sticker straddling a fold is bent in half by the binding.
-  if (folds.some((fold) => box.x < fold && box.x + box.width > fold)) {
-    warnings.push('across-the-spine');
+  // A sticker straddling a fold is bent in half by whatever does the folding.
+  const seen = new Set<string>();
+  for (const fold of foldsOf(board)) {
+    const across =
+      fold.axis === 'x'
+        ? box.x < fold.at && box.x + box.width > fold.at
+        : box.y < fold.at && box.y + box.height > fold.at;
+    if (!across || seen.has(fold.label)) continue;
+    seen.add(fold.label);
+    warnings.push({
+      kind: 'across-a-fold',
+      text: `This crosses ${fold.label}, so it will be folded down the middle.`,
+    });
   }
 
-  if (overlaps(box, barcode)) warnings.push('under-the-barcode');
+  for (const area of reservedOf(board)) {
+    if (!overlaps(box, area.rect)) continue;
+    warnings.push({
+      kind: 'in-a-reserved-area',
+      text: `This is under the area ${area.label} is printed over.`,
+    });
+  }
 
   return warnings;
 }
 
-export const WARNING_TEXT: Record<StickerWarning, string> = {
-  soft: `Under ${MIN_COVER_DPI} DPI at this size — it will print soft.`,
-  'off-the-trim': 'Part of this runs past the trim line and will be cut off.',
-  'across-the-spine': 'This crosses the spine, so it will be folded down the middle.',
-  'under-the-barcode': 'This is under the area KDP prints a barcode over.',
-};

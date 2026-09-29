@@ -11,12 +11,13 @@ import {
   ptToInches,
   spineWidth,
 } from '@/lib/kdp';
+import { foldsOf, trimOf } from '@/lib/board';
 import { coverLayout, spineTooThinForText } from '@/lib/render/coverLayout';
 import { id } from '@/lib/defaults';
 import { font } from '@/lib/defaults';
 import { useCoverHistory } from '@/lib/cover/history';
 import { restack } from '@/lib/cover/stickerEdit';
-import { stickerDpi, stickerWarnings, WARNING_TEXT } from '@/lib/render/stickers';
+import { stickerDpi, stickerWarnings } from '@/lib/render/stickers';
 import { MAX_SWEEP_DEGREES, curvedText } from '@/lib/cover/curve';
 import { bendOf } from '@/lib/cover/bend';
 import type {
@@ -50,7 +51,18 @@ const PANEL_LABELS: Record<CoverPanel, string> = {
   back: 'Back cover',
   spine: 'Spine',
   front: 'Front cover',
+  board: 'Whole cover',
 };
+
+/**
+ * The panels a cover offers to put text on.
+ *
+ * Not every panel: a cover measures from its three faces, and `board` exists so
+ * that a board without faces has something to measure from. Offering it here
+ * would be a fourth button that does the same as the back cover with worse
+ * arithmetic.
+ */
+const ADDABLE_PANELS: CoverPanel[] = ['back', 'spine', 'front'];
 
 /**
  * The wraparound cover, for either kind of book.
@@ -559,21 +571,29 @@ export function CoverDesigner<T extends CoverableBook>({
               );
             })}
 
-            {/* Guides sit above everything: they are what makes the folds legible. */}
-            {layout.folds.map((fold, i) => (
+            {/* Guides sit above everything: they are what makes the folds legible.
+                Read off the board, so a board with one fold draws one. */}
+            {foldsOf(layout).map((fold, i) => (
               <div
                 key={i}
-                className="pointer-events-none absolute border-l border-dashed border-sky-500/80"
-                style={{ left: fold * scale, top: 0, height: layout.height * scale }}
+                className={cx(
+                  'pointer-events-none absolute border-dashed border-sky-500/80',
+                  fold.axis === 'x' ? 'border-l' : 'border-t',
+                )}
+                style={
+                  fold.axis === 'x'
+                    ? { left: fold.at * scale, top: 0, height: layout.height * scale }
+                    : { top: fold.at * scale, left: 0, width: layout.width * scale }
+                }
               />
             ))}
             <div
               className="pointer-events-none absolute border border-red-500/80"
               style={{
-                left: layout.bleed * scale,
-                top: layout.bleed * scale,
-                width: (layout.width - 2 * layout.bleed) * scale,
-                height: (layout.height - 2 * layout.bleed) * scale,
+                left: trimOf(layout).x * scale,
+                top: trimOf(layout).y * scale,
+                width: trimOf(layout).width * scale,
+                height: trimOf(layout).height * scale,
               }}
             />
           </div>
@@ -781,7 +801,7 @@ export function CoverDesigner<T extends CoverableBook>({
         <div className="space-y-2 border-t border-ink-200 pt-3">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
           <div className="grid grid-cols-3 gap-1.5">
-            {(Object.keys(PANEL_LABELS) as CoverPanel[]).map((panel) => (
+            {ADDABLE_PANELS.map((panel) => (
               <Button key={panel} onClick={() => addBox(panel)}>
                 + {panel}
               </Button>
@@ -994,8 +1014,8 @@ function StickerInspector({
       </div>
 
       {warnings.map((warning) => (
-        <Notice key={warning} level={warning === 'soft' ? 'warning' : 'info'}>
-          {WARNING_TEXT[warning]}
+        <Notice key={warning.kind} level={warning.kind === 'soft' ? 'warning' : 'info'}>
+          {warning.text}
         </Notice>
       ))}
 

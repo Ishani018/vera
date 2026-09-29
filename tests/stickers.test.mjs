@@ -5,7 +5,6 @@ import { buildCoverHtml } from '../lib/render/coverHtml.ts';
 import { coverLayout } from '../lib/render/coverLayout.ts';
 import { foldsOf, plainBoard, reservedOf, safeOf, trimOf } from '../lib/board.ts';
 import {
-  WARNING_TEXT,
   stickerBounds,
   stickerDpi,
   stickerWarnings,
@@ -111,32 +110,39 @@ test('resolution is judged by whichever way the picture is stretched further', (
 
 test('a sticker is told when it is soft, cut, folded or under the barcode', () => {
   const layout = coverLayout(createColoringBook(), 52);
-  const { dimensions: d, folds, barcode } = layout;
+  const { folds, barcode } = layout;
 
-  assert.deepEqual(stickerWarnings(sticker({ x: IN(10), y: IN(3) }), layout), []);
+  const kinds = (s) => stickerWarnings(s, layout).map((w) => w.kind);
+  assert.deepEqual(kinds(sticker({ x: IN(10), y: IN(3) })), []);
 
   const soft = sticker({ x: IN(10), y: IN(3), naturalWidth: 300, naturalHeight: 300 });
-  assert.deepEqual(stickerWarnings(soft, layout), ['soft']);
+  assert.deepEqual(kinds(soft), ['soft']);
 
   const offEdge = sticker({ x: IN(-0.5), y: IN(3) });
-  assert.ok(stickerWarnings(offEdge, layout).includes('off-the-trim'));
+  assert.ok(kinds(offEdge).includes('off-the-trim'));
 
   const onFold = sticker({ x: folds[0] - IN(1), y: IN(3) });
-  assert.ok(stickerWarnings(onFold, layout).includes('across-the-spine'));
+  assert.ok(kinds(onFold).includes('across-a-fold'));
+  // The wording comes from the board, which is the only thing that knows a
+  // fold down the middle of this one is called a spine.
+  const fold = stickerWarnings(onFold, layout).find((w) => w.kind === 'across-a-fold');
+  assert.match(fold.text, /the spine/);
 
   const onBarcode = sticker({ x: barcode.x, y: barcode.y });
-  assert.ok(stickerWarnings(onBarcode, layout).includes('under-the-barcode'));
+  assert.ok(kinds(onBarcode).includes('in-a-reserved-area'));
+  const covered = stickerWarnings(onBarcode, layout).find((w) => w.kind === 'in-a-reserved-area');
+  assert.match(covered.text, /barcode/i);
 
   // The bottom edge is as much an edge as the left one.
-  const offBottom = sticker({ x: IN(10), y: d.height - d.bleed - 1 });
-  assert.ok(stickerWarnings(offBottom, layout).includes('off-the-trim'));
+  const offBottom = sticker({ x: IN(10), y: layout.height - layout.bleed - 1 });
+  assert.ok(kinds(offBottom).includes('off-the-trim'));
 });
 
 test('every warning has something to say', () => {
   const layout = coverLayout(createColoringBook(), 52);
   const all = stickerWarnings(sticker({ x: IN(-1), y: IN(-1), naturalWidth: 10, naturalHeight: 10 }), layout);
   assert.ok(all.length >= 2);
-  for (const warning of all) assert.ok(WARNING_TEXT[warning]?.length > 10, warning);
+  for (const warning of all) assert.ok(warning.text.length > 10, warning.kind);
 });
 
 test('sticker images travel with the book, or the export loses them', () => {
@@ -318,11 +324,14 @@ test('typing tags is forgiving about commas, spaces, case and repeats', () => {
 
 /* ------------------------------------------------------------------- boards */
 
-test('a cover is a board, with three panels and its own marks on it', () => {
+test('a cover is a board, with three faces and the whole thing besides', () => {
   const layout = coverLayout(createColoringBook(), 52);
   assert.equal(typeof layout.width, 'number');
   assert.equal(typeof layout.height, 'number');
-  assert.deepEqual(Object.keys(layout.panels).sort(), ['back', 'front', 'spine']);
+  assert.deepEqual(Object.keys(layout.panels).sort(), ['back', 'board', 'front', 'spine']);
+  // `board` is the whole cover, so code written for a board with no faces
+  // places things on this one without knowing it has any.
+  assert.deepEqual(layout.panels.board, { x: 0, y: 0, width: layout.width, height: layout.height });
 
   const folds = foldsOf(layout);
   assert.equal(folds.length, 2, 'a wraparound cover folds twice');
@@ -363,4 +372,26 @@ test('a plain board has itself for a panel and nothing else marked on it', () =>
   assert.equal(foldsOf(post).length, 0, 'nothing folds a social post');
   assert.equal(reservedOf(post).length, 0, 'and nobody prints a barcode on one');
   assert.deepEqual(safeOf(post)[0].rect, { x: 36, y: 36, width: 738, height: 738 });
+});
+
+test('the preview draws whatever the board says is marked on it', () => {
+  // Nothing in the app asks for these yet, so this is the only thing keeping
+  // them honest until a preview does.
+  const html = buildCoverHtml(book([]), {
+    pageCount: 52, fontStyle: '', guides: true, assets: {},
+  });
+  const layout = coverLayout(createColoringBook(), 52);
+
+  assert.equal((html.match(/guide-fold/g) ?? []).length, foldsOf(layout).length + 1, 'one per fold');
+  assert.equal((html.match(/guide-safe/g) ?? []).length, safeOf(layout).length + 1, 'one per safe area');
+  assert.match(html, /guide-trim/);
+
+  for (const fold of foldsOf(layout)) assert.ok(html.includes(`left: ${fold.at}pt`));
+  for (const area of safeOf(layout)) assert.ok(html.includes(`width: ${area.rect.width}pt`));
+
+  // And none of it when they are not asked for, which is every export.
+  const plain = buildCoverHtml(book([]), {
+    pageCount: 52, fontStyle: '', guides: false, assets: {},
+  });
+  assert.doesNotMatch(plain, /class="guide/);
 });

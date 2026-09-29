@@ -212,7 +212,13 @@ export type TrimSettings = {
 
 export type Margins = { inside: number; outside: number; top: number; bottom: number };
 
-export type CoverPanel = 'front' | 'spine' | 'back';
+/**
+ * Where a text box is measured from.
+ *
+ * `board` means the whole thing, which is what a board with no structure has
+ * and all a social post will ever need. A cover has the other three as well.
+ */
+export type CoverPanel = 'front' | 'spine' | 'back' | 'board';
 
 export type CoverTextBox = {
   id: string;
