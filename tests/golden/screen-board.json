@@ -67,7 +67,7 @@
         "width": 738,
         "height": 738,
         "background": "rgba(0, 0, 0, 0)",
-        "border": "0.79pt dashed oklab(0.696 -0.162114 0.0511766 / 0.7)",
+        "border": "0.79pt dashed rgba(0, 188, 124, 0.702)",
         "text": ""
       }
     ],

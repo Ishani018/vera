@@ -381,6 +381,47 @@ const MEASURE = (boardWidthPt) => {
   const scale = parseFloat(stage.style.width) / boardWidthPt;
   const stageRect = stage.getBoundingClientRect();
   const pt = (px, places = 1) => Number((px / scale).toFixed(places));
+
+  /**
+   * A colour as four bytes, whatever the engine chose to call it.
+   *
+   * Chrome hands back `oklab(0.696 -0.162 0.051 / 0.7)` for a guide drawn with
+   * an opacity modifier, and how a build spells that — the colour space it
+   * settles on, how many digits it keeps — is the build's business, not this
+   * design's. Painting it and reading the pixel back gives the same four
+   * numbers on any engine that agrees about the colour, which is the thing
+   * actually worth comparing. That mistake has been made here before: a
+   * portable tier holding something only one engine says.
+   */
+  const paint = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  const colour = (value) => {
+    if (!value || value === 'none') return value;
+    paint.clearRect(0, 0, 1, 1);
+    paint.fillStyle = value;
+    paint.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = paint.getImageData(0, 0, 1, 1).data;
+    return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${Number((a / 255).toFixed(3))})`;
+  };
+
+  /**
+   * A transform as the angle it turns things through.
+   *
+   * The matrix is printed to six digits, and the last of them is an engine's
+   * rounding rather than a fact about the cover. Everything the designer
+   * applies is a rotation about a corner, so the angle is the whole of it; a
+   * matrix that is not one is kept as it came, to be noticed.
+   */
+  const turn = (value) => {
+    if (!value || value === 'none') return 'none';
+    const parts = value.match(/^matrix\(([^)]+)\)$/);
+    if (!parts) return value;
+    const [a, b, c, d] = parts[1].split(',').map(Number);
+    const angle = (Math.atan2(b, a) * 180) / Math.PI;
+    const scaleX = Math.hypot(a, b);
+    const scaleY = Math.hypot(c, d);
+    if (Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001) return value;
+    return `${Number(angle.toFixed(2))}deg`;
+  };
   /**
    * Where the box is, from the used values of left/top/width/height.
    *
@@ -407,7 +448,7 @@ const MEASURE = (boardWidthPt) => {
       sizePt: Number((parseFloat(s.fontSize) / scale).toFixed(2)),
       weight: s.fontWeight,
       italic: s.fontStyle !== 'normal',
-      color: s.color,
+      color: colour(s.color),
       align: s.textAlign,
       letterSpacingPt:
         s.letterSpacing === 'normal' ? 0 : Number((parseFloat(s.letterSpacing) / scale).toFixed(3)),
@@ -415,7 +456,7 @@ const MEASURE = (boardWidthPt) => {
         s.lineHeight === 'normal'
           ? 'normal'
           : Number((parseFloat(s.lineHeight) / parseFloat(s.fontSize)).toFixed(3)),
-      transform: s.transform === 'none' ? 'none' : s.transform,
+      transform: turn(s.transform),
       text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60),
     };
   };
@@ -435,7 +476,7 @@ const MEASURE = (boardWidthPt) => {
         items.push({
           kind: bent ? 'bent picture' : 'picture',
           ...box(el),
-          transform: style.transform === 'none' ? 'none' : style.transform,
+          transform: turn(style.transform),
           radius: style.borderRadius === '0px' ? 0 : pt(parseFloat(style.borderRadius), 2),
           drawn: bent ? image.width > 0 : image.complete && image.naturalWidth > 0,
           source: bent ? `${image.width}x${image.height} canvas` : `${image.naturalWidth}x${image.naturalHeight}`,
@@ -460,13 +501,13 @@ const MEASURE = (boardWidthPt) => {
     items.push({
       kind: 'painted area',
       ...box(el),
-      background: style.backgroundColor,
+      background: colour(style.backgroundColor),
       // Reported only when there is one: Tailwind's reset leaves every element
       // with a border style and no width, which would put a border on
       // everything here.
       border:
         parseFloat(style.borderTopWidth) > 0
-          ? `${pt(parseFloat(style.borderTopWidth), 2)}pt ${style.borderStyle} ${style.borderColor}`
+          ? `${pt(parseFloat(style.borderTopWidth), 2)}pt ${style.borderStyle} ${colour(style.borderColor)}`
           : 'none',
       text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40),
     });
