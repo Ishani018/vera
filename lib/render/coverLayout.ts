@@ -5,6 +5,8 @@ import {
   inchesToPt,
   type CoverDimensions,
 } from '../kdp';
+import type { Board, Guide, Rect } from '../board';
+import { trimOf } from '../board';
 import type { CoverPanel, CoverTextBox, CoverableBook } from '../types';
 
 /**
@@ -19,20 +21,23 @@ import type { CoverPanel, CoverTextBox, CoverableBook } from '../types';
  * boundary between the two.
  */
 
-export type Rect = { x: number; y: number; width: number; height: number };
+export type { Rect } from '../board';
 
-export type CoverLayout = {
+/**
+ * A cover is a board with three panels and its own marks on it.
+ *
+ * `barcode` and `folds` are also in `guides`, built from the same numbers in
+ * the one place below. They are kept as named fields because a cover really
+ * does have exactly one barcode reserve and exactly two folds, and code about
+ * covers should be able to say so.
+ */
+export type CoverLayout = Board<CoverPanel> & {
   /** KDP's own figures, in inches, unconverted. */
   dimensions: CoverDimensions;
-  /** The same size in points, which is what everything else here is in. */
-  width: number;
-  height: number;
-  panels: Record<CoverPanel, Rect>;
   /** KDP's reserved barcode area, bottom-right of the back cover. */
   barcode: Rect;
   /** Fold positions, measured from the left edge. */
   folds: [number, number];
-  bleed: number;
 };
 
 export function coverLayout(project: CoverableBook, pageCount: number): CoverLayout {
@@ -47,6 +52,7 @@ export function coverLayout(project: CoverableBook, pageCount: number): CoverLay
   };
 
   const back = panels.back;
+  const safeTop = trimOf({ width: pt(d.width), height: pt(d.height), bleed: pt(d.bleed) }).y;
   const barcode: Rect = {
     x: back.x + back.width - pt(BARCODE_ZONE.marginFromTrim + BARCODE_ZONE.width),
     y: back.y + back.height - pt(BARCODE_ZONE.marginFromTrim + BARCODE_ZONE.height),
@@ -54,14 +60,39 @@ export function coverLayout(project: CoverableBook, pageCount: number): CoverLay
     height: pt(BARCODE_ZONE.height),
   };
 
+  const width = pt(d.width);
+  const height = pt(d.height);
+  const bleed = pt(d.bleed);
+  const folds: [number, number] = [pt(d.spineStart), pt(d.spineEnd)];
+
+  // KDP asks for a quarter inch inside the trim on a cover.
+  const safeInset = pt(0.25);
+  const safe = (panel: Rect, label: string): Guide => ({
+    kind: 'safe',
+    label,
+    rect: {
+      x: panel.x + safeInset,
+      y: Math.max(safeTop, panel.y) + safeInset,
+      width: panel.width - 2 * safeInset,
+      height: panel.height - 2 * safeInset,
+    },
+  });
+
   return {
     dimensions: d,
-    width: pt(d.width),
-    height: pt(d.height),
+    width,
+    height,
+    bleed,
     panels,
     barcode,
-    folds: [pt(d.spineStart), pt(d.spineEnd)],
-    bleed: pt(d.bleed),
+    folds,
+    guides: [
+      safe(panels.back, 'the back cover'),
+      safe(panels.front, 'the front cover'),
+      { kind: 'fold', label: 'the spine', axis: 'x', at: folds[0] },
+      { kind: 'fold', label: 'the spine', axis: 'x', at: folds[1] },
+      { kind: 'reserved', label: "KDP's barcode", rect: barcode },
+    ],
   };
 }
 

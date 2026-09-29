@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { buildCoverHtml } from '../lib/render/coverHtml.ts';
 import { coverLayout } from '../lib/render/coverLayout.ts';
+import { foldsOf, plainBoard, reservedOf, safeOf, trimOf } from '../lib/board.ts';
 import {
   WARNING_TEXT,
   stickerBounds,
@@ -313,4 +314,53 @@ test('typing tags is forgiving about commas, spaces, case and repeats', () => {
   assert.deepEqual(parseTags('Cats, flowers  cats'), ['cats', 'flowers']);
   assert.deepEqual(parseTags('   '), []);
   assert.deepEqual(parseTags('Badges'), ['badges']);
+});
+
+/* ------------------------------------------------------------------- boards */
+
+test('a cover is a board, with three panels and its own marks on it', () => {
+  const layout = coverLayout(createColoringBook(), 52);
+  assert.equal(typeof layout.width, 'number');
+  assert.equal(typeof layout.height, 'number');
+  assert.deepEqual(Object.keys(layout.panels).sort(), ['back', 'front', 'spine']);
+
+  const folds = foldsOf(layout);
+  assert.equal(folds.length, 2, 'a wraparound cover folds twice');
+  assert.deepEqual(folds.map((f) => f.at), layout.folds);
+  assert.ok(folds.every((f) => f.axis === 'x' && f.label === 'the spine'));
+
+  const reserved = reservedOf(layout);
+  assert.equal(reserved.length, 1);
+  assert.deepEqual(reserved[0].rect, layout.barcode);
+  assert.match(reserved[0].label, /barcode/i);
+
+  const safe = safeOf(layout);
+  assert.equal(safe.length, 2, 'one for each cover you can print on');
+  assert.deepEqual(safe.map((s) => s.label).sort(), ['the back cover', 'the front cover']);
+});
+
+test('a safe area sits a quarter inch inside the panel it belongs to', () => {
+  const layout = coverLayout(createColoringBook(), 52);
+  const front = safeOf(layout).find((s) => s.label === 'the front cover');
+  assert.equal(front.rect.x, layout.panels.front.x + 18);
+  assert.equal(front.rect.width, layout.panels.front.width - 36);
+});
+
+test('the trim is the board less its bleed, whatever the board is', () => {
+  const layout = coverLayout(createColoringBook(), 52);
+  const trim = trimOf(layout);
+  assert.equal(trim.x, layout.bleed);
+  assert.equal(trim.width, layout.width - 2 * layout.bleed);
+
+  // And a board that is never printed has no bleed to take off.
+  const post = plainBoard({ width: 900, height: 471 });
+  assert.deepEqual(trimOf(post), { x: 0, y: 0, width: 900, height: 471 });
+});
+
+test('a plain board has itself for a panel and nothing else marked on it', () => {
+  const post = plainBoard({ width: 810, height: 810, safeInset: 36 });
+  assert.deepEqual(post.panels.board, { x: 0, y: 0, width: 810, height: 810 });
+  assert.equal(foldsOf(post).length, 0, 'nothing folds a social post');
+  assert.equal(reservedOf(post).length, 0, 'and nobody prints a barcode on one');
+  assert.deepEqual(safeOf(post)[0].rect, { x: 36, y: 36, width: 738, height: 738 });
 });
