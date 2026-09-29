@@ -129,3 +129,33 @@ whenever that happens.
 **Reversible?** Yes. The cost of deferring is doing the `CoverSpec` → `Artboard`
 migration on more data later. The cost of not deferring is shipping nothing before
 February.
+
+---
+
+## 6. Sticker Studio is queued after the MVP, not inside it
+
+*29 September 2026 — decided*
+
+A mode that turns any image into a sticker: convert or clean up, colour it in,
+knock out the background, add a die-cut edge, export a transparent PNG. Planned in
+`isnaevy-plan.md` part three as **S1, after M3**.
+
+**Why queued rather than dropped.** It reuses more of this repo than anything else
+proposed — the line art pipeline, the morphology, the asset store, the library, and
+a flood traversal that turns out to already be sitting inside `despeckle`. It is
+also the only thing here someone can try in thirty seconds without learning an
+editor, and it points at the same person the wedge does: a KDP seller making a cover
+badge is not a different audience.
+
+**Why not inside the MVP.** Fourteen days is three FTE weeks, which is six calendar
+weeks at half time — more than half the MVP again. The MVP has one week of slack in
+ten. Adding this would not delay the launch kit by a little.
+
+It also gets cheaper by waiting: M2 builds the raster export it needs, and M1
+generalises the board that lets a finished sticker be placed without a special case.
+
+**Reversible?** Entirely. Nothing in M0–M3 depends on it.
+
+**Noted for launch, not for the build:** terms of service must say uploaded artwork
+is the user's responsibility. A tool that makes stickers from any image will be
+pointed at copyrighted characters on day one.

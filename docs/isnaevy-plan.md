@@ -526,3 +526,206 @@ string and puts it on one path.
 Nothing before this needs it. Schedule it when there is evidence someone wants it,
 and not before — this is the single item most likely to eat a month and produce
 something worse than a plain text box.
+
+---
+
+# Part three: Sticker Studio
+
+Planned 29 September 2026. **Not in the MVP** — see §15 for where it sits.
+
+Turn any image into a sticker: convert or clean it up, colour it in, knock out the
+background, add a die-cut edge, export a transparent PNG or drop it straight into
+My stickers.
+
+## 12. What already exists, honestly
+
+More than expected, and one piece better than expected.
+
+| Need | Already there | Work |
+|---|---|---|
+| Upload, store, copy-on-use | `lib/assets.ts` | none |
+| Convert a painting to line art | `runLineArt` | none |
+| Clean up existing line art | `runCleanup` | none |
+| Guess which of the two it is | `guessSource` | none |
+| The three-way mode chooser, with per-image memory | `LineArtStudio.tsx`, `ColoringPage.source` | adapt |
+| Off-thread pixel work | `lib/lineart/worker.ts` | none |
+| Morphology for the die-cut and gap closing | `dilate`, `erode` | none |
+| Enlarging a flat two-tone image without mush | `upscale` | none |
+| Colour distance that matches the eye | `toLab` | none |
+| Save to a library shared by every project | `saveToLibrary` | small |
+| Undo, one gesture at a time | `lib/cover/history.ts` | make generic |
+
+**The paint bucket is already written.** `despeckle` walks 4-connected regions with
+an explicit stack, in exactly the idiom a fill needs — it just scans for its seeds
+instead of taking one, and paints `PAPER` instead of a colour. Pull that traversal
+out as `flood(seed, passable) → region` and both callers use it. That removes the
+riskiest-looking item on the list before it is started.
+
+**What genuinely is not there: transparency.** The whole pipeline is single-channel
+opaque greyscale — `Gray` with `INK = 0` and `PAPER = 255` — and `toBitmap` writes
+alpha 255 unconditionally. Every transparent-sticker feature needs an alpha channel
+that nothing currently carries.
+
+The cheapest way in is a separate `Mask` (one `Uint8` per pixel) travelling
+*alongside* `Gray` rather than a new four-channel type. Nothing existing has to
+change, `dilate`/`erode`/`blur` already operate on exactly that shape, and
+compositing stays one explicit step at the end. A wider `Bitmap` would touch every
+function in an eleven-hundred-line file that currently works.
+
+## 13. The two hard parts
+
+### 13.1 Flood fill leaks through gaps, and the fix is two dilations
+
+A hand-drawn outline is never quite closed. One two-pixel gap and a fill meant for
+a cat's ear floods the entire page. This is *the* thing that makes or breaks a
+colouring tool, and the naive fix — thicken the lines until the gaps close — ruins
+the artwork.
+
+The answer is to close the gaps somewhere the user never sees:
+
+1. **Barrier mask.** `barrier = dilate(ink, gap)` where `gap` is the gap-closing
+   radius. This is a working copy. The visible line art is not touched.
+2. **Fill against the barrier**, not against the drawing. A gap narrower than
+   `2 × gap` is now sealed and the fill stays where it belongs.
+3. **Tuck the fill back under the lines.** The filled region now stops `gap` pixels
+   short of the real outline, which would print as a white halo, so
+   `filled = dilate(filled, gap)` before compositing. The visible line art goes on
+   top and covers the overshoot.
+
+Two dilations, both using a function that already exists, and the artwork is never
+modified. A "Gap closing" slider in pixels, defaulting to about 2 at the working
+resolution, with 0 meaning strict.
+
+**A second guard, because the slider will not always be enough.** If a fill would
+cover more than about half the canvas, it almost certainly leaked. Say so and offer
+to raise gap closing, rather than silently painting the whole sticker pink.
+One-line check, and it catches precisely the failure people actually hit. Undo
+catches the rest, and undo already exists.
+
+**Resolution.** Colouring happens at a capped working size (2048 on the long edge);
+the colour layer is enlarged with the existing `upscale` at export and composited
+with the full-resolution line art. Flat regions enlarge cleanly — which is the same
+argument already made in the line art worker for enlarging traced lines. Brushing
+directly on an 8-megapixel canvas would be slow for no visible gain.
+
+### 13.2 Background removal, and what it cannot do
+
+Deterministic, no AI, so a book made with it needs no AI disclosure — the same
+reasoning that shaped the line art pipeline.
+
+**How.** Sample the border pixels, flood *inward from the edges* in Lab (using
+`toLab`, and the same `flood` extracted above) taking anything within a tolerance
+of the background colour, then feather the resulting alpha with a small `blur` so
+the cut edge is not a staircase.
+
+**Flooding from the border is the whole trick.** Removing every pixel that merely
+*matches* the background colour would punch holes through the white of an eye, the
+inside of an O, the gap in a teapot handle. Only border-connected background goes.
+
+**What it will not handle, stated plainly:**
+
+- Busy or photographic backgrounds — it will take a bite out of the subject or
+  leave most of the background behind.
+- A subject the same colour as the background where they touch.
+- Soft drop shadows, which are neither subject nor background and will partly
+  survive as grey fringe.
+- Hair, fur, feathers and fine foliage. Per-pixel alpha cannot represent a
+  half-covered pixel over an unknown backdrop, so edges will look chewed.
+- Anything semi-transparent: glass, smoke, a veil.
+- Backgrounds with a gradient or vignette, unless the tolerance is set so wide it
+  starts eating the subject.
+
+It will do very well on exactly what most people upload to a sticker maker: a
+drawing on white paper, a scan, a flat-colour digital image. The interface should
+say which of those it is looking at rather than letting people discover the limits
+on a photograph of their cat on a sofa.
+
+### 13.3 Die-cut outline
+
+Take the alpha mask, `dilate` by the border width, subtract the original to get the
+ring, fill it. Rounded corners come almost free: a `dilate` then `erode` pair with
+the same radius is a morphological closing, which rounds convex corners to that
+radius as a side effect.
+
+One caveat worth surfacing in the interface: dilating far enough will merge parts
+of the artwork that were separate — a cat's whiskers become a blob. Usually that is
+exactly what a die-cut should do; occasionally it is a surprise.
+
+## 14. Storage, so nothing is lost on a later edit
+
+Three layers, never destructively merged. This is `ColoringPage`'s existing shape,
+which is the strongest argument that it is right:
+
+```ts
+type StickerDoc = {
+  id: string; name: string;
+  sourceAssetId: string;          // the upload, untouched, full resolution
+  mode: 'convert' | 'cleanup' | 'asis';
+  settings: LineArtSettings;      // what produced the processed layer
+  processedAssetId: string | null;
+  renderedWith: LineArtSettings | null;   // already the pattern in ColoringPage
+  colorAssetId: string | null;    // the colour layer, its own PNG
+  colorAt: { width: number; height: number };   // working resolution it was painted at
+  background: { removed: boolean; tolerance: number; feather: number };
+  dieCut: { widthIn: number; color: string; radius: number } | null;
+  palette: string[];
+};
+```
+
+- **The original is never overwritten.** Every parameter can be changed later and
+  re-applied from source, which is the whole reason `sourceAssetId` and
+  `lineArtAssetId` are separate on a colouring page today.
+- **The colour layer is its own image**, not painted into the line art, so line
+  weight can change without losing the colouring.
+- **`renderedWith` says what produced the current processed layer**, so reopening a
+  sticker does not silently re-run the pipeline. That mechanism already exists.
+
+**One honest caveat.** Re-converting *after* colouring will move the region
+boundaries, and the colour layer will no longer line up. Nothing can fix that
+automatically. The tool should say so and offer to keep the colours anyway or clear
+them — not quietly produce a misaligned mess.
+
+## 15. Effort, and where it goes in the plan
+
+| | Days |
+|---|---:|
+| Adapt the mode chooser from `LineArtStudio` | 1 |
+| Extract `flood` from `despeckle`; make history generic; save-to-library | 1.5 |
+| Paint bucket: fill, barrier, tuck-under, gap slider, leak guard | 2 |
+| Brush and eraser | 1.5 |
+| Palette and custom colours | 0.5 |
+| Colour layer: storage, composite, working-resolution handling | 1 |
+| Background removal | 1.5 |
+| Die-cut outline | 1 |
+| Transparent PNG export at a chosen size and DPI | 0.5 |
+| The Studio screen and mode wiring | 2 |
+| Tests | 1.5 |
+| **Total** | **14 days ≈ 3 FTE weeks ≈ 6 calendar weeks at half time** |
+
+Cheap for what it is, because so much is already built. Not cheap in calendar time
+at half a week.
+
+**Where it goes: S1, straight after M3, and not before.**
+
+```
+M0 golden + units → M1 board → M2 raster → M3 launch kit → [MVP done] → S1 Sticker Studio
+```
+
+It does not touch M0–M3 and M0–M3 do not need it, so the MVP path is unchanged. It
+inherits two things from the MVP rather than duplicating them: the raster export
+target built in M2, and the generalised board that lets a finished sticker be placed
+on a cover or a launch-kit design without a special case.
+
+**Why it is worth queuing rather than dropping:**
+
+- It is a front door. Someone can try it in thirty seconds without learning an
+  editor, which is not true of anything else here.
+- It feeds the wedge rather than wandering off from it — a KDP seller making a
+  cover badge or a "look inside" sticker is the same person.
+- Print-on-demand sticker sellers are a second audience reachable with no extra
+  work, and the transparent-PNG export is exactly what they need.
+
+**Before it launches, not before it is built:** terms of service need to say that
+uploaded artwork is the user's responsibility. A tool that turns any image into a
+sticker will be pointed at copyrighted characters on day one. That is a launch
+checklist item, not an engineering one, but it should not be discovered at launch.
