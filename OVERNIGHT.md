@@ -227,3 +227,80 @@ and a bare `0B6A62`.
 re-recorded** · `tsc` and `npm run build` clean.
 
 No new dependencies.
+
+---
+
+## Stage 4 — accent and tints (commit 4 of 4)
+
+Four tokens changed in `app/globals.css` and every use of the accent followed:
+primary buttons, links, selected rail items, the sticker library's chosen item,
+the poetry nav's current mode, and the focus ring, which is defined once as
+`:focus-visible { outline: 2px solid var(--color-accent-500) }`.
+
+```
+--color-accent-50:  #f6efe1 → #e6f0ee
+--color-accent-200: #ddc99c → #9cc7c1
+--color-accent-500: #8a6522 → #0b6a62
+--color-accent-600: #75551a → #08554f
+```
+
+Tile tints live in `lib/tiles.ts` as `CATEGORY_TINT`, one per category, applied
+behind each tile's drawing: Books `#F3EDE1`, Covers `#E6F0EE`, Social
+`#E8EEF4`, Print `#F4EAE4`.
+
+### Measured, before and after
+
+Read off the painted pixels in a browser, not computed from the hex.
+
+| | before | after |
+|---|---|---|
+| primary button, label on the accent | 5.30 : 1 | **6.46 : 1** |
+| selected rail item | 5.98 : 1 | **7.46 : 1** |
+| link on paper | 5.30 : 1 | **6.46 : 1** |
+
+Tints, all against `ink-900` and against the card they sit on: Books 15.16 : 1
+and 1.17 : 1, Covers 15.20 : 1 and 1.16 : 1, Social 15.12 : 1 and 1.17 : 1,
+Print 14.93 : 1 and 1.18 : 1. Soft enough to group at a glance, strong enough
+to carry dark text if anything is ever put on them.
+
+### The AA sweep, and what it found
+
+I walked every visible piece of text on four screens — home, the standalone
+editor, the poetry workspace and the poetry cover — compositing each
+translucent layer down to a real colour first, because half of these
+backgrounds are `oklab(… / 0.9)` over something else and treating one as opaque
+gives a nonsense number. **Twelve failures, all now fixed:**
+
+- **`ink-500` was 4.28 : 1 on the page's own beige.** That is the colour of
+  every muted line in the app, so it failed in a great many places at once
+  (segmented-control labels, "Scroll", "Grid", "Cover", "Launch kit"). Darkened
+  to `#756d61`: 4.61 : 1 on the beige, 5.10 : 1 on paper.
+- **Pale amber and emerald warnings** — "4 to check", "Google Fonts
+  unreachable", the DPI readouts — were 1.4 to 1.7 : 1. They were written as
+  `amber-300`/`amber-400`, which is a colour for a dark background, on white.
+  All moved to the 700s across seven files.
+- **The canvas hint and caption**, both mine from earlier tonight: white at
+  70 % on the grey canvas is 1.07 : 1, and even solid white on that grey is
+  only 3.5 : 1. Both now sit on a dark pill.
+- **The text list's face label** went to 3.80 : 1 on a selected row's tint;
+  it is `ink-700` now.
+
+After the fixes the sweep prints *"every piece of text on all four screens
+passes AA"*. None of these were caused by the teal — the sweep simply had not
+been run before.
+
+### Screen goldens
+
+**Nothing re-recorded.** Both passed with zero pixels changed. The boards the
+goldens draw carry no accent colour and no muted text: their contents are the
+design's own colours, and the empty-board hint is not drawn on a board with
+something on it.
+
+### Checks run
+
+`npm test` 358 passing · `npm run golden` unchanged (`e3e2a36e0ac60ce1`,
+`d4eeeb9e99cb1bfe`) · `npm run golden:screen` all match · `tsc` clean.
+
+Before and after screenshots of the home screen and the editor are in the
+sandbox only — they cannot be committed to the repo without adding binaries to
+it, and they are of a browser you can open yourself in ten seconds.

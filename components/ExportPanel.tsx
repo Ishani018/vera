@@ -89,7 +89,7 @@ export function ExportPanel() {
                     issue.level === 'error'
                       ? 'text-red-400'
                       : issue.level === 'warning'
-                        ? 'text-amber-400'
+                        ? 'text-amber-700'
                         : 'text-ink-500'
                   }
                   aria-hidden

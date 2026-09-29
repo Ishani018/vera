@@ -700,7 +700,7 @@ export function CoverDesigner<T extends CoverableBook>({
             <>
               <p className="text-[11px] text-ink-500">
                 {cover.frontImage.naturalWidth} × {cover.frontImage.naturalHeight}px ·{' '}
-                <span className={imageDpi < MIN_COVER_DPI ? 'text-amber-300' : 'text-emerald-300'}>
+                <span className={imageDpi < MIN_COVER_DPI ? 'text-amber-700' : 'text-emerald-700'}>
                   {Math.round(imageDpi)} DPI at print size
                 </span>
               </p>
@@ -841,7 +841,7 @@ export function CoverDesigner<T extends CoverableBook>({
                     selectedId === box.id ? 'bg-accent-500/15 text-accent-600' : 'hover:bg-ink-50',
                   )}
                 >
-                  <span className="w-10 shrink-0 text-[10px] uppercase text-ink-500">
+                  <span className="w-10 shrink-0 text-[10px] uppercase text-ink-700">
                     {box.panel}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{box.text || 'Empty'}</span>
@@ -1316,7 +1316,7 @@ export function CoverDesigner<T extends CoverableBook>({
 
             {empty && (
               <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                <span className="rounded-full bg-black/35 px-4 py-2 text-[13px] text-white">
+                <span className="rounded-full bg-black/60 px-4 py-2 text-[13px] text-white">
                   Add text, or drag a picture here
                 </span>
               </div>
@@ -1621,7 +1621,9 @@ export function CoverDesigner<T extends CoverableBook>({
           about looking at the board, not about changing it.
         */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 p-3">
-          <p className="max-w-sm text-[11px] leading-snug text-white/70">
+          {/* On a pill rather than straight onto the canvas: white on this
+              grey is 3.5:1 at best, which is under AA for a line this size. */}
+          <p className="max-w-sm rounded-lg bg-black/55 px-2 py-1 text-[11px] leading-snug text-white">
             {!guidesOn
               ? 'Drag any text box to move it.'
               : isCover

@@ -146,7 +146,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                     </span>
                     <span className="min-w-0 flex-[3] truncate">
                       {source.poems.length === 1 ? (
-                        source.poems[0].title || <em className="text-amber-300">untitled</em>
+                        source.poems[0].title || <em className="text-amber-700">untitled</em>
                       ) : (
                         <span className="text-ink-700">{source.poems.length} poems</span>
                       )}
@@ -183,7 +183,7 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
                   <li key={i} className="flex gap-2 py-0.5">
                     <span className="w-6 shrink-0 tabular-nums text-ink-400">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate">
-                      {poem.title || <em className="text-amber-300">untitled</em>}
+                      {poem.title || <em className="text-amber-700">untitled</em>}
                     </span>
                     <span className="shrink-0 text-[11px] text-ink-500">
                       {poem.body.split('\n').filter((l) => l.trim()).length} lines

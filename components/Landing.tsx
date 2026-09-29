@@ -22,6 +22,7 @@ import {
 } from '@/lib/projects';
 import {
   CATEGORIES,
+  CATEGORY_TINT,
   INTERIORS,
   TILES,
   tileSize,
@@ -167,7 +168,10 @@ export function Landing() {
                       : 'cursor-not-allowed border-dashed border-ink-200 opacity-45',
                   )}
                 >
-                  <span className="grid h-24 place-items-center rounded-xl bg-ink-100">
+                  <span
+                    className="grid h-24 place-items-center rounded-xl"
+                    style={{ background: CATEGORY_TINT[tile.category] }}
+                  >
                     <TileDrawing art={tile.art} />
                   </span>
                   <span className="mt-3 flex items-baseline gap-1.5">

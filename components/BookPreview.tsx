@@ -306,7 +306,7 @@ export function BookPreview() {
           </span>
         )}
         {fontsUnavailable && (
-          <span className="text-amber-300" title="Type will still export correctly if the server can reach Google Fonts.">
+          <span className="text-amber-700" title="Type will still export correctly if the server can reach Google Fonts.">
             Google Fonts unreachable — previewing in a fallback face
           </span>
         )}

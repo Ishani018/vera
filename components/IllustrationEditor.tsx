@@ -142,7 +142,7 @@ export function IllustrationEditor() {
           {plate.assetId && (
             <p className="text-[11px] text-ink-500">
               {plate.naturalWidth} × {plate.naturalHeight}px ·{' '}
-              <span className={dpi < MIN_COVER_DPI ? 'text-amber-300' : 'text-emerald-300'}>
+              <span className={dpi < MIN_COVER_DPI ? 'text-amber-700' : 'text-emerald-700'}>
                 {Math.round(dpi)} DPI at print size
               </span>
             </p>

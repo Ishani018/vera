@@ -118,7 +118,7 @@ export function PoemEditor() {
               {stats.lines} lines · {stats.stanzas} stanza{stats.stanzas === 1 ? '' : 's'} ·
               longest line {stats.longestLine}
               {stats.longLines > 0 && (
-                <span className="text-amber-300"> · {stats.longLines} over the measure</span>
+                <span className="text-amber-700"> · {stats.longLines} over the measure</span>
               )}
             </span>
           )}
@@ -257,7 +257,7 @@ export function PoemEditor() {
           </div>
 
           {stats && stats.longLines > 0 && (
-            <p className="text-[11px] text-amber-300">
+            <p className="text-[11px] text-amber-700">
               {stats.longLines} line{stats.longLines === 1 ? '' : 's'} longer than the measure.
               The <strong>Line breaks</strong> tab can split them.
             </p>

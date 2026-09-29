@@ -53,7 +53,7 @@ export function RepairView({
             <dd
               className={cx(
                 'inline tabular-nums',
-                stats.longLines ? 'text-amber-300' : 'text-ink-900',
+                stats.longLines ? 'text-amber-700' : 'text-ink-900',
               )}
             >
               {stats.longLines}
@@ -180,7 +180,7 @@ function LineRow({
       <span
         className={cx(
           'w-7 shrink-0 select-none text-right text-[11px] tabular-nums',
-          long ? 'text-amber-400/80' : 'text-ink-400',
+          long ? 'text-amber-700/80' : 'text-ink-400',
         )}
         title={long ? `${line.length} characters — longer than the measure` : undefined}
       >
