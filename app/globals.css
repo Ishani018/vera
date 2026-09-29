@@ -68,12 +68,25 @@ body {
   background-clip: content-box;
 }
 
-input,
-textarea,
-select,
-button {
-  font: inherit;
-  color: inherit;
+/*
+  In the base layer, not outside it.
+ 
+  Unlayered CSS beats every layer, so while these two lines sat on their own
+  they beat Tailwind's utilities: a text colour written on a button did
+  nothing at all, anywhere in the app, and every primary button was drawing
+  its label in ink-900 on accent-500 instead of on paper. Inside @layer base
+  they still override the browser's defaults — which is the whole job — and
+  lose to a utility that asks for something specific, which is the whole
+  point of writing one.
+*/
+@layer base {
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
 }
 
 input[type='number']::-webkit-outer-spin-button,

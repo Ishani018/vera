@@ -140,19 +140,11 @@ export function Landing() {
                 className={cx(
                   'shrink-0 rounded-full border px-4 py-1.5 text-[14px] font-[550] transition-colors',
                   category === entry.id
-                    ? 'border-ink-900 bg-ink-900'
-                    : 'border-ink-200 bg-paper hover:border-ink-300',
+                    ? 'border-ink-900 bg-ink-900 text-paper'
+                    : 'border-ink-200 bg-paper text-ink-700 hover:border-ink-300',
                 )}
               >
-                {/*
-                  The colour goes on a span inside, not on the button: the
-                  reset in globals.css sets `color: inherit` on buttons outside
-                  any layer, and unlayered CSS beats every Tailwind utility, so
-                  a text colour written on a button here does nothing at all.
-                */}
-                <span className={category === entry.id ? 'text-paper' : 'text-ink-700'}>
-                  {entry.label}
-                </span>
+                {entry.label}
               </button>
             ))}
           </div>
