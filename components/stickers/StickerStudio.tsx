@@ -15,6 +15,7 @@ import { toHex, type Swap } from '@/lib/stickers/recolour';
 import { NO_FRAME, contentBox, isPlain, norm, quarterFrom, type Frame } from '@/lib/stickers/frame';
 import { MAX_TEXTS, newText, type StickerText } from '@/lib/stickers/text';
 import { NO_DECORATION, type Decorations } from '@/lib/stickers/decorate';
+import { cutLineFor } from '@/lib/stickers/cutExport';
 import { withText } from '@/lib/stickers/compose';
 import { id as newId } from '@/lib/defaults';
 import { FontPicker } from '../FontPicker';
@@ -672,14 +673,7 @@ export function StickerStudio() {
     try {
       const result = await makeAtSize();
       if (!result) return;
-      const url = URL.createObjectURL(result.blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${slug(name)}-${result.width}x${result.height}.png`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      save(result.blob, `${slug(name)}-${result.width}x${result.height}.png`);
       setSaid(`Saved a ${result.width} × ${result.height} PNG to your downloads.`);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be exported.');
@@ -805,6 +799,35 @@ export function StickerStudio() {
     }
     setSwapsRemembering([...swaps, { from: found, to: brushColour, tolerance: swapTolerance }]);
     setSaid(`Changed ${found} to ${brushColour} in the picture.`);
+  };
+
+  /* ------------------------------------------------------------ the cut line */
+
+  const [cutTolerance, setCutTolerance] = useState(1.5);
+
+  const downloadCutLine = async () => {
+    setBusy(true);
+    setSaid(null);
+    try {
+      const result = await makeAtSize();
+      if (!result) return;
+      const traced = await cutLineFor(result.blob, cutTolerance);
+      if (!traced) throw new Error('That outline could not be traced.');
+      if (!traced.cut.loops) {
+        setProblem('There is no outline to cut — nothing in this sticker is solid.');
+        return;
+      }
+      save(new Blob([traced.svg], { type: 'image/svg+xml' }), `${slug(name)}-cut.svg`);
+      setSaid(
+        `Saved a cut line: ${traced.cut.loops} ${traced.cut.loops === 1 ? 'outline' : 'outlines'}, ` +
+          `${traced.cut.points} points, within ${traced.cut.strayPx} px of the sticker's own edge ` +
+          `(about ${((traced.cut.strayPx / result.width) * 100).toFixed(3)}% of its width).`,
+      );
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'That cut line could not be made.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   /* ----------------------------------------------------------- onto a board */
@@ -1864,6 +1887,29 @@ export function StickerStudio() {
                     </Button>
                   </div>
 
+                  <div className="mt-4 rounded-xl border border-ink-200 bg-paper-0 p-3">
+                    <span className="block text-[13.5px] font-[570]">Cut line for a cutting machine</span>
+                    <p className="mt-0.5 mb-3 text-[12.5px] leading-snug text-ink-500">
+                      An SVG of the sticker&rsquo;s own edge, traced from the PNG you would send to
+                      the printer — so the blade follows the picture rather than a second guess at
+                      it. The words and the shadow are part of that edge, because they are part of
+                      the sticker.
+                    </p>
+                    <Control
+                      label="How closely to follow the edge"
+                      hint="In pixels of the exported sticker. Tighter follows every bump and makes a bigger file; looser is a shorter path a machine cuts more smoothly. The message afterwards says how far it actually strayed."
+                      value={Math.round(cutTolerance * 10)}
+                      min={2}
+                      max={60}
+                      onChange={(n) => setCutTolerance(n / 10)}
+                    />
+                    <div className="mt-3">
+                      <Button disabled={busy} onClick={() => void downloadCutLine()}>
+                        Download cut line (SVG)
+                      </Button>
+                    </div>
+                  </div>
+
                   {sending && (
                     <div className="mt-3 rounded-xl border border-ink-200 bg-paper-0 p-3">
                       <span className="block text-[13.5px] font-[570]">Put it on a board</span>
@@ -1930,6 +1976,18 @@ function Checkerboard({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
+}
+
+/** Hands a file to the browser. One place, so every download behaves the same. */
+function save(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 const slug = (text: string) =>

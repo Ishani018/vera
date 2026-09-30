@@ -397,7 +397,7 @@ is where the missing kerning on a curve will show if it is going to.
 
 ## Stage 7 — Decorations
 
-**Commit:** `STAGE7HASH`
+**Commit:** `1774354`
 
 A *Finishing* section with three, all off to start with: **drop shadow**
 (softness, offset both ways, strength, colour), **glossy highlight** (strength,
@@ -450,3 +450,72 @@ look at it at full size — there is a rendered example at
 `docs/background-removal/` scale in the log's own screenshot, but your own
 judgement of the gloss is the only one that matters here. Then export the same
 sticker twice and compare the files.
+
+---
+
+## Stage 8 — Cut-line SVG export
+
+**Commit:** `STAGE8HASH`
+
+A **Download cut line (SVG)** button beside the PNG one, with a control for how
+closely the line follows the edge.
+
+**Traced from the sticker's own alpha channel**, not worked out again from the
+artwork. The file the machine cuts and the file the printer prints come from the
+same pixels, so they cannot drift apart — and anything that happened after the
+mask, the words and the shadow, is in that alpha, which is the right answer: a
+shadow is part of the sticker and gets cut round.
+
+**The trace follows the cracks between pixels**, not their centres: every
+boundary between a solid pixel and an empty one is a unit segment, and the
+segments chain into closed loops. Holes come out wound the opposite way to
+outlines, which is what lets one path with the ordinary fill rule describe a
+ring. A saddle — four pixels meeting corner to corner — is always resolved the
+same way, so the same mask traces the same path every time.
+
+**Simplified with Ramer–Douglas–Peucker**, which is what makes the accuracy
+statable: every point more than the tolerance from the straight line through its
+neighbours is kept, so the error is *bounded by the number given* rather than by
+luck. A 1000-pixel circle traces to about 4,000 right-angled segments and
+simplifies to a few dozen.
+
+**How accurate it is, said in the app.** After the download it reports the
+loops, the points, and the worst the line strays from the sticker's own edge,
+in pixels and as a share of the width. The real example from the browser check:
+
+> Saved a cut line: 1 outline, 37 points, within 1.451 px of the sticker's own
+> edge (about 0.157% of its width).
+
+**Verified by rendering it back.** The browser check extracts the path from the
+downloaded SVG, fills it with `Path2D` at the cut line's own size, and compares
+it pixel by pixel with the sticker's alpha: **99.819% agreement**, with the
+disagreement confined to a band along a 2,333-pixel perimeter. Two unit tests
+do the same thing arithmetically — an unsimplified trace is *exact*, pixel for
+pixel, and a simplified one disagrees only at the edge and never in the middle,
+which would mean a loop wound the wrong way or a hole filled in.
+
+**A real fault this found:** the first run produced **45 outlines**. A softened
+edge has alpha values either side of the threshold, and thresholding one leaves
+a scatter of two- and three-pixel islands along it. They are not shapes — no
+blade can cut a three-pixel island, and a file full of them chokes a cutting
+machine. Loops enclosing less than sixteen square pixels are now dropped, and
+the same sticker traces to **1 outline, 37 points, 611 bytes**.
+
+**A fault in my own browser check, worth recording:** the first comparison
+rendered the preview (800 px long edge) against a cut line traced from the
+export (1000 px), and reported nonsense. It now compares at the size the SVG's
+own viewBox states.
+
+**Checked:** `npm test` 499 pass / 0 fail (10 new). Goldens unchanged,
+`golden:screen` 0 pixels changed, build clean. Plus 9 browser checks.
+
+**Only checked in the sandbox:** no actual cutting machine has seen this file. It
+is a plain SVG with a `viewBox` in pixels, a physical size in millimetres, and
+one stroked unfilled path — which is the shape Cricut Design Space and
+Silhouette Studio both document as importable, but "documented as importable"
+and "imports" are not the same sentence. Worth one test cut before a run.
+
+**Look at first:** export a cut line and open the SVG in a browser or Inkscape
+beside the PNG — they should sit exactly on top of each other. Then slide the
+tolerance from 0.2 to 6 and watch the reported stray grow; the number it reports
+is the real one, measured, not the one asked for.

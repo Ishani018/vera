@@ -39,6 +39,13 @@ import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesig
 import { presetById } from '../lib/presets.ts';
 import { textArc } from '../lib/cover/curve.ts';
 import {
+  cutLine,
+  cutLineSvg,
+  simplify,
+  strayed,
+  traceLoops,
+} from '../lib/stickers/cutline.ts';
+import {
   NO_DECORATION,
   addGloss,
   addGrain,
@@ -1245,4 +1252,164 @@ test('all three together go on in the order that makes sense', () => {
   const together = decorate(sticker, shape, all);
   const byHand = addShadow(addGloss(addGrain(sticker, all.grain), all.gloss), shape, all.shadow);
   assert.deepEqual(together.data, byHand.data, 'grain and gloss belong to the surface; the shadow is cast by it');
+});
+
+/* ------------------------------------------------------------ the cut line */
+
+/** A mask: `inside(x, y)` says where the sticker is. */
+function shapeMask(width, height, inside) {
+  const data = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) data[y * width + x] = inside(x, y) ? 255 : 0;
+  }
+  return { width, height, data };
+}
+
+/** Whether a point is inside a set of loops, by the even-odd crossing count. */
+function insideLoops(loops, px, py) {
+  let crossings = 0;
+  for (const loop of loops) {
+    for (let i = 0; i < loop.length; i++) {
+      const a = loop[i];
+      const b = loop[(i + 1) % loop.length];
+      if (a.y > py !== b.y > py) {
+        const at = a.x + ((py - a.y) / (b.y - a.y)) * (b.x - a.x);
+        if (at > px) crossings++;
+      }
+    }
+  }
+  return crossings % 2 === 1;
+}
+
+test('a square traces to one loop of four corners', () => {
+  const mask = shapeMask(20, 20, (x, y) => x >= 5 && x < 15 && y >= 5 && y < 15);
+  const loops = traceLoops(mask);
+  assert.equal(loops.length, 1);
+  assert.equal(loops[0].length, 40, 'one point per pixel of crack, before simplifying');
+
+  const cut = cutLine(mask, 1);
+  assert.equal(cut.loops, 1);
+  assert.equal(cut.points, 4, 'and four after it');
+  assert.equal(cut.strayPx, 0, 'a straight edge is described exactly');
+  assert.ok(cut.path.startsWith('M '), cut.path);
+  assert.ok(cut.path.endsWith('Z'), cut.path);
+});
+
+test('a shape with a hole traces to two loops wound opposite ways', () => {
+  const mask = shapeMask(40, 40, (x, y) => {
+    const d = Math.hypot(x - 20, y - 20);
+    return d < 16 && d > 7;
+  });
+  const cut = cutLine(mask, 1);
+  assert.equal(cut.loops, 2, 'the outside and the hole');
+
+  const loops = traceLoops(mask).map((l) => simplify(l, 1));
+  assert.equal(insideLoops(loops, 20, 20), false, 'the hole is not inside the shape');
+  assert.equal(insideLoops(loops, 20, 8.5), true, 'but the ring is');
+  assert.equal(insideLoops(loops, 1, 1), false, 'and so is nothing outside');
+});
+
+test('two separate pieces trace to two separate loops', () => {
+  const mask = shapeMask(40, 20, (x, y) => y > 4 && y < 15 && (x < 12 || x > 26));
+  assert.equal(cutLine(mask, 1).loops, 2);
+});
+
+test('nothing at all traces to nothing, rather than to a broken path', () => {
+  const empty = cutLine(shapeMask(10, 10, () => false), 1);
+  assert.equal(empty.loops, 0);
+  assert.equal(empty.path, '');
+  assert.equal(empty.points, 0);
+});
+
+test('simplifying keeps the line within the tolerance it was given', () => {
+  const mask = shapeMask(120, 120, (x, y) => Math.hypot(x - 60, y - 60) < 50);
+  const traced = traceLoops(mask);
+  assert.equal(traced.length, 1);
+
+  for (const tolerance of [0.5, 1.5, 4]) {
+    const kept = simplify(traced[0], tolerance);
+    const stray = strayed(traced[0], kept);
+    assert.ok(stray <= tolerance + 1e-6, `at ${tolerance}px the line strayed ${stray.toFixed(3)}px`);
+    assert.ok(kept.length < traced[0].length, `${traced[0].length} points down to ${kept.length}`);
+  }
+});
+
+test('a looser tolerance gives fewer points and a bigger stray, in that order', () => {
+  const mask = shapeMask(120, 120, (x, y) => Math.hypot(x - 60, y - 60) < 50);
+  const tight = cutLine(mask, 0.5);
+  const loose = cutLine(mask, 4);
+  assert.ok(loose.points < tight.points, `${tight.points} → ${loose.points} points`);
+  assert.ok(loose.strayPx >= tight.strayPx, `${tight.strayPx} → ${loose.strayPx}px`);
+  assert.ok(tight.strayPx <= 0.5 + 1e-6);
+});
+
+test('the simplified line describes the mask, and strays only at its edge', () => {
+  // Rasterise the path back and compare it with what it was traced from. This
+  // is the check that matters: a path can be plausible and still be wrong.
+  //
+  // Simplifying moves the line, by design and by at most its tolerance, so some
+  // disagreement is the price of a file a cutting machine will open. What must
+  // be true is that all of it is *at the edge* — a disagreement anywhere else
+  // would mean a loop wound the wrong way or a hole filled in, which is a
+  // sticker cut to the wrong shape rather than one cut a hair off.
+  const size = 60;
+  const mask = shapeMask(size, size, (x, y) => {
+    const d = Math.hypot(x - 30, y - 30);
+    return (d < 24 && d > 10) || (x > 26 && x < 34 && y > 4 && y < 30);
+  });
+  const loops = traceLoops(mask).map((l) => simplify(l, 1));
+
+  const at = (x, y) =>
+    x >= 0 && y >= 0 && x < size && y < size && mask.data[y * size + x] >= 128;
+  const onEdge = (x, y) =>
+    [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].some((n) => n !== at(x, y));
+
+  let wrong = 0;
+  let awayFromEdge = 0;
+  let perimeter = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (onEdge(x, y)) perimeter++;
+      // The middle of the pixel, because the loops run along its edges.
+      if (at(x, y) === insideLoops(loops, x + 0.5, y + 0.5)) continue;
+      wrong++;
+      if (!onEdge(x, y)) awayFromEdge++;
+    }
+  }
+  assert.equal(awayFromEdge, 0, `${awayFromEdge} pixels disagree away from the edge`);
+  assert.ok(wrong < perimeter / 3, `${wrong} of a ${perimeter}-pixel perimeter moved`);
+});
+
+test('an unsimplified trace describes the mask exactly, pixel for pixel', () => {
+  const mask = shapeMask(30, 30, (x, y) => (x + y) % 11 < 6 && x > 3 && x < 26 && y > 3 && y < 26);
+  const loops = traceLoops(mask);
+  let wrong = 0;
+  for (let y = 0; y < 30; y++) {
+    for (let x = 0; x < 30; x++) {
+      if ((mask.data[y * 30 + x] >= 128) !== insideLoops(loops, x + 0.5, y + 0.5)) wrong++;
+    }
+  }
+  assert.equal(wrong, 0);
+});
+
+test('the SVG says how big it is in millimetres, not only in pixels', () => {
+  const mask = shapeMask(600, 300, (x, y) => x > 50 && x < 550 && y > 50 && y < 250);
+  const svg = cutLineSvg(cutLine(mask, 1), 300);
+  assert.ok(svg.includes('width="50.80mm"'), svg.slice(0, 200));
+  assert.ok(svg.includes('height="25.40mm"'));
+  assert.ok(svg.includes('viewBox="0 0 600 300"'));
+  assert.ok(svg.includes('fill="none"'), 'a cut line is a line, not a filled shape');
+  assert.ok(svg.includes('stroke='), 'and the machine reads the stroke');
+});
+
+test('a soft edge is cut through its middle', () => {
+  // Alpha ramping across: the line should fall where it passes half.
+  const data = new Uint8Array(20 * 3);
+  for (let y = 0; y < 3; y++) {
+    for (let x = 0; x < 20; x++) data[y * 20 + x] = Math.min(255, x * 20);
+  }
+  const loops = traceLoops({ width: 20, height: 3, data });
+  const xs = loops.flat().map((p) => p.x);
+  // 128 is first reached at x = 7 (140), so the crack is at x = 7.
+  assert.equal(Math.min(...xs), 7, `the cut falls at ${Math.min(...xs)}`);
 });
