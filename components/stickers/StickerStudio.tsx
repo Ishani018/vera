@@ -755,10 +755,31 @@ export function StickerStudio() {
                     />
                     <p className="-mt-3 text-[13px] leading-snug text-ink-500">
                       Works inward from the edges, so an enclosed white — the inside of an eye, the
-                      hole in a letter O — is never punched out. It does well on a drawing on white
-                      paper or a flat-colour image, and badly on a busy photograph, on hair or fur,
-                      and on anything see-through.
+                      hole in a letter O — is never punched out. It follows uneven lighting across
+                      a photographed page, ignores paper grain, and cuts a soft edge rather than a
+                      staircase.
                     </p>
+                    <div className="-mt-1 rounded-xl bg-ink-100 px-4 py-3 text-[13px] leading-relaxed text-ink-700">
+                      <span className="block font-[570]">What it cannot do</span>
+                      <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
+                        <li>Busy photographs, where there is no one background to find.</li>
+                        <li>Hair and fur — thousands of strands thinner than the cut.</li>
+                        <li>Glass and anything see-through: it can keep it or drop it, not both.</li>
+                        <li>
+                          A soft shadow touching the object, which runs smoothly into the edge and
+                          takes a bite out of it.
+                        </li>
+                        <li>
+                          A background that fades from one colour to a different one, rather than
+                          the same colour lit unevenly.
+                        </li>
+                      </ul>
+                      <p className="mt-2">
+                        Every one of these is what <span className="font-[560]">Touch up the
+                        cut-out</span> is for: paint the edge back by hand and the outline follows
+                        it.
+                      </p>
+                    </div>
                     {removeBackground && (
                       <Control
                         label="How close a match counts as background"

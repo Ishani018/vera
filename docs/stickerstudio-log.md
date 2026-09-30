@@ -83,7 +83,7 @@ most likely to be a pixel out on a different screen.
 
 ## Stage 2 — Send to design
 
-**Commit:** `ccd759f`
+**Commit:** `5106297`
 
 A **Send to a design…** button next to Download and Save, offering the four
 boards a sticker is actually for: Instagram post, Pinterest pin, postcard,
@@ -123,3 +123,81 @@ own controls behave with a sticker it did not place itself.
 **Look at first:** send a sticker to a Pinterest pin and check it is centred and
 not touching the safe guides, then delete the sticker from My stickers and
 reopen the design — the picture should still be there.
+
+---
+
+## Stage 3 — Real-input testing of background removal
+
+**Commit:** `STAGE3HASH`
+
+Three realistic inputs, measured before and after, with the pictures kept in
+`docs/background-removal/` — source, before and after for each. See the README
+there; it has the numbers and the side-by-side.
+
+The pictures are generated arithmetically from a fixed seed rather than
+photographed, so the comparison is repeatable and nobody's photograph is in the
+repository. No AI: the grain is a linear congruential generator, the lighting a
+radial gradient, the shapes arcs and béziers.
+
+**The worst failure found:** a page under a desk lamp left a large blotch of
+unremoved paper in the bright corner, with about 7,500 grains scattered round
+it, and the cut-out in seventeen pieces. One averaged paper colour with a fixed
+tolerance cannot reach both ends of an unevenly lit page.
+
+**Three changes, each earning its place on one of the three pictures:**
+
+1. **It walks down a gradient rather than measuring from one colour.** A pixel
+   joins the background if it is close to *the pixel it spread from* as well as
+   broadly paper-like. `flood` gained an optional second argument — the pixel a
+   step comes from — which `despeckle` and the colouring fill ignore.
+2. **It ignores grain.** Regions of 48 pixels or fewer become whatever
+   surrounds them. This was the big one: 7490 specks to 2.
+3. **It cuts softly.** Where the flood stopped because one step was a little
+   too big — a fade rather than a drawn line — the boundary pixel comes out
+   part-transparent in proportion.
+
+| Picture | Specks before → after | Pieces before → after | Soft edge px before → after |
+|---|---|---|---|
+| cream | 0 → 0 | 2 → 2 | 0 → 69 |
+| texture | 7490 → **2** | 17 → **2** | 0 → 104 |
+| object | 85 → **0** | 2 → 2 | 0 → 73 |
+
+**Two bugs found and fixed while doing this**, both mine, both in the new code:
+
+- The despeckler capped its traversal of a region and moved on, leaving the rest
+  of a large region unvisited but its frontier marked — so a later round found
+  the middle of the picture as a fresh, small region and punched a hole in it.
+  Traversing every region all the way fixed it, and that single fix is most of
+  the 7490 → 2.
+- The softening faded any boundary pixel whose colour was near the paper, which
+  erased a transparent ring around a subject that the flood had stopped at for
+  a different reason. It now softens only where the flood stopped *because the
+  step was too big*, which is the case that means a fade.
+
+**Reverted:** a tapering step allowance, strict the further from paper a pixel
+is, meant to stop the flood following a soft shadow into its own object. It
+helped the shadow slightly and hurt uneven lighting badly — brightly lit paper
+is itself far from the average paper colour — taking `texture` from 502 specks
+to 1068 with the bright corner in fragments. Taken out, with the reason recorded
+in the code so nobody tries it twice.
+
+**Said plainly in the interface**, in the background-removal panel: busy
+photographs, hair and fur, glass and anything see-through, a soft shadow
+touching the object, and a background that fades from one colour to a different
+one. Each followed by the sentence that matters — that the touch-up brushes from
+Stage 1 are what those cases are for.
+
+**Checked:** `npm test` 447 pass / 0 fail (6 new, including one that pins the
+tuning defaults so changing them is deliberate). Goldens unchanged,
+`golden:screen` 0 pixels changed, build clean.
+
+**Only checked in the sandbox:** these three pictures are arithmetic, not
+photographs. A real camera adds chroma noise and JPEG blocking that none of them
+have, and a phone photograph of a sketchbook has lens vignetting that will look
+to the flood like more uneven lighting. The direction of every change is right
+for that, but the numbers would differ.
+
+**Look at first:** open `docs/background-removal/texture-before.png` and
+`texture-after.png` side by side — that pair is the whole stage in one picture.
+Then photograph a real drawing under a lamp and see whether the bright corner
+comes away.

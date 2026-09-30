@@ -3,11 +3,13 @@ import test from 'node:test';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { INK, PAPER } from '../lib/lineart/pipeline.ts';
+import { INK, PAPER, flood } from '../lib/lineart/pipeline.ts';
 import {
   DROP,
   KEEP,
+  REMOVAL_DEFAULTS,
   applyTouch,
+  backgroundMask,
   compositeSticker,
   maskFromInk,
   scalePaint,
@@ -564,3 +566,126 @@ test('every board offered is a real preset, and each has a safe area to centre i
 test('an unknown board is refused rather than guessed at', () => {
   assert.equal(roomOn('not-a-preset'), null);
 });
+
+/* --------------------------------------------- what the removal can manage */
+
+/** A picture: `plot(x, y)` returns [r,g,b], all opaque. */
+function scene(width, height, plot) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const [r, g, b] = plot(x, y);
+      const i = (y * width + x) * 4;
+      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+    }
+  }
+  return { width, height, data };
+}
+
+test('a flood can ask about the step it is taking, not only the pixel', () => {
+  // A ramp from 0 to 39 across, with one jump of 20 in the middle of it. A
+  // step limit of 5 crosses every gentle rise and stops at the cliff.
+  const width = 40;
+  const value = (x) => (x < 20 ? x : x + 20);
+  const reached = flood({
+    width,
+    height: 1,
+    seeds: [0],
+    passable: (i, from) => i === from || Math.abs(value(i) - value(from)) <= 5,
+  });
+  assert.equal(reached.length, 20, 'it walks up the ramp and stops at the jump');
+  assert.equal(Math.max(...reached), 19);
+});
+
+test('uneven lighting is followed, where one paper colour could not be', () => {
+  // A page lit brightly at the left and dimly at the right, with a dark blob on
+  // it. Measuring from the average paper colour alone leaves one end behind.
+  const lit = scene(120, 60, (x) => {
+    const inBlob = Math.hypot(x - 60, 0) < 0 || (x > 50 && x < 70);
+    if (inBlob) return [20, 20, 20];
+    const shade = 245 - Math.round((x / 120) * 90);
+    return [shade, shade, shade];
+  });
+
+  const mask = backgroundMask(lit, 14);
+  const kept = [...mask.data].filter((v) => v > 127).length;
+  // The blob is 20 columns of 60 rows; a little either side for the soft edge.
+  assert.ok(kept > 1000 && kept < 1600, `${kept} pixels kept of ${120 * 60}`);
+  assert.equal(mask.data[0], 0, 'the bright end is gone');
+  assert.equal(mask.data[119], 0, 'and so is the dim end');
+  assert.equal(mask.data[30 * 120 + 60] > 127, true, 'and the blob is still there');
+});
+
+test('a hole inside the subject is not punched out, however paper-coloured', () => {
+  // A dark ring with paper-coloured middle: the inside of an O.
+  const ring = scene(80, 80, (x, y) => {
+    const d = Math.hypot(x - 40, y - 40);
+    return d > 18 && d < 30 ? [25, 25, 25] : [246, 244, 238];
+  });
+  const mask = backgroundMask(ring, 14);
+  assert.equal(mask.data[40 * 80 + 40] > 127, true, 'the middle survives');
+  assert.equal(mask.data[0], 0, 'and the outside does not');
+});
+
+test('paper grain is treated as paper rather than as picture', () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const grainy = scene(100, 100, (x, y) => {
+    const inside = x > 30 && x < 70 && y > 30 && y < 70;
+    const base = inside ? 30 : 240;
+    const n = Math.round((rnd() - 0.5) * 60);
+    return [base + n, base + n, base + n];
+  });
+
+  const rough = backgroundMask(grainy, 14, { speck: 0 });
+  const tidy = backgroundMask(grainy, 14);
+  assert.ok(islands(rough) > islands(tidy) * 3,
+    `${islands(rough)} regions without despeckling, ${islands(tidy)} with`);
+});
+
+test('the cut is soft at the edge and solid inside it', () => {
+  const blob = scene(60, 60, (x, y) => {
+    const d = Math.hypot(x - 30, y - 30);
+    // A ramp at the rim rather than a cliff: a photographed edge, fading a
+    // little faster than the flood will walk so it stops partway down it.
+    const t = Math.min(1, Math.max(0, (d - 14) / 10));
+    const v = Math.round(40 + t * 200);
+    return [v, v, v];
+  });
+
+  const soft = backgroundMask(blob, 14);
+  const partial = [...soft.data].filter((v) => v > 8 && v < 247).length;
+  assert.ok(partial > 40, `${partial} part-transparent pixels along the edge`);
+  assert.equal(soft.data[30 * 60 + 30], 255, 'the middle is fully solid');
+
+  const hard = backgroundMask(blob, 14, { softness: 0 });
+  assert.equal([...hard.data].filter((v) => v > 8 && v < 247).length, 0, 'and it can be turned off');
+});
+
+test('the tuning has stated defaults, so a change to them is a change on purpose', () => {
+  assert.deepEqual(REMOVAL_DEFAULTS, { step: 6, softness: 5, speck: 48 });
+});
+
+/** How many separate regions a mask has, counting solid and clear alike. */
+function islands(mask) {
+  const { width, height, data } = mask;
+  const seen = new Uint8Array(data.length);
+  let count = 0;
+  for (let start = 0; start < data.length; start++) {
+    if (seen[start]) continue;
+    count++;
+    const solid = data[start] > 127;
+    const stack = [start];
+    seen[start] = 1;
+    while (stack.length) {
+      const i = stack.pop();
+      const x = i % width, y = (i / width) | 0;
+      const push = (n) => { if (!seen[n] && data[n] > 127 === solid) { seen[n] = 1; stack.push(n); } };
+      if (x > 0) push(i - 1);
+      if (x < width - 1) push(i + 1);
+      if (y > 0) push(i - width);
+      if (y < height - 1) push(i + width);
+    }
+  }
+  return count;
+}

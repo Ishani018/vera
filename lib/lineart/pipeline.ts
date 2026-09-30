@@ -575,15 +575,22 @@ export function flood({
   width: number;
   height: number;
   seeds: number[];
-  /** True where the fill may spread. Called once per pixel considered. */
-  passable: (index: number) => boolean;
+  /**
+   * True where the fill may spread. Called once per pixel considered.
+   *
+   * `from` is the pixel it would spread from, which is a seed's own index for
+   * a seed. It lets a caller ask about the *step* as well as the pixel — how
+   * far this one is from its neighbour — which is what tells a slow gradient
+   * apart from an edge, when comparing against one fixed colour cannot.
+   */
+  passable: (index: number, from: number) => boolean;
   seen?: Uint8Array;
 }): number[] {
   const stack: number[] = [];
   const region: number[] = [];
 
   for (const seed of seeds) {
-    if (seen[seed] || !passable(seed)) continue;
+    if (seen[seed] || !passable(seed, seed)) continue;
     seen[seed] = 1;
     stack.push(seed);
   }
@@ -593,14 +600,14 @@ export function flood({
     region.push(i);
     const x = i % width;
     const y = (i / width) | 0;
-    if (x > 0) step(i - 1);
-    if (x < width - 1) step(i + 1);
-    if (y > 0) step(i - width);
-    if (y < height - 1) step(i + width);
+    if (x > 0) step(i - 1, i);
+    if (x < width - 1) step(i + 1, i);
+    if (y > 0) step(i - width, i);
+    if (y < height - 1) step(i + width, i);
   }
 
-  function step(n: number) {
-    if (!seen[n] && passable(n)) {
+  function step(n: number, from: number) {
+    if (!seen[n] && passable(n, from)) {
       seen[n] = 1;
       stack.push(n);
     }
