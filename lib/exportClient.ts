@@ -1,14 +1,15 @@
 'use client';
 
 import { assetsAsDataUrls, importAssets } from './assets';
-import { buildBackup, designAssetIds, readBackup } from './backup';
+import { buildBackup, designAssetIds, readBackup, type Backup } from './backup';
 import { getDb } from './db';
-import { listStandaloneDesigns } from './designs';
+import { listStandaloneDesigns, migrateDesign } from './designs';
 import { bendToDataUrl } from './cover/bendImage';
 import { stickerImageKey } from './render/stickers';
 import { illustrationsOf } from './contents';
 import { googleFontsLinks } from './fonts';
 import { padToEven } from './kdp';
+import { migrateProject } from './projects';
 import { buildBookHtml } from './render/bookHtml';
 import { buildColoringHtml } from './render/coloringHtml';
 import { keptAssetIds, listStickers, listTemplates, mergeLibrary } from './cover/library';
@@ -304,6 +305,114 @@ export async function exportProjectJson(project: AnyProject): Promise<void> {
   const payload = buildBackup({ project, assets, stickers, templates, designs });
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   download(blob, `${slug(project.meta.title)}-isnaevy.json`);
+}
+
+/**
+ * Everything on this computer, in one file.
+ *
+ * The per-book backup above already carries the sticker library, the saved
+ * templates and the designs belonging to no book — everything, that is,
+ * except the other books. From the front page there is no "this book" to be
+ * about, so this takes the shelf: every book, every design, the library, and
+ * the bytes of every picture any of them refers to.
+ *
+ * Written in the same format, so the file a person already knows how to
+ * restore is the file they get. An older copy of the app reading this one
+ * finds the first book where it expects a book, and opens that.
+ */
+export async function exportEverythingJson(): Promise<{ books: number; designs: number }> {
+  const db = getDb();
+  const rows = db ? await db.projects.toArray() : [];
+  const projects = rows.map((row) => migrateProject(row));
+  const [stickers, templates, designs] = await Promise.all([
+    listStickers(),
+    listTemplates(),
+    listStandaloneDesigns(),
+  ]);
+  if (!projects.length && !designs.length) {
+    throw new Error('There is nothing saved on this computer yet.');
+  }
+
+  const shared = await keptAssetIds();
+  const assets = await assetsAsDataUrls([
+    ...projects.flatMap(projectAssetIds),
+    ...shared,
+    ...designs.flatMap(designAssetIds),
+  ]);
+
+  // A shelf with no books but some designs still needs something in the
+  // `project` slot for an older reader; there is nothing honest to put there,
+  // so the file simply carries the designs and no book.
+  const payload = projects.length
+    ? buildBackup({ projects, assets, stickers, templates, designs })
+    : {
+        versecraft: 3,
+        assets,
+        library: { stickers, templates },
+        designs,
+      };
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  download(blob, `isnaevy-backup-${stamp}.json`);
+  return { books: projects.length, designs: designs.length };
+}
+
+/**
+ * Puts a whole-shelf backup back, without taking anything away.
+ *
+ * Nothing already on this computer is replaced or removed — a book, design,
+ * sticker or template whose id is already here is left exactly as it is, and
+ * only what is missing is added. Restoring is therefore always safe to try:
+ * the worst it can do is nothing.
+ */
+export async function importEverythingJson(
+  file: File,
+): Promise<{ books: number; designs: number; skipped: number }> {
+  const text = await file.text();
+  const raw = JSON.parse(text) as Partial<Backup>;
+
+  // A shelf of designs and no books is a legitimate backup and not a project,
+  // so it cannot go through `readBackup`, which insists on finding one.
+  const parts = raw.project || raw.projects?.length
+    ? readBackup(text)
+    : {
+        projects: [] as Project[],
+        assets: raw.assets ?? {},
+        library: {
+          stickers: raw.library?.stickers ?? [],
+          templates: raw.library?.templates ?? [],
+        },
+        designs: (raw.designs ?? []).map(migrateDesign),
+      };
+  const { projects, assets, library, designs } = parts;
+
+  await importAssets(assets);
+  await mergeLibrary(library.stickers, library.templates);
+
+  const db = getDb();
+  let books = 0;
+  let designCount = 0;
+  let skipped = 0;
+  if (db) {
+    for (const project of projects) {
+      if (await db.projects.get(project.id)) {
+        skipped += 1;
+        continue;
+      }
+      await db.projects.put(project);
+      books += 1;
+    }
+    for (const design of designs) {
+      if (await db.designs.get(design.id)) {
+        skipped += 1;
+        continue;
+      }
+      await db.designs.put(design);
+      designCount += 1;
+    }
+  }
+  return { books, designs: designCount, skipped };
 }
 
 export async function importProjectJson(file: File): Promise<Project> {

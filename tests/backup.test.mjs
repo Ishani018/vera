@@ -107,3 +107,64 @@ test('a design stored before it carried a schema number is read as points', () =
 test('something that is not a project is refused rather than half-restored', () => {
   assert.throws(() => readBackup(JSON.stringify({ hello: 'world' })), /not an Isnaevy project/);
 });
+
+test('a backup taken from the front page carries every book, not just one', () => {
+  const first = createProject({ name: 'Winter Poems' });
+  const second = createProject({ name: 'Summer Poems' });
+  second.id = 'proj-second';
+  const design = standalone();
+
+  const payload = buildBackup({
+    projects: [first, second],
+    assets: { 'asset-picture': 'data:image/png;base64,AAAA' },
+    stickers: [],
+    templates: [],
+    designs: [design],
+  });
+
+  const restored = readBackup(JSON.stringify(payload));
+  assert.equal(restored.projects.length, 2, 'both books come back');
+  assert.deepEqual(
+    restored.projects.map((book) => book.name),
+    ['Winter Poems', 'Summer Poems'],
+  );
+  assert.equal(restored.designs.length, 1, 'and the designs belonging to no book');
+  assert.equal(restored.assets['asset-picture'], 'data:image/png;base64,AAAA');
+});
+
+test('a copy of the app that predates many-book backups still opens one', () => {
+  // The old reader looks at `project` and nothing else. Whatever else the
+  // file has grown, that field has to keep holding a whole, openable book.
+  const first = createProject({ name: 'Winter Poems' });
+  const second = createProject({ name: 'Summer Poems' });
+  second.id = 'proj-second';
+
+  const payload = buildBackup({
+    projects: [first, second],
+    assets: {},
+    stickers: [],
+    templates: [],
+    designs: [],
+  });
+
+  assert.equal(payload.project.name, 'Winter Poems');
+  assert.ok(Array.isArray(payload.project.contents), 'and it is a real book, not a stub');
+  assert.equal(readBackup(JSON.stringify(payload)).project.name, 'Winter Poems');
+});
+
+test('a one-book backup is unchanged in shape, so old files and new agree', () => {
+  const payload = buildBackup({
+    project: createProject({ name: 'Only One' }),
+    assets: {},
+    stickers: [],
+    templates: [],
+    designs: [],
+  });
+
+  // No `projects` key at all for a single book: the file a person gets from
+  // inside a book is the file they always got.
+  assert.equal('projects' in payload, false);
+  const restored = readBackup(JSON.stringify(payload));
+  assert.equal(restored.projects.length, 1);
+  assert.equal(restored.projects[0].name, 'Only One');
+});

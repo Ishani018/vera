@@ -1,0 +1,89 @@
+# Fly configuration for the public demo.
+#
+# One machine, scaled to zero. A demo is idle almost all the time, and a
+# machine that stops when nobody is using it costs nothing while it is
+# stopped — which is the difference between a demo that can be left running
+# for a year and one that has to be remembered about.
+#
+# Waking costs a few seconds. That is the right trade for this: the first
+# visitor of the morning waits, and nobody pays for the night.
+#
+#   fly launch --no-deploy --copy-config   (first time only)
+#   fly deploy
+#
+# Rename the app before the first deploy; `isnaevy-demo` is almost certainly
+# taken, and fly will say so rather than guess for you.
+
+app = "isnaevy-demo"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+  # `lib/server/browser.ts` looks here first. The path matches the one the
+  # goldens recorded against, so `npm run golden` inside the container
+  # compares its strict tier instead of skipping it.
+  CHROME_PATH = "/opt/pw-browsers/chromium"
+  # Two renders at once, five more allowed to wait. One forty-page colouring
+  # interior peaks at about 1.8GB, so two is what 4GB actually holds.
+  RENDER_MAX_CONCURRENT = "2"
+  RENDER_MAX_QUEUED = "5"
+  # A measured forty-page colouring book posts 268MB, because every picture
+  # travels inline as base64 and both the photograph and the line art go.
+  # 400MB leaves room for a longer book without accepting nonsense.
+  MAX_EXPORT_BODY_MB = "400"
+  EXPORT_PER_WINDOW = "5"
+  EXPORT_WINDOW_MS = "600000"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # Zero, and meant: there is nothing to keep warm. State lives in the
+  # visitor's browser, so a cold machine loses nothing by having stopped.
+  min_machines_running = 0
+
+  # An export holds a connection for the better part of a minute and the
+  # machine must not be stopped underneath it. Fly counts a request as
+  # in-flight until it completes, so a long POST keeps the machine awake;
+  # this only decides how long after the last one it waits.
+  [http_service.concurrency]
+    type = "requests"
+    # Two rendering plus five queued is the most this machine will ever be
+    # working on. Soft below that so Fly does not think it is overloaded
+    # while the queue is doing exactly what it is for.
+    soft_limit = 8
+    hard_limit = 20
+
+  [[http_service.checks]]
+    grace_period = "20s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/api/health"
+
+[[vm]]
+  # 4GB because one render peaks near 1.8GB and two are allowed at once.
+  # 2GB will serve the app and the smaller boards and will be killed by the
+  # kernel on a long colouring book, which is the worst way to find out.
+  memory = "4gb"
+  cpu_kind = "shared"
+  cpus = 2
+
+# ---------------------------------------------------------------------------
+# A hard ceiling on spending is NOT set here, because fly.toml cannot set one.
+# It is an organisation setting and has to be done once, in the dashboard or
+# the CLI:
+#
+#   fly orgs                                    # find the org slug
+#   open https://fly.io/dashboard/<org>/billing  # "Spending management"
+#
+# Set a monthly limit and an alert below it. With one 4GB shared-2x machine
+# scaled to zero the bill should sit in single-digit dollars, so a $25 cap is
+# generous and still catches a runaway before it becomes a story. The cap
+# stops machines when it is reached — for a demo that is the correct failure.
+# ---------------------------------------------------------------------------

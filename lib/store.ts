@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { askToPersist } from './persist';
 import { putAssetFromDataUrl } from './assets';
 import { migrateProject, needsRewrite } from './projects';
 import { ACTIVE_PROJECT_KEY, getDb } from './db';
@@ -138,6 +139,9 @@ function scheduleSave(project: Project) {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     void db.projects.put(project);
+    // The first time anything is written is the best moment to ask the
+    // browser not to evict it. See `lib/persist.ts`.
+    void askToPersist();
   }, 400);
 }
 

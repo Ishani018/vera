@@ -25,7 +25,21 @@ export type Backup = {
    * would stop opening them.
    */
   versecraft: number;
+  /**
+   * The first book, and for a one-book backup the only one.
+   *
+   * Still written even when `projects` carries the whole shelf, because a
+   * copy of the app from before that field existed reads this and nothing
+   * else — and a backup that opens as one book is better than one that opens
+   * as an error.
+   */
   project: AnyProject;
+  /**
+   * Every book, for a backup taken from the front page rather than from
+   * inside one book. Absent from every backup made before this existed, which
+   * is why the reader falls back to `[project]` rather than to nothing.
+   */
+  projects?: AnyProject[];
   assets: Record<string, string>;
   library: { stickers: LibrarySticker[]; templates: CoverTemplate[] };
   /** Designs belonging to no book. Absent from every backup made before they existed. */
@@ -34,15 +48,21 @@ export type Backup = {
 
 /** The payload, assembled. */
 export function buildBackup(parts: {
-  project: AnyProject;
+  /** One book, or the whole shelf. Either way the first is written twice. */
+  project?: AnyProject;
+  projects?: AnyProject[];
   assets: Record<string, string>;
   stickers: LibrarySticker[];
   templates: CoverTemplate[];
   designs: StandaloneDesign[];
 }): Backup {
+  const books = parts.projects ?? (parts.project ? [parts.project] : []);
+  const first = parts.project ?? books[0];
+  if (!first) throw new Error('A backup needs at least one book.');
   return {
-    versecraft: 2,
-    project: parts.project,
+    versecraft: 3,
+    project: first,
+    ...(books.length > 1 ? { projects: books } : {}),
     assets: parts.assets,
     library: { stickers: parts.stickers, templates: parts.templates },
     designs: parts.designs,
@@ -58,7 +78,10 @@ export function buildBackup(parts: {
  * matters — a backup is worth nothing if a later version cannot open it.
  */
 export function readBackup(text: string): {
+  /** The first book, for the callers that restore one. */
   project: Project;
+  /** Every book in the file, which for an older file is just the one. */
+  projects: Project[];
   assets: Record<string, string>;
   library: { stickers: LibrarySticker[]; templates: CoverTemplate[] };
   designs: StandaloneDesign[];
@@ -71,9 +94,13 @@ export function readBackup(text: string): {
     throw new Error('That file is not an Isnaevy project.');
   }
 
+  // A file saved before poems and parts became one list still opens.
+  const bring = (book: Project) => ({ ...book, contents: migrateContents(book) }) as Project;
+  const all = (parsed.projects ?? [project]) as Project[];
+
   return {
-    // A file saved before poems and parts became one list still opens.
-    project: { ...project, contents: migrateContents(project) } as Project,
+    project: bring(project),
+    projects: all.filter((book) => book && looksLikeProject(book)).map(bring),
     assets: parsed.assets ?? {},
     library: {
       stickers: parsed.library?.stickers ?? [],

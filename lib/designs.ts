@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import { askToPersist } from './persist';
 import { createDesign } from './defaults';
 import { presetById } from './presets';
 import { SCHEMA } from './schema';
@@ -45,6 +46,7 @@ export async function startDesign(presetId: string): Promise<StandaloneDesign | 
     updatedAt: now,
   };
   await db.designs.put(design);
+  void askToPersist();
   return design;
 }
 
@@ -58,6 +60,7 @@ export async function getDesign(id: string): Promise<StandaloneDesign | null> {
 /** Writes one back, stamping the time it was last touched. */
 export async function saveDesign(design: StandaloneDesign): Promise<void> {
   await getDb()?.designs.put({ ...design, updatedAt: Date.now() });
+  void askToPersist();
 }
 
 export async function listStandaloneDesigns(): Promise<StandaloneDesign[]> {

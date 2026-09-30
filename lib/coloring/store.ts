@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { askToPersist } from '../persist';
 import { putAsset } from '../assets';
 import { ACTIVE_PROJECT_KEY, getDb } from '../db';
 import { id } from '../defaults';
@@ -91,7 +92,12 @@ function scheduleSave(book: ColoringBook) {
   const db = getDb();
   if (!db) return;
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => void db.projects.put(book), 400);
+  saveTimer = setTimeout(() => {
+    void db.projects.put(book);
+    // See `lib/persist.ts`: asked on a save, because a browser deciding
+    // whether a site matters counts what has been done on it.
+    void askToPersist();
+  }, 400);
 }
 
 export const useColoring = create<State>((set, get) => ({

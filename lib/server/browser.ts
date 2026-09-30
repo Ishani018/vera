@@ -1,6 +1,7 @@
 import 'server-only';
 import { existsSync } from 'node:fs';
 import type { Browser } from 'puppeteer-core';
+import { acquireRenderSlot } from './renderQueue';
 
 /**
  * Finds a Chromium to print with.
@@ -48,13 +49,37 @@ export type LaunchedBrowser = {
   engine: string;
 };
 
+/**
+ * Every launch takes a slot from the render queue, and gives it back when the
+ * browser goes away.
+ *
+ * Here rather than in the export routes because this is the one line every
+ * render already goes through, and because the routes are not to be touched.
+ * Tied to `disconnected` rather than to the caller's `close()` so that a
+ * browser that crashes returns its slot too — a leaked slot is a machine that
+ * renders one fewer thing for the rest of its life.
+ */
+async function withSlot(make: () => Promise<LaunchedBrowser>): Promise<LaunchedBrowser> {
+  const release = await acquireRenderSlot();
+  try {
+    const launched = await make();
+    launched.browser.on('disconnected', release);
+    return launched;
+  } catch (error) {
+    release();
+    throw error;
+  }
+}
+
 export async function launchBrowser(): Promise<LaunchedBrowser> {
   const puppeteer = (await import('puppeteer-core')).default;
 
   for (const executablePath of LOCAL_PATHS) {
     if (!existsSync(executablePath)) continue;
-    const browser = await puppeteer.launch({ executablePath, args: BASE_ARGS });
-    return { browser, via: executablePath, engine: await browser.version() };
+    return withSlot(async () => {
+      const browser = await puppeteer.launch({ executablePath, args: BASE_ARGS });
+      return { browser, via: executablePath, engine: await browser.version() };
+    });
   }
 
   try {
@@ -64,13 +89,18 @@ export async function launchBrowser(): Promise<LaunchedBrowser> {
     chromium.setGraphicsMode = false;
     const executablePath = await chromium.executablePath();
     if (executablePath) {
-      const browser = await puppeteer.launch({
-        executablePath,
-        args: [...chromium.args, ...BASE_ARGS],
+      return await withSlot(async () => {
+        const browser = await puppeteer.launch({
+          executablePath,
+          args: [...chromium.args, ...BASE_ARGS],
+        });
+        return { browser, via: '@sparticuz/chromium', engine: await browser.version() };
       });
-      return { browser, via: '@sparticuz/chromium', engine: await browser.version() };
     }
-  } catch {
+  } catch (error) {
+    // A queue refusal is an answer, not a missing browser: it must not fall
+    // through to "install a Chromium", which is neither true nor actionable.
+    if (error instanceof Error && error.name === 'RenderBusyError') throw error;
     /* not installed, or not runnable here — fall through to the error below */
   }
 

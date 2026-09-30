@@ -33,6 +33,7 @@ import {
 } from '@/lib/tiles';
 import type { AnyProject } from '@/lib/types';
 import { Modal } from './Modal';
+import { BackupButton, StorageNotice } from './StorageNotice';
 import { StudioHeader } from './StudioHeader';
 import { Button, TextInput, cx } from './ui';
 
@@ -132,6 +133,11 @@ export function Landing() {
             What will you make today?
           </h1>
 
+          {/* Once, on the way in, with the button that answers it. */}
+          <div className="mt-6">
+            <StorageNotice onChanged={refresh} />
+          </div>
+
           <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
             {CATEGORIES.map((entry) => (
               <button
@@ -194,13 +200,22 @@ export function Landing() {
           </ul>
 
           <section className="mt-12">
-            <h2 className="text-[20px] font-semibold tracking-tight">Your designs</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+              <h2 className="text-[20px] font-semibold tracking-tight">Your designs</h2>
+              {/* Where it stays once the notice has been dismissed: the backup
+                  has to be findable on the day it is wanted, not only on the
+                  first visit. */}
+              <span className="flex flex-wrap items-center gap-2">
+                <BackupButton variant="plain" onChanged={refresh} />
+              </span>
+            </div>
             {entries === null ? (
               <p className="mt-3 text-[15px] text-ink-500">Looking…</p>
             ) : entries.length === 0 ? (
               <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-ink-500">
-                Nothing yet — pick something above and it will appear here. Everything you make is
-                kept on this computer, in this browser, and never leaves it.
+                Nothing yet — pick something above and it will appear here. Everything you make
+                is kept in this browser and nowhere else, so save a backup once you have
+                something worth keeping.
               </p>
             ) : (
               <ul
