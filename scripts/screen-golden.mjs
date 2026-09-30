@@ -4,6 +4,17 @@
  *   npm run golden:screen           compare against the recorded goldens
  *   npm run golden:screen:update    re-record them (only when a change is intended)
  *
+ * Both need a **production** server, and refuse to run against `next dev`.
+ * With nothing listening on the port they build one and start it themselves;
+ * with a server already up they check what it is and stop if it is a dev
+ * build. To drive it by hand:
+ *
+ *   npm run build && npm start      in one terminal
+ *   npm run golden:screen           in another
+ *
+ * Never run `npm run build` while `next dev` is running: it deletes .next
+ * underneath it and the page then loads with no JavaScript at all.
+ *
  * The PDF goldens next door prove that the file sent to KDP is right. They
  * cannot prove that what someone sees while making it is right, and two of the
  * worst bugs in this repo so far lived exactly in that gap:
@@ -35,7 +46,7 @@
  * in the PDF goldens, where it belongs.
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { deflateSync } from 'node:zlib';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -109,34 +120,109 @@ function findBrowser() {
 
 /* ------------------------------------------------------------- the server */
 
-async function reachable(url) {
+/**
+ * What is on the port, if anything.
+ *
+ * `/api/health` rather than the front page, and generously timed: a cold
+ * development server compiles a page on first request and can take many
+ * seconds over it, and a probe that gives up at two and a half decides the
+ * port is free while a server is sitting on it. That mistake used to end in
+ * `npm run build` deleting .next underneath a running `next dev`.
+ *
+ *   { up: false }                     nothing is listening
+ *   { up: true, mode: 'production' }  what these goldens want
+ *   { up: true, mode: 'development' } refused
+ *   { up: true, mode: null }          answering, but not as this app
+ */
+async function probe() {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
-    return res.status > 0;
+    const res = await fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(20000) });
+    if (res.ok || res.status === 503) {
+      const body = await res.json().catch(() => null);
+      return { up: true, mode: typeof body?.mode === 'string' ? body.mode : null };
+    }
+    return { up: true, mode: null };
   } catch {
-    return false;
+    /* no health endpoint, or nothing there at all — tell the two apart */
+  }
+  try {
+    await fetch(BASE, { signal: AbortSignal.timeout(20000) });
+    return { up: true, mode: null };
+  } catch {
+    return { up: false, mode: null };
   }
 }
 
+const HOW_TO_RUN_PRODUCTION = [
+  'Run it against a production build instead:',
+  '',
+  '    npm run build && npm start        # in one terminal',
+  '    npm run golden:screen             # in another',
+  '',
+  'Or let this script do both, by stopping whatever is on the port and',
+  'running `npm run golden:screen` with nothing listening.',
+  '',
+  'If a dev server is running, stop it first: `npm run build` deletes .next',
+  'underneath it and the page then loads with no JavaScript at all.',
+].join('\n');
+
+/**
+ * A production server, and nothing else.
+ *
+ * The two builds do not lay out identically. Measured on one machine with one
+ * Chromium, the Instagram board differs by twelve pixels along its bottom edge
+ * between `next dev` and `next start` — the clipped top row of something drawn
+ * just below the board, which the two builds place a fraction of a pixel
+ * apart. It is invisible to a person and the layout tier is unaffected, but it
+ * is the difference between a golden that certifies what ships and one that
+ * certifies a development server nobody visits.
+ *
+ * These goldens were recorded against `next dev` for months and nobody noticed,
+ * which is the argument for refusing rather than warning: a warning at the top
+ * of a passing run is a warning nobody reads.
+ */
 async function ensureServer() {
-  if (await reachable(BASE)) {
-    console.log(`using the server already listening at ${BASE} (warm)`);
+  const found = await probe();
+  if (found.up) {
+    const mode = found.mode;
+    if (mode === 'development') {
+      throw new Error(
+        `The server at ${BASE} is a development build, and these goldens are ` +
+          `recorded against a production one.\n\n${HOW_TO_RUN_PRODUCTION}`,
+      );
+    }
+    if (mode === null) {
+      throw new Error(
+        `The server at ${BASE} will not say which build it is: no /api/health, ` +
+          `or not this app.\n\n${HOW_TO_RUN_PRODUCTION}`,
+      );
+    }
+    console.log(`using the production server already listening at ${BASE} (warm)`);
     return null;
   }
   if (process.env.GOLDEN_BASE_URL) throw new Error(`Nothing is listening at ${BASE}.`);
-  process.stdout.write('starting a dev server… ');
-  // Its own process group: `npm run dev` spawns `next dev` as a grandchild, and
+
+  // Built first, deliberately. Starting `next start` on a stale or missing
+  // .next serves whatever was last built, which for anyone who has run the app
+  // in development is nothing at all.
+  process.stdout.write('building… ');
+  const built = spawnSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'ignore' });
+  if (built.status !== 0) throw new Error('`npm run build` failed; nothing to compare against.');
+  process.stdout.write('done\nstarting a production server… ');
+
+  // Its own process group: `npm start` spawns `next start` as a grandchild, and
   // killing the child alone leaves the server running.
-  const child = spawn('npm', ['run', 'dev'], { cwd: ROOT, stdio: 'ignore', detached: true });
+  const child = spawn('npm', ['start'], { cwd: ROOT, stdio: 'ignore', detached: true });
   for (let i = 0; i < 60; i += 1) {
     await new Promise((r) => setTimeout(r, 1000));
-    if (await reachable(BASE)) {
+    const now = await probe();
+    if (now.up && now.mode === 'production') {
       process.stdout.write('up\n');
       return child;
     }
   }
   stop(child);
-  throw new Error('the dev server did not come up within a minute');
+  throw new Error('the production server did not come up within a minute');
 }
 
 function stop(child) {
