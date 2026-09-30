@@ -644,6 +644,23 @@ export type StickerDraft = {
   touchAssetId: string | null;
   /** Colours changed on a kept picture, in order. Another plain field. */
   swaps: { from: string; to: string; tolerance: number }[];
+  /** Words on the sticker. Drawn at export; never baked into the upload. */
+  texts: {
+    id: string;
+    text: string;
+    family: string;
+    fallback: string;
+    weight: number;
+    colour: string;
+    size: number;
+    lineHeight: number;
+    align: 'left' | 'center' | 'right';
+    x: number;
+    y: number;
+    width: number;
+    curve: number;
+    outline: { width: number; colour: string } | null;
+  }[];
   /** Flipping, turning and cropping. Settings, never baked pixels. */
   frame: {
     flipX: boolean;

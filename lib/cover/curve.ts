@@ -108,15 +108,42 @@ function drawArc(
  * degree is not the same thing as a line, and every cover made before this
  * existed is a box nobody has curved.
  */
-export function curvedText(box: CoverTextBox): CurvedText | null {
-  const curve = box.curve ?? 0;
-  if (!curve) return null;
+export type TextArc = {
+  /** Radians of arc the words are bent around. */
+  theta: number;
+  /** True when the text arches over the top of its circle. */
+  up: boolean;
+  /** One radius per line, each a line lower than the one above it. */
+  radii: number[];
+  /** The middle of the arc, in the box's own coordinates. */
+  cx: number;
+};
 
-  // Already points, which is also what the SVG works in, so nothing converts.
-  const width = box.width;
-  const size = box.font.sizePt;
-  if (width <= 0 || size <= 0) return null;
-
+/**
+ * The circle a curved text box is bent around.
+ *
+ * Split out so that the two things that draw curved text — the SVG the cover
+ * renderer uses, and the canvas Sticker Studio draws on — bend it around
+ * exactly the same circle. They put letters on it by completely different
+ * means; what they must not disagree about is where the circle is.
+ *
+ * Null when the box is not curved, for the reason `curvedText` gives: a box
+ * nobody has curved must go through exactly the path it always did.
+ */
+export function textArc({
+  width,
+  curve,
+  size,
+  lineHeight,
+  lines,
+}: {
+  width: number;
+  curve: number;
+  size: number;
+  lineHeight: number;
+  lines: number;
+}): TextArc | null {
+  if (!curve || width <= 0 || size <= 0) return null;
   const sweep = (clamp(Math.abs(curve), 0, 100) / 100) * MAX_SWEEP_DEGREES;
   const theta = (sweep * Math.PI) / 180;
   if (theta <= 0) return null;
@@ -124,21 +151,39 @@ export function curvedText(box: CoverTextBox): CurvedText | null {
   // Arcing upward puts the circle's centre below the text, and the letters ride
   // over the top of it.
   const up = curve > 0;
-  const half = theta / 2;
-  const cos = Math.cos(half);
-  const sin = Math.sin(half);
 
   // The baseline keeps the length it had, so curving bends the words without
   // stretching or squeezing them.
   const outer = width / theta;
-  const gap = size * box.font.lineHeight;
+  const gap = size * lineHeight;
 
-  const lines = box.text.split('\n');
   // Each further line sits inside the one above it when the text arches up, and
   // outside it when it hangs down — which in both cases is one line lower.
-  const radii = lines.map((_, i) => Math.max(size, outer + (up ? -i * gap : i * gap)));
+  const radii = Array.from({ length: Math.max(1, lines) }, (_, i) =>
+    Math.max(size, outer + (up ? -i * gap : i * gap)),
+  );
 
-  const cx = width / 2;
+  return { theta, up, radii, cx: width / 2 };
+}
+
+export function curvedText(box: CoverTextBox): CurvedText | null {
+  // Already points, which is also what the SVG works in, so nothing converts.
+  const width = box.width;
+  const size = box.font.sizePt;
+  const lines = box.text.split('\n');
+  const arc = textArc({
+    width,
+    curve: box.curve ?? 0,
+    size,
+    lineHeight: box.font.lineHeight,
+    lines: lines.length,
+  });
+  if (!arc) return null;
+
+  const { theta, up, radii, cx } = arc;
+  const half = theta / 2;
+  const cos = Math.cos(half);
+  const sin = Math.sin(half);
   // Read left to right along the top of the circle and you are going clockwise;
   // along the bottom of it, anticlockwise.
   const sweepFlag = up ? 1 : 0;

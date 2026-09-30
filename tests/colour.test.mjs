@@ -37,6 +37,8 @@ import { draftAssets } from '../lib/assetRefs.ts';
 import { listTrash } from '../lib/trash.ts';
 import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesign.ts';
 import { presetById } from '../lib/presets.ts';
+import { textArc } from '../lib/cover/curve.ts';
+import { arcFor, fontOf, glyphSpot, measure, newText, placeOnArc } from '../lib/stickers/text.ts';
 import {
   NO_FRAME,
   applyFrame,
@@ -982,4 +984,130 @@ test('flattening leaves what was already solid exactly as it was', () => {
 test('a picture with no paper at all is put on white rather than on nothing', () => {
   assert.deepEqual(borderColour({ width: 3, height: 3, data: new Uint8ClampedArray(36) }),
     { r: 255, g: 255, b: 255 });
+});
+
+/* ------------------------------------------------------- words on a sticker */
+
+test('sizes are fractions of the sticker, so they land the same at every size', () => {
+  const item = { ...newText('t1'), size: 0.1, width: 0.5, x: 0.25, y: 0.75 };
+  const small = measure(item, 500, 500);
+  const large = measure(item, 2000, 2000);
+  assert.equal(large.fontSize / small.fontSize, 4, 'four times the sticker, four times the type');
+  assert.equal(large.centreX / small.centreX, 4);
+  assert.equal(large.baselineY / small.baselineY, 4);
+  assert.equal(small.fontSize, 50);
+  assert.equal(small.boxWidth, 250);
+});
+
+test('the type size follows the long edge, so a tall sticker is not set smaller', () => {
+  const item = { ...newText('t1'), size: 0.1 };
+  assert.equal(measure(item, 400, 1000).fontSize, 100);
+  assert.equal(measure(item, 1000, 400).fontSize, 100);
+});
+
+test('a sticker and a cover bend text around the same circle', () => {
+  // The whole of what is shared: one function, called by both.
+  const shared = textArc({ width: 300, curve: 50, size: 40, lineHeight: 1.2, lines: 2 });
+  assert.ok(shared);
+  assert.equal(shared.up, true, 'positive arches up');
+  assert.equal(shared.cx, 150);
+  assert.ok(shared.radii[1] < shared.radii[0], 'the second line sits inside the first');
+
+  const hanging = textArc({ width: 300, curve: -50, size: 40, lineHeight: 1.2, lines: 2 });
+  assert.equal(hanging.up, false);
+  assert.ok(hanging.radii[1] > hanging.radii[0], 'and outside it when it hangs');
+  assert.equal(hanging.theta, shared.theta, 'the same sweep either way');
+});
+
+test('a straight box has no arc at all, rather than an arc of nothing', () => {
+  assert.equal(textArc({ width: 300, curve: 0, size: 40, lineHeight: 1.2, lines: 1 }), null);
+  assert.equal(arcFor(newText('t1'), measure(newText('t1'), 800, 800)), null);
+});
+
+test('letters are laid along the arc in order, and the words keep their length', () => {
+  const letters = [...'ABCDE'];
+  const widths = [10, 10, 10, 10, 10];
+  const placed = placeOnArc({ letters, widths, radius: 200, theta: 1, up: true, align: 'center' });
+
+  assert.deepEqual(placed.map((p) => p.letter), letters);
+  const angles = placed.map((p) => p.angle);
+  assert.deepEqual([...angles].sort((a, b) => a - b), angles, 'left to right along the circle');
+  // Centred: the middle letter sits on the middle of the arc.
+  assert.ok(Math.abs(angles[2]) < 1e-9, `${angles[2]}`);
+  // The advance is unchanged: fifty pixels of text on a radius of 200.
+  const spanned = (angles[4] - angles[0]) * 200;
+  assert.ok(Math.abs(spanned - 40) < 1e-6, `${spanned} for four ten-pixel steps`);
+});
+
+test('a hanging line runs the other way round, so it is not mirrored', () => {
+  const args = { letters: [...'AB'], widths: [10, 10], radius: 100, theta: 1, align: 'center' };
+  const over = placeOnArc({ ...args, up: true });
+  const under = placeOnArc({ ...args, up: false });
+  assert.equal(over[0].angle, -under[0].angle);
+  assert.ok(over[0].angle < over[1].angle);
+  assert.ok(under[0].angle > under[1].angle);
+});
+
+test('alignment decides where on the arc the words start', () => {
+  const args = { letters: [...'AB'], widths: [10, 10], radius: 100, theta: 1, up: true };
+  const left = placeOnArc({ ...args, align: 'left' });
+  const middle = placeOnArc({ ...args, align: 'center' });
+  const right = placeOnArc({ ...args, align: 'right' });
+  assert.ok(left[0].angle < middle[0].angle, 'left starts earliest');
+  assert.ok(middle[0].angle < right[0].angle, 'and right latest');
+  assert.ok(Math.abs(left[0].angle + 0.5) < 0.06, `left begins at the start of the sweep: ${left[0].angle}`);
+});
+
+test('nothing to set is nothing placed, rather than a divide by zero', () => {
+  assert.deepEqual(placeOnArc({ letters: [], widths: [], radius: 100, theta: 1, up: true, align: 'center' }), []);
+  assert.deepEqual(placeOnArc({ letters: ['A'], widths: [0], radius: 100, theta: 1, up: true, align: 'center' }), []);
+});
+
+test('the font shorthand names the family and keeps a fallback behind it', () => {
+  const item = { ...newText('t1'), family: 'EB Garamond', fallback: 'Georgia, serif', weight: 600 };
+  const font = fontOf(item, 48);
+  assert.ok(font.includes('600 48px'), font);
+  assert.ok(font.includes('"EB Garamond"'), 'the family is quoted, because some have spaces');
+  assert.ok(font.endsWith('Georgia, serif'), 'and something readable stands behind it');
+});
+
+test('a letter stands on the side of its circle that faces the centre', () => {
+  // The bug this pins: a hanging line drawn on the far side of its circle comes
+  // out upside down and reading backwards, like the bottom half of a stamp.
+  const common = { radius: 200, centreX: 100, baselineY: 300 };
+
+  // The middle of either kind of line sits exactly on the baseline.
+  const archMiddle = glyphSpot({ ...common, angle: 0, up: true });
+  const hangMiddle = glyphSpot({ ...common, angle: 0, up: false });
+  assert.ok(Math.abs(archMiddle.y - 300) < 1e-9, `${archMiddle.y}`);
+  assert.ok(Math.abs(hangMiddle.y - 300) < 1e-9, `${hangMiddle.y}`);
+  assert.ok(Math.abs(archMiddle.x - 100) < 1e-9);
+
+  // An arch drops away at its ends; a hanging line rises at them.
+  const archEnd = glyphSpot({ ...common, angle: 0.6, up: true });
+  const hangEnd = glyphSpot({ ...common, angle: -0.6, up: false });
+  assert.ok(archEnd.y > archMiddle.y, `arch end ${archEnd.y} below its middle`);
+  assert.ok(hangEnd.y < hangMiddle.y, `hanging end ${hangEnd.y} above its middle`);
+
+  // And both run to the right as the angle carries them along the words.
+  assert.ok(archEnd.x > archMiddle.x, `${archEnd.x}`);
+  assert.ok(hangEnd.x > hangMiddle.x, `${hangEnd.x}`);
+
+  // The turn is never past a quarter for a letter this far along, so no letter
+  // is ever anywhere near standing on its head.
+  assert.ok(Math.abs(archEnd.rotation) < Math.PI / 2);
+  assert.ok(Math.abs(hangEnd.rotation) < Math.PI / 2);
+});
+
+test('a whole curved line reads left to right, whichever way it bends', () => {
+  const widths = [20, 20, 20, 20];
+  for (const up of [true, false]) {
+    const placed = placeOnArc({
+      letters: [...'ABCD'], widths, radius: 150, theta: 1.2, up, align: 'center',
+    });
+    const spots = placed.map((p) =>
+      glyphSpot({ angle: p.angle, radius: 150, up, centreX: 200, baselineY: 400 }));
+    const xs = spots.map((s) => s.x);
+    assert.deepEqual([...xs].sort((a, b) => a - b), xs, `${up ? 'arched' : 'hanging'}: ${xs.map((n) => n.toFixed(1))}`);
+  }
 });

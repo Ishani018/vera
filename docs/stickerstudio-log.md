@@ -265,7 +265,7 @@ photographs.
 
 ## Stage 5 — Flip, rotate and crop
 
-**Commit:** `STAGE5HASH`
+**Commit:** `056fccb`
 
 A *Flip, turn or crop* panel: flip left-to-right and top-to-bottom, quarter
 turns both ways, a free angle, drag-a-box crop, **Trim to the sticker**, and
@@ -321,3 +321,74 @@ quarter, and it happens once at export however many times the slider moves.
 crisp as it did — that is the whole claim of "settings, not pixels". Then drag a
 crop and press *Trim to the sticker* to see it narrow the crop you already made
 rather than replace it.
+
+---
+
+## Stage 6 — Text on a sticker
+
+**Commit:** `STAGE6HASH`
+
+A *Put words on it* panel: the words, the font from the existing picker, colour,
+size, curve, position, and an outline. Up to eight lots of words per sticker,
+each with its own settings, and undo and redo over the lot.
+
+**The curve is the cover's curve.** `lib/cover/curve.ts` gained one exported
+function, `textArc`, which is the circle a line of text is bent around — sweep,
+direction, a radius per line. `curvedText` now calls it, so the cover renderer
+and Sticker Studio bend text around exactly the same circle. What they do *on*
+that circle is different and has to be: an SVG has a text path, a canvas has
+nothing of the kind, so the studio measures each glyph, turns it to face along
+the arc and draws it one at a time.
+
+**Drawn onto a canvas, never through `coverHtml.ts`.** And on the *main thread*
+rather than in the worker, for one reason: fonts. The families come from Google
+at runtime, a worker has no document to load them into, and text drawn in a face
+that failed to arrive is text in the wrong face — silently, and only visible in
+a file somebody has already sold. On the main thread the font can be asked for
+and waited on first. So the pipeline makes the sticker and the words go on
+afterwards, for the preview and the export alike.
+
+**Sizes and positions are fractions of the sticker**, so the same words land in
+the same place whether it is exported at 500 pixels or 2000.
+
+**The outline is stroked first and the fill painted over it**, so it grows
+outward from the letters instead of eating into them — the same reason the
+die-cut ring is drawn before the artwork. It is stroked at twice the asked-for
+width because half a stroke falls inside the letter.
+
+**A bug this stage found and fixed:** a hanging line came out upside down and
+reading backwards, like the bottom half of a rubber stamp. The letters were
+being drawn on the far side of their circle. They now stand on the side facing
+the centre whichever way the line bends, and `glyphSpot` writes that arithmetic
+out in the open so two tests can pin it — that an arch drops at its ends and a
+hanging line rises at them, and that both read left to right.
+
+**A bug in my own browser checks, worth recording** because it made three
+results look like code faults: the helper that drives a slider walked one level
+too far up the DOM and found the *first* slider in the panel instead of the
+named one, so every "set the curve" was setting the size. Chasing a hanging
+curve that would not appear is what turned up the real upside-down bug behind
+it.
+
+**No version bump.** `texts` is a plain field on the draft row.
+
+**Checked:** `npm test` 479 pass / 0 fail (12 new). Goldens unchanged — including
+`curve.test.mjs`, which matters here because `curvedText` was refactored to call
+the new shared function and had to keep producing the same paths.
+`golden:screen` 0 pixels changed, build clean. Plus 15 browser checks: that the
+words appear in the chosen colour (13,001 pixels of `#FF00AA`), that size grows
+them, that curving keeps the letters rather than losing them (49,373 straight →
+49,279 curved), that arched and hanging come out within a third of each other,
+that an outline adds 50,623 white pixels outside without replacing the letters,
+that undo and redo work, and that everything survives a reload.
+
+**Only checked in the sandbox:** the fonts loaded from Google in this container.
+A machine that cannot reach Google Fonts falls back to the category fallback —
+the text still draws, in a different face, and `waitForFonts` cannot tell the
+difference. Kerning between adjacent letters is lost on a curve, because each
+glyph is measured and placed on its own; at large sizes in a tightly kerned face
+this shows, and there is no fixing it without shaping the whole run.
+
+**Look at first:** put words on a sticker, slide *Curve* from -100 to 100, and
+watch it pass through straight. Then try a display face at a large size — that
+is where the missing kerning on a curve will show if it is going to.

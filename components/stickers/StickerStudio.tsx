@@ -13,6 +13,10 @@ import { blobToPaint, paintToBlob, putLayer } from '@/lib/stickers/layer';
 import { SEND_TO, sendStickerToDesign } from '@/lib/stickers/sendToDesign';
 import { toHex, type Swap } from '@/lib/stickers/recolour';
 import { NO_FRAME, contentBox, isPlain, norm, quarterFrom, type Frame } from '@/lib/stickers/frame';
+import { MAX_TEXTS, newText, type StickerText } from '@/lib/stickers/text';
+import { withText } from '@/lib/stickers/compose';
+import { id as newId } from '@/lib/defaults';
+import { FontPicker } from '../FontPicker';
 import {
   deleteDraft,
   latestDraft,
@@ -168,6 +172,46 @@ export function StickerStudio() {
     pendingTouch.current = layer;
     setLayerTick((n) => n + 1);
   }, []);
+
+  /* --------------------------------------------------------------- the words */
+
+  const [lettering, setLettering] = useState(false);
+  const [texts, setTexts] = useState<StickerText[]>([]);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const textPast = useRef<StickerText[][]>([]);
+  const textFuture = useRef<StickerText[][]>([]);
+  const [textDepth, setTextDepth] = useState({ past: 0, future: 0 });
+
+  const setTextsRemembering = (next: StickerText[]) => {
+    textPast.current.push(texts);
+    textFuture.current = [];
+    setTexts(next);
+    setTextDepth({ past: textPast.current.length, future: 0 });
+  };
+
+  const undoText = () => {
+    const previous = textPast.current.pop();
+    if (!previous) return;
+    textFuture.current.push(texts);
+    setTexts(previous);
+    setTextDepth({ past: textPast.current.length, future: textFuture.current.length });
+  };
+
+  const redoText = () => {
+    const next = textFuture.current.pop();
+    if (!next) return;
+    textPast.current.push(texts);
+    setTexts(next);
+    setTextDepth({ past: textPast.current.length, future: textFuture.current.length });
+  };
+
+  const editing = texts.find((t) => t.id === chosen) ?? texts[0] ?? null;
+
+  /** Changes one field of the chosen words, as one undo step. */
+  const change = (patch: Partial<StickerText>) => {
+    if (!editing) return;
+    setTextsRemembering(texts.map((t) => (t.id === editing.id ? { ...t, ...patch } : t)));
+  };
 
   /* ------------------------------------------------------------- the framing */
 
@@ -332,6 +376,11 @@ export function StickerStudio() {
       setGapClosing(saved.gapClosing);
       setSwaps(saved.swaps ?? []);
       setFrame({ ...NO_FRAME, ...(saved.frame ?? {}) });
+      setTexts(saved.texts ?? []);
+      setChosen(saved.texts?.[0]?.id ?? null);
+      textPast.current = [];
+      textFuture.current = [];
+      setTextDepth({ past: 0, future: 0 });
       framePast.current = [];
       frameFuture.current = [];
       setFrameDepth({ past: 0, future: 0 });
@@ -351,6 +400,7 @@ export function StickerStudio() {
       setTouchUp(Boolean(saved.touchAssetId));
       setRecolouring((saved.swaps ?? []).length > 0);
       setFraming(!isPlain({ ...NO_FRAME, ...(saved.frame ?? {}) }));
+      setLettering((saved.texts ?? []).length > 0);
       if (saved.touchAssetId && !saved.colourAssetId) setTool('restore');
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be reopened.');
@@ -449,6 +499,38 @@ export function StickerStudio() {
     };
   }, [file, settings, mode, painting, frame]);
 
+  /**
+   * The preview, with the words drawn on.
+   *
+   * A second step after the pipeline rather than part of it: the text is drawn
+   * on the main thread, where the fonts are, and a worker has no document to
+   * load a font into. See `lib/stickers/compose.ts`.
+   */
+  const [lettered, setLettered] = useState<string | null>(null);
+  useEffect(() => {
+    const showing = preview;
+    const wanted = texts.filter((t) => t.text.trim());
+    if (!showing || !wanted.length) {
+      setLettered(null);
+      return;
+    }
+    let dropped = false;
+    let made: string | null = null;
+    void fetch(showing.url)
+      .then((r) => r.blob())
+      .then((blob) => withText(blob, showing.width, showing.height, wanted))
+      .then((done) => {
+        if (dropped) return;
+        made = URL.createObjectURL(done);
+        setLettered(made);
+      })
+      .catch(() => undefined);
+    return () => {
+      dropped = true;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [preview, texts]);
+
   // The last preview's object URL, let go of on the way out. Every earlier one
   // was already released as it was replaced.
   const showing = preview?.url;
@@ -488,6 +570,7 @@ export function StickerStudio() {
         size,
         gapClosing,
         swaps,
+        texts,
         frame,
         updatedAt: Date.now(),
       };
@@ -511,6 +594,7 @@ export function StickerStudio() {
     size,
     gapClosing,
     swaps,
+    texts,
     frame,
     drafted,
   ]);
@@ -561,11 +645,14 @@ export function StickerStudio() {
 
   const makeAtSize = async () => {
     if (!file) return null;
-    return renderSticker(
+    const made = await renderSticker(
       file,
       settings,
       options(size, colouring ? surface.current?.colour() ?? null : null, surface.current?.touch() ?? null),
     );
+    const wanted = texts.filter((t) => t.text.trim());
+    if (!wanted.length) return made;
+    return { ...made, blob: await withText(made.blob, made.width, made.height, wanted) };
   };
 
   const download = async () => {
@@ -834,7 +921,7 @@ export function StickerStudio() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         ref={previewImage}
-                        src={preview.url}
+                        src={lettered ?? preview.url}
                         alt="The sticker"
                         className="pointer-events-none relative z-10 max-h-[54vh] w-auto max-w-full object-contain"
                       />
@@ -996,6 +1083,175 @@ export function StickerStudio() {
                     )}
                   </>
                 )}
+
+                {/* -------------------------------------------- the words */}
+                <div className="border-t border-ink-200 pt-5">
+                  <Toggle label="Put words on it" checked={lettering} onChange={setLettering} />
+                  {!lettering ? (
+                    <p className="mt-2 text-[13px] leading-snug text-ink-500">
+                      Straight or curved round a circle, in any of the fonts, with an outline if it
+                      needs one. Drawn onto the sticker when you export it.
+                    </p>
+                  ) : (
+                    <div className="mt-4 flex flex-col gap-5">
+                      {texts.length > 1 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {texts.map((item, n) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              aria-pressed={editing?.id === item.id}
+                              onClick={() => setChosen(item.id)}
+                              className={cx(
+                                'max-w-[9rem] truncate rounded-lg border px-2 py-1 text-[12.5px] transition-colors',
+                                editing?.id === item.id
+                                  ? 'border-accent-500 bg-accent-50'
+                                  : 'border-ink-200 hover:border-ink-300',
+                              )}
+                            >
+                              {item.text.split('\n')[0] || `Words ${n + 1}`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {!editing ? (
+                        <Button
+                          onClick={() => {
+                            const made = newText(newId('txt'));
+                            setTextsRemembering([made]);
+                            setChosen(made.id);
+                          }}
+                        >
+                          Add some words
+                        </Button>
+                      ) : (
+                        <>
+                          <TextInput
+                            value={editing.text}
+                            aria-label="The words"
+                            placeholder="Your words"
+                            onChange={(e) => change({ text: e.target.value })}
+                          />
+
+                          <div>
+                            <span className="mb-2 block font-[570]">Font</span>
+                            <FontPicker
+                              label="Font"
+                              value={editing.family}
+                              onChange={(family, fallback) => change({ family, fallback })}
+                            />
+                          </div>
+
+                          <div>
+                            <span className="mb-2 block font-[570]">Colour</span>
+                            <ColourField
+                              label="Text colour"
+                              value={editing.colour}
+                              onChange={(colour) => change({ colour })}
+                            />
+                          </div>
+
+                          <Control
+                            label="Size"
+                            hint="As a share of the sticker, so it lands in the same place at every export size."
+                            value={Math.round(editing.size * 100)}
+                            min={2}
+                            max={40}
+                            onChange={(n) => change({ size: n / 100 })}
+                          />
+
+                          <Control
+                            label="Curve"
+                            hint="Zero is straight. Up to a hundred arches it over a circle; below zero hangs it under one. The same arithmetic the cover designer uses."
+                            value={editing.curve}
+                            min={-100}
+                            max={100}
+                            onChange={(curve) => change({ curve })}
+                          />
+
+                          <Control
+                            label="Across"
+                            hint="Where the words sit, left to right."
+                            value={Math.round(editing.x * 100)}
+                            min={0}
+                            max={100}
+                            onChange={(n) => change({ x: n / 100 })}
+                          />
+                          <Control
+                            label="Down"
+                            hint="Where the words sit, top to bottom."
+                            value={Math.round(editing.y * 100)}
+                            min={0}
+                            max={100}
+                            onChange={(n) => change({ y: n / 100 })}
+                          />
+
+                          <div>
+                            <Toggle
+                              label="Outline"
+                              checked={Boolean(editing.outline)}
+                              onChange={(on) =>
+                                change({ outline: on ? { width: 0.06, colour: '#FFFFFF' } : null })
+                              }
+                            />
+                            {editing.outline && (
+                              <div className="mt-4 flex flex-col gap-5">
+                                <Control
+                                  label="Outline width"
+                                  hint="Drawn behind the letters, so it grows outward instead of eating into them."
+                                  value={Math.round(editing.outline.width * 100)}
+                                  min={1}
+                                  max={25}
+                                  onChange={(n) =>
+                                    change({ outline: { ...editing.outline!, width: n / 100 } })
+                                  }
+                                />
+                                <div>
+                                  <span className="mb-2 block font-[570]">Outline colour</span>
+                                  <ColourField
+                                    label="Outline colour"
+                                    value={editing.outline.colour}
+                                    onChange={(colour) =>
+                                      change({ outline: { ...editing.outline!, colour } })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              disabled={texts.length >= MAX_TEXTS}
+                              onClick={() => {
+                                const made = newText(newId('txt'));
+                                setTextsRemembering([...texts, made]);
+                                setChosen(made.id);
+                              }}
+                            >
+                              Add more words
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setTextsRemembering(texts.filter((t) => t.id !== editing.id));
+                                setChosen(null);
+                              }}
+                            >
+                              Remove these
+                            </Button>
+                            <Button disabled={!textDepth.past} onClick={undoText}>
+                              Undo
+                            </Button>
+                            <Button disabled={!textDepth.future} onClick={redoText}>
+                              Redo
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* ------------------------------------------ the framing */}
                 <div className="border-t border-ink-200 pt-5">
