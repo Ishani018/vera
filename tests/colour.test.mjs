@@ -39,6 +39,13 @@ import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesig
 import { presetById } from '../lib/presets.ts';
 import { textArc } from '../lib/cover/curve.ts';
 import {
+  DEFAULT_SHEET,
+  PAGES,
+  atDpi,
+  capacityFor,
+  layOutSheet,
+} from '../lib/stickers/sheet.ts';
+import {
   cutLine,
   cutLineSvg,
   simplify,
@@ -1412,4 +1419,121 @@ test('a soft edge is cut through its middle', () => {
   const xs = loops.flat().map((p) => p.x);
   // 128 is first reached at x = 7 (140), so the crack is at x = 7.
   assert.equal(Math.min(...xs), 7, `the cut falls at ${Math.min(...xs)}`);
+});
+
+/* ---------------------------------------------------------- sticker sheets */
+
+const squares = (n) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, aspect: 1 }));
+
+test('stickers are laid left to right and then down, in reading order', () => {
+  const sheet = layOutSheet(squares(6), { ...DEFAULT_SHEET, stickerWidth: 2, gap: 0.125, margin: 0.25 });
+  assert.equal(sheet.placed.length, 6);
+  assert.deepEqual(sheet.placed.map((p) => p.id), ['s0', 's1', 's2', 's3', 's4', 's5']);
+
+  // The first row runs across at one height, then it steps down.
+  assert.equal(sheet.placed[0].y, sheet.placed[1].y);
+  assert.ok(sheet.placed[1].x > sheet.placed[0].x);
+  const firstOfNextRow = sheet.placed.find((p) => p.y > sheet.placed[0].y);
+  assert.ok(firstOfNextRow);
+  assert.equal(firstOfNextRow.x, sheet.placed[0].x, 'and starts back at the left margin');
+});
+
+test('nothing is placed outside the margins', () => {
+  const settings = { ...DEFAULT_SHEET, margin: 0.4, stickerWidth: 1.5 };
+  const sheet = layOutSheet(squares(40), settings);
+  assert.ok(sheet.placed.length > 4);
+  for (const p of sheet.placed) {
+    assert.ok(p.x >= settings.margin - 1e-9, `${p.id} at x ${p.x}`);
+    assert.ok(p.y >= settings.margin - 1e-9, `${p.id} at y ${p.y}`);
+    assert.ok(p.x + p.width <= sheet.page.width - settings.margin + 1e-9, `${p.id} runs off the right`);
+    assert.ok(p.y + p.height <= sheet.page.height - settings.margin + 1e-9, `${p.id} runs off the bottom`);
+  }
+});
+
+test('nothing overlaps anything else', () => {
+  const sheet = layOutSheet(
+    Array.from({ length: 30 }, (_, i) => ({ id: `s${i}`, aspect: i % 3 === 0 ? 1.6 : 0.8 })),
+    { ...DEFAULT_SHEET, stickerWidth: 1.6 },
+  );
+  const boxes = sheet.placed;
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const b = boxes[j];
+      const apart =
+        a.x + a.width <= b.x + 1e-9 || b.x + b.width <= a.x + 1e-9 ||
+        a.y + a.height <= b.y + 1e-9 || b.y + b.height <= a.y + 1e-9;
+      assert.ok(apart, `${a.id} and ${b.id} overlap`);
+    }
+  }
+});
+
+test('every sticker keeps its own shape, whatever the sheet does', () => {
+  const pieces = [
+    { id: 'wide', aspect: 2 },
+    { id: 'tall', aspect: 0.5 },
+    { id: 'square', aspect: 1 },
+  ];
+  const sheet = layOutSheet(pieces, DEFAULT_SHEET);
+  for (const p of sheet.placed) {
+    const wanted = pieces.find((q) => q.id === p.id).aspect;
+    assert.ok(Math.abs(p.width / p.height - wanted) < 1e-9, `${p.id} came out ${p.width / p.height}`);
+    assert.equal(p.width, DEFAULT_SHEET.stickerWidth, 'and all of them share a width');
+  }
+});
+
+test('what does not fit is counted rather than quietly dropped', () => {
+  const many = layOutSheet(squares(500), DEFAULT_SHEET);
+  assert.ok(many.overflow > 0);
+  assert.equal(many.placed.length + many.overflow, 500, 'every sticker is accounted for');
+});
+
+test('a sticker too big for the paper overflows rather than being squashed onto it', () => {
+  const sheet = layOutSheet(squares(3), { ...DEFAULT_SHEET, stickerWidth: 20 });
+  assert.equal(sheet.placed.length, 0);
+  assert.equal(sheet.overflow, 3);
+});
+
+test('once a sheet is full, nothing small sneaks in behind something tall', () => {
+  // A list that ends with small ones: they must not jump ahead of the big one
+  // that ran out of room, because a sheet out of order is a sheet you cannot
+  // match up with the list you chose.
+  const pieces = [
+    ...Array.from({ length: 40 }, (_, i) => ({ id: `big${i}`, aspect: 0.5 })),
+    { id: 'late', aspect: 1 },
+  ];
+  const sheet = layOutSheet(pieces, { ...DEFAULT_SHEET, stickerWidth: 2.5 });
+  assert.equal(sheet.placed.some((p) => p.id === 'late'), false);
+});
+
+test('bigger margins and bigger gaps both fit fewer', () => {
+  const plain = capacityFor(DEFAULT_SHEET);
+  const roomier = capacityFor({ ...DEFAULT_SHEET, margin: 1 });
+  const spaced = capacityFor({ ...DEFAULT_SHEET, gap: 0.5 });
+  assert.ok(roomier < plain, `${plain} → ${roomier} with a one-inch margin`);
+  assert.ok(spaced < plain, `${plain} → ${spaced} with a half-inch gap`);
+  assert.ok(capacityFor({ ...DEFAULT_SHEET, stickerWidth: 1 }) > plain, 'and smaller ones fit more');
+});
+
+test('A4 and Letter are different sheets, and both are offered', () => {
+  assert.equal(PAGES.length, 2);
+  const letter = layOutSheet(squares(1), { ...DEFAULT_SHEET, pageId: 'letter' });
+  const a4 = layOutSheet(squares(1), { ...DEFAULT_SHEET, pageId: 'a4' });
+  assert.equal(letter.page.width, 8.5);
+  assert.equal(a4.page.height, 11.69);
+  assert.notEqual(letter.widthPx, a4.widthPx);
+});
+
+test('an unknown page falls back to the first rather than to nothing', () => {
+  const sheet = layOutSheet(squares(1), { ...DEFAULT_SHEET, pageId: 'not-a-page' });
+  assert.equal(sheet.page.id, 'letter');
+});
+
+test('the resolution decides the pixels, and the paper decides the inches', () => {
+  const low = layOutSheet(squares(1), { ...DEFAULT_SHEET, dpi: 150 });
+  const high = layOutSheet(squares(1), { ...DEFAULT_SHEET, dpi: 300 });
+  assert.equal(low.widthPx, 1275);
+  assert.equal(high.widthPx, 2550);
+  assert.deepEqual(low.placed[0], high.placed[0], 'and where a sticker sits does not change with it');
+  assert.equal(atDpi(2, 300), 600);
 });

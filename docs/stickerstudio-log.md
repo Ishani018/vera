@@ -455,7 +455,7 @@ sticker twice and compare the files.
 
 ## Stage 8 — Cut-line SVG export
 
-**Commit:** `STAGE8HASH`
+**Commit:** `c3530aa`
 
 A **Download cut line (SVG)** button beside the PNG one, with a control for how
 closely the line follows the edge.
@@ -519,3 +519,74 @@ and "imports" are not the same sentence. Worth one test cut before a run.
 beside the PNG — they should sit exactly on top of each other. Then slide the
 tolerance from 0.2 to 6 and watch the reported stray grow; the number it reports
 is the real one, measured, not the one asked for.
+
+---
+
+## Stage 9 — Sticker sheet export
+
+**Commit:** `STAGE9HASH`
+
+A new screen at `/stickers/sheet`, linked from the studio. Choose how many of
+each saved sticker, set the paper (US Letter or A4), how big each sticker is,
+the margin, the space between them and the resolution, optionally show cut
+lines, and download a PNG.
+
+**Made entirely in the browser, on a canvas.** It goes nowhere near the export
+routes — those render pages of a book through Chrome, and this is a picture of
+some stickers on a piece of paper.
+
+**One function draws the preview and the file.** The only thing that differs
+between them is pixels per inch, so what is on screen cannot disagree with what
+is downloaded. The layout itself is pure arithmetic in inches, tested without a
+canvas: eleven tests covering reading order, that nothing is placed outside the
+margins, that nothing overlaps anything, that every sticker keeps its own shape,
+that what does not fit is *counted* rather than quietly dropped, and that once a
+sheet is full a small sticker cannot sneak in ahead of the tall one that ran out
+of room.
+
+**The cut lines are traced at the size they are drawn**, by the same tracer as
+Stage 8 — a line traced at one size and drawn at another no longer follows the
+edge. They are dashed and red, for cutting by hand; the screen says so and
+points at the SVG for a cutting machine.
+
+**Checked:** `npm test` 510 pass / 0 fail (11 new). Goldens unchanged,
+`golden:screen` 0 pixels changed, build clean. Plus 11 browser checks: nine
+stickers on a Letter sheet, nothing drawn outside a quarter-inch margin
+(content from 26 px to 453 px on a 612-px preview whose margin is 18 px), cut
+lines contributing 1,362 pixels that vanish when switched off, an overflow
+message when they are made too big, and a downloaded 2550 × 3300 PNG at 300 DPI.
+
+### A PDF, without touching the export routes — a proposal, not built
+
+You asked me to propose it rather than build it, so this is the proposal.
+
+**It can be done, and without going near the export routes or Chrome.** A PDF
+that contains one image is a very small file format: a header, five or six
+objects, an xref table and a trailer. The image is the PNG's pixels as a
+`/DCTDecode` (JPEG) or `/FlateDecode` stream, and the page box is set in points
+so the printer gets 8.5 × 11 inches rather than "2550 pixels, guess". Writing
+that by hand is about 120 lines and no dependency.
+
+**Why it might be worth it:** a PNG has no physical size, so printing one is at
+the mercy of whatever the print dialogue decides — "fit to page" silently
+resizes a sheet whose whole point is that a two-inch sticker is two inches. A
+PDF states the size and the margins, and print shops take PDFs.
+
+**What it would cost:** roughly half a day, including a test that the file opens
+in a PDF reader and that the page box really is 612 × 792 points. The risk is
+that hand-written PDF is easy to get subtly wrong — a bad xref offset opens in
+one reader and not another — which is why it needs its own check against a real
+reader rather than a byte count.
+
+**My recommendation:** worth doing, after you have looked at the PNG sheet and
+told me the layout is right. Say the word and I will add it as its own stage.
+
+**Only checked in the sandbox:** nothing has been printed. Margins, sizes and
+DPI are right in the file; whether a quarter-inch margin clears your particular
+printer's grip rollers is a question only your printer answers. Print one sheet
+on plain paper and measure a sticker with a ruler before committing sticker
+paper to it.
+
+**Look at first:** put nine stickers on a Letter sheet at 2 inches, download it,
+and print it at 100% (not "fit to page"). Measure one. If it is two inches
+across, the whole chain is right.

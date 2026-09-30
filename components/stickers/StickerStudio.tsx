@@ -870,9 +870,14 @@ export function StickerStudio() {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-          <Link href="/" className="text-[13px] text-accent-500 underline">
-            ← Everything
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-[13px] text-accent-500 underline">
+              ← Everything
+            </Link>
+            <Link href="/stickers/sheet" className="text-[13px] text-accent-500 underline">
+              Sticker sheet →
+            </Link>
+          </div>
 
           {!file ? (
             <div className="mt-6">
