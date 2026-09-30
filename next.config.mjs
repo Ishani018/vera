@@ -1,9 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Middleware runs in Node, not Edge, so that it shares one process — and so
-  // one render queue — with the export route handlers. The Edge sandbox has a
-  // global scope of its own, and a queue nobody else can see is not a queue.
-  experimental: { nodeMiddleware: true },
 
   // puppeteer-core and @sparticuz/chromium must stay external to the server bundle:
   // they resolve native binaries at runtime and cannot be traced/bundled.

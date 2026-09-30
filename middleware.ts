@@ -1,4 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+  MAX_BODY_BYTES,
+  MAX_BODY_MB,
+  MIN_BODY_BYTES,
+  PER_WINDOW,
+  WINDOW_MS,
+} from '@/lib/server/exportLimits';
 import { admitRender, renderQueueState } from '@/lib/server/renderQueue';
 
 /**
@@ -32,24 +39,6 @@ export const config = {
   matcher: ['/api/export/:path*'],
 };
 
-/**
- * The biggest request that could be an honest book.
- *
- * The export posts every picture inline as base64, so a forty-page colouring
- * interior with photographs is genuinely hundreds of megabytes — the limit
- * cannot be small without breaking the main thing this demo is for. What it
- * can do is refuse the ones that are not books: base64 is four bytes for
- * three, so 400MB of request is around 300MB of pictures, which is far past
- * any colouring book a person has actually assembled.
- *
- * Two of these at once is the reason the machine is asked for 4GB.
- */
-const MAX_BODY_BYTES = Number(process.env.MAX_EXPORT_BODY_MB ?? 400) * 1024 * 1024;
-
-/** Five exports in ten minutes, per address. */
-const WINDOW_MS = Number(process.env.EXPORT_WINDOW_MS ?? 10 * 60 * 1000);
-const PER_WINDOW = Number(process.env.EXPORT_PER_WINDOW ?? 5);
-
 type Hits = { times: number[] };
 const KEY = Symbol.for('isnaevy.exportRate');
 const store = globalThis as unknown as Record<symbol, Map<string, Hits> | undefined>;
@@ -57,19 +46,39 @@ store[KEY] ??= new Map<string, Hits>();
 const seen = store[KEY]!;
 
 /**
- * Who is asking.
+ * Who is asking, or null when it is this machine asking itself.
  *
  * Fly sets `Fly-Client-IP` and it is the only one of these the app's own proxy
  * writes, so it is trusted first; `x-forwarded-for` can be set by anyone
- * talking to the machine directly and is a hint, not a fact. Behind Fly the
- * first entry is the real client because Fly appends.
+ * talking to the machine directly and is a hint, not a fact.
+ *
+ * Null for a loopback address, and for a request with no forwarding header at
+ * all. On a deployed machine neither can come from the public: every public
+ * request arrives through Fly's proxy, which sets `Fly-Client-IP` to the real
+ * client. So null is somebody on the machine itself — a developer, or
+ * `npm run golden`, which posts two exports per run and was locking itself
+ * out of its own rate limiter on the third run.
+ *
+ * Note that `next start` supplies `x-forwarded-for: ::1` for a local request
+ * of its own accord, so "no header" alone never fires; the loopback check is
+ * the one that does the work.
+ *
+ * These requests skip the per-address limit and nothing else. The body cap
+ * still applies to them and they still take a place in the render queue,
+ * because those protect the machine, and this one protects the public from
+ * each other.
  */
-function addressOf(request: NextRequest): string {
+const LOOPBACK = new Set(['::1', '127.0.0.1', '::ffff:127.0.0.1', 'localhost']);
+
+function addressOf(request: NextRequest): string | null {
   const fly = request.headers.get('fly-client-ip');
-  if (fly) return fly.trim();
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return request.headers.get('x-real-ip')?.trim() || 'unknown';
+  const claimed =
+    fly?.trim() ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip')?.trim() ||
+    '';
+  if (!claimed || LOOPBACK.has(claimed)) return null;
+  return claimed;
 }
 
 /** Drops anything older than the window, so the map cannot grow without end. */
@@ -115,19 +124,28 @@ export function middleware(request: NextRequest) {
   if (request.method !== 'POST') return NextResponse.next();
 
   const declared = Number(request.headers.get('content-length') ?? 0);
+
+  // Too small to be a book, so it is a mistake or a probe. Refused before it
+  // is admitted, because an admitted request holds a place in the queue until
+  // it reaches Chrome — and one that the route is about to reject with a 400
+  // never does. Seven of those used to fill the machine for a minute.
+  if (declared > 0 && declared < MIN_BODY_BYTES) {
+    return refuse(400, 'That request is too small to be a design or a book.');
+  }
+
   if (declared > MAX_BODY_BYTES) {
     return refuse(
       413,
       `That export is ${Math.round(declared / 1024 / 1024)}MB, which is past the ` +
-        `${Math.round(MAX_BODY_BYTES / 1024 / 1024)}MB this demo accepts. Export fewer ` +
-        'pages at a time, or use "Print to PDF" in the export panel, which renders in ' +
-        'your own browser with no limit.',
+        `${MAX_BODY_MB}MB this demo accepts. Export fewer pages at a time, or use ` +
+        '"Print to PDF" in the export panel, which renders in your own browser with no limit.',
     );
   }
 
   // The address limit before the queue, so a place is not claimed for a
   // request that is about to be turned away for a different reason.
-  const wait = tooMany(addressOf(request), Date.now());
+  const address = addressOf(request);
+  const wait = address === null ? null : tooMany(address, Date.now());
   if (wait !== null) {
     return refuse(
       429,

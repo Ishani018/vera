@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { NextResponse } from 'next/server';
+import { exportLimits } from '@/lib/server/exportLimits';
 import { renderQueueState } from '@/lib/server/renderQueue';
 
 /**
@@ -25,10 +26,18 @@ export function GET() {
   return NextResponse.json(
     {
       ok: browser !== false,
+      // Which build this is. The screen goldens read it and refuse to run
+      // against a development server, because dev and production do not lay
+      // out identically — see docs/HOSTING.md.
+      mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
       // null where no path was configured: the app falls back to printing
       // from the visitor's own browser, which is degraded but not broken.
       browser: browser === null ? 'not configured' : browser ? 'ready' : 'missing',
       renders: renderQueueState(),
+      // The limits actually in force, read from the same module the
+      // middleware enforces them from — so raising one for a load test can
+      // be confirmed rather than hoped for.
+      exports: exportLimits(),
       uptimeSeconds: Math.round(process.uptime()),
     },
     { status: browser === false ? 503 : 200, headers: { 'Cache-Control': 'no-store' } },

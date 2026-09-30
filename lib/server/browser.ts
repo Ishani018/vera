@@ -60,13 +60,27 @@ export type LaunchedBrowser = {
  * renders one fewer thing for the rest of its life.
  */
 async function withSlot(make: () => Promise<LaunchedBrowser>): Promise<LaunchedBrowser> {
-  const release = await acquireRenderSlot();
+  let release: (() => void) | null = null;
   try {
+    release = await acquireRenderSlot();
     const launched = await make();
     launched.browser.on('disconnected', release);
     return launched;
   } catch (error) {
-    release();
+    release?.();
+    // A full queue reaching this far means a request slipped past the
+    // admission check in middleware, which is rare and racy rather than
+    // normal. The route only knows two errors, and turning this into the
+    // browser-unavailable one is the useful lie: it answers 503 with
+    // `fallback: 'print'`, which the client already handles by offering to
+    // render in the visitor's own browser. The alternative was a bare 500,
+    // which tells them nothing and offers nothing.
+    if (error instanceof Error && error.name === 'RenderBusyError') {
+      throw new BrowserUnavailableError(
+        `${error.message} You can use "Print to PDF" in the export panel instead, ` +
+          'which renders in your own browser.',
+      );
+    }
     throw error;
   }
 }

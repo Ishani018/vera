@@ -284,6 +284,8 @@ export function Landing() {
               </ul>
             )}
           </section>
+
+          <DemoFooter />
         </div>
       </div>
 
@@ -466,6 +468,32 @@ function CardName({ entry, onDone }: { entry: LibraryEntry; onDone: () => void }
         </span>
       )}
     </span>
+  );
+}
+
+/**
+ * The long version of the chip in the header.
+ *
+ * Inside the scrolling column rather than pinned to the window, because the
+ * editors are full-height and a pinned footer would take room from the board
+ * they lay out in. Someone who has scrolled to the bottom of the front page
+ * has finished looking; this is the right place to say what this is.
+ */
+function DemoFooter() {
+  return (
+    <footer className="mt-14 border-t border-ink-200 pt-6 pb-10 text-[13px] leading-relaxed text-ink-500">
+      <p>
+        <strong className="font-[580] text-ink-700">Isnaevy is a free demo.</strong> It may
+        change or go away without notice, so keep a backup of anything you care about. Your
+        work is saved in this browser only — there is no account and no copy on a server.
+        Your pictures leave this browser only when you press Download, and are used to make
+        the file rather than kept.
+      </p>
+      <p className="mt-2">
+        Always open an exported PDF and check it in KDP&rsquo;s own previewer before paying
+        for a print run. Provided as is, with no warranty.
+      </p>
+    </footer>
   );
 }
 

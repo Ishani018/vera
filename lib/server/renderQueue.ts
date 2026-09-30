@@ -49,7 +49,25 @@ const QUEUE_TIMEOUT_MS = Number(process.env.RENDER_QUEUE_TIMEOUT_MS ?? 240_000);
  * Without the sweep those would hold a place in the queue for ever, and the
  * machine would refuse work while doing none.
  */
-const PENDING_TTL_MS = Number(process.env.RENDER_PENDING_TTL_MS ?? 60_000);
+const PENDING_TTL_MS = Number(process.env.RENDER_PENDING_TTL_MS ?? 30_000);
+
+/**
+ * How long a place is held while nothing at all is rendering.
+ *
+ * With no render active and none queued, no admitted request has reached
+ * Chrome. One that arrived a while ago and still has not is almost certainly
+ * never going to — the route rejected it, or the connection went away — so
+ * its place is given back early rather than held for the full timeout.
+ *
+ * This is the difference between a wedge that clears in seconds and one that
+ * lasts a minute. Seven requests the route answered with 400 used to fill the
+ * machine's capacity and make it refuse everyone until they aged out.
+ *
+ * Erring here is cheap in the direction it errs: sweeping too eagerly lets an
+ * extra request past admission, and the semaphore below still holds renders to
+ * MAX_CONCURRENT. Sweeping too slowly refuses work the machine could do.
+ */
+const IDLE_GRACE_MS = Number(process.env.RENDER_IDLE_GRACE_MS ?? 10_000);
 
 export class RenderBusyError extends Error {
   readonly status = 429;
@@ -71,6 +89,11 @@ const CAPACITY = MAX_CONCURRENT + MAX_QUEUED;
 
 function sweepPending(now = Date.now()): void {
   while (queue.pending.length && now - queue.pending[0]! > PENDING_TTL_MS) queue.pending.shift();
+  // Nothing is at Chrome, so nothing admitted has got there. Anything that has
+  // been waiting longer than the grace period is not on its way.
+  if (queue.active === 0 && queue.waiting.length === 0) {
+    while (queue.pending.length && now - queue.pending[0]! > IDLE_GRACE_MS) queue.pending.shift();
+  }
 }
 
 /** Everything that counts against capacity right now. */
