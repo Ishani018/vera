@@ -44,7 +44,8 @@ export type Tool =
   | 'remove'
   | 'automatic'
   | 'dropper'
-  | 'replace';
+  | 'replace'
+  | 'crop';
 
 /** Tools that point at a colour rather than paint one. */
 export const PICKERS: Tool[] = ['dropper', 'replace'];
@@ -84,6 +85,7 @@ export function PaintSurface({
   onTouchChange,
   onLeak,
   onPick,
+  onCrop,
 }: {
   ink: InkResult | null;
   tool: Tool;
@@ -107,6 +109,8 @@ export function PaintSurface({
    * is the picture underneath, which this component cannot see.
    */
   onPick: (at: { u: number; v: number; fromLayer: string | null }) => void;
+  /** A box dragged out with the crop tool, in fractions of the picture. */
+  onCrop: (box: { x: number; y: number; width: number; height: number }) => void;
 }) {
   const colourCanvas = useRef<HTMLCanvasElement>(null);
   const touchCanvas = useRef<HTMLCanvasElement>(null);
@@ -273,10 +277,27 @@ export function PaintSurface({
     return parseColour(colour);
   };
 
+  /**
+   * The rubber band, while a crop is being dragged out.
+   *
+   * In state rather than in a ref because it is drawn, and drawn as a DOM box
+   * rather than onto the canvas: the canvas holds the touch-up layer, and
+   * scribbling a preview onto it would be a correction somebody has to undo.
+   */
+  const [band, setBand] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const bandFrom = useRef<{ x: number; y: number } | null>(null);
+
   const begin = (event: React.PointerEvent) => {
     const layer = active();
     const point = gridPoint(event);
     if (!layer || !point) return;
+
+    if (tool === 'crop') {
+      (event.target as Element).setPointerCapture?.(event.pointerId);
+      bandFrom.current = { x: point.x / layer.width, y: point.y / layer.height };
+      setBand({ ...bandFrom.current, width: 0, height: 0 });
+      return;
+    }
 
     // A picking tool paints nothing: it reports what is under the pointer and
     // lets the screen decide, because what is under the pointer may be the
@@ -313,6 +334,20 @@ export function PaintSurface({
 
   const move = (event: React.PointerEvent) => {
     const layer = active();
+    if (tool === 'crop') {
+      const start = bandFrom.current;
+      const point = layer && gridPoint(event);
+      if (!start || !point || !layer) return;
+      const u = point.x / layer.width;
+      const v = point.y / layer.height;
+      setBand({
+        x: Math.min(start.x, u),
+        y: Math.min(start.y, v),
+        width: Math.abs(u - start.x),
+        height: Math.abs(v - start.y),
+      });
+      return;
+    }
     const from = last.current;
     if (!stroke.current || !layer || !from || tool === 'fill') return;
     const point = gridPoint(event);
@@ -338,6 +373,14 @@ export function PaintSurface({
   };
 
   const finish = () => {
+    if (tool === 'crop') {
+      // A stray click is not a crop of nothing; below about a fiftieth of the
+      // picture it was a slip, and cropping to it would leave a smear.
+      if (band && band.width > 0.02 && band.height > 0.02) onCrop(band);
+      bandFrom.current = null;
+      setBand(null);
+      return;
+    }
     const patch = stroke.current?.commit();
     stroke.current = null;
     last.current = null;
@@ -389,8 +432,20 @@ export function PaintSurface({
           ref={touchCanvas}
           aria-label="The touch-up"
           className={cx('h-full w-full touch-none', touching ? 'opacity-100' : 'opacity-0')}
-          style={{ cursor: tool === 'fill' || isPicker(tool) ? 'crosshair' : 'cell' }}
+          style={{ cursor: tool === 'fill' || isPicker(tool) || tool === 'crop' ? 'crosshair' : 'cell' }}
         />
+        {band && (
+          <div
+            aria-label="The crop"
+            className="pointer-events-none absolute border-2 border-dashed border-accent-500 bg-accent-500/10"
+            style={{
+              left: `${band.x * 100}%`,
+              top: `${band.y * 100}%`,
+              width: `${band.width * 100}%`,
+              height: `${band.height * 100}%`,
+            }}
+          />
+        )}
       </div>
       <span className="sr-only" aria-live="polite">
         {depth} changes

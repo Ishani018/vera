@@ -206,7 +206,7 @@ comes away.
 
 ## Stage 4 — Recolour tools
 
-**Commit:** `STAGE4HASH`
+**Commit:** `c387d93`
 
 An **eyedropper** and a **colour swap**, in a *Change a colour* panel, both
 working by pointing at the picture.
@@ -260,3 +260,64 @@ existing one, shared with the background removal.
 colour and slide *How close a match counts* from 0 to 60 — the point where it
 starts eating the rest of the picture is the number worth knowing for your own
 photographs.
+
+---
+
+## Stage 5 — Flip, rotate and crop
+
+**Commit:** `STAGE5HASH`
+
+A *Flip, turn or crop* panel: flip left-to-right and top-to-bottom, quarter
+turns both ways, a free angle, drag-a-box crop, **Trim to the sticker**, and
+**Whole picture**. Undo and redo of its own.
+
+**Lossless, as asked.** The upload is stored once and never written on. All of
+this is four numbers on the draft — `{ flipX, flipY, rotate, crop }` — applied
+on the way to the preview and on the way to the export, at the size each needs.
+Turning a picture five degrees and back costs nothing; baking it in would have
+cost two resamplings and left the drawing softer than it started. A browser
+check confirms the stored asset is still 900 × 600 after every one of these.
+
+**Quarter turns move pixels; they do not sample them.** Four of them come back
+byte for byte — a test asserts exactly that, and so does a browser check
+(54,868 ink pixels before and after). A general rotation would give very nearly
+the same answer, and "very nearly" on a right angle means a drawing that gets
+blurrier every time you turn it.
+
+**Free angles are bilinear and sampled backwards** — for each output pixel,
+where did it come from — because sampling forwards leaves holes wherever two
+source pixels land on the same destination. It is the app's own arithmetic
+rather than the browser's resampler, so it is the same answer on any browser.
+
+**A bug this stage found and fixed:** a turned picture came back with four
+solid black corners. Rotation leaves the corners transparent, and the tracer
+reads a *colour* — a transparent pixel's colour is zero, which is black, so the
+corners traced as ink. They are now flattened onto the picture's own border
+colour, so the background removal treats them as what they look like, more
+paper, and takes them away. The browser check that caught it reads the four
+corner alphas of the preview: 255,255,255,255 before, 0,0,0,0 after.
+
+**Order is flip, then turn, then crop**, and the crop is expressed against the
+picture *after* the first two, so it stays where it was put. Framing is applied
+to the source before tracing, so the tracer, the background removal and the
+colouring grid all agree about what the picture is — a crop applied later would
+leave the colouring painted on a picture that no longer exists.
+
+**No version bump.** `frame` is a plain field on the draft row.
+
+**Checked:** `npm test` 471 pass / 0 fail (15 new). Goldens unchanged,
+`golden:screen` 0 pixels changed, build clean. Plus 17 browser checks including
+the four-quarter-turn round trip, that a 30° turn makes room for the corners
+(900×600 → 1080×970) and leaves them see-through, that a rubber band shows while
+dragging, that a stray click is not a crop, and that trimming to the sticker
+takes the empty margins off without losing ink.
+
+**Only checked in the sandbox:** free rotation was checked for geometry and
+transparency, not judged for sharpness by eye. Bilinear on a hard-edged drawing
+softens the strokes a little — that is inherent to any angle that is not a
+quarter, and it happens once at export however many times the slider moves.
+
+**Look at first:** turn a drawing 30°, then straighten it, and check it looks as
+crisp as it did — that is the whole claim of "settings, not pixels". Then drag a
+crop and press *Trim to the sticker* to see it narrow the crop you already made
+rather than replace it.

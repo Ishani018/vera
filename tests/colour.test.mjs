@@ -38,6 +38,20 @@ import { listTrash } from '../lib/trash.ts';
 import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesign.ts';
 import { presetById } from '../lib/presets.ts';
 import {
+  NO_FRAME,
+  applyFrame,
+  borderColour,
+  contentBox,
+  crop,
+  flatten,
+  flip,
+  isPlain,
+  norm,
+  quarterFrom,
+  quarterTurn,
+  rotate,
+} from '../lib/stickers/frame.ts';
+import {
   applySwaps,
   labDistance,
   matchingInPaint,
@@ -790,4 +804,182 @@ test('sampling says nothing where there is nothing', () => {
   assert.deepEqual(sampleAt(paint, 1, 1), { r: 7, g: 8, b: 9 });
   assert.equal(sampleAt(paint, 0, 0), null, 'unpainted');
   assert.equal(sampleAt(paint, 9, 9), null, 'and off the edge');
+});
+
+/* ---------------------------------------------- flipping, turning, cropping */
+
+/** A picture where every pixel says where it came from. */
+function numbered(width, height) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      data[i] = x; data[i + 1] = y; data[i + 2] = 7; data[i + 3] = 255;
+    }
+  }
+  return { width, height, data };
+}
+const pixel = (b, x, y) => [...b.data.slice((y * b.width + x) * 4, (y * b.width + x) * 4 + 4)];
+
+test('a plain frame is the picture itself, not a copy of it', () => {
+  const picture = numbered(4, 3);
+  assert.equal(applyFrame(picture, NO_FRAME), picture);
+  assert.equal(isPlain(NO_FRAME), true);
+  assert.equal(isPlain({ ...NO_FRAME, rotate: 360 }), true, '360 degrees is no turn at all');
+  assert.equal(isPlain({ ...NO_FRAME, flipX: true }), false);
+});
+
+test('flipping is an exact rearrangement, and doing it twice undoes it', () => {
+  const picture = numbered(5, 4);
+  const mirrored = flip(picture, true, false);
+  assert.deepEqual(pixel(mirrored, 0, 0), pixel(picture, 4, 0));
+  assert.deepEqual(pixel(mirrored, 4, 2), pixel(picture, 0, 2));
+  assert.deepEqual(flip(mirrored, true, false).data, picture.data, 'back to the very same bytes');
+
+  const upended = flip(picture, false, true);
+  assert.deepEqual(pixel(upended, 1, 0), pixel(picture, 1, 3));
+  assert.deepEqual(flip(upended, false, true).data, picture.data);
+});
+
+test('four quarter turns come back to exactly where they started', () => {
+  const picture = numbered(7, 3);
+  let turned = picture;
+  for (let n = 0; n < 4; n++) turned = quarterTurn(turned, 90);
+  assert.equal(turned.width, 7);
+  assert.equal(turned.height, 3);
+  assert.deepEqual(turned.data, picture.data, 'not one pixel invented or lost');
+});
+
+test('a quarter turn swaps the sides and puts the corners where they belong', () => {
+  const picture = numbered(4, 2);
+  const right = quarterTurn(picture, 90);
+  assert.equal(right.width, 2);
+  assert.equal(right.height, 4);
+  // The top-left goes to the top-right.
+  assert.deepEqual(pixel(right, 1, 0), pixel(picture, 0, 0));
+  // And a half turn is the same as two quarters.
+  assert.deepEqual(quarterTurn(picture, 180).data, quarterTurn(quarterTurn(picture, 90), 90).data);
+  assert.deepEqual(quarterTurn(picture, 270).data, quarterTurn(quarterTurn(picture, 180), 90).data);
+});
+
+test('any other angle makes room for the corners rather than cutting them off', () => {
+  const picture = numbered(40, 20);
+  const tilted = rotate(picture, 45);
+  assert.ok(tilted.width > 40 && tilted.height > 20, `${tilted.width}x${tilted.height}`);
+  // Nothing of the original is beyond the new edges: the corners fit.
+  const diagonal = Math.hypot(40, 20);
+  assert.ok(tilted.width <= Math.ceil(diagonal) && tilted.height <= Math.ceil(diagonal));
+});
+
+test('the corners a turn leaves behind are see-through, not black', () => {
+  const picture = numbered(30, 30);
+  const tilted = rotate(picture, 30);
+  assert.equal(pixel(tilted, 0, 0)[3], 0, 'the new corner is nothing at all');
+  assert.equal(pixel(tilted, (tilted.width / 2) | 0, (tilted.height / 2) | 0)[3], 255, 'and the middle is solid');
+});
+
+test('a turn of no degrees is the picture itself', () => {
+  const picture = numbered(6, 6);
+  assert.equal(applyFrame(picture, { ...NO_FRAME, rotate: 0 }), picture);
+});
+
+test('degrees are brought into one turn, and quarters step in both directions', () => {
+  assert.equal(norm(-90), 270);
+  assert.equal(norm(450), 90);
+  assert.equal(norm(0), 0);
+  assert.equal(quarterFrom(0, 1), 90);
+  assert.equal(quarterFrom(0, -1), 270);
+  assert.equal(quarterFrom(270, 1), 0, 'round the clock rather than past it');
+  assert.equal(quarterFrom(37, 1), 90, 'from a free angle it snaps to the nearest quarter first');
+});
+
+test('a crop keeps the part asked for, and cannot fall off the picture', () => {
+  const picture = numbered(10, 10);
+  const half = crop(picture, { x: 0.5, y: 0, width: 0.5, height: 1 });
+  assert.equal(half.width, 5);
+  assert.equal(half.height, 10);
+  assert.deepEqual(pixel(half, 0, 0), pixel(picture, 5, 0));
+
+  const past = crop(picture, { x: 0.9, y: 0.9, width: 1, height: 1 });
+  assert.ok(past.width >= 1 && past.height >= 1, 'never nothing');
+  assert.ok(past.width <= 10 && past.height <= 10, 'and never bigger than what there was');
+
+  const silly = crop(picture, { x: -1, y: -1, width: 0.2, height: 0.2 });
+  assert.ok(silly.width >= 1 && silly.height >= 1);
+});
+
+test('the order is flip, then turn, then crop', () => {
+  const picture = numbered(8, 4);
+  const framed = applyFrame(picture, { flipX: true, flipY: false, rotate: 90, crop: null });
+  const byHand = quarterTurn(flip(picture, true, false), 90);
+  assert.deepEqual(framed.data, byHand.data);
+  assert.equal(framed.width, 4);
+  assert.equal(framed.height, 8);
+});
+
+test('trimming finds the tightest box round what is actually there', () => {
+  const width = 20, height = 20;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 5; y <= 9; y++) {
+    for (let x = 4; x <= 13; x++) data[(y * width + x) * 4 + 3] = 255;
+  }
+  const box = contentBox({ width, height, data });
+  assert.deepEqual(box, { x: 4 / 20, y: 5 / 20, width: 10 / 20, height: 5 / 20 });
+
+  // And it says so when there is nothing at all.
+  assert.equal(contentBox({ width: 4, height: 4, data: new Uint8ClampedArray(64) }), null);
+});
+
+test('trimming to what is there, then cropping to it, keeps all of it', () => {
+  const width = 12, height = 12;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const inside = (x, y) => x >= 3 && x <= 8 && y >= 2 && y <= 7;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) if (inside(x, y)) data[(y * width + x) * 4 + 3] = 255;
+  }
+  const picture = { width, height, data };
+  const trimmed = crop(picture, contentBox(picture));
+  assert.equal(trimmed.width, 6);
+  assert.equal(trimmed.height, 6);
+  let solid = 0;
+  for (let i = 3; i < trimmed.data.length; i += 4) if (trimmed.data[i] === 255) solid++;
+  assert.equal(solid, 36, 'every solid pixel survived, and nothing else came with it');
+});
+
+test('a turned picture is put on its own paper, not on black', () => {
+  // Cream paper with a dark mark on it: what a scan of a sketchbook page is.
+  const width = 20, height = 20;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const dark = x > 8 && x < 12 && y > 8 && y < 12;
+      data[i] = dark ? 30 : 244;
+      data[i + 1] = dark ? 28 : 238;
+      data[i + 2] = dark ? 24 : 216;
+      data[i + 3] = 255;
+    }
+  }
+  const page = { width, height, data };
+  const paper = borderColour(page);
+  assert.deepEqual(paper, { r: 244, g: 238, b: 216 }, 'the border is all paper');
+
+  const tilted = rotate(page, 25);
+  assert.equal(pixel(tilted, 0, 0)[3], 0, 'a turn leaves the corner empty');
+
+  const onPaper = flatten(tilted, paper);
+  assert.deepEqual(pixel(onPaper, 0, 0), [244, 238, 216, 255],
+    'and flattening makes it more paper, which is what it looks like');
+  // The thing this exists to prevent: a corner read as black and traced as ink.
+  assert.notDeepEqual(pixel(onPaper, 0, 0), [0, 0, 0, 255]);
+});
+
+test('flattening leaves what was already solid exactly as it was', () => {
+  const solid = numbered(6, 6);
+  assert.deepEqual(flatten(solid, { r: 1, g: 2, b: 3 }).data, solid.data);
+});
+
+test('a picture with no paper at all is put on white rather than on nothing', () => {
+  assert.deepEqual(borderColour({ width: 3, height: 3, data: new Uint8ClampedArray(36) }),
+    { r: 255, g: 255, b: 255 });
 });

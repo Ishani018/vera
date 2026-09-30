@@ -12,6 +12,7 @@ import type { Paint } from '@/lib/stickers/colour';
 import { blobToPaint, paintToBlob, putLayer } from '@/lib/stickers/layer';
 import { SEND_TO, sendStickerToDesign } from '@/lib/stickers/sendToDesign';
 import { toHex, type Swap } from '@/lib/stickers/recolour';
+import { NO_FRAME, contentBox, isPlain, norm, quarterFrom, type Frame } from '@/lib/stickers/frame';
 import {
   deleteDraft,
   latestDraft,
@@ -168,6 +169,40 @@ export function StickerStudio() {
     setLayerTick((n) => n + 1);
   }, []);
 
+  /* ------------------------------------------------------------- the framing */
+
+  const [framing, setFraming] = useState(false);
+  const [frame, setFrame] = useState<Frame>({ ...NO_FRAME });
+  // Flipping, turning and cropping are four numbers, so their undo is four
+  // numbers too: a stack of whole frames, which cannot drift out of step with
+  // the thing it describes the way a stack of reversals can.
+  const framePast = useRef<Frame[]>([]);
+  const frameFuture = useRef<Frame[]>([]);
+  const [frameDepth, setFrameDepth] = useState({ past: 0, future: 0 });
+
+  const setFrameRemembering = (next: Frame) => {
+    framePast.current.push(frame);
+    frameFuture.current = [];
+    setFrame(next);
+    setFrameDepth({ past: framePast.current.length, future: 0 });
+  };
+
+  const undoFrame = () => {
+    const previous = framePast.current.pop();
+    if (!previous) return;
+    frameFuture.current.push(frame);
+    setFrame(previous);
+    setFrameDepth({ past: framePast.current.length, future: frameFuture.current.length });
+  };
+
+  const redoFrame = () => {
+    const next = frameFuture.current.pop();
+    if (!next) return;
+    framePast.current.push(frame);
+    setFrame(next);
+    setFrameDepth({ past: framePast.current.length, future: frameFuture.current.length });
+  };
+
   /* ------------------------------------------------------------ recolouring */
 
   const [recolouring, setRecolouring] = useState(false);
@@ -203,15 +238,19 @@ export function StickerStudio() {
   };
 
   // One surface serves both layers, so it exists as soon as either tool does.
-  const painting = colouring || touchUp || recolouring;
+  const painting = colouring || touchUp || recolouring || framing;
 
   // The tool always belongs to a panel that is open, so nobody is left holding
   // a brush that paints on a layer they have just put away.
   useEffect(() => {
-    if (recolouring && !colouring && !touchUp && !isPicker(tool)) setTool('dropper');
-    if (touchUp && !colouring && !recolouring && !isTouchTool(tool)) setTool('restore');
-    if (colouring && !touchUp && !recolouring && (isTouchTool(tool) || isPicker(tool))) setTool('fill');
-  }, [colouring, touchUp, recolouring, tool]);
+    const alone = (open: boolean, ...others: boolean[]) => open && others.every((o) => !o);
+    if (alone(framing, colouring, touchUp, recolouring) && tool !== 'crop') setTool('crop');
+    if (alone(recolouring, colouring, touchUp, framing) && !isPicker(tool)) setTool('dropper');
+    if (alone(touchUp, colouring, recolouring, framing) && !isTouchTool(tool)) setTool('restore');
+    if (alone(colouring, touchUp, recolouring, framing) && tool !== 'fill' && tool !== 'brush' && tool !== 'eraser') {
+      setTool('fill');
+    }
+  }, [colouring, touchUp, recolouring, framing, tool]);
 
   /* ------------------------------------------------------------ the draft */
 
@@ -292,6 +331,10 @@ export function StickerStudio() {
       setSize(saved.size);
       setGapClosing(saved.gapClosing);
       setSwaps(saved.swaps ?? []);
+      setFrame({ ...NO_FRAME, ...(saved.frame ?? {}) });
+      framePast.current = [];
+      frameFuture.current = [];
+      setFrameDepth({ past: 0, future: 0 });
       swapPast.current = [];
       swapFuture.current = [];
       setSwapDepth({ past: 0, future: 0 });
@@ -307,6 +350,7 @@ export function StickerStudio() {
       setColouring(Boolean(saved.colourAssetId));
       setTouchUp(Boolean(saved.touchAssetId));
       setRecolouring((saved.swaps ?? []).length > 0);
+      setFraming(!isPlain({ ...NO_FRAME, ...(saved.frame ?? {}) }));
       if (saved.touchAssetId && !saved.colourAssetId) setTool('restore');
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be reopened.');
@@ -338,8 +382,9 @@ export function StickerStudio() {
       colour: withColour,
       touch: withTouch,
       swaps,
+      frame,
     }),
-    [mode, removeBackground, tolerance, smoothing, inkColour, dieCutOn, dieCutWidth, dieCutColour, dieCutRadius, swaps],
+    [mode, removeBackground, tolerance, smoothing, inkColour, dieCutOn, dieCutWidth, dieCutColour, dieCutRadius, swaps, frame],
   );
 
   // One render in flight at a time, and the newest wins: the worker numbers its
@@ -392,7 +437,7 @@ export function StickerStudio() {
       return;
     }
     let dropped = false;
-    void traceInk(file, settings, mode, COLOUR_EDGE)
+    void traceInk(file, settings, mode, COLOUR_EDGE, frame)
       .then((result) => {
         if (!dropped) setInk(result);
       })
@@ -402,7 +447,7 @@ export function StickerStudio() {
     return () => {
       dropped = true;
     };
-  }, [file, settings, mode, painting]);
+  }, [file, settings, mode, painting, frame]);
 
   // The last preview's object URL, let go of on the way out. Every earlier one
   // was already released as it was replaced.
@@ -443,6 +488,7 @@ export function StickerStudio() {
         size,
         gapClosing,
         swaps,
+        frame,
         updatedAt: Date.now(),
       };
       row.current = next;
@@ -465,6 +511,7 @@ export function StickerStudio() {
     size,
     gapClosing,
     swaps,
+    frame,
     drafted,
   ]);
 
@@ -593,6 +640,47 @@ export function StickerStudio() {
     if (x < 0 || y < 0 || x >= img.naturalWidth || y >= img.naturalHeight) return null;
     const [r, g, b, a] = context.getImageData(x, y, 1, 1).data;
     return a === 0 ? null : toHex({ r, g, b });
+  };
+
+  /**
+   * The tightest box round what is actually in the preview, as fractions.
+   *
+   * Read out of the preview for the same reason the eyedropper is: that picture
+   * is the one with the background already taken out, which is exactly what
+   * "trim to the sticker" has to mean. The die-cut margin is taken off first,
+   * because the crop is expressed against the picture, not against the outline
+   * drawn round it.
+   */
+  const previewContent = (): Frame['crop'] => {
+    const img = previewImage.current;
+    if (!img?.naturalWidth) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) return null;
+    context.drawImage(img, 0, 0);
+    const pad = preview?.pad ?? 0;
+    const inner = {
+      width: img.naturalWidth - pad * 2,
+      height: img.naturalHeight - pad * 2,
+    };
+    if (inner.width < 1 || inner.height < 1) return null;
+    const box = contentBox({
+      width: inner.width,
+      height: inner.height,
+      data: context.getImageData(pad, pad, inner.width, inner.height).data,
+    });
+    if (!box) return null;
+    // Against the picture as it is now, which already has this crop on it, so
+    // a second trim narrows the first rather than replacing it.
+    const was = frame.crop ?? { x: 0, y: 0, width: 1, height: 1 };
+    return {
+      x: was.x + box.x * was.width,
+      y: was.y + box.y * was.height,
+      width: box.width * was.width,
+      height: box.height * was.height,
+    };
   };
 
   const pick = ({ u, v, fromLayer }: { u: number; v: number; fromLayer: string | null }) => {
@@ -737,6 +825,7 @@ export function StickerStudio() {
                           onTouchChange={touchChanged}
                           onLeak={setLeak}
                           onPick={pick}
+                          onCrop={(box) => setFrameRemembering({ ...frame, crop: box })}
                         />
                       )}
                       {/* On top of the colouring and deaf to the pointer, so a
@@ -907,6 +996,109 @@ export function StickerStudio() {
                     )}
                   </>
                 )}
+
+                {/* ------------------------------------------ the framing */}
+                <div className="border-t border-ink-200 pt-5">
+                  <Toggle label="Flip, turn or crop" checked={framing} onChange={setFraming} />
+                  {!framing ? (
+                    <p className="mt-2 text-[13px] leading-snug text-ink-500">
+                      All of it kept as settings, not as pixels — your upload is never written on
+                      and nothing is applied until you export.
+                    </p>
+                  ) : (
+                    <div className="mt-4 flex flex-col gap-5">
+                      <div>
+                        <span className="mb-2 block font-[570]">Flip</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <Button
+                            onClick={() => setFrameRemembering({ ...frame, flipX: !frame.flipX })}
+                          >
+                            {frame.flipX ? '✓ ' : ''}Left to right
+                          </Button>
+                          <Button
+                            onClick={() => setFrameRemembering({ ...frame, flipY: !frame.flipY })}
+                          >
+                            {frame.flipY ? '✓ ' : ''}Top to bottom
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="mb-2 block font-[570]">Turn</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <Button
+                            onClick={() =>
+                              setFrameRemembering({ ...frame, rotate: quarterFrom(frame.rotate, -1) })
+                            }
+                          >
+                            ↺ Quarter left
+                          </Button>
+                          <Button
+                            onClick={() =>
+                              setFrameRemembering({ ...frame, rotate: quarterFrom(frame.rotate, 1) })
+                            }
+                          >
+                            ↻ Quarter right
+                          </Button>
+                        </div>
+                        <p className="mt-2 text-[12.5px] leading-snug text-ink-500">
+                          Quarter turns move the pixels rather than sampling them, so four of them
+                          bring the picture back exactly as it was.
+                        </p>
+                      </div>
+
+                      <Control
+                        label="Or any angle"
+                        hint="Anything that is not a quarter turn is resampled, so it softens the picture a little — but only at export, and only once, however many times you change your mind."
+                        value={Math.round(norm(frame.rotate))}
+                        min={0}
+                        max={359}
+                        onChange={(rotate) => setFrameRemembering({ ...frame, rotate })}
+                      />
+
+                      <div>
+                        <span className="mb-2 block font-[570]">Crop</span>
+                        <p className="mb-2 text-[13px] leading-snug text-ink-500">
+                          {frame.crop
+                            ? `Keeping ${Math.round(frame.crop.width * 100)}% across and ${Math.round(frame.crop.height * 100)}% down. Drag again to change it.`
+                            : 'Drag a box on the picture to keep only that part.'}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            onClick={() => {
+                              const box = previewContent();
+                              if (box) setFrameRemembering({ ...frame, crop: box });
+                              else setSaid('There is nothing to trim to — the picture is empty.');
+                            }}
+                          >
+                            Trim to the sticker
+                          </Button>
+                          <Button
+                            disabled={!frame.crop}
+                            onClick={() => setFrameRemembering({ ...frame, crop: null })}
+                          >
+                            Whole picture
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button disabled={!frameDepth.past} onClick={undoFrame}>
+                          Undo
+                        </Button>
+                        <Button disabled={!frameDepth.future} onClick={redoFrame}>
+                          Redo
+                        </Button>
+                        <Button
+                          disabled={isPlain(frame)}
+                          onClick={() => setFrameRemembering({ ...NO_FRAME })}
+                        >
+                          Straighten it all out
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* --------------------------------------- the recolouring */}
                 <div className="border-t border-ink-200 pt-5">

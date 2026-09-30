@@ -644,6 +644,13 @@ export type StickerDraft = {
   touchAssetId: string | null;
   /** Colours changed on a kept picture, in order. Another plain field. */
   swaps: { from: string; to: string; tolerance: number }[];
+  /** Flipping, turning and cropping. Settings, never baked pixels. */
+  frame: {
+    flipX: boolean;
+    flipY: boolean;
+    rotate: number;
+    crop: { x: number; y: number; width: number; height: number } | null;
+  };
   colourAt: { width: number; height: number } | null;
   /** How far outlines are thickened, invisibly, to stop a fill leaking. */
   gapClosing: number;

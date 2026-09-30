@@ -25,6 +25,8 @@ import {
   SOLID,
   type Mask,
 } from './mask';
+import { applyFrame, borderColour, flatten, isPlain, NO_FRAME } from '../stickers/frame';
+import type { Frame } from '../stickers/frame';
 import { applySwaps } from '../stickers/recolour';
 import type { Swap } from '../stickers/recolour';
 import type { LineArtSettings, SourceKind } from '../types';
@@ -72,6 +74,8 @@ export type StickerOptions = {
    * art, where the one colour there is has its own control.
    */
   swaps?: Swap[];
+  /** Flipping, turning and cropping, applied to the source before anything else. */
+  frame?: Frame;
 };
 
 export type StickerRequest = {
@@ -120,6 +124,8 @@ export type InkRequest = {
   mode: 'convert' | 'cleanup' | 'asis';
   /** The grid the colouring will be painted on. */
   longEdge: number;
+  /** The same framing the sticker gets, so the two line up pixel for pixel. */
+  frame?: Frame;
 };
 
 export type InkResponse =
@@ -271,7 +277,7 @@ self.onmessage = async (event: MessageEvent<LineArtRequest | StickerRequest | In
  */
 async function makeSticker({ id, blob, settings, options }: StickerRequest): Promise<void> {
   try {
-    const decoded = await createImageBitmap(blob);
+    const decoded = await framed(blob, options.frame);
     const sourceLongEdge = Math.max(decoded.width, decoded.height);
 
     // Traced lines enlarge cleanly — a few hard edges that re-threshold back to
@@ -441,9 +447,9 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
  * blank plane, and colouring it behaves like painting on glass over the top.
  * That is the honest answer: there is nothing there for a fill to stop at.
  */
-async function traceInk({ id, blob, settings, mode, longEdge }: InkRequest): Promise<void> {
+async function traceInk({ id, blob, settings, mode, longEdge, frame }: InkRequest): Promise<void> {
   try {
-    const decoded = await createImageBitmap(blob);
+    const decoded = await framed(blob, frame);
     const sourceLongEdge = Math.max(decoded.width, decoded.height);
     const traceAt = Math.min(sourceLongEdge, TRACE_EDGE);
     const scale = traceAt / sourceLongEdge;
@@ -489,4 +495,39 @@ async function traceInk({ id, blob, settings, mode, longEdge }: InkRequest): Pro
     };
     self.postMessage(response);
   }
+}
+
+/**
+ * The upload, decoded and framed.
+ *
+ * Framing happens here rather than further down because everything after it —
+ * the tracing, the background removal, the colouring grid — has to agree about
+ * what the picture is. A crop applied later would leave the colouring painted
+ * on a picture that no longer exists.
+ *
+ * An unframed picture skips the canvas round trip entirely and comes back as
+ * the decoded bitmap, so the common case costs nothing.
+ */
+async function framed(blob: Blob, frame?: Frame): Promise<ImageBitmap> {
+  const decoded = await createImageBitmap(blob);
+  if (!frame || isPlain(frame ?? NO_FRAME)) return decoded;
+
+  const canvas = new OffscreenCanvas(decoded.width, decoded.height);
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('This browser cannot read image data.');
+  context.drawImage(decoded, 0, 0);
+  decoded.close();
+
+  const original = context.getImageData(0, 0, canvas.width, canvas.height);
+  // Onto the picture's own paper, not left see-through: a turn leaves empty
+  // corners, and the tracer reads a colour, so a transparent corner would be
+  // read as black and come back as solid ink.
+  const out = flatten(applyFrame(original, frame), borderColour(original));
+  const held = new OffscreenCanvas(out.width, out.height);
+  const heldContext = held.getContext('2d');
+  if (!heldContext) throw new Error('This browser cannot draw the result.');
+  const image = heldContext.createImageData(out.width, out.height);
+  image.data.set(out.data);
+  heldContext.putImageData(image, 0, 0);
+  return held.transferToImageBitmap();
 }
