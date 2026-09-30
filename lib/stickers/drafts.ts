@@ -39,6 +39,7 @@ export function newDraft(sourceAssetId: string, name: string): StickerDraft {
     size: 1000,
     colourAssetId: null,
     touchAssetId: null,
+    swaps: [],
     colourAt: null,
     gapClosing: 2,
     createdAt: now,
@@ -55,6 +56,7 @@ export function migrateDraft(raw: unknown): StickerDraft {
     gapClosing: record.gapClosing ?? 2,
     colourAssetId: record.colourAssetId ?? null,
     touchAssetId: record.touchAssetId ?? null,
+    swaps: record.swaps ?? [],
     colourAt: record.colourAt ?? null,
   };
 }

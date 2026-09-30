@@ -642,6 +642,8 @@ export type StickerDraft = {
    * bump — IndexedDB stores whole objects and only indexes need declaring.
    */
   touchAssetId: string | null;
+  /** Colours changed on a kept picture, in order. Another plain field. */
+  swaps: { from: string; to: string; tolerance: number }[];
   colourAt: { width: number; height: number } | null;
   /** How far outlines are thickened, invisibly, to stop a fill leaking. */
   gapClosing: number;

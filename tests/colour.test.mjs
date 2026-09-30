@@ -25,6 +25,7 @@ import {
   fillAt,
   makePaint,
   painted,
+  parseColour,
   smear,
   softDisc,
   softSmear,
@@ -36,6 +37,13 @@ import { draftAssets } from '../lib/assetRefs.ts';
 import { listTrash } from '../lib/trash.ts';
 import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesign.ts';
 import { presetById } from '../lib/presets.ts';
+import {
+  applySwaps,
+  labDistance,
+  matchingInPaint,
+  sampleAt,
+  toHex,
+} from '../lib/stickers/recolour.ts';
 
 /* ---------------------------------------------------------------- fixtures */
 
@@ -689,3 +697,97 @@ function islands(mask) {
   }
   return count;
 }
+
+/* --------------------------------------------------------- changing colours */
+
+test('a colour swap on the colouring is exact, and leaves the rest alone', () => {
+  const paint = makePaint(4, 1);
+  const stroke = new Stroke(paint);
+  stroke.apply([0, 1], { r: 200, g: 30, b: 40 });
+  stroke.apply([2], { r: 30, g: 60, b: 200 });
+
+  const hit = matchingInPaint(paint, { r: 200, g: 30, b: 40 }, 0);
+  assert.deepEqual(hit, [0, 1], 'only the two that are that colour');
+
+  assert.deepEqual(matchingInPaint(paint, { r: 201, g: 30, b: 40 }, 0), [],
+    'and nothing at all when it is one off and the tolerance is zero');
+});
+
+test('an unpainted pixel is never a match, whatever its channels hold', () => {
+  const paint = makePaint(3, 1);
+  const stroke = new Stroke(paint);
+  stroke.apply([0], { r: 10, g: 20, b: 30 });
+  stroke.apply([0], null); // erased: the alpha goes, and so does the colour
+
+  assert.deepEqual(matchingInPaint(paint, { r: 0, g: 0, b: 0 }, 60), [],
+    'a transparent pixel has no colour to replace');
+});
+
+test('a tolerance is measured the way the eye measures it, not the way RGB adds up', () => {
+  // Both pairs are thirty apart in one channel and identical in the others, so
+  // in RGB they are exactly as far apart as each other. In Lab they are not,
+  // and that difference is the whole reason for converting: one tolerance
+  // cannot mean the same thing in both places unless it is measured in a space
+  // where distance means how different two colours look.
+  const grey = labDistance({ r: 120, g: 120, b: 120 }, { r: 150, g: 150, b: 150 });
+  const blue = labDistance({ r: 0, g: 0, b: 120 }, { r: 0, g: 0, b: 150 });
+  assert.notEqual(grey, blue, 'equal in RGB, unequal in Lab');
+  assert.ok(Math.abs(grey - blue) > 1, `grey ${grey.toFixed(1)}, blue ${blue.toFixed(1)}`);
+  assert.equal(labDistance({ r: 9, g: 9, b: 9 }, { r: 9, g: 9, b: 9 }), 0, 'and zero is zero');
+});
+
+test('swaps are a recipe read top to bottom, not a pile', () => {
+  const picture = {
+    width: 3,
+    height: 1,
+    data: new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 255, 255, 0, 255, 0, 255]),
+  };
+  const out = applySwaps(picture, [
+    { from: '#FF0000', to: '#0000FF', tolerance: 0 },
+    { from: '#0000FF', to: '#00FF00', tolerance: 0 },
+  ]);
+  assert.deepEqual([...out.data.slice(0, 3)], [0, 255, 0], 'red became blue and then green');
+  assert.deepEqual([...out.data.slice(4, 7)], [0, 255, 0], 'and so did what was already blue');
+});
+
+test('no swaps is the same picture, not a copy of it', () => {
+  const picture = { width: 1, height: 1, data: new Uint8ClampedArray([1, 2, 3, 255]) };
+  assert.equal(applySwaps(picture, []), picture);
+});
+
+test('a swap leaves the see-through parts see-through', () => {
+  const picture = {
+    width: 2,
+    height: 1,
+    data: new Uint8ClampedArray([255, 0, 0, 0, 255, 0, 0, 255]),
+  };
+  const out = applySwaps(picture, [{ from: '#FF0000', to: '#0000FF', tolerance: 5 }]);
+  assert.deepEqual([...out.data.slice(0, 4)], [255, 0, 0, 0], 'the transparent one is untouched');
+  assert.deepEqual([...out.data.slice(4, 8)], [0, 0, 255, 255]);
+});
+
+test('a tolerance catches a shade and its shading', () => {
+  const shades = {
+    width: 3,
+    height: 1,
+    data: new Uint8ClampedArray([200, 40, 40, 255, 180, 34, 34, 255, 40, 40, 200, 255]),
+  };
+  const out = applySwaps(shades, [{ from: '#C82828', to: '#FFFFFF', tolerance: 20 }]);
+  assert.deepEqual([...out.data.slice(0, 3)], [255, 255, 255], 'the colour itself');
+  assert.deepEqual([...out.data.slice(4, 7)], [255, 255, 255], 'and the shade next to it');
+  assert.deepEqual([...out.data.slice(8, 11)], [40, 40, 200], 'but not the blue');
+});
+
+test('a colour reads out and back again unchanged', () => {
+  for (const hex of ['#000000', '#FFFFFF', '#1B1815', '#E8B4B8', '#3355CC']) {
+    assert.equal(toHex(parseColour(hex)), hex.toUpperCase());
+  }
+});
+
+test('sampling says nothing where there is nothing', () => {
+  const paint = makePaint(4, 4);
+  new Stroke(paint).apply([5], { r: 7, g: 8, b: 9 });
+  assert.deepEqual(sampleAt(paint, 1, 1), { r: 7, g: 8, b: 9 });
+  assert.equal(sampleAt(paint, 0, 0), null, 'unpainted');
+  assert.equal(sampleAt(paint, 9, 9), null, 'and off the edge');
+});

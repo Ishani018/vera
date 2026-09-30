@@ -128,7 +128,7 @@ reopen the design — the picture should still be there.
 
 ## Stage 3 — Real-input testing of background removal
 
-**Commit:** `STAGE3HASH`
+**Commit:** `9254990`
 
 Three realistic inputs, measured before and after, with the pictures kept in
 `docs/background-removal/` — source, before and after for each. See the README
@@ -201,3 +201,62 @@ for that, but the numbers would differ.
 `texture-after.png` side by side — that pair is the whole stage in one picture.
 Then photograph a real drawing under a lamp and see whether the bright corner
 comes away.
+
+---
+
+## Stage 4 — Recolour tools
+
+**Commit:** `STAGE4HASH`
+
+An **eyedropper** and a **colour swap**, in a *Change a colour* panel, both
+working by pointing at the picture.
+
+Two places need recolouring and they are not the same place, so they work
+differently and the screen says which one happened:
+
+- **The colouring** is flat areas somebody filled, so a swap there is exact:
+  the pixels that are that colour become the other one, as one undoable step on
+  the layer. The message says "in the colouring".
+- **A kept picture** is a photograph or a painting, where "the red" is a
+  thousand reds. So a swap there has a tolerance, it is stored as a *setting* on
+  the draft rather than painted into pixels, and it is re-applied at export size.
+  The message says "in the picture", and the swaps are listed in order with a
+  per-swap undo.
+
+**Tolerance is measured in Lab**, not RGB, because a tolerance in RGB decides
+that navy and black are closer than two pinks. A test pins this: two pairs of
+colours exactly equal in RGB come out unequal in Lab.
+
+**Swaps are a recipe read top to bottom.** Red→blue then blue→green makes the
+original red green, which is what anyone reading the list expects. Each pixel is
+decided once against the colour of the step before.
+
+**The eyedropper reads the preview.** That is the only place the composited
+picture exists on this side — the pipeline runs in a worker and hands back a
+PNG — and it is exactly the colour the person is pointing at rather than a guess
+about what the pipeline would have produced. The point is corrected for the
+die-cut margin first.
+
+For traced modes the lines are one colour, which the existing **Line colour**
+control already changes all at once; the panel says so rather than pretending
+there is something else to point at.
+
+**No version bump.** `swaps` is a plain field on the draft row.
+
+**Checked:** `npm test` 456 pass / 0 fail (9 new). Goldens unchanged,
+`golden:screen` 0 pixels changed, build clean. Plus 14 browser checks across
+both paths: that the eyedropper picks `#BD4442` out of a photograph, that
+swapping it for `#11AA44` turns 65,658 pixels green and undo takes every one of
+them off again, that the swap is stored as `{from, to, tolerance}` rather than
+baked in, that a swap on the colouring changes exactly 111,656 pixels and no
+more, and that pointing at a see-through part says so instead of doing something
+odd.
+
+**Only checked in the sandbox:** colour accuracy was judged by reading pixels
+back, not by eye on a calibrated screen. The Lab conversion is the app's
+existing one, shared with the background removal.
+
+**Look at first:** open a photograph, use the eyedropper on it, then swap that
+colour and slide *How close a match counts* from 0 to 60 — the point where it
+starts eating the rest of the picture is the number worth knowing for your own
+photographs.

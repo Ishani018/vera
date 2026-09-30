@@ -11,6 +11,7 @@ import { DEFAULT_LINE_ART } from '@/lib/projects';
 import type { Paint } from '@/lib/stickers/colour';
 import { blobToPaint, paintToBlob, putLayer } from '@/lib/stickers/layer';
 import { SEND_TO, sendStickerToDesign } from '@/lib/stickers/sendToDesign';
+import { toHex, type Swap } from '@/lib/stickers/recolour';
 import {
   deleteDraft,
   latestDraft,
@@ -22,7 +23,7 @@ import { ColourField } from '../cover/ColourField';
 import { Control, ModeChoice } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { Button, Notice, TextInput, Toggle, cx } from '../ui';
-import { PaintSurface, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
+import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 
 /**
  * Any picture, into a sticker.
@@ -53,6 +54,19 @@ const SIZES = [
   { px: 500, label: '500 px', note: 'Small — for a screen' },
   { px: 1000, label: '1000 px', note: 'The usual sticker size' },
   { px: 2000, label: '2000 px', note: 'Large — prints at 300 DPI to about 6 inches' },
+];
+
+const PICK: { value: Tool; label: string; note: string }[] = [
+  {
+    value: 'dropper',
+    label: 'Eyedropper',
+    note: 'Point at the picture and that colour becomes the one you are working in.',
+  },
+  {
+    value: 'replace',
+    label: 'Swap a colour',
+    note: 'Point at a colour and it becomes the one below, everywhere it appears.',
+  },
 ];
 
 const TOUCH: { value: Tool; label: string; note: string }[] = [
@@ -114,6 +128,7 @@ export function StickerStudio() {
     transparent: boolean;
     pad: number;
   } | null>(null);
+  const previewImage = useRef<HTMLImageElement>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -153,15 +168,50 @@ export function StickerStudio() {
     setLayerTick((n) => n + 1);
   }, []);
 
+  /* ------------------------------------------------------------ recolouring */
+
+  const [recolouring, setRecolouring] = useState(false);
+  const [swapTolerance, setSwapTolerance] = useState(18);
+  const [swaps, setSwaps] = useState<Swap[]>([]);
+  // The swaps are a list rather than pixels, so their undo is a list too — and
+  // a plain pair of stacks says what it does better than a shared abstraction.
+  const swapPast = useRef<Swap[][]>([]);
+  const swapFuture = useRef<Swap[][]>([]);
+  const [swapDepth, setSwapDepth] = useState({ past: 0, future: 0 });
+
+  const setSwapsRemembering = (next: Swap[]) => {
+    swapPast.current.push(swaps);
+    swapFuture.current = [];
+    setSwaps(next);
+    setSwapDepth({ past: swapPast.current.length, future: 0 });
+  };
+
+  const undoSwap = () => {
+    const previous = swapPast.current.pop();
+    if (!previous) return;
+    swapFuture.current.push(swaps);
+    setSwaps(previous);
+    setSwapDepth({ past: swapPast.current.length, future: swapFuture.current.length });
+  };
+
+  const redoSwap = () => {
+    const next = swapFuture.current.pop();
+    if (!next) return;
+    swapPast.current.push(swaps);
+    setSwaps(next);
+    setSwapDepth({ past: swapPast.current.length, future: swapFuture.current.length });
+  };
+
   // One surface serves both layers, so it exists as soon as either tool does.
-  const painting = colouring || touchUp;
+  const painting = colouring || touchUp || recolouring;
 
   // The tool always belongs to a panel that is open, so nobody is left holding
   // a brush that paints on a layer they have just put away.
   useEffect(() => {
-    if (touchUp && !colouring && !isTouchTool(tool)) setTool('restore');
-    if (colouring && !touchUp && isTouchTool(tool)) setTool('fill');
-  }, [colouring, touchUp, tool]);
+    if (recolouring && !colouring && !touchUp && !isPicker(tool)) setTool('dropper');
+    if (touchUp && !colouring && !recolouring && !isTouchTool(tool)) setTool('restore');
+    if (colouring && !touchUp && !recolouring && (isTouchTool(tool) || isPicker(tool))) setTool('fill');
+  }, [colouring, touchUp, recolouring, tool]);
 
   /* ------------------------------------------------------------ the draft */
 
@@ -241,6 +291,10 @@ export function StickerStudio() {
       }
       setSize(saved.size);
       setGapClosing(saved.gapClosing);
+      setSwaps(saved.swaps ?? []);
+      swapPast.current = [];
+      swapFuture.current = [];
+      setSwapDepth({ past: 0, future: 0 });
       setName(saved.name);
       setTags(saved.tags);
       row.current = saved;
@@ -252,6 +306,7 @@ export function StickerStudio() {
       // shows what was being done rather than an apparently untouched picture.
       setColouring(Boolean(saved.colourAssetId));
       setTouchUp(Boolean(saved.touchAssetId));
+      setRecolouring((saved.swaps ?? []).length > 0);
       if (saved.touchAssetId && !saved.colourAssetId) setTool('restore');
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be reopened.');
@@ -282,8 +337,9 @@ export function StickerStudio() {
       longEdge,
       colour: withColour,
       touch: withTouch,
+      swaps,
     }),
-    [mode, removeBackground, tolerance, smoothing, inkColour, dieCutOn, dieCutWidth, dieCutColour, dieCutRadius],
+    [mode, removeBackground, tolerance, smoothing, inkColour, dieCutOn, dieCutWidth, dieCutColour, dieCutRadius, swaps],
   );
 
   // One render in flight at a time, and the newest wins: the worker numbers its
@@ -386,6 +442,7 @@ export function StickerStudio() {
         dieCut: dieCutOn ? { width: dieCutWidth, colour: dieCutColour, radius: dieCutRadius } : null,
         size,
         gapClosing,
+        swaps,
         updatedAt: Date.now(),
       };
       row.current = next;
@@ -407,6 +464,7 @@ export function StickerStudio() {
     dieCutRadius,
     size,
     gapClosing,
+    swaps,
     drafted,
   ]);
 
@@ -506,6 +564,61 @@ export function StickerStudio() {
     } finally {
       setBusy(false);
     }
+  };
+
+  /* ------------------------------------------------------ pointing at colours */
+
+  /**
+   * The colour of the picture itself at a point, read back out of the preview.
+   *
+   * The preview is the only place the composited picture exists on this side —
+   * the pipeline runs in the worker and hands back a PNG. Drawing that PNG into
+   * a canvas and reading one pixel is cheap and, more to the point, it is
+   * exactly the colour the person is pointing at rather than a guess about what
+   * the pipeline would have produced.
+   */
+  const previewColour = (u: number, v: number): string | null => {
+    const img = previewImage.current;
+    if (!img?.naturalWidth) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) return null;
+    context.drawImage(img, 0, 0);
+    // The preview carries the die-cut margin; the point came in without it.
+    const pad = preview?.pad ?? 0;
+    const x = Math.round(pad + u * (img.naturalWidth - pad * 2));
+    const y = Math.round(pad + v * (img.naturalHeight - pad * 2));
+    if (x < 0 || y < 0 || x >= img.naturalWidth || y >= img.naturalHeight) return null;
+    const [r, g, b, a] = context.getImageData(x, y, 1, 1).data;
+    return a === 0 ? null : toHex({ r, g, b });
+  };
+
+  const pick = ({ u, v, fromLayer }: { u: number; v: number; fromLayer: string | null }) => {
+    // The colouring wins where there is any, because that is what is on top.
+    const found = fromLayer ?? previewColour(u, v);
+    if (!found) {
+      setSaid('Nothing there to pick up — that part is see-through.');
+      return;
+    }
+    if (tool === 'dropper') {
+      setBrushColour(found);
+      setSaid(`Picked up ${found}.`);
+      return;
+    }
+    if (found.toUpperCase() === brushColour.toUpperCase()) {
+      setSaid('That is already the colour you have chosen.');
+      return;
+    }
+    if (fromLayer) {
+      // It is colouring, so it is replaced exactly, on the layer, undoably.
+      const done = surface.current?.replaceColour(fromLayer, brushColour, swapTolerance);
+      setSaid(done ? `Changed ${fromLayer} to ${brushColour} in the colouring.` : 'Nothing was that colour.');
+      return;
+    }
+    setSwapsRemembering([...swaps, { from: found, to: brushColour, tolerance: swapTolerance }]);
+    setSaid(`Changed ${found} to ${brushColour} in the picture.`);
   };
 
   /* ----------------------------------------------------------- onto a board */
@@ -623,6 +736,7 @@ export function StickerStudio() {
                           onColourChange={colourChanged}
                           onTouchChange={touchChanged}
                           onLeak={setLeak}
+                          onPick={pick}
                         />
                       )}
                       {/* On top of the colouring and deaf to the pointer, so a
@@ -630,6 +744,7 @@ export function StickerStudio() {
                           picture that has nothing to do with it. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
+                        ref={previewImage}
                         src={preview.url}
                         alt="The sticker"
                         className="pointer-events-none relative z-10 max-h-[54vh] w-auto max-w-full object-contain"
@@ -792,6 +907,127 @@ export function StickerStudio() {
                     )}
                   </>
                 )}
+
+                {/* --------------------------------------- the recolouring */}
+                <div className="border-t border-ink-200 pt-5">
+                  <Toggle label="Change a colour" checked={recolouring} onChange={setRecolouring} />
+                  {!recolouring ? (
+                    <p className="mt-2 text-[13px] leading-snug text-ink-500">
+                      Pick a colour out of the picture, or point at one and swap it for another.
+                    </p>
+                  ) : !ink ? (
+                    <p className="mt-3 text-[13px] text-ink-500">Reading the picture…</p>
+                  ) : (
+                    <div className="mt-4 flex flex-col gap-5">
+                      <div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {PICK.map((choice) => (
+                            <button
+                              key={choice.value}
+                              type="button"
+                              aria-pressed={tool === choice.value}
+                              title={choice.note}
+                              onClick={() => setTool(choice.value)}
+                              className={cx(
+                                'rounded-lg border px-2 py-2 text-[13px] font-[560] transition-colors',
+                                tool === choice.value
+                                  ? 'border-accent-500 bg-accent-50'
+                                  : 'border-ink-200 hover:border-ink-300',
+                              )}
+                            >
+                              {choice.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[13px] leading-snug text-ink-500">
+                          {PICK.find((t) => t.value === tool)?.note ??
+                            'Pick one of these to point at a colour.'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className="mb-2 block font-[570]">
+                          {tool === 'dropper' ? 'Picked up' : 'Change it to'}
+                        </span>
+                        <ColourField label="Colour" value={brushColour} onChange={setBrushColour} />
+                      </div>
+
+                      {tool === 'replace' && (
+                        <Control
+                          label="How close a match counts"
+                          hint="Zero changes only that exact colour. Around twenty catches one shade and its shading, which is what a photograph needs."
+                          value={swapTolerance}
+                          min={0}
+                          max={60}
+                          onChange={setSwapTolerance}
+                        />
+                      )}
+
+                      {mode !== 'asis' && (
+                        <p className="-mt-2 rounded-xl bg-ink-100 px-4 py-3 text-[13px] leading-relaxed text-ink-700">
+                          This picture is traced, so its lines are one colour —{' '}
+                          <span className="font-[560]">Line colour</span> above changes all of them
+                          at once. Swapping works on anything you have coloured in.
+                        </p>
+                      )}
+
+                      {swaps.length > 0 && (
+                        <div>
+                          <span className="mb-2 block font-[570]">
+                            Changed in the picture, in order
+                          </span>
+                          <ol className="flex flex-col gap-1.5">
+                            {swaps.map((swap, n) => (
+                              <li
+                                key={`${swap.from}-${swap.to}-${n}`}
+                                className="flex items-center gap-2 text-[13px]"
+                              >
+                                <span
+                                  className="h-4 w-4 shrink-0 rounded border border-black/15"
+                                  style={{ background: swap.from }}
+                                />
+                                <span className="text-ink-500">→</span>
+                                <span
+                                  className="h-4 w-4 shrink-0 rounded border border-black/15"
+                                  style={{ background: swap.to }}
+                                />
+                                <span className="font-mono text-[11.5px] text-ink-500">
+                                  {swap.from} → {swap.to} · ±{swap.tolerance}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSwapsRemembering(swaps.filter((_, i) => i !== n))
+                                  }
+                                  className="ml-auto text-[12px] text-accent-500 underline"
+                                >
+                                  Undo this one
+                                </button>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => (swapDepth.past ? undoSwap() : surface.current?.undo())}
+                        >
+                          Undo
+                        </Button>
+                        <Button
+                          onClick={() => (swapDepth.future ? redoSwap() : surface.current?.redo())}
+                        >
+                          Redo
+                        </Button>
+                      </div>
+                      <p className="-mt-3 text-[12px] leading-snug text-ink-500">
+                        Colours are settings, not painted-over pixels: the original is never
+                        written on, and every change can come off.
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 {/* ---------------------------------------- the touch-up */}
                 <div className="border-t border-ink-200 pt-5">

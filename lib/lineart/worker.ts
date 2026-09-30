@@ -25,6 +25,8 @@ import {
   SOLID,
   type Mask,
 } from './mask';
+import { applySwaps } from '../stickers/recolour';
+import type { Swap } from '../stickers/recolour';
 import type { LineArtSettings, SourceKind } from '../types';
 
 /**
@@ -65,6 +67,11 @@ export type StickerOptions = {
    * one of them works from the shape that is actually wanted.
    */
   touch?: { width: number; height: number; data: Uint8ClampedArray } | null;
+  /**
+   * Colours to change, in order, on a kept picture. Nothing for traced line
+   * art, where the one colour there is has its own control.
+   */
+  swaps?: Swap[];
 };
 
 export type StickerRequest = {
@@ -299,6 +306,10 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       if (!fullContext) throw new Error('This browser cannot read image data.');
       fullContext.drawImage(decoded, 0, 0, outWidth, outHeight);
       paint = fullContext.getImageData(0, 0, outWidth, outHeight);
+      // Recoloured before the background is worked out, so replacing a colour
+      // cannot quietly move the edge: the removal sees the picture the person
+      // is looking at.
+      if (options.swaps?.length) paint = applySwaps(paint, options.swaps);
       subject = options.removeBackground
         ? backgroundMask(paint, options.tolerance)
         : makeMask(outWidth, outHeight, SOLID);

@@ -14,6 +14,7 @@ import {
   type Paint,
 } from '@/lib/stickers/colour';
 import { DROP, KEEP } from '@/lib/lineart/mask';
+import { matchingInPaint, sampleAt, toHex } from '@/lib/stickers/recolour';
 import type { InkResult } from '@/lib/lineart/client';
 
 /**
@@ -35,7 +36,19 @@ import type { InkResult } from '@/lib/lineart/client';
  * `pointer-events: none` and never swallow a click.
  */
 
-export type Tool = 'fill' | 'brush' | 'eraser' | 'restore' | 'remove' | 'automatic';
+export type Tool =
+  | 'fill'
+  | 'brush'
+  | 'eraser'
+  | 'restore'
+  | 'remove'
+  | 'automatic'
+  | 'dropper'
+  | 'replace';
+
+/** Tools that point at a colour rather than paint one. */
+export const PICKERS: Tool[] = ['dropper', 'replace'];
+export const isPicker = (tool: Tool) => PICKERS.includes(tool);
 
 /** Which layer a tool belongs to. */
 export const TOUCH_TOOLS: Tool[] = ['restore', 'remove', 'automatic'];
@@ -44,6 +57,12 @@ export const isTouchTool = (tool: Tool) => TOUCH_TOOLS.includes(tool);
 export type SurfaceHandle = {
   colour: () => Paint | null;
   touch: () => Paint | null;
+  /**
+   * Swaps one colour for another on the colour layer, as one undoable step.
+   * False when nothing was that colour, which is how the caller knows to look
+   * at the picture underneath instead.
+   */
+  replaceColour: (from: string, to: string, tolerance: number) => boolean;
   undo: () => void;
   redo: () => void;
   /** Clears the layer the current tool belongs to, as one undoable step. */
@@ -64,6 +83,7 @@ export function PaintSurface({
   onColourChange,
   onTouchChange,
   onLeak,
+  onPick,
 }: {
   ink: InkResult | null;
   tool: Tool;
@@ -81,6 +101,12 @@ export function PaintSurface({
   onColourChange: (paint: Paint) => void;
   onTouchChange: (paint: Paint) => void;
   onLeak: (share: number) => void;
+  /**
+   * Where a picking tool was pointed. `fromLayer` is the colour the colouring
+   * has there, or null where it has none — in which case what was pointed at
+   * is the picture underneath, which this component cannot see.
+   */
+  onPick: (at: { u: number; v: number; fromLayer: string | null }) => void;
 }) {
   const colourCanvas = useRef<HTMLCanvasElement>(null);
   const touchCanvas = useRef<HTMLCanvasElement>(null);
@@ -168,6 +194,8 @@ export function PaintSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ink]);
 
+  // A picking tool belongs to neither layer; the colour layer's grid is the one
+  // it reports positions in, which is the same grid as the touch layer's.
   const active = () => (touching ? touchPaint.current : colourPaint.current);
   const activePast = () => (touching ? touchPast.current : colourPast.current);
   const redrawActive = () => (touching ? drawTouch() : drawColour());
@@ -181,6 +209,20 @@ export function PaintSurface({
   useImperativeHandle(handle, () => ({
     colour: () => colourPaint.current,
     touch: () => touchPaint.current,
+    replaceColour: (from, to, tolerance) => {
+      const layer = colourPaint.current;
+      if (!layer) return false;
+      const hit = matchingInPaint(layer, parseColour(from), tolerance);
+      if (!hit.length) return false;
+      const swap = new Stroke(layer);
+      swap.apply(hit, parseColour(to));
+      const patch = swap.commit();
+      if (patch) colourPast.current.record(patch);
+      drawColour();
+      setDepth((n) => n + 1);
+      onColourChange(layer);
+      return true;
+    },
     undo: () => {
       const layer = active();
       if (!layer || !activePast().undo(layer)) return;
@@ -235,6 +277,20 @@ export function PaintSurface({
     const layer = active();
     const point = gridPoint(event);
     if (!layer || !point) return;
+
+    // A picking tool paints nothing: it reports what is under the pointer and
+    // lets the screen decide, because what is under the pointer may be the
+    // picture, which this component cannot see.
+    if (isPicker(tool)) {
+      const here = colourPaint.current && sampleAt(colourPaint.current, point.x, point.y);
+      onPick({
+        u: point.x / layer.width,
+        v: point.y / layer.height,
+        fromLayer: here ? toHex(here) : null,
+      });
+      return;
+    }
+
     (event.target as Element).setPointerCapture?.(event.pointerId);
     stroke.current = new Stroke(layer);
 
@@ -333,7 +389,7 @@ export function PaintSurface({
           ref={touchCanvas}
           aria-label="The touch-up"
           className={cx('h-full w-full touch-none', touching ? 'opacity-100' : 'opacity-0')}
-          style={{ cursor: tool === 'fill' ? 'crosshair' : 'cell' }}
+          style={{ cursor: tool === 'fill' || isPicker(tool) ? 'crosshair' : 'cell' }}
         />
       </div>
       <span className="sr-only" aria-live="polite">
