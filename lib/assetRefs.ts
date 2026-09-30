@@ -1,6 +1,13 @@
 import { illustrationsOf } from './contents';
 import { matterArtwork } from './render/coloringLayout';
-import type { AnyProject, CoverSpec, CoverTemplate, Design, LibrarySticker } from './types';
+import type {
+  AnyProject,
+  CoverSpec,
+  CoverTemplate,
+  Design,
+  LibrarySticker,
+  StickerDraft,
+} from './types';
 
 /**
  * Which pictures a thing depends on.
@@ -58,4 +65,16 @@ export function stickerAssets(sticker: LibrarySticker): string[] {
 
 export function templateAssets(template: CoverTemplate): string[] {
   return coverAssetIds(template.cover);
+}
+
+/**
+ * The upload a draft was made from, and the colouring painted on it.
+ *
+ * Counted like anything else, and it matters more than it looks: without this
+ * a sweep would find a draft's pictures referred to by nothing it knew about,
+ * decide they were orphans, and delete the source of a sticker somebody was
+ * halfway through making.
+ */
+export function draftAssets(draft: StickerDraft): string[] {
+  return [draft.sourceAssetId, draft.colourAssetId].filter((id): id is string => Boolean(id));
 }

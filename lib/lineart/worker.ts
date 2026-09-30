@@ -20,6 +20,7 @@ import {
   maskFromInk,
   padBitmap,
   padMask,
+  scalePaint,
   SOLID,
   type Mask,
 } from './mask';
@@ -49,6 +50,14 @@ export type StickerOptions = {
   dieCut: { width: number; colour: string; radius: number } | null;
   /** The long edge to work and export at. */
   longEdge: number;
+  /**
+   * The colouring, at whatever size it was painted, or null for none.
+   *
+   * Sent as plain arrays rather than a blob because it is already pixels on
+   * this side and encoding it to a PNG only to decode it again in the worker
+   * would cost a second and gain nothing.
+   */
+  colour?: { width: number; height: number; data: Uint8ClampedArray } | null;
 };
 
 export type StickerRequest = {
@@ -71,7 +80,36 @@ export type StickerResponse =
       transparent: boolean;
       /** The long edge of the original, for an honest resolution reading. */
       sourceLongEdge: number;
+      /**
+       * The margin added round the artwork to make room for the outline, in
+       * pixels of the returned picture. The colouring overlay needs it: without
+       * it the colour would sit over the padding and be a few pixels adrift of
+       * the drawing it was painted on.
+       */
+      pad: number;
     }
+  | { id: number; ok: false; error: string };
+
+/**
+ * The traced lines themselves, rather than a picture of them.
+ *
+ * The colouring tools need to know where the ink is to decide where a fill
+ * stops, and they need it as numbers, not as a PNG the main thread would have
+ * to decode and re-read. One job, answered once per trace; the fills after it
+ * are pure arithmetic on the main thread and need no worker at all.
+ */
+export type InkRequest = {
+  id: number;
+  job: 'ink';
+  blob: Blob;
+  settings: LineArtSettings;
+  mode: 'convert' | 'cleanup' | 'asis';
+  /** The grid the colouring will be painted on. */
+  longEdge: number;
+};
+
+export type InkResponse =
+  | { id: number; ok: true; width: number; height: number; ink: Uint8ClampedArray }
   | { id: number; ok: false; error: string };
 
 export type LineArtRequest = {
@@ -122,8 +160,9 @@ export type LineArtResponse =
  */
 let kept: { key: string; analysis: Analysis } | null = null;
 
-self.onmessage = async (event: MessageEvent<LineArtRequest | StickerRequest>) => {
+self.onmessage = async (event: MessageEvent<LineArtRequest | StickerRequest | InkRequest>) => {
   if (event.data.job === 'sticker') return void (await makeSticker(event.data));
+  if (event.data.job === 'ink') return void (await traceInk(event.data));
   const { id, blob, settings, source: asked, targetLongEdge, cacheKey } = event.data;
   try {
     const decoded = await createImageBitmap(blob);
@@ -268,18 +307,49 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
     }
     decoded.close();
 
+    // The colouring was painted on its own grid, which is rarely the size being
+    // exported at. Resized to match before anything is padded, so it lines up
+    // with the drawing it was painted on rather than with the padding.
+    let colour = options.colour
+      ? scalePaint(
+          { width: options.colour.width, height: options.colour.height, data: options.colour.data },
+          outWidth,
+          outHeight,
+        )
+      : null;
+
+    // A coloured-in sticker is the drawing *and* the colour, so the die-cut has
+    // to go round both; without this the outline would hug the lines and leave
+    // every filled area sticking out past its own edge.
+    //
+    // A second mask rather than a wider `subject`, and that distinction is the
+    // whole of it: `subject` is where the ink goes, so folding the colour into
+    // it would have the drawing painted over every square inch that had been
+    // coloured in — which is to say, the colouring would vanish.
+    let outline = subject;
+    if (colour) {
+      const merged = new Uint8Array(subject.data);
+      for (let p = 0, i = 3; p < merged.length; p++, i += 4) {
+        if (colour.data[i] > merged[p]) merged[p] = colour.data[i];
+      }
+      outline = { width: subject.width, height: subject.height, data: merged };
+    }
+
     // Room for the outline, made before it is drawn, so a sticker whose artwork
     // runs to the edge does not get its edge cut off by the edge.
     const pad = options.dieCut ? Math.ceil(options.dieCut.width + options.smoothing) + 2 : 0;
     if (pad) {
-      subject = padMask(subject, pad);
+      const padded = padMask(subject, pad);
+      outline = outline === subject ? padded : padMask(outline, pad);
+      subject = padded;
       if (paint) paint = padBitmap(paint, pad);
+      if (colour) colour = padBitmap(colour, pad);
       outWidth += pad * 2;
       outHeight += pad * 2;
     }
 
     const ring = options.dieCut
-      ? dieCutRing(subject, Math.round(options.dieCut.width), Math.round(options.dieCut.radius))
+      ? dieCutRing(outline, Math.round(options.dieCut.width), Math.round(options.dieCut.radius))
       : null;
     const softened = options.smoothing > 0 ? feather(subject, Math.round(options.smoothing)) : subject;
 
@@ -287,6 +357,7 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       subject: softened,
       ring,
       paint,
+      colour,
       inkColour: options.inkColour,
       ringColour: options.dieCut?.colour ?? '#FFFFFF',
     });
@@ -318,6 +389,7 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       source,
       transparent,
       sourceLongEdge,
+      pad,
     };
     self.postMessage(response);
   } catch (error) {
@@ -325,6 +397,63 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       id,
       ok: false,
       error: error instanceof Error ? error.message : 'That picture could not be made into a sticker.',
+    };
+    self.postMessage(response);
+  }
+}
+
+/**
+ * The traced lines as a grey plane, on the grid the colouring will use.
+ *
+ * `asis` has no lines of its own — the picture is kept as it is — so it gets a
+ * blank plane, and colouring it behaves like painting on glass over the top.
+ * That is the honest answer: there is nothing there for a fill to stop at.
+ */
+async function traceInk({ id, blob, settings, mode, longEdge }: InkRequest): Promise<void> {
+  try {
+    const decoded = await createImageBitmap(blob);
+    const sourceLongEdge = Math.max(decoded.width, decoded.height);
+    const traceAt = Math.min(sourceLongEdge, TRACE_EDGE);
+    const scale = traceAt / sourceLongEdge;
+    const width = Math.max(1, Math.round(decoded.width * scale));
+    const height = Math.max(1, Math.round(decoded.height * scale));
+
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('This browser cannot read image data.');
+    context.drawImage(decoded, 0, 0, width, height);
+    const input = context.getImageData(0, 0, width, height);
+    decoded.close();
+
+    let lines =
+      mode === 'asis'
+        ? {
+            width,
+            height,
+            data: new Uint8ClampedArray(width * height).fill(255),
+          }
+        : mode === 'cleanup'
+          ? runCleanup(input, settings)
+          : runLineArt(input, settings);
+
+    if (longEdge > Math.max(lines.width, lines.height)) {
+      const by = longEdge / Math.max(lines.width, lines.height);
+      lines = upscale(lines, Math.round(lines.width * by), Math.round(lines.height * by));
+    }
+
+    const response: InkResponse = {
+      id,
+      ok: true,
+      width: lines.width,
+      height: lines.height,
+      ink: lines.data,
+    };
+    self.postMessage(response, [lines.data.buffer]);
+  } catch (error) {
+    const response: InkResponse = {
+      id,
+      ok: false,
+      error: error instanceof Error ? error.message : 'Those lines could not be read.',
     };
     self.postMessage(response);
   }

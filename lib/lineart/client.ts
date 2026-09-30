@@ -2,6 +2,8 @@
 
 import type { LineArtSettings, SourceKind } from '../types';
 import type {
+  InkRequest,
+  InkResponse,
   LineArtRequest,
   LineArtResponse,
   StickerOptions,
@@ -34,7 +36,7 @@ export type LineArtResult = {
 function ensureWorker(): Worker {
   if (worker) return worker;
   worker = new Worker(new URL('./worker.ts', import.meta.url));
-  worker.onmessage = (event: MessageEvent<LineArtResponse | StickerResponse>) => {
+  worker.onmessage = (event: MessageEvent<LineArtResponse | StickerResponse | InkResponse>) => {
     const waiting = pending.get(event.data.id);
     if (!waiting) return;
     pending.delete(event.data.id);
@@ -69,6 +71,8 @@ export type StickerResult = {
   height: number;
   transparent: boolean;
   sourceLongEdge: number;
+  /** The margin the outline needed, in pixels of this picture. */
+  pad: number;
 };
 
 /**
@@ -87,6 +91,29 @@ export function renderSticker(
   const id = nextId++;
   const request: StickerRequest = { id, job: 'sticker', blob, settings, options };
   return new Promise<StickerResult>((resolve, reject) => {
+    pending.set(id, { resolve: resolve as Waiting['resolve'], reject });
+    ensureWorker().postMessage(request);
+  });
+}
+
+export type InkResult = { width: number; height: number; ink: Uint8ClampedArray };
+
+/**
+ * The traced lines as numbers, for the colouring tools to fill against.
+ *
+ * Asked for once per trace rather than once per fill: a fill itself is a walk
+ * over an array and is quick enough on the main thread that sending it to a
+ * worker would add more delay than it saved.
+ */
+export function traceInk(
+  blob: Blob,
+  settings: LineArtSettings,
+  mode: 'convert' | 'cleanup' | 'asis',
+  longEdge: number,
+): Promise<InkResult> {
+  const id = nextId++;
+  const request: InkRequest = { id, job: 'ink', blob, settings, mode, longEdge };
+  return new Promise<InkResult>((resolve, reject) => {
     pending.set(id, { resolve: resolve as Waiting['resolve'], reject });
     ensureWorker().postMessage(request);
   });

@@ -239,11 +239,17 @@ export function parseColour(value: string): Rgb {
  * `paint` is the artwork's own colour, pixel for pixel, for a picture kept as
  * it is; for traced line art it is one flat colour and the mask carries all
  * the shape.
+ *
+ * `colour` is the colouring layer, which goes on last of the three underneath
+ * layers and first of all: it is beneath the drawing, so a fill tucked under a
+ * line never paints over the line, and it carries its own alpha, so a sticker
+ * is opaque wherever it has been coloured in even if that is outside the ink.
  */
 export function compositeSticker({
   subject,
   ring,
   paint,
+  colour = null,
   inkColour,
   ringColour,
 }: {
@@ -251,6 +257,8 @@ export function compositeSticker({
   ring: Mask | null;
   /** The picture, where the sticker is a picture. Null for flat line art. */
   paint: Bitmap | null;
+  /** What has been coloured in, straight RGBA. Null when nothing has been. */
+  colour?: Bitmap | null;
   inkColour: string;
   ringColour: string;
 }): Bitmap {
@@ -266,6 +274,13 @@ export function compositeSticker({
       out[i + 1] = edge.g;
       out[i + 2] = edge.b;
       out[i + 3] = ringAlpha;
+    }
+    const painted = colour ? colour.data[i + 3] : 0;
+    if (painted > 0) {
+      out[i] = colour!.data[i];
+      out[i + 1] = colour!.data[i + 1];
+      out[i + 2] = colour!.data[i + 2];
+      out[i + 3] = Math.max(out[i + 3], painted);
     }
     const alpha = subject.data[p];
     if (alpha > 0) {
@@ -291,4 +306,30 @@ export function hasTransparency(bitmap: Bitmap): boolean {
     if (bitmap.data[i] < 255) return true;
   }
   return false;
+}
+
+/**
+ * The colour layer at a different size, for exporting bigger or smaller than
+ * the size it was painted at.
+ *
+ * Nearest neighbour rather than anything smoother, and deliberately: a colour
+ * layer is flat areas meeting along edges that sit underneath the drawing's
+ * lines, so there is nothing for blending to improve and a blended edge would
+ * invent colours that are in neither region. Where the seams show, the lines
+ * are on top of them.
+ */
+export function scalePaint(paint: Bitmap, width: number, height: number): Bitmap {
+  if (paint.width === width && paint.height === height) return paint;
+  const out = new Uint8ClampedArray(width * height * 4);
+  const xScale = paint.width / width;
+  const yScale = paint.height / height;
+  for (let y = 0; y < height; y++) {
+    const sy = Math.min(paint.height - 1, (y * yScale) | 0);
+    for (let x = 0; x < width; x++) {
+      const sx = Math.min(paint.width - 1, (x * xScale) | 0);
+      const from = (sy * paint.width + sx) * 4;
+      out.set(paint.data.subarray(from, from + 4), (y * width + x) * 4);
+    }
+  }
+  return { width, height, data: out };
 }

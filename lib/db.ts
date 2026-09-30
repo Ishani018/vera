@@ -1,6 +1,12 @@
 import Dexie, { type Table } from 'dexie';
 import type { AssetRecord } from './assets';
-import type { AnyProject, CoverTemplate, LibrarySticker, StandaloneDesign } from './types';
+import type {
+  AnyProject,
+  CoverTemplate,
+  LibrarySticker,
+  StandaloneDesign,
+  StickerDraft,
+} from './types';
 
 /**
  * Everything lives in the browser. There is no server-side store: the export
@@ -37,6 +43,21 @@ export class VersecraftDatabase extends Dexie {
    * here moves them.
    */
   designs!: Table<StandaloneDesign, string>;
+  /**
+   * Stickers still being made.
+   *
+   * A draft is not a sticker. It is the settings and the colouring that will
+   * become one, kept only so that closing the tab halfway through does not
+   * throw the work away — and it is deliberately invisible to everything else:
+   * no list shows it, no backup carries it, and it becomes a real sticker only
+   * when someone presses the button that says so.
+   *
+   * Its own table for that reason. Putting half-finished work in `stickers`
+   * would mean every reader of the library had to learn to ignore some of it,
+   * and the one that forgot would put a half-traced drawing on somebody's
+   * cover.
+   */
+  stickerDrafts!: Table<StickerDraft, string>;
 
   constructor() {
     super('versecraft');
@@ -58,6 +79,19 @@ export class VersecraftDatabase extends Dexie {
       stickers: 'id, name, createdAt, *tags',
       coverTemplates: 'id, name, createdAt',
       designs: 'id, updatedAt, name',
+    });
+    // Additive again, and in exactly the same way version 4 was: every store
+    // above is repeated unchanged, one new store is named, and there is no
+    // `upgrade()` callback — so IndexedDB creates one empty object store and
+    // does not open, read or rewrite a single row of anything that already
+    // exists.
+    this.version(5).stores({
+      projects: 'id, updatedAt, name',
+      assets: 'id, createdAt',
+      stickers: 'id, name, createdAt, *tags',
+      coverTemplates: 'id, name, createdAt',
+      designs: 'id, updatedAt, name',
+      stickerDrafts: 'id, updatedAt',
     });
   }
 }
