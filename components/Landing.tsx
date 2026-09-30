@@ -124,6 +124,8 @@ export function Landing() {
   const onTile = async (tile: Tile) => {
     if (tile.status !== 'ready') return;
     if (tile.destination.kind === 'interior') return setInteriors(true);
+    // A screen of its own: nothing to make first, so nothing to ask about.
+    if (tile.destination.kind === 'route') return void router.push(tile.destination.href);
     if (tile.destination.kind === 'design') {
       const design = await startDesign(tile.destination.presetId);
       if (design) router.push(`/design?id=${encodeURIComponent(design.id)}`);
@@ -575,6 +577,26 @@ function TileDrawing({ art }: { art: TileArt }) {
           <rect x="56" y="10" width="8" height="8" fill="#e7e1d6" />
           <rect x="56" y="24" width="8" height="26" fill={stroke} opacity="0.5" />
           <path d="M52 74 L60 66 L68 74 Z" fill="#e7e1d6" stroke={stroke} />
+        </svg>
+      );
+    case 'sticker':
+      // A shape with a die-cut edge round it, which is the thing itself.
+      return (
+        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="A die-cut sticker">
+          <path
+            d="M44 12 Q60 4 76 12 Q92 22 88 42 Q84 64 60 70 Q34 66 30 44 Q26 22 44 12 Z"
+            fill={paper}
+            stroke={stroke}
+            strokeWidth="5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M46 22 Q60 16 72 24 Q82 34 76 48 Q66 60 54 56 Q40 50 42 36 Q43 27 46 22 Z"
+            fill="#e7e1d6"
+            stroke={stroke}
+          />
+          <circle cx="54" cy="36" r="3" fill={stroke} />
+          <circle cx="67" cy="38" r="3" fill={stroke} />
         </svg>
       );
   }

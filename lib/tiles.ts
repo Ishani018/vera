@@ -9,7 +9,7 @@ import { presetById } from './presets';
  * page cannot drift from the board someone actually gets.
  */
 
-export type TileCategory = 'books' | 'covers' | 'social' | 'print';
+export type TileCategory = 'books' | 'covers' | 'social' | 'print' | 'stickers';
 
 export type TileDestination =
   /** Pick a kind of interior, then open that editor. */
@@ -18,11 +18,13 @@ export type TileDestination =
   | { kind: 'cover' }
   /** Start a launch-kit design on the named board. */
   | { kind: 'design'; presetId: string }
+  /** Go straight to a screen of its own. */
+  | { kind: 'route'; href: string }
   /** Nothing to open yet. */
   | { kind: 'none' };
 
 /** Which little drawing goes on the tile. Drawn in `Landing`, named here. */
-export type TileArt = 'interior' | 'wrap' | 'square' | 'pin' | 'postcard' | 'bookmark';
+export type TileArt = 'interior' | 'wrap' | 'square' | 'pin' | 'postcard' | 'bookmark' | 'sticker';
 
 export type Tile = {
   id: string;
@@ -54,6 +56,7 @@ export const CATEGORY_TINT: Record<TileCategory, string> = {
   covers: '#E6F0EE',
   social: '#E8EEF4',
   print: '#F4EAE4',
+  stickers: '#EDE7F2',
 };
 
 export const CATEGORIES: Array<{ id: TileCategory | 'all'; label: string }> = [
@@ -62,6 +65,7 @@ export const CATEGORIES: Array<{ id: TileCategory | 'all'; label: string }> = [
   { id: 'covers', label: 'Covers' },
   { id: 'social', label: 'Social' },
   { id: 'print', label: 'Print' },
+  { id: 'stickers', label: 'Stickers' },
 ];
 
 export const TILES: Tile[] = [
@@ -98,6 +102,15 @@ export const TILES: Tile[] = [
     status: 'ready',
     destination: { kind: 'design', presetId: 'pinterest-pin' },
     art: 'pin',
+  },
+  {
+    id: 'sticker-studio',
+    label: 'Sticker Studio',
+    category: 'stickers',
+    size: 'Transparent PNG, any size',
+    status: 'ready',
+    destination: { kind: 'route', href: '/stickers' },
+    art: 'sticker',
   },
   {
     id: 'postcard',

@@ -6,7 +6,8 @@ import { pageQuality, placeOnPage, printedSize, shapesAgree } from '@/lib/colori
 import { MIN_COVER_DPI } from '@/lib/kdp';
 import { useColoring } from '@/lib/coloring/store';
 import type { ColoringBook, ColoringPage, LineArtSettings, SourceKind } from '@/lib/types';
-import { Button, Slider, Toggle, cx } from '../ui';
+import { Button, Toggle, cx } from '../ui';
+import { Control } from './LineArtControls';
 
 /**
  * One picture, before and after, with the controls that decide what happens
@@ -292,28 +293,6 @@ function Pane({ label, url, pale }: { label: string; url: string | null; pale?: 
         ) : (
           <span className="text-[14px] text-ink-500">…</span>
         )}
-      </div>
-    </div>
-  );
-}
-
-function Control({
-  label,
-  hint,
-  value,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div>
-      <span className="block font-[570]">{label}</span>
-      <span className="mt-0.5 block text-[14px] text-ink-500">{hint}</span>
-      <div className="mt-3">
-        <Slider value={value} onChange={onChange} min={0} max={100} step={1} />
       </div>
     </div>
   );

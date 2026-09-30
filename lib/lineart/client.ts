@@ -1,7 +1,13 @@
 'use client';
 
 import type { LineArtSettings, SourceKind } from '../types';
-import type { LineArtRequest, LineArtResponse } from './worker';
+import type {
+  LineArtRequest,
+  LineArtResponse,
+  StickerOptions,
+  StickerRequest,
+  StickerResponse,
+} from './worker';
 
 /**
  * One worker, shared, started on first use.
@@ -12,7 +18,8 @@ import type { LineArtRequest, LineArtResponse } from './worker';
  */
 let worker: Worker | null = null;
 let nextId = 1;
-const pending = new Map<number, { resolve: (r: LineArtResult) => void; reject: (e: Error) => void }>();
+type Waiting = { resolve: (r: never) => void; reject: (e: Error) => void };
+const pending = new Map<number, Waiting>();
 
 export type LineArtResult = {
   blob: Blob;
@@ -27,11 +34,11 @@ export type LineArtResult = {
 function ensureWorker(): Worker {
   if (worker) return worker;
   worker = new Worker(new URL('./worker.ts', import.meta.url));
-  worker.onmessage = (event: MessageEvent<LineArtResponse>) => {
+  worker.onmessage = (event: MessageEvent<LineArtResponse | StickerResponse>) => {
     const waiting = pending.get(event.data.id);
     if (!waiting) return;
     pending.delete(event.data.id);
-    if (event.data.ok) waiting.resolve(event.data);
+    if (event.data.ok) waiting.resolve(event.data as never);
     else waiting.reject(new Error(event.data.error));
   };
   worker.onerror = () => {
@@ -51,7 +58,36 @@ export function renderLineArt(
   const id = nextId++;
   const request: LineArtRequest = { id, blob, settings, ...options };
   return new Promise<LineArtResult>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
+    pending.set(id, { resolve: resolve as Waiting['resolve'], reject });
+    ensureWorker().postMessage(request);
+  });
+}
+
+export type StickerResult = {
+  blob: Blob;
+  width: number;
+  height: number;
+  transparent: boolean;
+  sourceLongEdge: number;
+};
+
+/**
+ * One finished sticker, made off the main thread.
+ *
+ * The same worker as the line art, and the same numbering: dragging the
+ * tolerance slider fires a request every settle, and without the number the
+ * answer to an old position would arrive after the answer to the new one and
+ * the preview would keep the wrong picture.
+ */
+export function renderSticker(
+  blob: Blob,
+  settings: LineArtSettings,
+  options: StickerOptions,
+): Promise<StickerResult> {
+  const id = nextId++;
+  const request: StickerRequest = { id, job: 'sticker', blob, settings, options };
+  return new Promise<StickerResult>((resolve, reject) => {
+    pending.set(id, { resolve: resolve as Waiting['resolve'], reject });
     ensureWorker().postMessage(request);
   });
 }
