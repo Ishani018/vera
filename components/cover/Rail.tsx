@@ -46,6 +46,7 @@ export function Rail({
           <button
             key={panel.id}
             type="button"
+            title={panel.id === open ? `Close ${panel.label}` : panel.label}
             aria-pressed={panel.id === open}
             onClick={() => onOpen(panel.id === open ? null : panel.id)}
             className={cx(
@@ -92,6 +93,7 @@ export function Rail({
             <button
               type="button"
               onClick={() => onOpen(null)}
+              title="Close this panel"
               aria-label="Close this panel"
               className="rounded px-1.5 text-[15px] text-ink-500 transition-colors hover:text-ink-900"
             >

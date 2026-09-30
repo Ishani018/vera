@@ -9,6 +9,8 @@ import {
   inchesToPt,
   padToEven,
   ptToInches,
+  ptToPx,
+  pxToPt,
   spineWidth,
 } from '@/lib/kdp';
 import type { ReactNode } from 'react';
@@ -128,6 +130,7 @@ export function CoverDesigner<T extends CoverableBook>({
   board,
   bookTray = { title: 'Stickers from this book', empty: 'Nothing in the book yet. Its pictures will appear here.' },
   rail = false,
+  units = 'in',
   borrow = null,
 }: {
   project: T | null;
@@ -163,6 +166,16 @@ export function CoverDesigner<T extends CoverableBook>({
    * effect of a design that was for boards.
    */
   rail?: boolean;
+  /**
+   * What sizes on this board are said in.
+   *
+   * A board stated in pixels is measured in pixels: asking someone to place a
+   * sticker on a 1080-pixel square by typing 2.4 inches is asking them to do
+   * the arithmetic the board already did. Points remain what is stored either
+   * way, and dots per inch are only offered where there are inches to have
+   * them — a post is never printed, so its DPI is a number about nothing.
+   */
+  units?: 'in' | 'px';
   /** Offered inside the Pictures panel: where a board borrows from a book. */
   borrow?: ReactNode;
 }) {
@@ -616,10 +629,20 @@ export function CoverDesigner<T extends CoverableBook>({
     history: (
       <>
         <div className="flex items-center gap-1.5">
-          <Button onClick={coverHistory.undo} disabled={!coverHistory.canUndo} title="Undo (Cmd+Z)">
+          <Button
+            onClick={coverHistory.undo}
+            disabled={!coverHistory.canUndo}
+            title="Undo (Cmd+Z)"
+            aria-label="Undo"
+          >
             ↺
           </Button>
-          <Button onClick={coverHistory.redo} disabled={!coverHistory.canRedo} title="Redo (Cmd+Shift+Z)">
+          <Button
+            onClick={coverHistory.redo}
+            disabled={!coverHistory.canRedo}
+            title="Redo (Cmd+Shift+Z)"
+            aria-label="Redo"
+          >
             ↻
           </Button>
           <span className="text-[11px] text-ink-500">Undo</span>
@@ -671,6 +694,7 @@ export function CoverDesigner<T extends CoverableBook>({
             sticker={sticker}
             layout={layout}
             compact={rail}
+            units={units}
             onPatch={(patch) => {
               coverHistory.remember();
               patchSticker(sticker.id, patch);
@@ -1283,6 +1307,7 @@ export function CoverDesigner<T extends CoverableBook>({
             )}
 
             <StickerLayer
+              showDpi={units === 'in'}
               stickers={cover.stickers}
               layout={layout}
               scale={scale}
@@ -1465,7 +1490,8 @@ export function CoverDesigner<T extends CoverableBook>({
                   </div>
                   <input
                     type="number"
-                    aria-label="Type size"
+                    title="Type size, in points"
+                    aria-label="Type size, in points"
                     value={selected.font.sizePt}
                     min={5}
                     max={200}
@@ -1708,6 +1734,7 @@ export function CoverDesigner<T extends CoverableBook>({
           <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-ink-200 bg-paper/95 px-1.5 py-1 shadow-lg">
             <button
               type="button"
+              title={guidesOn ? 'Hide the guides' : 'Show the guides'}
               onClick={() => setGuidesOn((on) => !on)}
               aria-pressed={guidesOn}
               className={cx(
@@ -1720,6 +1747,7 @@ export function CoverDesigner<T extends CoverableBook>({
             <span className="h-4 w-px bg-ink-200" />
             <button
               type="button"
+              title="Fit the whole board in the window"
               onClick={() => setZoom('fit')}
               aria-pressed={zoom === 'fit'}
               className={cx(
@@ -1733,6 +1761,7 @@ export function CoverDesigner<T extends CoverableBook>({
               <button
                 key={step}
                 type="button"
+                title={step === 1 ? 'Actual size' : `Zoom to ${step * 100}%`}
                 onClick={() => setZoom(step)}
                 aria-pressed={zoom === step}
                 className={cx(
@@ -1743,7 +1772,10 @@ export function CoverDesigner<T extends CoverableBook>({
                 {step * 100}%
               </button>
             ))}
-            <span className="pl-1 pr-1.5 text-[11px] tabular-nums text-ink-500">
+            <span
+              title="How big the board is on screen now"
+              className="pl-1 pr-1.5 text-[11px] tabular-nums text-ink-500"
+            >
               {Math.round((scale / ACTUAL_SIZE) * 100)}%
             </span>
           </div>
@@ -1813,11 +1845,14 @@ function StickerInspector({
   onKeep,
   saved,
   compact = false,
+  units = 'in',
 }: {
   sticker: CoverSticker;
   layout: Board<string>;
   /** True where a floating toolbar already carries the frequent controls. */
   compact?: boolean;
+  /** Inches and dots per inch, or pixels. See `CoverDesigner`. */
+  units?: 'in' | 'px';
   onPatch: (patch: Partial<CoverSticker>) => void;
   /**
    * The same, without touching the history. A slider sends a few hundred of
@@ -1834,7 +1869,12 @@ function StickerInspector({
   /** Once, at the start of a gesture, so one undo puts back the whole of it. */
   onCommit: () => void;
 }) {
-  const warnings = stickerWarnings(sticker, layout);
+  // How sharp something will print is a fact about a print. On a board
+  // measured in pixels there is not going to be one, so the reading and the
+  // warning that goes with it are both answers to a question nobody asked.
+  const warnings = stickerWarnings(sticker, layout).filter(
+    (warning) => units === 'in' || warning.kind !== 'soft',
+  );
   const bend = bendOf(sticker);
 
   return (
@@ -1843,9 +1883,14 @@ function StickerInspector({
         <h4 className="truncate text-[11px] font-semibold uppercase tracking-wider text-ink-500">
           {sticker.name || 'Sticker'}
         </h4>
-        <span className="shrink-0 text-[11px] tabular-nums text-ink-500">
-          {Math.round(stickerDpi(sticker))} dpi
-        </span>
+        {/* Only where it means something. A post is looked at on a screen at
+            whatever size the screen is; dots per inch on it is a measurement
+            of a print nobody is going to make. */}
+        {units === 'in' && (
+          <span className="shrink-0 text-[11px] tabular-nums text-ink-500">
+            {Math.round(stickerDpi(sticker))} dpi
+          </span>
+        )}
       </div>
 
       {warnings.map((warning) => (
@@ -1857,9 +1902,13 @@ function StickerInspector({
       <div className="grid grid-cols-2 gap-2">
         <Field label="Width">
           <NumberInput
-            value={round(ptToInches(sticker.width))}
-            onChange={(inches) => {
-              const width = inchesToPt(inches);
+            value={
+              units === 'px'
+                ? Math.round(ptToPx(sticker.width))
+                : round(ptToInches(sticker.width))
+            }
+            onChange={(typed) => {
+              const width = units === 'px' ? pxToPt(typed) : inchesToPt(typed);
               onPatch({
                 width,
                 // Keep the proportions: a number typed into a box is no more a
@@ -1867,9 +1916,9 @@ function StickerInspector({
                 height: round((width * sticker.height) / sticker.width),
               });
             }}
-            step={0.1}
-            min={0.2}
-            suffix="in"
+            step={units === 'px' ? 1 : 0.1}
+            min={units === 'px' ? 8 : 0.2}
+            suffix={units}
           />
         </Field>
         <Field label="Turn">

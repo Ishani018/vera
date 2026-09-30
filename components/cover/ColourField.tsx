@@ -66,6 +66,7 @@ export function ColourField({
     <div ref={box} className="relative">
       <button
         type="button"
+        title={label}
         aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen((was) => !was)}

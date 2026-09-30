@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
 import { ACTIVE_PROJECT_KEY, getDb } from '@/lib/db';
 import {
@@ -52,7 +52,8 @@ export function Landing() {
   /** The tile waiting for a book to belong to. */
   const [pending, setPending] = useState<Tile | null>(null);
   const [interiors, setInteriors] = useState(false);
-  const [renaming, setRenaming] = useState<LibraryEntry | null>(null);
+  /** The card whose name is being typed into, by key. */
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<LibraryEntry | null>(null);
 
   const refresh = useCallback(() => {
@@ -208,32 +209,55 @@ export function Landing() {
               >
                 {entries.map((entry) => (
                   <li key={entry.key} className="group relative">
-                    <button
-                      type="button"
-                      onClick={() => void open(entry)}
-                      className="w-full rounded-2xl border border-ink-200 bg-paper p-3 text-left transition-colors hover:border-accent-500"
-                    >
+                    <div className="relative rounded-2xl border border-ink-200 bg-paper p-3 transition-colors group-hover:border-accent-500">
                       <span className="grid h-24 place-items-center overflow-hidden rounded-xl bg-ink-100 p-2">
                         <ThumbArt thumb={entry.thumb} />
                       </span>
-                      <span className="mt-3 block truncate text-[15px] font-[570]">
-                        {entry.name || 'Untitled'}
-                      </span>
+                      {renaming === entry.key ? (
+                        <CardName
+                          entry={entry}
+                          onDone={() => {
+                            setRenaming(null);
+                            refresh();
+                          }}
+                        />
+                      ) : (
+                        <span className="mt-3 block truncate text-[15px] font-[570]">
+                          {entry.name || 'Untitled'}
+                        </span>
+                      )}
                       <span className="mt-0.5 block truncate text-[13px] text-ink-500">
                         {entry.type}
                       </span>
                       <span className="mt-0.5 block text-[12.5px] text-ink-400">
                         {when(entry.at)}
                       </span>
-                    </button>
+                      {/*
+                        The whole card, over the words rather than around them:
+                        a name being edited is an input, and an input inside a
+                        button is neither valid nor reachable. Laid over the
+                        card it keeps one big target and lets the input out.
+                      */}
+                      {renaming !== entry.key && (
+                        <button
+                          type="button"
+                          onClick={() => void open(entry)}
+                          aria-label={`Open ${entry.name || 'Untitled'}`}
+                          className="absolute inset-0 rounded-2xl"
+                        />
+                      )}
+                    </div>
 
                     <span
                       className={cx(
-                        'absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity',
+                        'absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity',
                         'group-focus-within:opacity-100 group-hover:opacity-100',
                       )}
                     >
-                      <IconButton label="Rename" onClick={() => setRenaming(entry)}>
+                      <IconButton
+                        label="Rename"
+                        onClick={() => setRenaming(renaming === entry.key ? null : entry.key)}
+                      >
                         ✎
                       </IconButton>
                       <IconButton label="Delete" onClick={() => setDeleting(entry)}>
@@ -335,17 +359,6 @@ export function Landing() {
         </Modal>
       )}
 
-      {renaming && (
-        <RenameDialog
-          entry={renaming}
-          onClose={() => setRenaming(null)}
-          onDone={() => {
-            setRenaming(null);
-            refresh();
-          }}
-        />
-      )}
-
       {deleting && (
         <Modal title="Delete this?" onClose={() => setDeleting(null)} width="max-w-md">
           <div className="p-5">
@@ -384,19 +397,28 @@ export function Landing() {
   );
 }
 
-function RenameDialog({
-  entry,
-  onClose,
-  onDone,
-}: {
-  entry: LibraryEntry;
-  onClose: () => void;
-  onDone: () => void;
-}) {
+/**
+ * The name, being typed into, on the card itself.
+ *
+ * Renaming used to open a dialog over the whole page to change one word. Here
+ * the name becomes a box where the name already is: Enter or clicking away
+ * keeps it, Escape puts back what was there. An empty name is not a rename —
+ * it is a slip — so it is treated as a cancel rather than saved.
+ *
+ * A book's card is renamed the same way, and renaming it changes only what it
+ * is called here. The title printed inside the book, and on its cover, is set
+ * in the book itself; the card says so underneath while it is being typed in.
+ */
+function CardName({ entry, onDone }: { entry: LibraryEntry; onDone: () => void }) {
   const [name, setName] = useState(entry.name);
+  // One save per edit, whatever ends it: Enter blurs, and blur is what saves.
+  const done = useRef(false);
+
   const save = () => {
+    if (done.current) return;
+    done.current = true;
     const trimmed = name.trim();
-    if (!trimmed) return onClose();
+    if (!trimmed || trimmed === entry.name) return onDone();
     void (!entry.projectId
       ? renameStandaloneDesign(entry.designId!, trimmed)
       : entry.designId
@@ -404,31 +426,31 @@ function RenameDialog({
         : renameProject(entry.projectId, trimmed)
     ).then(onDone);
   };
+
   return (
-    <Modal title="Rename" onClose={onClose} width="max-w-md">
-      <div className="p-5">
-        <TextInput
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') save();
-          }}
-        />
-        {entry.kind !== 'design' && (
-          <p className="mt-2 text-[13px] leading-snug text-ink-500">
-            This is what the book is called here. The title printed inside it, and on its cover, is
-            set in the book itself.
-          </p>
-        )}
-        <div className="mt-5 flex justify-end gap-2">
-          <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={save}>
-            Rename
-          </Button>
-        </div>
-      </div>
-    </Modal>
+    <span className="relative z-10 mt-3 block">
+      <TextInput
+        autoFocus
+        aria-label={`Rename ${entry.name || 'Untitled'}`}
+        value={name}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            done.current = true;
+            onDone();
+          }
+        }}
+        className="w-full text-[15px] font-[570]"
+      />
+      {entry.kind !== 'design' && (
+        <span className="mt-1 block text-[12px] leading-snug text-ink-500">
+          What it is called here. The printed title is set inside the book.
+        </span>
+      )}
+    </span>
   );
 }
 

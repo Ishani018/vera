@@ -119,6 +119,10 @@ export function FontPicker({
       )}
       <button
         type="button"
+        title={`${label ?? 'Typeface'}: ${value}`}
+        aria-label={`${label ?? 'Typeface'}: ${value}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-2 rounded-md border border-ink-300 bg-paper px-2.5 py-1.5 text-left transition-colors hover:border-ink-300"
       >

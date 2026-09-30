@@ -149,6 +149,9 @@ export function DesignEditor({
           board={board}
           bookTray={bookTray}
           rail={rail}
+          // A board stated in pixels is measured in pixels; one stated in
+          // inches keeps inches and the dots per inch that go with them.
+          units={preset.kind === 'screen' ? 'px' : 'in'}
           borrow={borrow}
         />
       </div>

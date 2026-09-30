@@ -465,6 +465,22 @@ function designThumb(design: Design): Thumb {
 }
 
 /**
+ * The line under a design's name on a card.
+ *
+ * A new design is named after the board it was made on, so a card saying
+ * "Instagram post" and then "Instagram post" underneath has spent two lines
+ * saying one thing. Where the name already carries the kind, this says what
+ * the name does not: the book it belongs to, or the size it is.
+ */
+function designDetail(presetId: string, name: string, inBook?: string): string {
+  const preset = presetById(presetId);
+  const kind = preset?.name ?? 'Design';
+  const where = inBook ? `in ${inBook}` : (preset?.stated ?? '');
+  const parts = name.trim() === kind ? [where] : [kind, where];
+  return parts.filter(Boolean).join(' · ');
+}
+
+/**
  * Everything saved on this computer, whatever kind it is, newest first.
  *
  * Books and the designs inside them come back in one list because that is how
@@ -499,7 +515,7 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
         kind: 'design',
         bookKind: project.kind,
         name: design.name,
-        type: `${presetById(design.presetId)?.name ?? 'Design'} · in ${summary.name}`,
+        type: designDetail(design.presetId, design.name, summary.name),
         at: design.updatedAt ?? design.createdAt,
         thumb: designThumb(design),
       });
@@ -517,7 +533,7 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
       kind: 'design',
       bookKind: null,
       name: design.name,
-      type: presetById(design.presetId)?.name ?? 'Design',
+      type: designDetail(design.presetId, design.name),
       at: design.updatedAt,
       thumb: designThumb(design),
     });
