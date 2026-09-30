@@ -1,5 +1,6 @@
 'use client';
 
+import { alive } from '@/lib/deleted';
 import { useState } from 'react';
 import { PRESETS, presetById } from '@/lib/presets';
 import { createDesign } from '@/lib/defaults';
@@ -36,7 +37,9 @@ export function LaunchKit<T extends AnyProject>({
    */
   openDesign?: string | null;
 }) {
-  const designs = project.designs ?? [];
+  // The trash is not the launch kit. A design deleted from the front page
+  // must not still be sitting in the book it belonged to.
+  const designs = alive(project.designs ?? []);
   const [openId, setOpenId] = useState<string | null>(openDesign);
   const open = designs.find((d) => d.id === openId) ?? null;
 

@@ -10,6 +10,8 @@ import {
   startDesign,
 } from '@/lib/designs';
 import { createProject } from '@/lib/defaults';
+import { TRASH_DAYS } from '@/lib/deleted';
+import { listTrash, purgeExpired } from '@/lib/trash';
 import {
   createColoringBook,
   deleteDesign,
@@ -33,6 +35,7 @@ import {
 } from '@/lib/tiles';
 import type { AnyProject } from '@/lib/types';
 import { Modal } from './Modal';
+import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
 import { Button, TextInput, cx } from './ui';
 
@@ -55,11 +58,23 @@ export function Landing() {
   /** The card whose name is being typed into, by key. */
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<LibraryEntry | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
 
   const refresh = useCallback(() => {
     void listLibrary().then(setEntries);
+    void listTrash().then((rows) => setTrashCount(rows.length));
   }, []);
   useEffect(refresh, [refresh]);
+
+  // Thirty days up, and gone. Here because the front page opening is the one
+  // moment this app reliably gets, and nothing depends on it being punctual:
+  // something that outstays its welcome by a week costs disk, not correctness.
+  useEffect(() => {
+    void purgeExpired().then((gone) => {
+      if (gone) refresh();
+    });
+  }, [refresh]);
 
   const books = (entries ?? []).filter((entry) => entry.kind !== 'design');
 
@@ -194,7 +209,18 @@ export function Landing() {
           </ul>
 
           <section className="mt-12">
-            <h2 className="text-[20px] font-semibold tracking-tight">Your designs</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+              <h2 className="text-[20px] font-semibold tracking-tight">Your designs</h2>
+              {trashCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTrashOpen(true)}
+                  className="rounded-lg border border-ink-200 px-2.5 py-1 text-[13px] text-ink-700 transition-colors hover:border-ink-400 hover:text-ink-900"
+                >
+                  Trash ({trashCount})
+                </button>
+              )}
+            </div>
             {entries === null ? (
               <p className="mt-3 text-[15px] text-ink-500">Looking…</p>
             ) : entries.length === 0 ? (
@@ -359,18 +385,28 @@ export function Landing() {
         </Modal>
       )}
 
+      {trashOpen && (
+        <Trash
+          onClose={() => {
+            setTrashOpen(false);
+            refresh();
+          }}
+          onChanged={refresh}
+        />
+      )}
+
       {deleting && (
         <Modal title="Delete this?" onClose={() => setDeleting(null)} width="max-w-md">
           <div className="p-5">
             <p className="text-[15px] leading-relaxed">
-              <strong className="font-[570]">{deleting.name || 'Untitled'}</strong> will be removed
-              from this browser.{' '}
+              <strong className="font-[570]">{deleting.name || 'Untitled'}</strong> goes to the
+              trash.{' '}
               {deleting.kind !== 'design'
                 ? 'Everything in it goes with it, including its launch kit.'
                 : deleting.projectId
                   ? 'The book it belongs to is not touched.'
                   : 'It belongs to no book, so nothing else changes.'}{' '}
-              There is no undo for this.
+              You can put it back for {TRASH_DAYS} days, after which it goes for good.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <Button onClick={() => setDeleting(null)}>Keep it</Button>

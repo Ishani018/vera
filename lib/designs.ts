@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import { alive, isDeleted } from './deleted';
 import { createDesign } from './defaults';
 import { presetById } from './presets';
 import { SCHEMA } from './schema';
@@ -48,11 +49,19 @@ export async function startDesign(presetId: string): Promise<StandaloneDesign | 
   return design;
 }
 
+/**
+ * One design, if it is not in the trash.
+ *
+ * A trashed design reads as missing rather than opening: the screen that would
+ * open it has a "that design isn't here" state already, and editing something
+ * that is in the bin is a way to lose the edit when the bin is emptied.
+ */
 export async function getDesign(id: string): Promise<StandaloneDesign | null> {
   const db = getDb();
   if (!db) return null;
   const row = await db.designs.get(id);
-  return row ? migrateDesign(row) : null;
+  if (!row || isDeleted(row)) return null;
+  return migrateDesign(row);
 }
 
 /** Writes one back, stamping the time it was last touched. */
@@ -63,7 +72,7 @@ export async function saveDesign(design: StandaloneDesign): Promise<void> {
 export async function listStandaloneDesigns(): Promise<StandaloneDesign[]> {
   const db = getDb();
   if (!db) return [];
-  return (await db.designs.toArray()).map(migrateDesign);
+  return alive(await db.designs.toArray()).map(migrateDesign);
 }
 
 export async function renameStandaloneDesign(id: string, name: string): Promise<void> {
@@ -71,6 +80,10 @@ export async function renameStandaloneDesign(id: string, name: string): Promise<
   if (design) await saveDesign({ ...design, name });
 }
 
+/** Puts a design in the trash. Marked rather than removed; see `lib/deleted.ts`. */
 export async function deleteStandaloneDesign(id: string): Promise<void> {
-  await getDb()?.designs.delete(id);
+  const db = getDb();
+  const row = await db?.designs.get(id);
+  if (!db || !row) return;
+  await db.designs.put({ ...row, deletedAt: Date.now() });
 }

@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { putAssetFromDataUrl } from './assets';
 import { migrateProject, needsRewrite } from './projects';
 import { ACTIVE_PROJECT_KEY, getDb } from './db';
+import { isDeleted } from './deleted';
 import { createProject } from './defaults';
 import { buildSamplePoems, withoutSamplePoems } from './samples';
 import type { Project } from './types';
@@ -169,10 +170,16 @@ export const useStore = create<State & Actions>((set, get) => ({
     let stored = activeId ? await db.projects.get(activeId) : undefined;
     // Only a poetry book opens here. Landing on /poetry with a coloring book
     // active would otherwise render verse controls over a pile of pictures.
-    if (stored && migrateProject(stored).kind !== 'poetry') stored = undefined;
+    // A book in the trash does not open either: the last thing anyone deleted
+    // is usually the most recently touched, so without this the front page
+    // would send them to /poetry and hand straight back the book they had
+    // just thrown away.
+    if (stored && (isDeleted(stored) || migrateProject(stored).kind !== 'poetry')) {
+      stored = undefined;
+    }
     if (!stored) {
       const rows = await db.projects.orderBy('updatedAt').reverse().toArray();
-      stored = rows.find((row) => migrateProject(row).kind === 'poetry');
+      stored = rows.find((row) => !isDeleted(row) && migrateProject(row).kind === 'poetry');
     }
     let project = stored ? (migrateProject(stored) as Project) : undefined;
     // Convert in place, once, so an old book is old only the first time it is

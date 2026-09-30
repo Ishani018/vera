@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { putAsset } from '../assets';
 import { ACTIVE_PROJECT_KEY, getDb } from '../db';
+import { isDeleted } from '../deleted';
 import { id } from '../defaults';
 import { migrateProject } from '../projects';
 import { MATTER_ART_KEYS, matterArtwork } from '../render/coloringLayout';
@@ -105,7 +106,9 @@ export const useColoring = create<State>((set, get) => ({
     const activeId =
       typeof window === 'undefined' ? null : window.localStorage.getItem(ACTIVE_PROJECT_KEY);
     const stored = db && activeId ? await db.projects.get(activeId) : undefined;
-    if (!stored) return set({ status: 'missing' });
+    // A book in the trash reads as missing, so deleting the open book and
+    // coming back to this page does not quietly reopen it.
+    if (!stored || isDeleted(stored)) return set({ status: 'missing' });
     const project = migrateProject(stored);
     if (project.kind !== 'coloring') return set({ status: 'missing' });
     set({ book: project, status: 'ready', selectedId: project.pages[0]?.id ?? null });

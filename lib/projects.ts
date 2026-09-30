@@ -1,4 +1,5 @@
 import { migrateContents } from './contents';
+import { alive, isDeleted } from './deleted';
 import { getDb } from './db';
 import { listStandaloneDesigns } from './designs';
 import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
@@ -253,7 +254,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   const db = getDb();
   if (!db) return [];
   const rows = await db.projects.toArray();
-  return rows
+  return alive(rows)
     .map((row) => summarise(migrateProject(row)))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -492,7 +493,9 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
   if (!db) return [];
   const rows = await db.projects.toArray();
   const entries: LibraryEntry[] = [];
-  for (const row of rows) {
+  // Anything in the trash is not here. `lib/deleted.ts` is the only thing that
+  // decides that, so this cannot drift from what the trash screen believes.
+  for (const row of alive(rows)) {
     const project = migrateProject(row);
     const summary = summarise(project);
     entries.push({
@@ -507,7 +510,7 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
       at: project.updatedAt,
       thumb: bookThumb(project),
     });
-    for (const design of project.designs ?? []) {
+    for (const design of alive(project.designs ?? [])) {
       entries.push({
         key: `${project.id}:${design.id}`,
         projectId: project.id,
@@ -557,9 +560,17 @@ export async function renameProject(id: string, name: string): Promise<void> {
   await db.projects.put({ ...migrateProject(row), name, updatedAt: Date.now() });
 }
 
+/**
+ * Puts a book in the trash. Its launch kit goes with it and its pictures stay.
+ *
+ * Marked rather than removed: see `lib/deleted.ts`. Throwing it away for good
+ * is `purge` in `lib/trash.ts`, and only the trash screen calls that.
+ */
 export async function deleteProject(id: string): Promise<void> {
   const db = getDb();
-  await db?.projects.delete(id);
+  const row = await db?.projects.get(id);
+  if (!db || !row) return;
+  await db.projects.put({ ...row, deletedAt: Date.now() });
 }
 
 export async function renameDesign(
@@ -578,12 +589,15 @@ export async function renameDesign(
   await db.projects.put({ ...project, updatedAt: Date.now() });
 }
 
+/** Puts one design from a book's launch kit in the trash. */
 export async function deleteDesign(projectId: string, designId: string): Promise<void> {
   const db = getDb();
   if (!db) return;
   const row = await db.projects.get(projectId);
   if (!row) return;
   const project = migrateProject(row);
-  const designs = (project.designs ?? []).filter((d) => d.id !== designId);
+  const designs = (project.designs ?? []).map((d) =>
+    d.id === designId ? { ...d, deletedAt: Date.now() } : d,
+  );
   await db.projects.put({ ...project, designs, updatedAt: Date.now() });
 }
