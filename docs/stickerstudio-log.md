@@ -29,7 +29,7 @@ preview image rather than taking anyone's word for it.
 
 ## Stage 1 — Touch-up brush for background removal
 
-**Commit:** `STAGE1HASH`
+**Commit:** `2680d04`
 
 Automatic background removal is a guess, and on a real photograph it is wrong
 in a few places every time: a shadow under an edge it keeps, a pale patch
@@ -78,3 +78,48 @@ photograph has chroma noise and JPEG artefacts this does not.
 cut-out*, and check the green and red wash lands under your cursor rather than
 offset from it. The wash is positioned by the die-cut margin, which is the part
 most likely to be a pixel out on a different screen.
+
+---
+
+## Stage 2 — Send to design
+
+**Commit:** `ccd759f`
+
+A **Send to a design…** button next to Download and Save, offering the four
+boards a sticker is actually for: Instagram post, Pinterest pin, postcard,
+bookmark. Pressing one makes a standalone design of that size with the sticker
+placed in the middle and opens it.
+
+**The picture is copied, not referenced.** The design gets its own asset in the
+existing `assets` table. Deleting the sticker afterwards — or emptying the
+trash, or re-tracing it at a different threshold — cannot reach into a design
+that was finished weeks ago and change or empty it. That costs a copy of the
+bytes and it is worth it: the alternative is a design that quietly breaks long
+after the decision that broke it.
+
+**Placed, not filled.** The sticker is centred in the board's *safe* area at 82%
+of it, contained rather than cropped, keeping its own proportions. Not 100%,
+because a sticker touching the safe margin on two sides reads as a mistake
+rather than as a choice, and the first thing anyone does with a design is move
+things anyway — so it starts somewhere sensible to adjust from.
+
+Nothing new was added to the data model: a standalone design with one
+`CoverSticker` on it is exactly what the design editor already makes.
+
+**Checked:** `npm test` 441 pass / 0 fail (5 new). Goldens unchanged,
+`golden:screen` 0 pixels changed, build clean. Plus 13 browser checks: that all
+four boards are offered and say the right sizes, that pressing one opens
+`/design?id=…`, that exactly one design is made at the asked-for preset, that
+the sticker's centre lands on the board's centre to within a point
+(375.0, 562.5 of 375, 562.5 on a Pinterest pin), that it stays inside the board
+and keeps its aspect ratio to three decimals, that its asset id is a *new* one,
+and — the point of the whole stage — that the design's picture still opens
+after every other asset in the store is deleted.
+
+**Only checked in the sandbox:** the design opens in this container's Chromium.
+I did not check how it looks at a real screen size or that the design editor's
+own controls behave with a sticker it did not place itself.
+
+**Look at first:** send a sticker to a Pinterest pin and check it is centred and
+not touching the safe guides, then delete the sticker from My stickers and
+reopen the design — the picture should still be there.

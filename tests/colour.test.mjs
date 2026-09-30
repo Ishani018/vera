@@ -32,6 +32,8 @@ import { createProject } from '../lib/defaults.ts';
 import { draftList, migrateDraft, newDraft } from '../lib/stickers/drafts.ts';
 import { draftAssets } from '../lib/assetRefs.ts';
 import { listTrash } from '../lib/trash.ts';
+import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesign.ts';
+import { presetById } from '../lib/presets.ts';
 
 /* ---------------------------------------------------------------- fixtures */
 
@@ -510,4 +512,55 @@ test('a touch-up survives storage the way the colouring does', () => {
   new Stroke(touch).applyEach(softDisc(6, 6, 3, 3, 2, 0.5), KEEP);
   const copy = { ...touch, data: Uint8ClampedArray.from(structuredClone(touch.data)) };
   assert.deepEqual(copy.data, touch.data, 'every weight comes back exactly');
+});
+
+/* ------------------------------------------------------ onto a board of its own */
+
+test('a sticker is centred on its board and never cropped by it', () => {
+  const room = { x: 100, y: 200, width: 800, height: 400 };
+
+  // Wider than the room: the width is what runs out first.
+  const wide = placeCentred(room, 2000, 500, 1);
+  assert.equal(wide.width, 800);
+  assert.equal(wide.height, 200);
+  assert.equal(wide.x, 100, 'flush, because it fills the width exactly');
+  assert.equal(wide.y, 300, 'and centred in what is left');
+
+  // Taller than the room: the height runs out first, and it must still fit.
+  const tall = placeCentred(room, 500, 2000, 1);
+  assert.equal(tall.height, 400);
+  assert.equal(tall.width, 100);
+  assert.ok(tall.width <= room.width && tall.height <= room.height, 'contained, not covered');
+  assert.equal(tall.x, 450);
+  assert.equal(tall.y, 200);
+});
+
+test('the sticker keeps its shape whatever the board is', () => {
+  for (const [w, h] of [[1200, 800], [800, 1200], [900, 900], [3000, 210]]) {
+    const placed = placeCentred({ x: 0, y: 0, width: 1000, height: 1500 }, w, h);
+    assert.ok(
+      Math.abs(placed.width / placed.height - w / h) < 1e-9,
+      `${w}x${h} came out as ${placed.width}x${placed.height}`,
+    );
+  }
+});
+
+test('it is placed inside the safe area, with room to spare', () => {
+  const placed = placeCentred({ x: 0, y: 0, width: 1000, height: 1000 }, 1000, 1000);
+  assert.equal(placed.width, 1000 * FILL);
+  assert.ok(placed.x > 0 && placed.y > 0, 'not flush against the margin it is meant to respect');
+});
+
+test('every board offered is a real preset, and each has a safe area to centre in', () => {
+  for (const board of SEND_TO) {
+    assert.ok(presetById(board.presetId), `${board.presetId} is a preset`);
+    const room = roomOn(board.presetId);
+    assert.ok(room && room.width > 0 && room.height > 0, `${board.presetId} has room on it`);
+    // And what it states matches what the preset actually is.
+    assert.equal(board.note, presetById(board.presetId).stated);
+  }
+});
+
+test('an unknown board is refused rather than guessed at', () => {
+  assert.equal(roomOn('not-a-preset'), null);
 });

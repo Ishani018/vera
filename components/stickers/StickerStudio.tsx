@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { UnsupportedImageError, getAsset, putAsset } from '@/lib/assets';
 import { saveToLibrary, parseTags } from '@/lib/cover/library';
 import { renderSticker, traceInk, type InkResult } from '@/lib/lineart/client';
@@ -9,6 +10,7 @@ import type { StickerOptions } from '@/lib/lineart/worker';
 import { DEFAULT_LINE_ART } from '@/lib/projects';
 import type { Paint } from '@/lib/stickers/colour';
 import { blobToPaint, paintToBlob, putLayer } from '@/lib/stickers/layer';
+import { SEND_TO, sendStickerToDesign } from '@/lib/stickers/sendToDesign';
 import {
   deleteDraft,
   latestDraft,
@@ -91,6 +93,7 @@ const COLOUR_EDGE = 1200;
 const SAVE_AFTER_MS = 700;
 
 export function StickerStudio() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<Mode>('convert');
   const [settings, setSettings] = useState<LineArtSettings>({ ...DEFAULT_LINE_ART });
@@ -500,6 +503,33 @@ export function StickerStudio() {
       setSaid('Kept in My stickers — it is in every book and every design now.');
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be saved.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* ----------------------------------------------------------- onto a board */
+
+  const [sending, setSending] = useState(false);
+
+  const send = async (presetId: string) => {
+    setBusy(true);
+    setSaid(null);
+    try {
+      const result = await makeAtSize();
+      if (!result) return;
+      const sent = await sendStickerToDesign({
+        presetId,
+        blob: result.blob,
+        width: result.width,
+        height: result.height,
+        name: name.trim() || 'Sticker',
+      });
+      if (!sent) throw new Error('That board could not be made.');
+      setSending(false);
+      router.push(`/design?id=${encodeURIComponent(sent.design.id)}`);
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'That could not be sent to a design.');
     } finally {
       setBusy(false);
     }
@@ -992,7 +1022,34 @@ export function StickerStudio() {
                     <Button disabled={busy} onClick={() => void keep()}>
                       Save to My stickers
                     </Button>
+                    <Button disabled={busy} onClick={() => setSending((was) => !was)}>
+                      Send to a design…
+                    </Button>
                   </div>
+
+                  {sending && (
+                    <div className="mt-3 rounded-xl border border-ink-200 bg-paper-0 p-3">
+                      <span className="block text-[13.5px] font-[570]">Put it on a board</span>
+                      <p className="mt-0.5 mb-2 text-[12.5px] leading-snug text-ink-500">
+                        It is placed in the middle at this size, with its own copy of the picture —
+                        so changing or deleting the sticker later cannot reach the design.
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {SEND_TO.map((board) => (
+                          <button
+                            key={board.presetId}
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void send(board.presetId)}
+                            className="rounded-lg border border-ink-200 px-3 py-2 text-left text-[13.5px] transition-colors hover:border-accent-500 disabled:opacity-50"
+                          >
+                            <span className="font-[560]">{board.label}</span>
+                            <span className="ml-2 text-ink-500">{board.note}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <p className="mt-2 text-[12px] leading-snug text-ink-500">
                     Your original is kept whole and at full resolution either way.
                   </p>
