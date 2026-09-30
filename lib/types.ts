@@ -636,6 +636,12 @@ export type StickerDraft = {
    * pixels that were left.
    */
   colourAssetId: string | null;
+  /**
+   * The hand corrections to the background removal, stored the same way and
+   * for the same reason: a field on the row, not a new table, so no version
+   * bump — IndexedDB stores whole objects and only indexes need declaring.
+   */
+  touchAssetId: string | null;
   colourAt: { width: number; height: number } | null;
   /** How far outlines are thickened, invisibly, to stop a fill leaking. */
   gapClosing: number;

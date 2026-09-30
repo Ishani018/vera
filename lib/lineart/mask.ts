@@ -333,3 +333,34 @@ export function scalePaint(paint: Bitmap, width: number, height: number): Bitmap
   }
   return { width, height, data: out };
 }
+
+/**
+ * The background removal, corrected by hand.
+ *
+ * Automatic removal is a guess, and on a real photograph it is wrong in a few
+ * places every time — a shadow under an edge it keeps, a pale patch inside the
+ * subject it takes. This is the correction: a layer painted over the picture
+ * saying "keep this whatever you decided" and "drop this whatever you decided",
+ * applied to the mask before anything else looks at it, so the export, the
+ * die-cut and the preview all see the same corrected shape.
+ *
+ * The layer is a straight RGBA picture, which is how it can be stored as a
+ * lossless PNG and reopened a week later exactly as it was painted. Its red
+ * channel is what the pixel should become and its alpha is how strongly, so a
+ * soft brush blends towards its target instead of stamping a hard-edged hole.
+ */
+export function applyTouch(base: Mask, touch: Bitmap): Mask {
+  if (touch.width !== base.width || touch.height !== base.height) return base;
+  const data = new Uint8Array(base.data);
+  for (let p = 0, i = 0; p < data.length; p++, i += 4) {
+    const weight = touch.data[i + 3];
+    if (!weight) continue;
+    const target = touch.data[i];
+    data[p] = Math.round(data[p] + ((target - data[p]) * weight) / 255);
+  }
+  return { width: base.width, height: base.height, data };
+}
+
+/** What the restore and remove brushes paint, as colours in the touch layer. */
+export const KEEP = { r: 255, g: 255, b: 255 };
+export const DROP = { r: 0, g: 0, b: 0 };

@@ -4,7 +4,14 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { INK, PAPER } from '../lib/lineart/pipeline.ts';
-import { compositeSticker, maskFromInk, scalePaint } from '../lib/lineart/mask.ts';
+import {
+  DROP,
+  KEEP,
+  applyTouch,
+  compositeSticker,
+  maskFromInk,
+  scalePaint,
+} from '../lib/lineart/mask.ts';
 import {
   HISTORY_STEPS,
   LEAK_SHARE,
@@ -17,6 +24,8 @@ import {
   makePaint,
   painted,
   smear,
+  softDisc,
+  softSmear,
 } from '../lib/stickers/colour.ts';
 import { buildBackup } from '../lib/backup.ts';
 import { createProject } from '../lib/defaults.ts';
@@ -427,4 +436,78 @@ test('the trash knows about drafts, so a deleted one can come back', () => {
   const draft = { ...newDraft('src', 'Fox'), colourAssetId: 'colour' };
   assert.deepEqual(draftAssets(draft), ['src', 'colour']);
   assert.deepEqual(draftAssets({ ...draft, colourAssetId: null }), ['src']);
+});
+
+/* --------------------------------------------------- the touch-up brushes */
+
+test('a soft brush lands hardest in the middle and fades to nothing at the rim', () => {
+  const hard = softDisc(40, 40, 20, 20, 8, 0);
+  assert.ok(hard.every(([, w]) => w === 255), 'no softness means a plain circle');
+
+  const soft = softDisc(40, 40, 20, 20, 8, 1);
+  const at = (x, y) => soft.find(([i]) => i === y * 40 + x)?.[1] ?? 0;
+  assert.equal(at(20, 20), 255, 'full strength at the centre');
+  assert.ok(at(20, 24) > 0 && at(20, 24) < 255, 'partway out it is partway on');
+  assert.ok(at(20, 24) < at(20, 22), 'and weaker the further out it goes');
+  assert.equal(at(20, 30), 0, 'nothing at all beyond the radius');
+});
+
+test('a soft drag takes the strongest touch, so a slow stroke is not a darker one', () => {
+  const quick = softSmear(60, 60, { x: 10, y: 30 }, { x: 50, y: 30 }, 6, 0.6);
+  const strongest = new Map(quick);
+  assert.equal(strongest.get(30 * 60 + 30), 255, 'the middle of the stroke is full strength');
+  // Every pixel appears once, whatever the overlap.
+  assert.equal(quick.length, new Set(quick.map(([i]) => i)).size);
+});
+
+test('the touch-up layer forces the mask, and softly where it was painted softly', () => {
+  // A mask that is half kept and half dropped, and a correction over the lot.
+  const base = { width: 10, height: 1, data: new Uint8Array(10).fill(0) };
+  base.data[0] = 255;
+
+  const touch = makePaint(10, 1);
+  const stroke = new Stroke(touch);
+  stroke.apply([1], KEEP);            // full strength
+  stroke.applyEach([[2, 128]], KEEP); // half strength
+  stroke.apply([0], DROP);            // and one taken away
+
+  const out = applyTouch(base, touch);
+  assert.equal(out.data[0], 0, 'a kept pixel can be dropped');
+  assert.equal(out.data[1], 255, 'and a dropped one brought back');
+  assert.equal(out.data[2], 128, 'half a brush is half the way there');
+  assert.equal(out.data[5], 0, 'and an untouched pixel is left alone');
+  assert.equal(base.data[1], 0, 'the mask it came from is not written over');
+});
+
+test('a mismatched touch-up layer is ignored rather than misapplied', () => {
+  const base = { width: 10, height: 1, data: new Uint8Array(10) };
+  assert.equal(applyTouch(base, makePaint(8, 1)), base);
+});
+
+test('painting the other target replaces it, and the same one deepens it', () => {
+  const touch = makePaint(4, 1);
+  const stroke = new Stroke(touch);
+  stroke.applyEach([[0, 200]], KEEP);
+  stroke.applyEach([[0, 90]], KEEP);
+  assert.equal(touch.data[3], 200, 'a lighter pass over the same target does not weaken it');
+
+  stroke.applyEach([[0, 90]], DROP);
+  assert.equal(touch.data[3], 90, 'but the other target replaces it outright');
+  assert.equal(touch.data[0], 0, 'and says so');
+});
+
+test('the automatic brush takes a correction off again', () => {
+  const touch = makePaint(4, 1);
+  const stroke = new Stroke(touch);
+  stroke.applyEach([[0, 255]], KEEP);
+  stroke.applyEach([[0, 255]], null);
+  assert.equal(touch.data[3], 0, 'back to letting the removal decide');
+  assert.equal(painted(touch), false);
+});
+
+test('a touch-up survives storage the way the colouring does', () => {
+  const touch = makePaint(6, 6);
+  new Stroke(touch).applyEach(softDisc(6, 6, 3, 3, 2, 0.5), KEEP);
+  const copy = { ...touch, data: Uint8ClampedArray.from(structuredClone(touch.data)) };
+  assert.deepEqual(copy.data, touch.data, 'every weight comes back exactly');
 });

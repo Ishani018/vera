@@ -12,6 +12,7 @@ import {
   type Analysis,
 } from './pipeline';
 import {
+  applyTouch,
   backgroundMask,
   compositeSticker,
   dieCutRing,
@@ -58,6 +59,12 @@ export type StickerOptions = {
    * would cost a second and gain nothing.
    */
   colour?: { width: number; height: number; data: Uint8ClampedArray } | null;
+  /**
+   * The touch-up layer: where the background removal was corrected by hand.
+   * Applied to the mask before the outline or the feathering see it, so every
+   * one of them works from the shape that is actually wanted.
+   */
+  touch?: { width: number; height: number; data: Uint8ClampedArray } | null;
 };
 
 export type StickerRequest = {
@@ -306,6 +313,20 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       subject = maskFromInk(lines);
     }
     decoded.close();
+
+    // Hand corrections first, before anything has looked at the mask: the
+    // outline, the feathering and the alpha channel must all agree about where
+    // the sticker's edge is, and the person who painted it is the authority.
+    if (options.touch) {
+      subject = applyTouch(
+        subject,
+        scalePaint(
+          { width: options.touch.width, height: options.touch.height, data: options.touch.data },
+          subject.width,
+          subject.height,
+        ),
+      );
+    }
 
     // The colouring was painted on its own grid, which is rarely the size being
     // exported at. Resized to match before anything is padded, so it lines up

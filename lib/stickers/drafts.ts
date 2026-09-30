@@ -38,6 +38,7 @@ export function newDraft(sourceAssetId: string, name: string): StickerDraft {
     dieCut: null,
     size: 1000,
     colourAssetId: null,
+    touchAssetId: null,
     colourAt: null,
     gapClosing: 2,
     createdAt: now,
@@ -53,6 +54,7 @@ export function migrateDraft(raw: unknown): StickerDraft {
     settings: { ...DEFAULT_LINE_ART, ...(record.settings ?? {}) },
     gapClosing: record.gapClosing ?? 2,
     colourAssetId: record.colourAssetId ?? null,
+    touchAssetId: record.touchAssetId ?? null,
     colourAt: record.colourAt ?? null,
   };
 }

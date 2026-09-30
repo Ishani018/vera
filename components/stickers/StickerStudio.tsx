@@ -20,7 +20,7 @@ import { ColourField } from '../cover/ColourField';
 import { Control, ModeChoice } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { Button, Notice, TextInput, Toggle, cx } from '../ui';
-import { ColourLayer, type ColourHandle, type Tool } from './ColourLayer';
+import { PaintSurface, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 
 /**
  * Any picture, into a sticker.
@@ -51,6 +51,16 @@ const SIZES = [
   { px: 500, label: '500 px', note: 'Small — for a screen' },
   { px: 1000, label: '1000 px', note: 'The usual sticker size' },
   { px: 2000, label: '2000 px', note: 'Large — prints at 300 DPI to about 6 inches' },
+];
+
+const TOUCH: { value: Tool; label: string; note: string }[] = [
+  { value: 'restore', label: 'Restore', note: 'Paints back pixels the removal took away.' },
+  { value: 'remove', label: 'Remove', note: 'Takes away more — a shadow, a speck, a stray edge.' },
+  {
+    value: 'automatic',
+    label: 'Automatic',
+    note: 'Rubs out your correction and lets the removal decide again.',
+  },
 ];
 
 const TOOLS: { value: Tool; label: string; note: string }[] = [
@@ -110,26 +120,45 @@ export function StickerStudio() {
   /* --------------------------------------------------------- the colouring */
 
   const [colouring, setColouring] = useState(false);
+  const [touchUp, setTouchUp] = useState(false);
   const [tool, setTool] = useState<Tool>('fill');
   const [brushColour, setBrushColour] = useState('#E8B4B8');
   const [brush, setBrush] = useState(14);
   const [gapClosing, setGapClosing] = useState(2);
+  const [softness, setSoftness] = useState(0.4);
   const [ink, setInk] = useState<InkResult | null>(null);
   const [leak, setLeak] = useState<number | null>(null);
-  const colour = useRef<ColourHandle>(null);
-  const startFrom = useRef<Paint | null>(null);
+  const surface = useRef<SurfaceHandle>(null);
+  const startColour = useRef<Paint | null>(null);
+  const startTouch = useRef<Paint | null>(null);
 
-  // The layer waiting to be written, and two counters: one that ticks on every
+  // The layers waiting to be written, and two counters: one that ticks on every
   // gesture and drives the save timer, one that ticks when the timer fires and
   // tells the preview it is worth making again.
-  const pendingPaint = useRef<Paint | null>(null);
-  const [colourTick, setColourTick] = useState(0);
+  const pendingColour = useRef<Paint | null>(null);
+  const pendingTouch = useRef<Paint | null>(null);
+  const [layerTick, setLayerTick] = useState(0);
   const [settled, setSettled] = useState(0);
 
   const colourChanged = useCallback((layer: Paint) => {
-    pendingPaint.current = layer;
-    setColourTick((n) => n + 1);
+    pendingColour.current = layer;
+    setLayerTick((n) => n + 1);
   }, []);
+
+  const touchChanged = useCallback((layer: Paint) => {
+    pendingTouch.current = layer;
+    setLayerTick((n) => n + 1);
+  }, []);
+
+  // One surface serves both layers, so it exists as soon as either tool does.
+  const painting = colouring || touchUp;
+
+  // The tool always belongs to a panel that is open, so nobody is left holding
+  // a brush that paints on a layer they have just put away.
+  useEffect(() => {
+    if (touchUp && !colouring && !isTouchTool(tool)) setTool('restore');
+    if (colouring && !touchUp && isTouchTool(tool)) setTool('fill');
+  }, [colouring, touchUp, tool]);
 
   /* ------------------------------------------------------------ the draft */
 
@@ -152,6 +181,10 @@ export function StickerStudio() {
       // original goes in untouched and at full resolution; everything below
       // works from it and never writes over it.
       const record = await putAsset(chosen);
+      // A new picture starts with nothing painted on it: the last draft's
+      // layers must not be handed to the surface as a starting point.
+      startColour.current = null;
+      startTouch.current = null;
       const started = newDraft(record.id, chosen.name.replace(/\.[^.]+$/, ''));
       await saveDraft(started);
       row.current = started;
@@ -186,9 +219,10 @@ export function StickerStudio() {
 
       // The colouring is loaded before anything asks to see it, so the canvas
       // is built from it rather than blank and then replaced.
-      startFrom.current = saved.colourAssetId
-        ? ((await getAsset(saved.colourAssetId).then((a) => (a ? blobToPaint(a.blob) : null))) ?? null)
-        : null;
+      const layerOf = async (id: string | null) =>
+        id ? ((await getAsset(id).then((a) => (a ? blobToPaint(a.blob) : null))) ?? null) : null;
+      startColour.current = await layerOf(saved.colourAssetId);
+      startTouch.current = await layerOf(saved.touchAssetId);
 
       setMode(saved.mode);
       setSettings(saved.settings);
@@ -211,7 +245,11 @@ export function StickerStudio() {
       setSavedAt(saved.updatedAt);
       setResumable(null);
       setFile(new File([source.blob], source.name || 'picture', { type: source.mime }));
+      // Whichever panels have work in them open again, so a reopened draft
+      // shows what was being done rather than an apparently untouched picture.
       setColouring(Boolean(saved.colourAssetId));
+      setTouchUp(Boolean(saved.touchAssetId));
+      if (saved.touchAssetId && !saved.colourAssetId) setTool('restore');
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be reopened.');
     } finally {
@@ -229,7 +267,7 @@ export function StickerStudio() {
   /* ------------------------------------------------------------ the preview */
 
   const options = useCallback(
-    (longEdge: number, withColour: Paint | null = null): StickerOptions => ({
+    (longEdge: number, withColour: Paint | null = null, withTouch: Paint | null = null): StickerOptions => ({
       mode,
       removeBackground: mode === 'asis' && removeBackground,
       tolerance,
@@ -240,6 +278,7 @@ export function StickerStudio() {
         : null,
       longEdge,
       colour: withColour,
+      touch: withTouch,
     }),
     [mode, removeBackground, tolerance, smoothing, inkColour, dieCutOn, dieCutWidth, dieCutColour, dieCutRadius],
   );
@@ -255,8 +294,10 @@ export function StickerStudio() {
     // The colouring is drawn live on its own canvas behind the picture, which
     // is exactly where the export puts it — so the preview needs to carry it
     // only when the die-cut does, because the outline has to go round it.
-    const ringed = colouring && dieCutOn ? colour.current?.paint() ?? null : null;
-    renderSticker(file, settings, options(PREVIEW_EDGE, ringed))
+    const ringed = colouring && dieCutOn ? surface.current?.colour() ?? null : null;
+    // The touch-up always goes in: unlike the colouring it decides which pixels
+    // the sticker has at all, so there is no drawing it on top afterwards.
+    renderSticker(file, settings, options(PREVIEW_EDGE, ringed, surface.current?.touch() ?? null))
       .then((result) => {
         if (mine !== latest.current) return;
         url = URL.createObjectURL(result.blob);
@@ -287,7 +328,7 @@ export function StickerStudio() {
    * who just wants a die-cut PNG should not pay for a tool they never opened.
    */
   useEffect(() => {
-    if (!file || !colouring) {
+    if (!file || !painting) {
       setInk(null);
       return;
     }
@@ -302,7 +343,7 @@ export function StickerStudio() {
     return () => {
       dropped = true;
     };
-  }, [file, settings, mode, colouring]);
+  }, [file, settings, mode, painting]);
 
   // The last preview's object URL, let go of on the way out. Every earlier one
   // was already released as it was replaced.
@@ -374,40 +415,49 @@ export function StickerStudio() {
    * one write and not four hundred.
    */
   useEffect(() => {
-    if (!colourTick) return;
+    if (!layerTick) return;
     const timer = setTimeout(() => {
-      const layer = pendingPaint.current;
       const current = row.current;
-      if (!layer || !current) return;
+      if (!current) return;
       void (async () => {
-        const blob = await paintToBlob(layer);
-        // Nothing painted at all: the draft keeps no layer rather than keeping
-        // an empty one, so a sticker never carries a megabyte of nothing.
-        const id = blob ? await putLayer(current.colourAssetId, blob, layer.width, layer.height) : null;
-        const next: StickerDraft = {
-          ...current,
-          colourAssetId: id ?? current.colourAssetId,
-          colourAt: { width: layer.width, height: layer.height },
+        let next = row.current!;
+        const store = async (layer: Paint | null, existing: string | null) => {
+          if (!layer) return existing;
+          const blob = await paintToBlob(layer);
+          // Nothing painted at all: the draft keeps no layer rather than an
+          // empty one, so a sticker never carries a megabyte of nothing.
+          return blob ? ((await putLayer(existing, blob, layer.width, layer.height)) ?? existing) : existing;
+        };
+        const painted = pendingColour.current ?? pendingTouch.current;
+        next = {
+          ...next,
+          colourAssetId: await store(pendingColour.current, next.colourAssetId),
+          touchAssetId: await store(pendingTouch.current, next.touchAssetId),
+          colourAt: painted ? { width: painted.width, height: painted.height } : next.colourAt,
           updatedAt: Date.now(),
         };
         row.current = next;
         await saveDraft(next);
         setSavedAt(next.updatedAt);
       })();
-      // The outline goes round the colour as well as round the drawing, so once
-      // the colouring settles the preview is worth making again to get it
-      // right. Only then: doing it per stroke would put the whole pipeline
-      // between the brush and the screen.
+      // The outline goes round the colour as well as round the drawing, and the
+      // touch-up changes the shape itself, so once a layer settles the preview
+      // is worth making again. Only then: doing it per stroke would put the
+      // whole pipeline between the brush and the screen.
       setSettled((n) => n + 1);
     }, SAVE_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [colourTick]);
+  }, [layerTick]);
 
   /* ------------------------------------------------------------- the output */
 
   const makeAtSize = async () => {
     if (!file) return null;
-    return renderSticker(file, settings, options(size, colouring ? colour.current?.paint() ?? null : null));
+    return renderSticker(
+      file,
+      settings,
+      options(size, colouring ? surface.current?.colour() ?? null : null, surface.current?.touch() ?? null),
+    );
   };
 
   const download = async () => {
@@ -525,20 +575,23 @@ export function StickerStudio() {
                 <Checkerboard>
                   {preview ? (
                     <div className="relative inline-block">
-                      {colouring && ink && (
-                        <ColourLayer
+                      {painting && ink && (
+                        <PaintSurface
                           ink={ink}
                           tool={tool}
                           colour={brushColour}
                           brush={brush}
+                          softness={softness}
                           gap={gapClosing}
                           pad={{
                             x: preview.pad / preview.width,
                             y: preview.pad / preview.height,
                           }}
-                          handle={colour}
-                          initial={startFrom.current}
-                          onChange={colourChanged}
+                          handle={surface}
+                          startColour={startColour.current}
+                          startTouch={startTouch.current}
+                          onColourChange={colourChanged}
+                          onTouchChange={touchChanged}
                           onLeak={setLeak}
                         />
                       )}
@@ -577,7 +630,7 @@ export function StickerStudio() {
                       <span className="mt-2 flex flex-wrap gap-2">
                         <Button
                           onClick={() => {
-                            colour.current?.undo();
+                            surface.current?.undo();
                             setLeak(null);
                           }}
                         >
@@ -585,7 +638,7 @@ export function StickerStudio() {
                         </Button>
                         <Button
                           onClick={() => {
-                            colour.current?.undo();
+                            surface.current?.undo();
                             setGapClosing((g) => Math.min(12, g + 2));
                             setLeak(null);
                           }}
@@ -689,6 +742,81 @@ export function StickerStudio() {
                   </>
                 )}
 
+                {/* ---------------------------------------- the touch-up */}
+                <div className="border-t border-ink-200 pt-5">
+                  <Toggle label="Touch up the cut-out" checked={touchUp} onChange={setTouchUp} />
+                  {!touchUp ? (
+                    <p className="mt-2 text-[13px] leading-snug text-ink-500">
+                      Paint back anything the background removal took by mistake, or take away
+                      anything it left behind. What you paint decides the sticker&rsquo;s edge, so
+                      the die-cut outline follows it too.
+                    </p>
+                  ) : !ink ? (
+                    <p className="mt-3 text-[13px] text-ink-500">Reading the picture…</p>
+                  ) : (
+                    <div className="mt-4 flex flex-col gap-5">
+                      <div>
+                        <span className="mb-2 block font-[570]">Brush</span>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {TOUCH.map((choice) => (
+                            <button
+                              key={choice.value}
+                              type="button"
+                              aria-pressed={tool === choice.value}
+                              title={choice.note}
+                              onClick={() => setTool(choice.value)}
+                              className={cx(
+                                'rounded-lg border px-2 py-2 text-[13px] font-[560] transition-colors',
+                                tool === choice.value
+                                  ? 'border-accent-500 bg-accent-50'
+                                  : 'border-ink-200 hover:border-ink-300',
+                              )}
+                            >
+                              {choice.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[13px] leading-snug text-ink-500">
+                          {TOUCH.find((t) => t.value === tool)?.note ??
+                            'Pick one of these to paint on the cut-out.'}
+                        </p>
+                        <p className="mt-1.5 text-[12.5px] leading-snug text-ink-500">
+                          Green is kept, red is dropped. The picture itself catches up a moment
+                          after you stop.
+                        </p>
+                      </div>
+
+                      {isTouchTool(tool) && (
+                        <>
+                          <Control
+                            label="Brush size"
+                            hint="The radius, in pixels of the picture."
+                            value={brush}
+                            min={2}
+                            max={120}
+                            onChange={setBrush}
+                          />
+                          <Control
+                            label="Softness"
+                            hint="How much of the brush fades at its edge. Soft is for hair-fine edges and shadows; hard is for a clean cut."
+                            value={Math.round(softness * 100)}
+                            min={0}
+                            max={100}
+                            onChange={(n) => setSoftness(n / 100)}
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => surface.current?.undo()}>Undo</Button>
+                            <Button onClick={() => surface.current?.redo()}>Redo</Button>
+                            <Button onClick={() => surface.current?.clearAll()}>
+                              Clear touch-ups
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* ------------------------------------------- the colouring */}
                 <div className="border-t border-ink-200 pt-5">
                   <Toggle label="Colour it in" checked={colouring} onChange={setColouring} />
@@ -723,11 +851,12 @@ export function StickerStudio() {
                           ))}
                         </div>
                         <p className="mt-2 text-[13px] leading-snug text-ink-500">
-                          {TOOLS.find((t) => t.value === tool)?.note}
+                          {TOOLS.find((t) => t.value === tool)?.note ??
+                            'Pick one of these to paint colour.'}
                         </p>
                       </div>
 
-                      {tool !== 'eraser' && (
+                      {tool !== 'eraser' && !isTouchTool(tool) && (
                         <div>
                           <span className="mb-2 block font-[570]">Colour</span>
                           <ColourField
@@ -738,7 +867,7 @@ export function StickerStudio() {
                         </div>
                       )}
 
-                      {tool === 'fill' ? (
+                      {isTouchTool(tool) ? null : tool === 'fill' ? (
                         <Control
                           label="Gap closing"
                           hint="Fattens the lines while it works out where the fill stops, then throws the fattening away. Raise it when colour leaks out through a break in an outline."
@@ -759,11 +888,11 @@ export function StickerStudio() {
                       )}
 
                       <div className="flex flex-wrap gap-2">
-                        <Button onClick={() => colour.current?.undo()}>Undo</Button>
-                        <Button onClick={() => colour.current?.redo()}>Redo</Button>
+                        <Button onClick={() => surface.current?.undo()}>Undo</Button>
+                        <Button onClick={() => surface.current?.redo()}>Redo</Button>
                         <Button
                           onClick={() => {
-                            colour.current?.clearAll();
+                            surface.current?.clearAll();
                             setLeak(null);
                           }}
                         >
