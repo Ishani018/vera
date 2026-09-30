@@ -14,6 +14,7 @@ import { SEND_TO, sendStickerToDesign } from '@/lib/stickers/sendToDesign';
 import { toHex, type Swap } from '@/lib/stickers/recolour';
 import { NO_FRAME, contentBox, isPlain, norm, quarterFrom, type Frame } from '@/lib/stickers/frame';
 import { MAX_TEXTS, newText, type StickerText } from '@/lib/stickers/text';
+import { NO_DECORATION, type Decorations } from '@/lib/stickers/decorate';
 import { withText } from '@/lib/stickers/compose';
 import { id as newId } from '@/lib/defaults';
 import { FontPicker } from '../FontPicker';
@@ -172,6 +173,12 @@ export function StickerStudio() {
     pendingTouch.current = layer;
     setLayerTick((n) => n + 1);
   }, []);
+
+  /* --------------------------------------------------------- the decorations */
+
+  const [decorations, setDecorations] = useState<Decorations>({ ...NO_DECORATION });
+  const decorate = (patch: Partial<Decorations>) =>
+    setDecorations((was) => ({ ...was, ...patch }));
 
   /* --------------------------------------------------------------- the words */
 
@@ -377,6 +384,7 @@ export function StickerStudio() {
       setSwaps(saved.swaps ?? []);
       setFrame({ ...NO_FRAME, ...(saved.frame ?? {}) });
       setTexts(saved.texts ?? []);
+      setDecorations({ ...NO_DECORATION, ...(saved.decorations ?? {}) });
       setChosen(saved.texts?.[0]?.id ?? null);
       textPast.current = [];
       textFuture.current = [];
@@ -433,8 +441,9 @@ export function StickerStudio() {
       touch: withTouch,
       swaps,
       frame,
+      decorations,
     }),
-    [mode, removeBackground, tolerance, smoothing, inkColour, dieCutOn, dieCutWidth, dieCutColour, dieCutRadius, swaps, frame],
+    [mode, removeBackground, tolerance, smoothing, inkColour, dieCutOn, dieCutWidth, dieCutColour, dieCutRadius, swaps, frame, decorations],
   );
 
   // One render in flight at a time, and the newest wins: the worker numbers its
@@ -571,6 +580,7 @@ export function StickerStudio() {
         gapClosing,
         swaps,
         texts,
+        decorations,
         frame,
         updatedAt: Date.now(),
       };
@@ -595,6 +605,7 @@ export function StickerStudio() {
     gapClosing,
     swaps,
     texts,
+    decorations,
     frame,
     drafted,
   ]);
@@ -1083,6 +1094,127 @@ export function StickerStudio() {
                     )}
                   </>
                 )}
+
+                {/* --------------------------------------- the decorations */}
+                <div className="border-t border-ink-200 pt-5">
+                  <span className="block font-[570]">Finishing</span>
+                  <p className="mt-0.5 mb-3 text-[14px] leading-snug text-ink-500">
+                    All optional, all off to start with, and all worked out the same way every
+                    time — what you see here is what comes out.
+                  </p>
+
+                  <Toggle
+                    label="Drop shadow"
+                    checked={Boolean(decorations.shadow)}
+                    onChange={(on) =>
+                      decorate({
+                        shadow: on
+                          ? { blur: 18, offsetX: 6, offsetY: 10, opacity: 0.35, colour: '#1B1815' }
+                          : null,
+                      })
+                    }
+                  />
+                  {decorations.shadow && (
+                    <div className="mt-4 mb-5 flex flex-col gap-5">
+                      <Control
+                        label="Softness"
+                        hint="How far it spreads, in pixels of the exported sticker."
+                        value={decorations.shadow.blur}
+                        min={0}
+                        max={60}
+                        onChange={(blur) => decorate({ shadow: { ...decorations.shadow!, blur } })}
+                      />
+                      <Control
+                        label="Across"
+                        hint="How far to the right the light pushes it. Negative is to the left."
+                        value={decorations.shadow.offsetX}
+                        min={-40}
+                        max={40}
+                        onChange={(offsetX) => decorate({ shadow: { ...decorations.shadow!, offsetX } })}
+                      />
+                      <Control
+                        label="Down"
+                        hint="How far below it sits."
+                        value={decorations.shadow.offsetY}
+                        min={-40}
+                        max={40}
+                        onChange={(offsetY) => decorate({ shadow: { ...decorations.shadow!, offsetY } })}
+                      />
+                      <Control
+                        label="Strength"
+                        hint="How dark it goes."
+                        value={Math.round(decorations.shadow.opacity * 100)}
+                        min={0}
+                        max={100}
+                        onChange={(n) => decorate({ shadow: { ...decorations.shadow!, opacity: n / 100 } })}
+                      />
+                      <div>
+                        <span className="mb-2 block font-[570]">Shadow colour</span>
+                        <ColourField
+                          label="Shadow colour"
+                          value={decorations.shadow.colour}
+                          onChange={(colour) => decorate({ shadow: { ...decorations.shadow!, colour } })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-4">
+                    <Toggle
+                      label="Glossy highlight"
+                      checked={Boolean(decorations.gloss)}
+                      onChange={(on) => decorate({ gloss: on ? { strength: 0.35, angle: 115 } : null })}
+                    />
+                    {decorations.gloss && (
+                      <div className="mt-4 mb-1 flex flex-col gap-5">
+                        <Control
+                          label="Strength"
+                          hint="Lightens where the light falls and darkens where it does not, which is what makes it read as vinyl rather than as a white smear."
+                          value={Math.round(decorations.gloss.strength * 100)}
+                          min={0}
+                          max={100}
+                          onChange={(n) => decorate({ gloss: { ...decorations.gloss!, strength: n / 100 } })}
+                        />
+                        <Control
+                          label="Where the light is"
+                          hint="The direction it comes from, in degrees."
+                          value={decorations.gloss.angle}
+                          min={0}
+                          max={359}
+                          onChange={(angle) => decorate({ gloss: { ...decorations.gloss!, angle } })}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <Toggle
+                      label="Paper texture"
+                      checked={Boolean(decorations.grain)}
+                      onChange={(on) => decorate({ grain: on ? { strength: 0.4, scale: 3 } : null })}
+                    />
+                    {decorations.grain && (
+                      <div className="mt-4 flex flex-col gap-5">
+                        <Control
+                          label="Strength"
+                          hint="How much grain. It lightens as well as darkens, because paper does both."
+                          value={Math.round(decorations.grain.strength * 100)}
+                          min={0}
+                          max={100}
+                          onChange={(n) => decorate({ grain: { ...decorations.grain!, strength: n / 100 } })}
+                        />
+                        <Control
+                          label="How coarse"
+                          hint="Bigger is a rougher paper. It comes from the coordinates rather than from chance, so it is the same grain every time."
+                          value={decorations.grain.scale}
+                          min={1}
+                          max={20}
+                          onChange={(scale) => decorate({ grain: { ...decorations.grain!, scale } })}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* -------------------------------------------- the words */}
                 <div className="border-t border-ink-200 pt-5">

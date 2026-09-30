@@ -27,6 +27,8 @@ import {
 } from './mask';
 import { applyFrame, borderColour, flatten, isPlain, NO_FRAME } from '../stickers/frame';
 import type { Frame } from '../stickers/frame';
+import { decorate, hasAny, NO_DECORATION, shadowRoom } from '../stickers/decorate';
+import type { Decorations } from '../stickers/decorate';
 import { applySwaps } from '../stickers/recolour';
 import type { Swap } from '../stickers/recolour';
 import type { LineArtSettings, SourceKind } from '../types';
@@ -76,6 +78,8 @@ export type StickerOptions = {
   swaps?: Swap[];
   /** Flipping, turning and cropping, applied to the source before anything else. */
   frame?: Frame;
+  /** A shadow under it, a gloss across it, the grain of paper over it. */
+  decorations?: Decorations;
 };
 
 export type StickerRequest = {
@@ -373,9 +377,13 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       outline = { width: subject.width, height: subject.height, data: merged };
     }
 
-    // Room for the outline, made before it is drawn, so a sticker whose artwork
-    // runs to the edge does not get its edge cut off by the edge.
-    const pad = options.dieCut ? Math.ceil(options.dieCut.width + options.smoothing) + 2 : 0;
+    // Room for the outline and for the shadow, made before either is drawn, so
+    // a sticker whose artwork runs to the edge does not get its edge cut off by
+    // the edge — and neither does the shadow it casts past that.
+    const decorations = options.decorations ?? NO_DECORATION;
+    const pad =
+      (options.dieCut ? Math.ceil(options.dieCut.width + options.smoothing) + 2 : 0) +
+      shadowRoom(decorations);
     if (pad) {
       const padded = padMask(subject, pad);
       outline = outline === subject ? padded : padMask(outline, pad);
@@ -391,7 +399,7 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       : null;
     const softened = options.smoothing > 0 ? feather(subject, Math.round(options.smoothing)) : subject;
 
-    const composed = compositeSticker({
+    const plain = compositeSticker({
       subject: softened,
       ring,
       paint,
@@ -399,6 +407,17 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       inkColour: options.inkColour,
       ringColour: options.dieCut?.colour ?? '#FFFFFF',
     });
+
+    // The shadow is cast by the whole of what is there — the outline included,
+    // because a die-cut sticker is one piece of vinyl and casts one shadow.
+    const whole: Mask = ring
+      ? {
+          width: outline.width,
+          height: outline.height,
+          data: Uint8Array.from(outline.data, (v, p) => Math.max(v, ring.data[p])),
+        }
+      : outline;
+    const composed = hasAny(decorations) ? decorate(plain, whole, decorations) : plain;
 
     const out = new OffscreenCanvas(outWidth, outHeight);
     const outContext = out.getContext('2d');

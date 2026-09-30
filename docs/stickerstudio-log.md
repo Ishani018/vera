@@ -326,7 +326,7 @@ rather than replace it.
 
 ## Stage 6 — Text on a sticker
 
-**Commit:** `STAGE6HASH`
+**Commit:** `72d6a6e`
 
 A *Put words on it* panel: the words, the font from the existing picker, colour,
 size, curve, position, and an outline. Up to eight lots of words per sticker,
@@ -392,3 +392,61 @@ this shows, and there is no fixing it without shaping the whole run.
 **Look at first:** put words on a sticker, slide *Curve* from -100 to 100, and
 watch it pass through straight. Then try a display face at a large size — that
 is where the missing kerning on a curve will show if it is going to.
+
+---
+
+## Stage 7 — Decorations
+
+**Commit:** `STAGE7HASH`
+
+A *Finishing* section with three, all off to start with: **drop shadow**
+(softness, offset both ways, strength, colour), **glossy highlight** (strength,
+direction of the light) and **paper texture** (strength, coarseness).
+
+**Deterministic, which here is the whole point.** The grain comes from a hash of
+the coordinates, not a random number generator — a pure function of x and y,
+with no seed to carry and no state to get out of step. A browser check renders
+the same sticker twice with the whole pipeline running in between and compares
+the two PNGs: byte for byte identical. A decoration that came out a little
+different each time would make the preview a lie.
+
+**The shadow goes under, and that is an order, not a detail.** It is composited
+first and the sticker put back over it, so a white sticker stays white. A test
+pins exactly that, because the other order is the obvious way to write it and it
+turns every pale sticker grey.
+
+**The shadow asks for room.** The padding that already existed for the die-cut
+now also covers the shadow's blur and offset, so a sticker whose artwork runs to
+the edge does not have its shadow cut off by the edge. The picture grows to
+suit — 800 px wide to 932 in the browser check.
+
+**The shadow is cast by the whole thing,** outline included: a die-cut sticker is
+one piece of vinyl and casts one shadow, so the ring is merged into the shape
+the shadow is made from.
+
+**Gloss and grain never touch the alpha channel.** Both are checked for that,
+in a test and in the browser — 75,043 solid and 422,557 clear pixels before and
+after. Only the shadow may change the shape, because a shadow that added nothing
+outside the sticker would not be a shadow.
+
+**Order:** grain, then gloss, then shadow. Grain and gloss belong to the
+sticker's own surface; a shadow is cast by the finished thing rather than
+textured along with it.
+
+**No version bump.** `decorations` is a plain field on the draft row.
+
+**Checked:** `npm test` 489 pass / 0 fail (10 new). Goldens unchanged,
+`golden:screen` 0 pixels changed, build clean. Plus 11 browser checks including
+the byte-for-byte determinism one.
+
+**Only checked in the sandbox:** the gloss is a soft band across the sticker,
+not a physically modelled reflection, and how convincing it looks is a matter of
+taste I cannot check by counting pixels. The grain is tuned against the
+generated fixtures; on a very small sticker exported at 500 px a coarseness of 3
+may read as noise rather than paper.
+
+**Look at first:** turn on all three at once on a plain-coloured sticker and
+look at it at full size — there is a rendered example at
+`docs/background-removal/` scale in the log's own screenshot, but your own
+judgement of the gloss is the only one that matters here. Then export the same
+sticker twice and compare the files.

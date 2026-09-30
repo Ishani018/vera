@@ -38,6 +38,15 @@ import { listTrash } from '../lib/trash.ts';
 import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesign.ts';
 import { presetById } from '../lib/presets.ts';
 import { textArc } from '../lib/cover/curve.ts';
+import {
+  NO_DECORATION,
+  addGloss,
+  addGrain,
+  addShadow,
+  decorate,
+  hasAny,
+  shadowRoom,
+} from '../lib/stickers/decorate.ts';
 import { arcFor, fontOf, glyphSpot, measure, newText, placeOnArc } from '../lib/stickers/text.ts';
 import {
   NO_FRAME,
@@ -1110,4 +1119,130 @@ test('a whole curved line reads left to right, whichever way it bends', () => {
     const xs = spots.map((s) => s.x);
     assert.deepEqual([...xs].sort((a, b) => a - b), xs, `${up ? 'arched' : 'hanging'}: ${xs.map((n) => n.toFixed(1))}`);
   }
+});
+
+/* --------------------------------------------------------- the decorations */
+
+/** A solid square in the middle of a transparent field, and its own shape. */
+function square(size, side, colour = [200, 60, 60]) {
+  const data = new Uint8ClampedArray(size * size * 4);
+  const mask = new Uint8Array(size * size);
+  const lo = ((size - side) / 2) | 0;
+  for (let y = lo; y < lo + side; y++) {
+    for (let x = lo; x < lo + side; x++) {
+      const p = y * size + x;
+      data[p * 4] = colour[0];
+      data[p * 4 + 1] = colour[1];
+      data[p * 4 + 2] = colour[2];
+      data[p * 4 + 3] = 255;
+      mask[p] = 255;
+    }
+  }
+  return { sticker: { width: size, height: size, data }, shape: { width: size, height: size, data: mask } };
+}
+
+const alphaAt = (b, x, y) => b.data[(y * b.width + x) * 4 + 3];
+const rgbAt = (b, x, y) => [...b.data.slice((y * b.width + x) * 4, (y * b.width + x) * 4 + 3)];
+
+test('nothing turned on is the picture itself, not a copy of it', () => {
+  const { sticker, shape } = square(40, 20);
+  assert.equal(hasAny(NO_DECORATION), false);
+  assert.equal(decorate(sticker, shape, NO_DECORATION), sticker);
+});
+
+test('a shadow adds darkness outside the sticker and leaves the sticker alone', () => {
+  const { sticker, shape } = square(60, 20);
+  const before = rgbAt(sticker, 30, 30);
+  const out = addShadow(sticker, shape, {
+    blur: 9, offsetX: 8, offsetY: 8, opacity: 0.6, colour: '#000000',
+  });
+
+  assert.deepEqual(rgbAt(out, 30, 30), before, 'the middle of the sticker is untouched');
+  assert.equal(alphaAt(out, 30, 30), 255);
+  // Below and to the right, where nothing was, there is now something dark.
+  assert.ok(alphaAt(out, 44, 44) > 0, `${alphaAt(out, 44, 44)}`);
+  assert.ok(rgbAt(out, 44, 44)[0] < 120, `${rgbAt(out, 44, 44)}`);
+  // And up and to the left, where the shadow was moved away from, still nothing.
+  assert.equal(alphaAt(out, 8, 8), 0);
+});
+
+test('a shadow keeps a white sticker white', () => {
+  // The order this exists to pin: shadow under, sticker over. The other way
+  // round and every pale sticker comes out grey.
+  const { sticker, shape } = square(40, 20, [255, 255, 255]);
+  const out = addShadow(sticker, shape, {
+    blur: 6, offsetX: 0, offsetY: 0, opacity: 1, colour: '#000000',
+  });
+  assert.deepEqual(rgbAt(out, 20, 20), [255, 255, 255]);
+});
+
+test('a gloss changes the sticker without changing its shape', () => {
+  const { sticker } = square(60, 40);
+  const out = addGloss(sticker, { strength: 0.8, angle: 115 });
+  for (let p = 3; p < sticker.data.length; p += 4) {
+    assert.equal(out.data[p], sticker.data[p], 'not one pixel of alpha moved');
+  }
+  let changed = 0;
+  for (let p = 0; p < sticker.data.length; p += 4) if (out.data[p] !== sticker.data[p]) changed++;
+  assert.ok(changed > 200, `${changed} pixels lit or shaded`);
+});
+
+test('a gloss lightens one side and darkens the other', () => {
+  const { sticker } = square(80, 70, [128, 128, 128]);
+  const out = addGloss(sticker, { strength: 1, angle: 90 });
+  const top = rgbAt(out, 40, 12)[0];
+  const bottom = rgbAt(out, 40, 68)[0];
+  assert.notEqual(top, bottom, 'a flat gloss would not be a gloss');
+  assert.ok(Math.max(top, bottom) > 128, 'something is lit');
+  assert.ok(Math.min(top, bottom) < 128, 'and something is in shade');
+});
+
+test('no strength is no decoration at all', () => {
+  const { sticker } = square(20, 10);
+  assert.equal(addGloss(sticker, { strength: 0, angle: 90 }), sticker);
+  assert.equal(addGrain(sticker, { strength: 0, scale: 3 }), sticker);
+});
+
+test('the grain is the same grain every time, on any machine', () => {
+  const { sticker } = square(50, 40);
+  const once = addGrain(sticker, { strength: 0.5, scale: 3 });
+  const twice = addGrain(sticker, { strength: 0.5, scale: 3 });
+  assert.deepEqual(once.data, twice.data, 'a pure function of the coordinates');
+
+  // And it really is grain: it varies, rather than shifting everything one way.
+  const { sticker: flat } = square(50, 40, [128, 128, 128]);
+  const grained = addGrain(flat, { strength: 1, scale: 3 });
+  const values = new Set();
+  for (let y = 6; y < 44; y++) values.add(rgbAt(grained, 25, y)[0]);
+  assert.ok(values.size > 8, `${values.size} different shades down one column`);
+  assert.ok(Math.max(...values) > 128 && Math.min(...values) < 128, 'lighter and darker, as paper is');
+});
+
+test('grain never touches what is not there', () => {
+  const { sticker } = square(40, 10);
+  const out = addGrain(sticker, { strength: 1, scale: 2 });
+  assert.equal(alphaAt(out, 1, 1), 0);
+  assert.deepEqual(rgbAt(out, 1, 1), [0, 0, 0], 'the empty corner stays empty');
+});
+
+test('a shadow asks for room, and the other two do not', () => {
+  assert.equal(shadowRoom(NO_DECORATION), 0);
+  assert.equal(shadowRoom({ ...NO_DECORATION, gloss: { strength: 1, angle: 0 } }), 0);
+  const room = shadowRoom({
+    ...NO_DECORATION,
+    shadow: { blur: 10, offsetX: 5, offsetY: 20, opacity: 1, colour: '#000' },
+  });
+  assert.ok(room >= 30 + 2, `${room} pixels for a 10-blur shadow 20 below`);
+});
+
+test('all three together go on in the order that makes sense', () => {
+  const { sticker, shape } = square(60, 30);
+  const all = {
+    shadow: { blur: 6, offsetX: 4, offsetY: 4, opacity: 0.5, colour: '#000000' },
+    gloss: { strength: 0.4, angle: 115 },
+    grain: { strength: 0.3, scale: 3 },
+  };
+  const together = decorate(sticker, shape, all);
+  const byHand = addShadow(addGloss(addGrain(sticker, all.grain), all.gloss), shape, all.shadow);
+  assert.deepEqual(together.data, byHand.data, 'grain and gloss belong to the surface; the shadow is cast by it');
 });

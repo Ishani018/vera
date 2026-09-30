@@ -2,6 +2,7 @@ import { getDb } from '../db';
 import { alive, isDeleted } from '../deleted';
 import { id } from '../defaults';
 import { DEFAULT_LINE_ART } from '../projects';
+import { NO_DECORATION } from './decorate';
 import { NO_FRAME } from './frame';
 import type { StickerDraft } from '../types';
 
@@ -42,6 +43,7 @@ export function newDraft(sourceAssetId: string, name: string): StickerDraft {
     touchAssetId: null,
     swaps: [],
     texts: [],
+    decorations: { ...NO_DECORATION },
     frame: { ...NO_FRAME },
     colourAt: null,
     gapClosing: 2,
@@ -61,6 +63,7 @@ export function migrateDraft(raw: unknown): StickerDraft {
     touchAssetId: record.touchAssetId ?? null,
     swaps: record.swaps ?? [],
     texts: record.texts ?? [],
+    decorations: { ...NO_DECORATION, ...(record.decorations ?? {}) },
     frame: { ...NO_FRAME, ...(record.frame ?? {}) },
     colourAt: record.colourAt ?? null,
   };
