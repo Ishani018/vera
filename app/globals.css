@@ -17,15 +17,31 @@
   --color-ink-200: #e5e1da;
   --color-ink-300: #d2ccc2;
   --color-ink-400: #b5ada1;
-  --color-ink-500: #7a7266;
+  /*
+    Darkened from #7a7266, which was 4.28:1 against the page's own beige —
+    under AA for anything below eighteen point. This is the colour of every
+    muted line in the app, so it was failing in a great many places at once.
+    At #756d61 it is 4.61:1 on the beige and 5.10:1 on paper.
+  */
+  --color-ink-500: #756d61;
   --color-ink-600: #5e564b;
   --color-ink-700: #4a443c;
   --color-ink-900: #1b1815;
 
-  --color-accent-50: #f6efe1;
-  --color-accent-200: #ddc99c;
-  --color-accent-500: #8a6522;
-  --color-accent-600: #75551a;
+  /*
+    The accent is a deep teal, and it is the one colour here that is not a
+    cousin of the paper. That is the job: a selected rail item, a primary
+    button and a focus ring have to be unmistakable against a warm page, and
+    a warm accent on a warm page is a shade rather than a signal.
+
+    Measured against what the browser paints: white on accent-500 is 6.46:1,
+    accent-500 on paper is 6.46:1 and on the page's beige 5.83:1, and
+    accent-600 on accent-50 is 6.45:1. All well past AA's 4.5.
+  */
+  --color-accent-50: #e6f0ee;
+  --color-accent-200: #9cc7c1;
+  --color-accent-500: #0b6a62;
+  --color-accent-600: #08554f;
 
   /* The ground behind the book. Neutral on purpose. */
   --color-ground: #8e8e8e;

@@ -419,7 +419,7 @@ function ItemRow({
             <span
               aria-hidden
               title={`${warnings} line${warnings === 1 ? '' : 's'} to check`}
-              className="shrink-0 text-[13px] leading-none text-amber-400"
+              className="shrink-0 text-[13px] leading-none text-amber-700"
             >
               •
             </span>
@@ -435,7 +435,7 @@ function ItemRow({
               : 'empty'}
           {!plate && item.sampleKey ? ' · placeholder' : ''}
           {warnings > 0 && (
-            <span className="text-amber-400/90">
+            <span className="text-amber-700">
               {' · '}
               {warnings} to check
             </span>

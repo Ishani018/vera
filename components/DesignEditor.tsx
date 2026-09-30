@@ -26,6 +26,8 @@ export function DesignEditor({
   aside,
   showName = true,
   bookTray,
+  rail = false,
+  borrow = null,
 }: {
   design: Design;
   /** Changes the design in place, wherever it is stored. */
@@ -44,6 +46,9 @@ export function DesignEditor({
   showName?: boolean;
   /** Passed through: what the tray of borrowed pictures is called, or nothing. */
   bookTray?: { title: string; empty: string } | null;
+  /** Passed through: the rail, and what goes in its Pictures panel. */
+  rail?: boolean;
+  borrow?: ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
@@ -143,6 +148,11 @@ export function DesignEditor({
           pictures={pictures}
           board={board}
           bookTray={bookTray}
+          rail={rail}
+          // A board stated in pixels is measured in pixels; one stated in
+          // inches keeps inches and the dots per inch that go with them.
+          units={preset.kind === 'screen' ? 'px' : 'in'}
+          borrow={borrow}
         />
       </div>
     </div>

@@ -8,6 +8,14 @@ type Options = {
   showAlign?: boolean;
   showLineHeight?: boolean;
   showColor?: boolean;
+  /**
+   * The four a floating toolbar takes over. Hidden rather than duplicated:
+   * the same setting in two places is two places to look and one to be wrong.
+   */
+  showFamily?: boolean;
+  showSize?: boolean;
+  showWeight?: boolean;
+  showItalic?: boolean;
 };
 
 export function FontControls({
@@ -19,26 +27,38 @@ export function FontControls({
   onChange: (patch: Partial<FontSpec>) => void;
   options?: Options;
 }) {
-  const { showAlign = true, showLineHeight = true, showColor = true } = options;
+  const {
+    showAlign = true,
+    showLineHeight = true,
+    showColor = true,
+    showFamily = true,
+    showSize = true,
+    showWeight = true,
+    showItalic = true,
+  } = options;
 
   return (
     <div className="space-y-2.5">
-      <FontPicker
-        value={spec.family}
-        onChange={(family, fallback) => onChange({ family, fallback })}
-      />
+      {showFamily && (
+        <FontPicker
+          value={spec.family}
+          onChange={(family, fallback) => onChange({ family, fallback })}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Size">
-          <NumberInput
-            value={spec.sizePt}
-            onChange={(sizePt) => onChange({ sizePt })}
-            step={0.25}
-            min={5}
-            max={72}
-            suffix="pt"
-          />
-        </Field>
+        {showSize && (
+          <Field label="Size">
+            <NumberInput
+              value={spec.sizePt}
+              onChange={(sizePt) => onChange({ sizePt })}
+              step={0.25}
+              min={5}
+              max={72}
+              suffix="pt"
+            />
+          </Field>
+        )}
         {showLineHeight && (
           <Field label="Leading">
             <NumberInput
@@ -76,6 +96,7 @@ export function FontControls({
             ]}
           />
         </Field>
+        {showWeight && (
         <Field label="Weight">
           <Select
             value={String(spec.weight)}
@@ -89,6 +110,7 @@ export function FontControls({
             ]}
           />
         </Field>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -110,6 +132,7 @@ export function FontControls({
             ))}
           </div>
         )}
+        {showItalic && (
         <button
           type="button"
           onClick={() => onChange({ italic: !spec.italic })}
@@ -122,6 +145,7 @@ export function FontControls({
         >
           I
         </button>
+        )}
         {showColor && (
           <input
             type="color"

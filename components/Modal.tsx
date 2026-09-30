@@ -63,6 +63,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
+            title="Close"
             aria-label="Close"
             className="rounded px-2 py-1 text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900"
           >

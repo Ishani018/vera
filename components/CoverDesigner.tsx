@@ -9,8 +9,11 @@ import {
   inchesToPt,
   padToEven,
   ptToInches,
+  ptToPx,
+  pxToPt,
   spineWidth,
 } from '@/lib/kdp';
+import type { ReactNode } from 'react';
 import type { Board } from '@/lib/board';
 import { foldsOf, safeOf, trimOf } from '@/lib/board';
 import { coverLayout, spineTooThinForText, type CoverLayout } from '@/lib/render/coverLayout';
@@ -29,12 +32,29 @@ import type {
   FontSpec,
 } from '@/lib/types';
 import { StickerLayer } from './cover/StickerLayer';
+import {
+  TEXT_PRESETS,
+  presetBox,
+  presetByKind,
+  presetSizePt,
+  type TextPresetKind,
+} from '@/lib/textPresets';
+import { ColourField } from './cover/ColourField';
+import { Rail } from './cover/Rail';
+import {
+  SelectionToolbar,
+  ToolButton,
+  ToolDivider,
+  ToolSlider,
+  type SelectionBox,
+} from './cover/SelectionToolbar';
 import { StickerTray, type TrayItem } from './cover/StickerTray';
 import { StickerLibrary } from './cover/StickerLibrary';
 import { CoverTemplates } from './cover/CoverTemplates';
 import { saveToLibrary } from '@/lib/cover/library';
 import { validateCover } from '@/lib/validate';
 import { FontControls } from './FontControls';
+import { FontPicker } from './FontPicker';
 import {
   Button,
   ColorInput,
@@ -109,6 +129,9 @@ export function CoverDesigner<T extends CoverableBook>({
   pictures = [],
   board,
   bookTray = { title: 'Stickers from this book', empty: 'Nothing in the book yet. Its pictures will appear here.' },
+  rail = false,
+  units = 'in',
+  borrow = null,
 }: {
   project: T | null;
   update: (recipe: (draft: T) => void) => void;
@@ -134,6 +157,27 @@ export function CoverDesigner<T extends CoverableBook>({
    * feature.
    */
   bookTray?: { title: string; empty: string } | null;
+  /**
+   * The rail: a column of doors down the left, one panel open at a time,
+   * instead of one strip holding everything down the right.
+   *
+   * Opt-in per caller, and off by default, so the cover editor keeps the
+   * arrangement it has until it has been looked at rather than as a side
+   * effect of a design that was for boards.
+   */
+  rail?: boolean;
+  /**
+   * What sizes on this board are said in.
+   *
+   * A board stated in pixels is measured in pixels: asking someone to place a
+   * sticker on a 1080-pixel square by typing 2.4 inches is asking them to do
+   * the arithmetic the board already did. Points remain what is stored either
+   * way, and dots per inch are only offered where there are inches to have
+   * them — a post is never printed, so its DPI is a number about nothing.
+   */
+  units?: 'in' | 'px';
+  /** Offered inside the Pictures panel: where a board borrows from a book. */
+  borrow?: ReactNode;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
@@ -152,6 +196,17 @@ export function CoverDesigner<T extends CoverableBook>({
    * is a dashed rectangle over the thing you are trying to look at.
    */
   const [guidesOn, setGuidesOn] = useState(() => !board || board.bleed > 0);
+  /** Which door is open. Text first: a blank board most often wants words. */
+  const [openPanel, setOpenPanel] = useState<string | null>('text');
+  /**
+   * Where the board sits inside the canvas, and how big the canvas is.
+   *
+   * Both are needed to put the floating toolbar over the selected thing: the
+   * board moves when the pane is scrolled, when the window changes and when
+   * the zoom does, and the toolbar has to move with it.
+   */
+  const [stageAt, setStageAt] = useState({ x: 0, y: 0 });
+  const [paneBox, setPaneBox] = useState({ width: 0, height: 0 });
 
   // Undo covers the cover only, and a snapshot is taken at the start of each
   // gesture, so one undo puts back what was there before a drag rather than
@@ -184,6 +239,44 @@ export function CoverDesigner<T extends CoverableBook>({
     measure(stage.clientWidth, stage.clientHeight);
     return () => observer.disconnect();
   }, []);
+
+  /**
+   * Kept up to date on every render, and on scroll and resize.
+   *
+   * No dependency list on purpose: the board moves when anything moves it —
+   * a zoom, a scroll, a panel opening, the window — and a list of the reasons
+   * is a list to be wrong about. The setters bail out when nothing changed,
+   * so this settles rather than loops.
+   */
+  useEffect(() => {
+    const pane = stageRef.current;
+    if (!pane) return;
+    const same = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
+    const measure = () => {
+      const box = pane.getBoundingClientRect();
+      setPaneBox((was) =>
+        was.width === pane.clientWidth && was.height === pane.clientHeight
+          ? was
+          : { width: pane.clientWidth, height: pane.clientHeight },
+      );
+      const stage = pane.querySelector('[data-cover-stage]');
+      if (!stage) return;
+      const at = stage.getBoundingClientRect();
+      const next = { x: at.left - box.left, y: at.top - box.top };
+      setStageAt((was) => (same(was, next) ? was : next));
+    };
+    measure();
+    pane.addEventListener('scroll', measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    const stage = pane.querySelector('[data-cover-stage]');
+    if (stage) observer.observe(stage);
+    return () => {
+      pane.removeEventListener('scroll', measure);
+      observer.disconnect();
+    };
+  });
 
   // The project holds an asset id; the canvas needs a URL for it.
   const assetId = project?.cover.frontImage?.assetId ?? null;
@@ -403,6 +496,40 @@ export function CoverDesigner<T extends CoverableBook>({
     setSelectedId(null);
   };
 
+  /**
+   * A line of type at one of three sizes, placed for the board it is on.
+   *
+   * Only offered on a board: a cover's three faces each want their own
+   * position, which is what `addBox` below already works out.
+   */
+  const addPreset = (kind: TextPresetKind) => {
+    const preset = presetByKind(kind);
+    const newId = id('cb');
+    const where = presetBox(preset, layout);
+    update((draft) => {
+      draft.cover.textBoxes.push({
+        id: newId,
+        panel: 'board' as CoverPanel,
+        text: preset.text,
+        x: where.x,
+        y: where.y,
+        width: where.width,
+        font: font({
+          family: displayFont.family,
+          fallback: displayFont.fallback,
+          sizePt: presetSizePt(preset, layout),
+          weight: preset.weight,
+          lineHeight: preset.lineHeight,
+          align: 'center',
+          color: '#1a1a1a',
+        }),
+        rotate: 0,
+        curve: 0,
+      });
+    });
+    setSelectedId(newId);
+  };
+
   const addBox = (panel: CoverPanel) => {
     const newId = id('cb');
     const panelRect = layout.panels[panel];
@@ -468,15 +595,609 @@ export function CoverDesigner<T extends CoverableBook>({
       )
     : 0;
 
+  /**
+   * The panel's contents, named.
+   *
+   * One list, two arrangements: a cover stacks them all down the right-hand
+   * side exactly as it always has, and a board deals them into the panels
+   * behind its rail. Naming them rather than copying them is what keeps the
+   * two from drifting — there is one Artwork section, not two.
+   */
+  const sections = {
+    measurements: (
+      <>
+        {isCover ? (
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
+            <dt>Full cover</dt>
+            <dd className="text-right tabular-nums text-ink-700">
+              {layout.dimensions!.width.toFixed(3)}″ × {layout.dimensions!.height.toFixed(3)}″
+            </dd>
+            <dt>Spine at {finalPages} pages</dt>
+            <dd className="text-right tabular-nums text-ink-700">
+              {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
+            </dd>
+          </dl>
+        ) : null}
+
+        {isCover && spineTooThinForText(layout as CoverLayout) && (
+          <Notice level="warning">
+            The spine is under 0.0625″, KDP's minimum for printing spine text.
+          </Notice>
+        )}
+      </>
+    ),
+    history: (
+      <>
+        <div className="flex items-center gap-1.5">
+          <Button
+            onClick={coverHistory.undo}
+            disabled={!coverHistory.canUndo}
+            title="Undo (Cmd+Z)"
+            aria-label="Undo"
+          >
+            ↺
+          </Button>
+          <Button
+            onClick={coverHistory.redo}
+            disabled={!coverHistory.canRedo}
+            title="Redo (Cmd+Shift+Z)"
+            aria-label="Redo"
+          >
+            ↻
+          </Button>
+          <span className="text-[11px] text-ink-500">Undo</span>
+        </div>
+      </>
+    ),
+    bookPictures: (
+      <>
+        {bookTray && (
+          <StickerTray
+            title={bookTray.title}
+            items={trayItems}
+            empty={bookTray.empty}
+            onPlace={placeSticker}
+          />
+        )}
+      </>
+    ),
+    library: (
+      <>
+        <StickerLibrary
+          onPlace={placeSticker}
+          reloadKey={libraryVersion}
+          onChanged={() => setLibraryVersion((n) => n + 1)}
+        />
+      </>
+    ),
+    templates: (
+      <>
+        {/* A saved cover layout is a cover's business. Offering it on a post
+            is offering to make the post into somebody's back cover. */}
+        {isCover && (
+        <CoverTemplates
+          cover={cover}
+          onApply={(spec) => {
+            coverHistory.remember();
+            update((draft) => void (draft.cover = spec));
+            setSelectedSticker(null);
+            setSelectedId(null);
+          }}
+        />
+        )}
+      </>
+    ),
+    stickerInspector: (
+      <>
+        {sticker && (
+          <StickerInspector
+            sticker={sticker}
+            layout={layout}
+            compact={rail}
+            units={units}
+            onPatch={(patch) => {
+              coverHistory.remember();
+              patchSticker(sticker.id, patch);
+            }}
+            onSlide={(patch) => patchSticker(sticker.id, patch)}
+            onCommit={coverHistory.remember}
+            onRestack={(direction) => {
+              coverHistory.remember();
+              update((draft) => {
+                draft.cover.stickers = restack(draft.cover.stickers, sticker.id, direction);
+              });
+            }}
+            onDuplicate={() => {
+              const newId = id('cs');
+              coverHistory.remember();
+              update((draft) => {
+                const source = draft.cover.stickers.find((s) => s.id === sticker.id);
+                if (!source) return;
+                // Offset a little, or the copy hides exactly behind the original
+                // and looks like nothing happened.
+                draft.cover.stickers.push({ ...source, id: newId, x: source.x + 0.2, y: source.y + 0.2 });
+              });
+              setSelectedSticker(newId);
+            }}
+            onDelete={() => {
+              coverHistory.remember();
+              update((draft) => {
+                draft.cover.stickers = draft.cover.stickers.filter((s) => s.id !== sticker.id);
+              });
+              setSelectedSticker(null);
+            }}
+            saved={savedToLibrary}
+            onKeep={() => {
+              void saveToLibrary({
+                name: sticker.name,
+                assetId: sticker.assetId,
+                width: sticker.naturalWidth,
+                height: sticker.naturalHeight,
+              }).then(() => {
+                setLibraryVersion((n) => n + 1);
+                setSavedToLibrary(true);
+                setTimeout(() => setSavedToLibrary(false), 2200);
+              });
+            }}
+          />
+        )}
+      </>
+    ),
+    artwork: (
+      <>
+        <div className="space-y-2">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Artwork</h4>
+          <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-200">
+            {cover.frontImage
+              ? 'Replace image…'
+              : isCover
+                ? 'Upload cover image…'
+                : 'Upload a picture…'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => void onImage(e.target.files?.[0])}
+            />
+          </label>
+          {imageError && <Notice level="error">{imageError}</Notice>}
+          {cover.frontImage && (
+            <>
+              <p className="text-[11px] text-ink-500">
+                {cover.frontImage.naturalWidth} × {cover.frontImage.naturalHeight}px ·{' '}
+                <span className={imageDpi < MIN_COVER_DPI ? 'text-amber-700' : 'text-emerald-700'}>
+                  {Math.round(imageDpi)} DPI at print size
+                </span>
+              </p>
+              <Toggle
+                label="Stretch across back, spine and front"
+                checked={cover.imageSpansWrap}
+                onChange={(imageSpansWrap) =>
+                  update((draft) => {
+                    draft.cover.imageSpansWrap = imageSpansWrap;
+                  })
+                }
+              />
+              <Field label="Fit">
+                <Select
+                  value={cover.frontImage.fit}
+                  onChange={(fit) =>
+                    update((draft) => {
+                      if (draft.cover.frontImage) draft.cover.frontImage.fit = fit;
+                    })
+                  }
+                  options={[
+                    { value: 'cover', label: 'Fill the panel (crop)' },
+                    { value: 'contain', label: 'Fit inside (letterbox)' },
+                  ]}
+                />
+              </Field>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (assetId) forgetAssetUrl(assetId);
+                  update((draft) => {
+                    draft.cover.frontImage = null;
+                  });
+                }}
+              >
+                Remove image
+              </Button>
+            </>
+          )}
+        </div>
+      </>
+    ),
+    colours: (
+      <>
+        <div className="grid grid-cols-1 gap-2">
+          {isCover ? (
+            <>
+              <Field label="Back cover colour">
+                <ColorInput
+                  value={cover.backColor}
+                  onChange={(backColor) =>
+                    update((draft) => {
+                      draft.cover.backColor = backColor;
+                    })
+                  }
+                />
+              </Field>
+              <Field label="Spine colour">
+                <ColorInput
+                  value={cover.spineColor}
+                  onChange={(spineColor) =>
+                    update((draft) => {
+                      draft.cover.spineColor = spineColor;
+                    })
+                  }
+                />
+              </Field>
+            </>
+          ) : (
+            <Field label="Background">
+              {/* The palette on a board, the old input on a cover: the cover
+                  editor is not being redesigned tonight, and a control that
+                  changes under someone mid-book is its own kind of bug. */}
+              {rail ? (
+                <ColourField
+                  label="Background colour"
+                  value={cover.backgroundColor}
+                  onChange={(backgroundColor) =>
+                    update((draft) => {
+                      draft.cover.backgroundColor = backgroundColor;
+                    })
+                  }
+                />
+              ) : (
+                <ColorInput
+                  value={cover.backgroundColor}
+                  onChange={(backgroundColor) =>
+                    update((draft) => {
+                      draft.cover.backgroundColor = backgroundColor;
+                    })
+                  }
+                />
+              )}
+            </Field>
+          )}
+        </div>
+      </>
+    ),
+    barcode: (
+      <>
+        {isCover && (
+        <Toggle
+          label="Show the barcode reserve"
+          checked={cover.showBarcodeZone}
+          onChange={(showBarcodeZone) =>
+            update((draft) => {
+              draft.cover.showBarcodeZone = showBarcodeZone;
+            })
+          }
+        />
+        )}
+      </>
+    ),
+    text: (
+      <>
+        <div className="space-y-2 border-t border-ink-200 pt-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
+          {rail ? (
+            /*
+              Three sizes rather than one button, because the first thing
+              anyone does after adding a text box is make it bigger or smaller,
+              and each of these is already the size it should be for this
+              board.
+            */
+            <div className="grid gap-2">
+              {TEXT_PRESETS.map((preset) => (
+                <button
+                  key={preset.kind}
+                  type="button"
+                  onClick={() => addPreset(preset.kind)}
+                  className="rounded-xl border border-ink-200 bg-ink-50 px-3 py-3 text-left transition-colors hover:border-accent-500 hover:bg-paper"
+                >
+                  <span
+                    className="block truncate text-ink-900"
+                    style={{
+                      fontSize: preset.kind === 'heading' ? 22 : preset.kind === 'subheading' ? 16 : 13,
+                      fontWeight: preset.weight,
+                    }}
+                  >
+                    {preset.label}
+                  </span>
+                  <span className="mt-0.5 block text-[11.5px] text-ink-500">
+                    {presetSizePt(preset, layout)} pt on this board
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5">
+              {ADDABLE_PANELS.map((panel) => (
+                <Button key={panel} onClick={() => addBox(panel)}>
+                  {PANEL_LABEL[panel] ?? panel}
+                </Button>
+              ))}
+            </div>
+          )}
+          {cover.textBoxes.length === 0 && (
+            <p className="text-[11px] text-ink-500">
+              {isCover ? 'No text yet. Add a box to a panel.' : 'No text yet.'}
+            </p>
+          )}
+          <ul className="space-y-1">
+            {cover.textBoxes.map((box) => (
+              <li key={box.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(box.id)}
+                  className={cx(
+                    'flex w-full items-center gap-2 rounded px-2 py-1 text-left transition-colors',
+                    selectedId === box.id ? 'bg-accent-500/15 text-accent-600' : 'hover:bg-ink-50',
+                  )}
+                >
+                  <span className="w-10 shrink-0 text-[10px] uppercase text-ink-700">
+                    {box.panel}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{box.text || 'Empty'}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </>
+    ),
+    textInspector: (
+      <>
+        {selected && (
+          <div className="space-y-3 border-t border-ink-200 pt-3">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
+              {PANEL_LABELS[selected.panel]} text
+            </h4>
+            <TextArea
+              value={selected.text}
+              rows={3}
+              onChange={(e) =>
+                update((draft) => {
+                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
+                  if (found) found.text = e.target.value;
+                })
+              }
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="X">
+                <NumberInput
+                  value={round(ptToInches(selected.x))}
+                  onChange={(x) => patchBox(update, selected.id, { x: inchesToPt(x) })}
+                  step={0.05}
+                  suffix="in"
+                />
+              </Field>
+              <Field label="Y">
+                <NumberInput
+                  value={round(ptToInches(selected.y))}
+                  onChange={(y) => patchBox(update, selected.id, { y: inchesToPt(y) })}
+                  step={0.05}
+                  suffix="in"
+                />
+              </Field>
+              <Field label="Width">
+                <NumberInput
+                  value={round(ptToInches(selected.width))}
+                  onChange={(width) => patchBox(update, selected.id, { width: inchesToPt(width) })}
+                  step={0.05}
+                  min={0.2}
+                  suffix="in"
+                />
+              </Field>
+            </div>
+            {/* On a board, curve and the face of the type are in the floating
+                toolbar over the words themselves. Hidden here rather than
+                repeated. */}
+            {!rail && (
+            <Field
+              label="Curve"
+              hint={
+                selected.curve
+                  ? `Bent through ${Math.round((Math.abs(selected.curve) / 100) * MAX_SWEEP_DEGREES)}° — ${
+                      selected.curve > 0 ? 'arching up' : 'hanging down'
+                    }`
+                  : 'Straight. Drag right to arch the words up, left to hang them down.'
+              }
+            >
+              {/* One snapshot per go at the slider: taking hold of it is the
+                  start of a gesture, and every step after that is the same
+                  gesture. A key press is a gesture of its own. */}
+              <div onPointerDown={coverHistory.remember} onKeyDown={coverHistory.remember}>
+                <Slider
+                  value={selected.curve}
+                  onChange={(curve) => patchBox(update, selected.id, { curve })}
+                  min={-100}
+                  max={100}
+                  step={1}
+                />
+              </div>
+            </Field>
+            )}
+            <FontControls
+              spec={selected.font}
+              onChange={(patch) =>
+                update((draft) => {
+                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
+                  if (found) Object.assign(found.font, patch);
+                })
+              }
+              // What the toolbar has taken: the face, the size, the weight,
+              // italic, the colour and the alignment. What is left here is the
+              // fine work — leading, letter spacing, case — which nobody wants
+              // in a bar over their words.
+              options={
+                rail
+                  ? {
+                      showFamily: false,
+                      showSize: false,
+                      showWeight: false,
+                      showItalic: false,
+                      showColor: false,
+                      showAlign: false,
+                    }
+                  : {}
+              }
+            />
+            {!rail && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  update((draft) => {
+                    draft.cover.textBoxes = draft.cover.textBoxes.filter(
+                      (b) => b.id !== selected.id,
+                    );
+                  });
+                  setSelectedId(null);
+                }}
+              >
+                Delete this text
+              </Button>
+            )}
+          </div>
+        )}
+
+        {issues.length > 0 && (
+          <div className="space-y-1.5 border-t border-ink-200 pt-3">
+            {issues.map((issue) => (
+              <Notice
+                key={issue.id}
+                level={issue.level === 'warning' ? 'warning' : issue.level === 'error' ? 'error' : 'info'}
+              >
+                <p>{issue.message}</p>
+                {issue.fix && <p className="mt-1 opacity-80">{issue.fix}</p>}
+              </Notice>
+            ))}
+          </div>
+        )}
+      </>
+    ),
+  };
+
+  /**
+   * Zooming keeps what you were looking at in the middle.
+   *
+   * A zoom that anchors on the top-left corner throws the thing being worked
+   * on off the screen, and at two hundred per cent that means the selection
+   * and its toolbar both vanish. The selection is the anchor when there is
+   * one, the middle of the board when there is not.
+   */
+  const lastScale = useRef(scale);
+  useEffect(() => {
+    const pane = stageRef.current;
+    if (!pane || lastScale.current === scale || scale <= 0) {
+      lastScale.current = scale;
+      return;
+    }
+    lastScale.current = scale;
+    const frame = requestAnimationFrame(() => {
+      const stage = pane.querySelector('[data-cover-stage]');
+      if (!stage || !layout) return;
+      const paneRect = pane.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      const panel = selected ? layout.panels[selected.panel] ?? layout.panels.board : null;
+      const focus = sticker
+        ? { x: sticker.x + sticker.width / 2, y: sticker.y + sticker.height / 2 }
+        : selected && panel
+          ? { x: panel.x + selected.x + selected.width / 2, y: panel.y + selected.y }
+          : { x: layout.width / 2, y: layout.height / 2 };
+      pane.scrollLeft += stageRect.left - paneRect.left + focus.x * scale - pane.clientWidth / 2;
+      pane.scrollTop += stageRect.top - paneRect.top + focus.y * scale - pane.clientHeight / 2;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scale, layout, selected, sticker]);
+
+  /**
+   * Where the selected thing is on the canvas, in pane pixels.
+   *
+   * Worked out from the same numbers the board is drawn from rather than by
+   * measuring the DOM: the model is what moves during a drag, and reading it
+   * means the toolbar arrives with the picture rather than a frame behind it.
+   */
+  const selectionBox: SelectionBox | null = (() => {
+    if (!rail || scale <= 0) return null;
+    if (sticker) {
+      return {
+        x: stageAt.x + sticker.x * scale,
+        y: stageAt.y + sticker.y * scale,
+        width: sticker.width * scale,
+        height: sticker.height * scale,
+      };
+    }
+    if (selected) {
+      const panel = layout.panels[selected.panel] ?? layout.panels.board;
+      if (!panel) return null;
+      const arc = curvedText(selected);
+      return {
+        x: stageAt.x + (panel.x + selected.x + (arc?.offsetX ?? 0)) * scale,
+        y: stageAt.y + (panel.y + selected.y + (arc?.offsetY ?? 0)) * scale,
+        width: (arc?.width ?? selected.width) * scale,
+        // A straight box is as tall as one line of its own type; a curved one
+        // knows its own height, because the arc worked it out.
+        height: (arc?.height ?? selected.font.sizePt * selected.font.lineHeight) * scale,
+      };
+    }
+    return null;
+  })();
+
+  const patchFont = (patch: Partial<FontSpec>) =>
+    update((draft) => {
+      const found = draft.cover.textBoxes.find((b) => b.id === selected?.id);
+      if (found) Object.assign(found.font, patch);
+    });
+
   const empty =
     !cover.frontImage && !cover.stickers.length && !cover.textBoxes.length;
 
   return (
     <div className="flex h-full min-w-0">
+      {rail && (
+        <Rail
+          panels={[
+            { id: 'text', label: 'Text', glyph: 'T', node: <>{sections.text}{sections.textInspector}</> },
+            {
+              id: 'pictures',
+              label: 'Pictures',
+              glyph: '▣',
+              node: (
+                <>
+                  {sections.artwork}
+                  {borrow}
+                  {sections.bookPictures}
+                </>
+              ),
+            },
+            {
+              id: 'stickers',
+              label: 'Stickers',
+              glyph: '☺',
+              node: <>{sections.library}{sections.stickerInspector}</>,
+            },
+            { id: 'background', label: 'Background', glyph: '▦', node: sections.colours },
+          ]}
+          soon={[
+            { label: 'Elements', glyph: '◇' },
+            { label: 'Templates', glyph: '▤' },
+          ]}
+          footer={sections.history}
+          open={openPanel}
+          onOpen={setOpenPanel}
+        />
+      )}
+
       <div className="relative min-w-0 flex-1">
         <div
           ref={stageRef}
-          className="flex h-full overflow-auto bg-ink-600 px-3 pb-12 pt-3"
+          // A calm neutral grey: the board is the only thing on this screen
+          // with a colour of its own, and a warm canvas argues with a warm cover.
+          className="flex h-full overflow-auto bg-[#6f6f6f] px-3 pb-12 pt-3"
           // Safe centring: centred while it fits, and pinned to the top-left
           // rather than cut off at both ends once it does not.
           style={{ alignItems: 'safe center', justifyContent: 'safe center' }}
@@ -586,6 +1307,7 @@ export function CoverDesigner<T extends CoverableBook>({
             )}
 
             <StickerLayer
+              showDpi={units === 'in'}
               stickers={cover.stickers}
               layout={layout}
               scale={scale}
@@ -692,7 +1414,7 @@ export function CoverDesigner<T extends CoverableBook>({
 
             {empty && (
               <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                <span className="rounded-full bg-black/35 px-4 py-2 text-[13px] text-white">
+                <span className="rounded-full bg-black/60 px-4 py-2 text-[13px] text-white">
                   Add text, or drag a picture here
                 </span>
               </div>
@@ -751,11 +1473,256 @@ export function CoverDesigner<T extends CoverableBook>({
         </div>
 
         {/*
+          The controls for what is selected, over the thing they belong to.
+          Only on a board: a cover keeps its sidebar, where these have always
+          been, and having both would be two places to look.
+        */}
+        {rail && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <SelectionToolbar box={selectionBox} pane={paneBox}>
+              {selected && (
+                <>
+                  <div className="w-[136px]">
+                    <FontPicker
+                      value={selected.font.family}
+                      onChange={(family, fallback) => patchFont({ family, fallback })}
+                    />
+                  </div>
+                  <input
+                    type="number"
+                    title="Type size, in points"
+                    aria-label="Type size, in points"
+                    value={selected.font.sizePt}
+                    min={5}
+                    max={200}
+                    step={1}
+                    onChange={(e) => patchFont({ sizePt: Number(e.target.value) || 1 })}
+                    className="h-8 w-[58px] rounded-lg border border-ink-200 px-1.5 text-[13px] tabular-nums"
+                  />
+                  <ColourField
+                    compact
+                    label="Text colour"
+                    value={selected.font.color}
+                    onChange={(color) => patchFont({ color })}
+                  />
+                  <ToolButton
+                    label="Bold"
+                    active={selected.font.weight >= 600}
+                    onClick={() => patchFont({ weight: selected.font.weight >= 600 ? 400 : 700 })}
+                  >
+                    <span className="font-bold">B</span>
+                  </ToolButton>
+                  <ToolButton
+                    label="Italic"
+                    active={selected.font.italic}
+                    onClick={() => patchFont({ italic: !selected.font.italic })}
+                  >
+                    <span className="italic">I</span>
+                  </ToolButton>
+                  <ToolDivider />
+                  {(['left', 'center', 'right'] as const).map((align) => (
+                    <ToolButton
+                      key={align}
+                      label={`Align ${align}`}
+                      active={selected.font.align === align}
+                      onClick={() => patchFont({ align })}
+                    >
+                      {align === 'left' ? '⯇' : align === 'center' ? '≡' : '⯈'}
+                    </ToolButton>
+                  ))}
+                  <ToolDivider />
+                  <ToolSlider
+                    label="Curve"
+                    value={selected.curve}
+                    min={-100}
+                    max={100}
+                    onStart={coverHistory.remember}
+                    onChange={(curve) => patchBox(update, selected.id, { curve })}
+                  />
+                  <ToolDivider />
+                  <ToolButton
+                    label="Duplicate"
+                    onClick={() => {
+                      const newId = id('cb');
+                      coverHistory.remember();
+                      update((draft) => {
+                        const source = draft.cover.textBoxes.find((b) => b.id === selected.id);
+                        if (source) {
+                          draft.cover.textBoxes.push({
+                            ...structuredClone(source),
+                            id: newId,
+                            x: source.x + 12,
+                            y: source.y + 12,
+                          });
+                        }
+                      });
+                      setSelectedId(newId);
+                    }}
+                  >
+                    ⧉
+                  </ToolButton>
+                  <ToolButton
+                    label="Delete"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.textBoxes = draft.cover.textBoxes.filter(
+                          (b) => b.id !== selected.id,
+                        );
+                      });
+                      setSelectedId(null);
+                    }}
+                  >
+                    🗑
+                  </ToolButton>
+                  <ToolButton
+                    label="Bring forward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.textBoxes = restack(draft.cover.textBoxes, selected.id, 1);
+                      });
+                    }}
+                  >
+                    ↑
+                  </ToolButton>
+                  <ToolButton
+                    label="Send backward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.textBoxes = restack(draft.cover.textBoxes, selected.id, -1);
+                      });
+                    }}
+                  >
+                    ↓
+                  </ToolButton>
+                </>
+              )}
+
+              {sticker && (
+                <>
+                  <ToolSlider
+                    label="Arc"
+                    value={sticker.arc}
+                    min={-100}
+                    max={100}
+                    onStart={coverHistory.remember}
+                    onChange={(arc) => patchSticker(sticker.id, { arc })}
+                  />
+                  <ToolSlider
+                    label="Corners"
+                    value={Math.round(sticker.cornerRadius * 100)}
+                    min={0}
+                    max={50}
+                    onStart={coverHistory.remember}
+                    onChange={(value) => patchSticker(sticker.id, { cornerRadius: value / 100 })}
+                  />
+                  <ToolDivider />
+                  <ToolButton
+                    label="Border"
+                    active={Boolean(sticker.border)}
+                    onClick={() => {
+                      coverHistory.remember();
+                      patchSticker(sticker.id, {
+                        border: sticker.border ? null : { widthPt: 2, color: '#1a1a1a' },
+                      });
+                    }}
+                  >
+                    ▢
+                  </ToolButton>
+                  {sticker.border && (
+                    <ColourField
+                      compact
+                      label="Border colour"
+                      value={sticker.border.color}
+                      onChange={(color) =>
+                        patchSticker(sticker.id, { border: { ...sticker.border!, color } })
+                      }
+                    />
+                  )}
+                  <ToolButton
+                    label="Shadow"
+                    active={sticker.shadow}
+                    onClick={() => {
+                      coverHistory.remember();
+                      patchSticker(sticker.id, { shadow: !sticker.shadow });
+                    }}
+                  >
+                    ◗
+                  </ToolButton>
+                  <ToolDivider />
+                  <ToolButton
+                    label="Duplicate"
+                    onClick={() => {
+                      const newId = id('cs');
+                      coverHistory.remember();
+                      update((draft) => {
+                        const source = draft.cover.stickers.find((s) => s.id === sticker.id);
+                        if (source) {
+                          draft.cover.stickers.push({
+                            ...source,
+                            id: newId,
+                            x: source.x + 12,
+                            y: source.y + 12,
+                          });
+                        }
+                      });
+                      setSelectedSticker(newId);
+                    }}
+                  >
+                    ⧉
+                  </ToolButton>
+                  <ToolButton
+                    label="Delete"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.stickers = draft.cover.stickers.filter(
+                          (s) => s.id !== sticker.id,
+                        );
+                      });
+                      setSelectedSticker(null);
+                    }}
+                  >
+                    🗑
+                  </ToolButton>
+                  <ToolButton
+                    label="Bring forward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.stickers = restack(draft.cover.stickers, sticker.id, 1);
+                      });
+                    }}
+                  >
+                    ↑
+                  </ToolButton>
+                  <ToolButton
+                    label="Send backward"
+                    onClick={() => {
+                      coverHistory.remember();
+                      update((draft) => {
+                        draft.cover.stickers = restack(draft.cover.stickers, sticker.id, -1);
+                      });
+                    }}
+                  >
+                    ↓
+                  </ToolButton>
+                </>
+              )}
+            </SelectionToolbar>
+          </div>
+        )}
+
+        {/*
           The view controls, over the canvas rather than in the panel: they are
           about looking at the board, not about changing it.
         */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 p-3">
-          <p className="max-w-sm text-[11px] leading-snug text-white/70">
+          {/* On a pill rather than straight onto the canvas: white on this
+              grey is 3.5:1 at best, which is under AA for a line this size. */}
+          <p className="max-w-sm rounded-lg bg-black/55 px-2 py-1 text-[11px] leading-snug text-white">
             {!guidesOn
               ? 'Drag any text box to move it.'
               : isCover
@@ -767,6 +1734,7 @@ export function CoverDesigner<T extends CoverableBook>({
           <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-ink-200 bg-paper/95 px-1.5 py-1 shadow-lg">
             <button
               type="button"
+              title={guidesOn ? 'Hide the guides' : 'Show the guides'}
               onClick={() => setGuidesOn((on) => !on)}
               aria-pressed={guidesOn}
               className={cx(
@@ -779,6 +1747,7 @@ export function CoverDesigner<T extends CoverableBook>({
             <span className="h-4 w-px bg-ink-200" />
             <button
               type="button"
+              title="Fit the whole board in the window"
               onClick={() => setZoom('fit')}
               aria-pressed={zoom === 'fit'}
               className={cx(
@@ -792,6 +1761,7 @@ export function CoverDesigner<T extends CoverableBook>({
               <button
                 key={step}
                 type="button"
+                title={step === 1 ? 'Actual size' : `Zoom to ${step * 100}%`}
                 onClick={() => setZoom(step)}
                 aria-pressed={zoom === step}
                 className={cx(
@@ -802,372 +1772,31 @@ export function CoverDesigner<T extends CoverableBook>({
                 {step * 100}%
               </button>
             ))}
-            <span className="pl-1 pr-1.5 text-[11px] tabular-nums text-ink-500">
+            <span
+              title="How big the board is on screen now"
+              className="pl-1 pr-1.5 text-[11px] tabular-nums text-ink-500"
+            >
               {Math.round((scale / ACTUAL_SIZE) * 100)}%
             </span>
           </div>
         </div>
       </div>
 
-      <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
-        {isCover ? (
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
-            <dt>Full cover</dt>
-            <dd className="text-right tabular-nums text-ink-700">
-              {layout.dimensions!.width.toFixed(3)}″ × {layout.dimensions!.height.toFixed(3)}″
-            </dd>
-            <dt>Spine at {finalPages} pages</dt>
-            <dd className="text-right tabular-nums text-ink-700">
-              {spineWidth(finalPages, project.trim.paper).toFixed(4)}″
-            </dd>
-          </dl>
-        ) : null}
-
-        {isCover && spineTooThinForText(layout as CoverLayout) && (
-          <Notice level="warning">
-            The spine is under 0.0625″, KDP's minimum for printing spine text.
-          </Notice>
-        )}
-
-        <div className="flex items-center gap-1.5">
-          <Button onClick={coverHistory.undo} disabled={!coverHistory.canUndo} title="Undo (Cmd+Z)">
-            ↺
-          </Button>
-          <Button onClick={coverHistory.redo} disabled={!coverHistory.canRedo} title="Redo (Cmd+Shift+Z)">
-            ↻
-          </Button>
-          <span className="text-[11px] text-ink-500">Undo</span>
-        </div>
-
-        {bookTray && (
-          <StickerTray
-            title={bookTray.title}
-            items={trayItems}
-            empty={bookTray.empty}
-            onPlace={placeSticker}
-          />
-        )}
-
-        <StickerLibrary
-          onPlace={placeSticker}
-          reloadKey={libraryVersion}
-          onChanged={() => setLibraryVersion((n) => n + 1)}
-        />
-
-        {/* A saved cover layout is a cover's business. Offering it on a post
-            is offering to make the post into somebody's back cover. */}
-        {isCover && (
-        <CoverTemplates
-          cover={cover}
-          onApply={(spec) => {
-            coverHistory.remember();
-            update((draft) => void (draft.cover = spec));
-            setSelectedSticker(null);
-            setSelectedId(null);
-          }}
-        />
-        )}
-
-        {sticker && (
-          <StickerInspector
-            sticker={sticker}
-            layout={layout}
-            onPatch={(patch) => {
-              coverHistory.remember();
-              patchSticker(sticker.id, patch);
-            }}
-            onSlide={(patch) => patchSticker(sticker.id, patch)}
-            onCommit={coverHistory.remember}
-            onRestack={(direction) => {
-              coverHistory.remember();
-              update((draft) => {
-                draft.cover.stickers = restack(draft.cover.stickers, sticker.id, direction);
-              });
-            }}
-            onDuplicate={() => {
-              const newId = id('cs');
-              coverHistory.remember();
-              update((draft) => {
-                const source = draft.cover.stickers.find((s) => s.id === sticker.id);
-                if (!source) return;
-                // Offset a little, or the copy hides exactly behind the original
-                // and looks like nothing happened.
-                draft.cover.stickers.push({ ...source, id: newId, x: source.x + 0.2, y: source.y + 0.2 });
-              });
-              setSelectedSticker(newId);
-            }}
-            onDelete={() => {
-              coverHistory.remember();
-              update((draft) => {
-                draft.cover.stickers = draft.cover.stickers.filter((s) => s.id !== sticker.id);
-              });
-              setSelectedSticker(null);
-            }}
-            saved={savedToLibrary}
-            onKeep={() => {
-              void saveToLibrary({
-                name: sticker.name,
-                assetId: sticker.assetId,
-                width: sticker.naturalWidth,
-                height: sticker.naturalHeight,
-              }).then(() => {
-                setLibraryVersion((n) => n + 1);
-                setSavedToLibrary(true);
-                setTimeout(() => setSavedToLibrary(false), 2200);
-              });
-            }}
-          />
-        )}
-
-        <div className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Artwork</h4>
-          <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-200">
-            {cover.frontImage
-              ? 'Replace image…'
-              : isCover
-                ? 'Upload cover image…'
-                : 'Upload a picture…'}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => void onImage(e.target.files?.[0])}
-            />
-          </label>
-          {imageError && <Notice level="error">{imageError}</Notice>}
-          {cover.frontImage && (
-            <>
-              <p className="text-[11px] text-ink-500">
-                {cover.frontImage.naturalWidth} × {cover.frontImage.naturalHeight}px ·{' '}
-                <span className={imageDpi < MIN_COVER_DPI ? 'text-amber-300' : 'text-emerald-300'}>
-                  {Math.round(imageDpi)} DPI at print size
-                </span>
-              </p>
-              <Toggle
-                label="Stretch across back, spine and front"
-                checked={cover.imageSpansWrap}
-                onChange={(imageSpansWrap) =>
-                  update((draft) => {
-                    draft.cover.imageSpansWrap = imageSpansWrap;
-                  })
-                }
-              />
-              <Field label="Fit">
-                <Select
-                  value={cover.frontImage.fit}
-                  onChange={(fit) =>
-                    update((draft) => {
-                      if (draft.cover.frontImage) draft.cover.frontImage.fit = fit;
-                    })
-                  }
-                  options={[
-                    { value: 'cover', label: 'Fill the panel (crop)' },
-                    { value: 'contain', label: 'Fit inside (letterbox)' },
-                  ]}
-                />
-              </Field>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  if (assetId) forgetAssetUrl(assetId);
-                  update((draft) => {
-                    draft.cover.frontImage = null;
-                  });
-                }}
-              >
-                Remove image
-              </Button>
-            </>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-2">
-          {isCover ? (
-            <>
-              <Field label="Back cover colour">
-                <ColorInput
-                  value={cover.backColor}
-                  onChange={(backColor) =>
-                    update((draft) => {
-                      draft.cover.backColor = backColor;
-                    })
-                  }
-                />
-              </Field>
-              <Field label="Spine colour">
-                <ColorInput
-                  value={cover.spineColor}
-                  onChange={(spineColor) =>
-                    update((draft) => {
-                      draft.cover.spineColor = spineColor;
-                    })
-                  }
-                />
-              </Field>
-            </>
-          ) : (
-            <Field label="Background">
-              <ColorInput
-                value={cover.backgroundColor}
-                onChange={(backgroundColor) =>
-                  update((draft) => {
-                    draft.cover.backgroundColor = backgroundColor;
-                  })
-                }
-              />
-            </Field>
-          )}
-        </div>
-
-        {isCover && (
-        <Toggle
-          label="Show the barcode reserve"
-          checked={cover.showBarcodeZone}
-          onChange={(showBarcodeZone) =>
-            update((draft) => {
-              draft.cover.showBarcodeZone = showBarcodeZone;
-            })
-          }
-        />
-        )}
-
-        <div className="space-y-2 border-t border-ink-200 pt-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
-          <div className={cx('grid gap-1.5', isCover ? 'grid-cols-3' : 'grid-cols-1')}>
-            {(isCover ? ADDABLE_PANELS : (['board'] as CoverPanel[])).map((panel) => (
-              <Button key={panel} onClick={() => addBox(panel)}>
-                {PANEL_LABEL[panel] ?? panel}
-              </Button>
-            ))}
-          </div>
-          {cover.textBoxes.length === 0 && (
-            <p className="text-[11px] text-ink-500">
-              {isCover ? 'No text yet. Add a box to a panel.' : 'No text yet.'}
-            </p>
-          )}
-          <ul className="space-y-1">
-            {cover.textBoxes.map((box) => (
-              <li key={box.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(box.id)}
-                  className={cx(
-                    'flex w-full items-center gap-2 rounded px-2 py-1 text-left transition-colors',
-                    selectedId === box.id ? 'bg-accent-500/15 text-accent-600' : 'hover:bg-ink-50',
-                  )}
-                >
-                  <span className="w-10 shrink-0 text-[10px] uppercase text-ink-500">
-                    {box.panel}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{box.text || 'Empty'}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {selected && (
-          <div className="space-y-3 border-t border-ink-200 pt-3">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-              {PANEL_LABELS[selected.panel]} text
-            </h4>
-            <TextArea
-              value={selected.text}
-              rows={3}
-              onChange={(e) =>
-                update((draft) => {
-                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
-                  if (found) found.text = e.target.value;
-                })
-              }
-            />
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="X">
-                <NumberInput
-                  value={round(ptToInches(selected.x))}
-                  onChange={(x) => patchBox(update, selected.id, { x: inchesToPt(x) })}
-                  step={0.05}
-                  suffix="in"
-                />
-              </Field>
-              <Field label="Y">
-                <NumberInput
-                  value={round(ptToInches(selected.y))}
-                  onChange={(y) => patchBox(update, selected.id, { y: inchesToPt(y) })}
-                  step={0.05}
-                  suffix="in"
-                />
-              </Field>
-              <Field label="Width">
-                <NumberInput
-                  value={round(ptToInches(selected.width))}
-                  onChange={(width) => patchBox(update, selected.id, { width: inchesToPt(width) })}
-                  step={0.05}
-                  min={0.2}
-                  suffix="in"
-                />
-              </Field>
-            </div>
-            <Field
-              label="Curve"
-              hint={
-                selected.curve
-                  ? `Bent through ${Math.round((Math.abs(selected.curve) / 100) * MAX_SWEEP_DEGREES)}° — ${
-                      selected.curve > 0 ? 'arching up' : 'hanging down'
-                    }`
-                  : 'Straight. Drag right to arch the words up, left to hang them down.'
-              }
-            >
-              {/* One snapshot per go at the slider: taking hold of it is the
-                  start of a gesture, and every step after that is the same
-                  gesture. A key press is a gesture of its own. */}
-              <div onPointerDown={coverHistory.remember} onKeyDown={coverHistory.remember}>
-                <Slider
-                  value={selected.curve}
-                  onChange={(curve) => patchBox(update, selected.id, { curve })}
-                  min={-100}
-                  max={100}
-                  step={1}
-                />
-              </div>
-            </Field>
-            <FontControls
-              spec={selected.font}
-              onChange={(patch) =>
-                update((draft) => {
-                  const found = draft.cover.textBoxes.find((b) => b.id === selected.id);
-                  if (found) Object.assign(found.font, patch);
-                })
-              }
-            />
-            <Button
-              variant="danger"
-              onClick={() => {
-                update((draft) => {
-                  draft.cover.textBoxes = draft.cover.textBoxes.filter((b) => b.id !== selected.id);
-                });
-                setSelectedId(null);
-              }}
-            >
-              Delete this text
-            </Button>
-          </div>
-        )}
-
-        {issues.length > 0 && (
-          <div className="space-y-1.5 border-t border-ink-200 pt-3">
-            {issues.map((issue) => (
-              <Notice
-                key={issue.id}
-                level={issue.level === 'warning' ? 'warning' : issue.level === 'error' ? 'error' : 'info'}
-              >
-                <p>{issue.message}</p>
-                {issue.fix && <p className="mt-1 opacity-80">{issue.fix}</p>}
-              </Notice>
-            ))}
-          </div>
-        )}
-      </aside>
+      {!rail && (
+        <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
+          {sections.measurements}
+          {sections.history}
+          {sections.bookPictures}
+          {sections.library}
+          {sections.templates}
+          {sections.stickerInspector}
+          {sections.artwork}
+          {sections.colours}
+          {sections.barcode}
+          {sections.text}
+          {sections.textInspector}
+        </aside>
+      )}
     </div>
   );
 }
@@ -1215,9 +1844,15 @@ function StickerInspector({
   onDelete,
   onKeep,
   saved,
+  compact = false,
+  units = 'in',
 }: {
   sticker: CoverSticker;
   layout: Board<string>;
+  /** True where a floating toolbar already carries the frequent controls. */
+  compact?: boolean;
+  /** Inches and dots per inch, or pixels. See `CoverDesigner`. */
+  units?: 'in' | 'px';
   onPatch: (patch: Partial<CoverSticker>) => void;
   /**
    * The same, without touching the history. A slider sends a few hundred of
@@ -1234,7 +1869,12 @@ function StickerInspector({
   /** Once, at the start of a gesture, so one undo puts back the whole of it. */
   onCommit: () => void;
 }) {
-  const warnings = stickerWarnings(sticker, layout);
+  // How sharp something will print is a fact about a print. On a board
+  // measured in pixels there is not going to be one, so the reading and the
+  // warning that goes with it are both answers to a question nobody asked.
+  const warnings = stickerWarnings(sticker, layout).filter(
+    (warning) => units === 'in' || warning.kind !== 'soft',
+  );
   const bend = bendOf(sticker);
 
   return (
@@ -1243,9 +1883,14 @@ function StickerInspector({
         <h4 className="truncate text-[11px] font-semibold uppercase tracking-wider text-ink-500">
           {sticker.name || 'Sticker'}
         </h4>
-        <span className="shrink-0 text-[11px] tabular-nums text-ink-500">
-          {Math.round(stickerDpi(sticker))} dpi
-        </span>
+        {/* Only where it means something. A post is looked at on a screen at
+            whatever size the screen is; dots per inch on it is a measurement
+            of a print nobody is going to make. */}
+        {units === 'in' && (
+          <span className="shrink-0 text-[11px] tabular-nums text-ink-500">
+            {Math.round(stickerDpi(sticker))} dpi
+          </span>
+        )}
       </div>
 
       {warnings.map((warning) => (
@@ -1257,9 +1902,13 @@ function StickerInspector({
       <div className="grid grid-cols-2 gap-2">
         <Field label="Width">
           <NumberInput
-            value={round(ptToInches(sticker.width))}
-            onChange={(inches) => {
-              const width = inchesToPt(inches);
+            value={
+              units === 'px'
+                ? Math.round(ptToPx(sticker.width))
+                : round(ptToInches(sticker.width))
+            }
+            onChange={(typed) => {
+              const width = units === 'px' ? pxToPt(typed) : inchesToPt(typed);
               onPatch({
                 width,
                 // Keep the proportions: a number typed into a box is no more a
@@ -1267,9 +1916,9 @@ function StickerInspector({
                 height: round((width * sticker.height) / sticker.width),
               });
             }}
-            step={0.1}
-            min={0.2}
-            suffix="in"
+            step={units === 'px' ? 1 : 0.1}
+            min={units === 'px' ? 8 : 0.2}
+            suffix={units}
           />
         </Field>
         <Field label="Turn">
@@ -1282,31 +1931,39 @@ function StickerInspector({
         </Field>
       </div>
 
-      <Field
-        label="Arc"
-        hint={
-          bend
-            ? `Bent through ${Math.round((bend.sweep * 180) / Math.PI)}° — ${
-                bend.up ? 'arching up' : 'hanging down'
-              }`
-            : 'Flat. Drag right to bend the picture up, left to bend it down.'
-        }
-      >
-        <div onPointerDown={onCommit} onKeyDown={onCommit}>
-          <Slider
-            value={sticker.arc}
-            onChange={(arc) => onSlide({ arc })}
-            min={-100}
-            max={100}
-            step={1}
-          />
-        </div>
-      </Field>
+      {/*
+        Everything from here to the buttons is in the floating toolbar on a
+        board, so it is hidden rather than repeated: the same setting in two
+        places is two places to look and one to be wrong about. A cover has no
+        toolbar and keeps all of it.
+      */}
+      {!compact && (
+        <Field
+          label="Arc"
+          hint={
+            bend
+              ? `Bent through ${Math.round((bend.sweep * 180) / Math.PI)}° — ${
+                  bend.up ? 'arching up' : 'hanging down'
+                }`
+              : 'Flat. Drag right to bend the picture up, left to bend it down.'
+          }
+        >
+          <div onPointerDown={onCommit} onKeyDown={onCommit}>
+            <Slider
+              value={sticker.arc}
+              onChange={(arc) => onSlide({ arc })}
+              min={-100}
+              max={100}
+              step={1}
+            />
+          </div>
+        </Field>
+      )}
 
       {/* A bent picture is no longer a rectangle, so a border and rounded
           corners would frame a shape that is not there. Out of the way rather
           than sitting there doing nothing. */}
-      {!bend && (
+      {!compact && !bend && (
         <Field label="Rounded corners">
           <div onPointerDown={onCommit} onKeyDown={onCommit}>
             <Slider
@@ -1320,12 +1977,14 @@ function StickerInspector({
         </Field>
       )}
 
-      <Toggle
-        label="Soft shadow"
-        checked={sticker.shadow}
-        onChange={(shadow) => onPatch({ shadow })}
-      />
-      {!bend && (
+      {!compact && (
+        <Toggle
+          label="Soft shadow"
+          checked={sticker.shadow}
+          onChange={(shadow) => onPatch({ shadow })}
+        />
+      )}
+      {!compact && !bend && (
         <Toggle
           label="Border"
           checked={Boolean(sticker.border)}
@@ -1343,21 +2002,25 @@ function StickerInspector({
               suffix="pt"
             />
           </Field>
-          <Field label="Colour">
-            <ColorInput
-              value={sticker.border.color}
-              onChange={(color) => onPatch({ border: { ...sticker.border!, color } })}
-            />
-          </Field>
+          {!compact && (
+            <Field label="Colour">
+              <ColorInput
+                value={sticker.border.color}
+                onChange={(color) => onPatch({ border: { ...sticker.border!, color } })}
+              />
+            </Field>
+          )}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-1.5">
-        <Button onClick={() => onRestack(1)}>Bring forward</Button>
-        <Button onClick={() => onRestack(-1)}>Send backward</Button>
-        <Button onClick={onDuplicate}>Duplicate</Button>
-        <Button onClick={onDelete}>Delete</Button>
-      </div>
+      {!compact && (
+        <div className="grid grid-cols-2 gap-1.5">
+          <Button onClick={() => onRestack(1)}>Bring forward</Button>
+          <Button onClick={() => onRestack(-1)}>Send backward</Button>
+          <Button onClick={onDuplicate}>Duplicate</Button>
+          <Button onClick={onDelete}>Delete</Button>
+        </div>
+      )}
       <Button onClick={onKeep}>{saved ? 'Kept in My stickers' : 'Save to My stickers'}</Button>
       <p className="text-[11px] leading-snug text-ink-500">
         Drag to move, corners to resize, the handle above to turn. Hold Shift while resizing to

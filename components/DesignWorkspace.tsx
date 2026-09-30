@@ -162,6 +162,7 @@ export function DesignWorkspace() {
           displayFont={DEFAULT_FACE}
           pictures={pictures}
           showName={false}
+          rail
           // Named after the book only once there is one to name.
           bookTray={
             pictures.length ? { title: 'Pictures from a book', empty: '' } : null
@@ -175,11 +176,11 @@ export function DesignWorkspace() {
             window.location.href = '/';
           }}
           backLabel="← Everything"
-          aside={
+          borrow={
             <button
               type="button"
               onClick={openBorrow}
-              className="shrink-0 text-[12.5px] text-accent-500 underline"
+              className="w-full rounded-xl border border-dashed border-ink-300 px-3 py-2.5 text-[13.5px] text-ink-700 transition-colors hover:border-accent-500 hover:text-accent-600"
             >
               {borrowed ? 'Pictures from another book…' : 'Use pictures from a book…'}
             </button>

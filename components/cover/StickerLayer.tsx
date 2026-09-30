@@ -35,11 +35,19 @@ export function StickerLayer({
   onSelect,
   onChange,
   onCommit,
+  showDpi = true,
 }: {
   stickers: CoverSticker[];
   layout: Board;
   scale: number;
   selectedId: string | null;
+  /**
+   * Whether to say how sharp a sticker will print.
+   *
+   * False on a board measured in pixels, where the answer is about a print
+   * nobody is going to make. See `units` in `CoverDesigner`.
+   */
+  showDpi?: boolean;
   onSelect: (id: string | null) => void;
   /** During a drag. Called many times; must not touch the history. */
   onChange: (id: string, patch: Partial<CoverSticker>) => void;
@@ -129,6 +137,7 @@ export function StickerLayer({
           sticker={sticker}
           scale={scale}
           selected={sticker.id === selectedId}
+          showDpi={showDpi}
           onSelect={() => onSelect(sticker.id)}
           onMove={(e) => startMove(sticker, e)}
           onResize={(corner, e) => startResize(sticker, corner, e)}
@@ -166,6 +175,7 @@ function Sticker({
   sticker,
   scale,
   selected,
+  showDpi,
   onSelect,
   onMove,
   onResize,
@@ -174,6 +184,7 @@ function Sticker({
   sticker: CoverSticker;
   scale: number;
   selected: boolean;
+  showDpi: boolean;
   onSelect: () => void;
   onMove: (event: React.PointerEvent) => void;
   onResize: (corner: Corner, event: React.PointerEvent) => void;
@@ -215,7 +226,7 @@ function Sticker({
   }, [url, sticker.arc, sticker.width, sticker.height, previewEdge]);
 
   const shorter = Math.min(sticker.width, sticker.height);
-  const soft = stickerDpi(sticker) < MIN_COVER_DPI;
+  const soft = showDpi && stickerDpi(sticker) < MIN_COVER_DPI;
 
   return (
     <div

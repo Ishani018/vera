@@ -261,3 +261,15 @@ function cap(s: string): string {
 
 export const inchesToPt = (inches: number) => inches * PT_PER_INCH;
 export const ptToInches = (pt: number) => pt / PT_PER_INCH;
+
+/**
+ * The same lengths in CSS pixels, for boards that are stated in them.
+ *
+ * A pixel is three quarters of a point exactly, so neither direction loses
+ * anything: Instagram's 1080 is 810 points and 810 points is 1080 again.
+ * Points remain what is stored — see `docs/DECISIONS.md` — and these are only
+ * for saying a size out loud on a board whose own size was given in pixels.
+ */
+export const PT_PER_PX = 0.75;
+export const pxToPt = (px: number) => px * PT_PER_PX;
+export const ptToPx = (pt: number) => pt / PT_PER_PX;

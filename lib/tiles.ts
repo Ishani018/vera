@@ -42,6 +42,20 @@ export type Tile = {
   art: TileArt;
 };
 
+/**
+ * A soft tint per category, behind each tile's drawing.
+ *
+ * Enough to group the tiles at a glance and not enough to shout: every one of
+ * them carries ink-900 at better than fourteen to one, and sits within a fifth
+ * of a stop of the card it is on.
+ */
+export const CATEGORY_TINT: Record<TileCategory, string> = {
+  books: '#F3EDE1',
+  covers: '#E6F0EE',
+  social: '#E8EEF4',
+  print: '#F4EAE4',
+};
+
 export const CATEGORIES: Array<{ id: TileCategory | 'all'; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'books', label: 'Books' },
