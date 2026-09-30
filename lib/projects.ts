@@ -291,6 +291,8 @@ export type ThumbItem =
       width: number;
       text: string;
       sizePt: number;
+      /** A multiple of the size, for stacking wrapped lines. */
+      lineHeight: number;
       color: string;
       weight: number;
       italic: boolean;
@@ -391,6 +393,7 @@ function itemsOn(
       // poem around in a list.
       text: (box.text ?? '').slice(0, 120),
       sizePt: box.font.sizePt,
+      lineHeight: box.font.lineHeight,
       color: box.font.color,
       weight: box.font.weight,
       italic: box.font.italic,
@@ -423,6 +426,35 @@ function itemsOn(
  */
 const NOMINAL_PAGES = 24;
 
+/**
+ * The front cover alone, as a thumbnail, from live state rather than a record.
+ *
+ * The same drawing the front page makes for a card, built from a cover and the
+ * layout it is on — so the designer can show what a book looks like at the
+ * size it is browsed at while it is still being made. `bookThumb` below is
+ * this, given a saved book.
+ */
+export function frontThumb(
+  cover: CoverSpec,
+  layout: { width: number; height: number; bleed: number; panels: Record<string, Region> },
+): Thumb {
+  const front = layout.panels.front ?? layout.panels.board;
+  const region: Region = front
+    ? {
+        x: front.x - layout.bleed,
+        y: 0,
+        width: front.width + layout.bleed,
+        height: layout.height,
+      }
+    : { x: 0, y: 0, width: layout.width, height: layout.height };
+  return {
+    width: region.width,
+    height: region.height,
+    background: cover.backgroundColor ?? '#f4efe4',
+    items: itemsOn(cover, layout.panels, layout, region),
+  };
+}
+
 function bookThumb(project: AnyProject): Thumb {
   // A record old enough to be missing its trim still gets a card rather than
   // taking the whole front page down with it.
@@ -436,20 +468,7 @@ function bookThumb(project: AnyProject): Thumb {
       items: [],
     };
   }
-  const layout = coverLayout(project, NOMINAL_PAGES);
-  const front = layout.panels.front;
-  const region: Region = {
-    x: front.x - layout.bleed,
-    y: 0,
-    width: front.width + layout.bleed,
-    height: layout.height,
-  };
-  return {
-    width: region.width,
-    height: region.height,
-    background: cover.backgroundColor ?? '#f4efe4',
-    items: itemsOn(cover, layout.panels, layout, region),
-  };
+  return frontThumb(cover, coverLayout(project, NOMINAL_PAGES));
 }
 
 function designThumb(design: Design): Thumb {

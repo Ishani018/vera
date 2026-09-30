@@ -37,6 +37,7 @@ import type { AnyProject } from '@/lib/types';
 import { Modal } from './Modal';
 import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
+import { ThumbArt } from './ThumbArt';
 import { Button, TextInput, cx } from './ui';
 
 /**
@@ -510,132 +511,6 @@ function IconButton({
       {children}
     </button>
   );
-}
-
-/**
- * What is saved, at the size of a thumbnail.
- *
- * The real shape, the real background, the real pictures and the real words,
- * each where it actually sits. It draws rather than describes because a card
- * showing a pale rectangle tells you nothing about which of six pale
- * rectangles you want — which is what this was until it drew anything.
- *
- * Not a render: type is set in whatever face the browser has to hand rather
- * than the book's own, and curved text is drawn straight. It is a likeness at
- * eighty pixels, not a proof.
- */
-function ThumbArt({ thumb }: { thumb: Thumb }) {
-  const urls = useAssetUrls(
-    thumb.items.flatMap((item) => (item.kind === 'picture' ? [item.assetId] : [])),
-  );
-  const hairline = Math.max(thumb.width, thumb.height) / 300;
-
-  return (
-    <svg
-      viewBox={`0 0 ${thumb.width} ${thumb.height}`}
-      preserveAspectRatio="xMidYMid meet"
-      className="h-full w-full"
-      role="img"
-      aria-hidden
-    >
-      <rect width={thumb.width} height={thumb.height} fill={thumb.background} />
-      {thumb.items.map((item, index) => {
-        if (item.kind === 'picture') {
-          const url = urls[item.assetId];
-          const spin = item.rotate
-            ? `rotate(${item.rotate} ${item.x + item.width / 2} ${item.y + item.height / 2})`
-            : undefined;
-          // Until the bytes arrive, the space the picture will take, so the
-          // card does not jump about as a list of them loads.
-          return url ? (
-            <image
-              key={index}
-              href={url}
-              x={item.x}
-              y={item.y}
-              width={item.width}
-              height={item.height}
-              preserveAspectRatio={item.fit === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet'}
-              transform={spin}
-              clipPath={item.radius ? `inset(0 round ${item.radius}px)` : undefined}
-            />
-          ) : (
-            <rect
-              key={index}
-              x={item.x}
-              y={item.y}
-              width={item.width}
-              height={item.height}
-              rx={item.radius || undefined}
-              fill="#b5ada1"
-              opacity={0.35}
-              transform={spin}
-            />
-          );
-        }
-        // Anchored the way the box is aligned, so a centred title is centred.
-        const anchor = item.align === 'center' ? 'middle' : item.align === 'right' ? 'end' : 'start';
-        const x =
-          item.align === 'center'
-            ? item.x + item.width / 2
-            : item.align === 'right'
-              ? item.x + item.width
-              : item.x;
-        return (
-          <text
-            key={index}
-            x={x}
-            y={item.y + item.sizePt}
-            textAnchor={anchor}
-            fill={item.color}
-            fontSize={item.sizePt}
-            fontWeight={item.weight}
-            fontStyle={item.italic ? 'italic' : undefined}
-            fontFamily={`'${item.family}', ${item.fallback}`}
-            transform={item.rotate ? `rotate(${item.rotate} ${x} ${item.y})` : undefined}
-          >
-            {item.text}
-          </text>
-        );
-      })}
-      <rect
-        width={thumb.width}
-        height={thumb.height}
-        fill="none"
-        stroke="#d2ccc2"
-        strokeWidth={hairline}
-      />
-    </svg>
-  );
-}
-
-/**
- * Object URLs for a set of assets, fetched once each.
- *
- * `getAssetUrl` keeps one URL per asset for the life of the page, so a book
- * and a post that use the same picture ask the database once between them.
- */
-function useAssetUrls(ids: string[]): Record<string, string> {
-  const key = ids.join('|');
-  const [urls, setUrls] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (!key) return;
-    let live = true;
-    void Promise.all(
-      [...new Set(key.split('|'))].map(async (id) => [id, await getAssetUrl(id)] as const),
-    ).then((pairs) => {
-      if (!live) return;
-      setUrls(Object.fromEntries(pairs.filter(([, url]) => url) as [string, string][]));
-    });
-    return () => {
-      live = false;
-    };
-    // `key` is the stable identity of this set of pictures.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-
-  return urls;
 }
 
 /** One drawing per tile, at the tile's own proportions. */

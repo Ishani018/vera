@@ -40,6 +40,7 @@ import {
   type TextPresetKind,
 } from '@/lib/textPresets';
 import { ColourField } from './cover/ColourField';
+import { BrowseSize } from './cover/BrowseSize';
 import { Rail } from './cover/Rail';
 import {
   SelectionToolbar,
@@ -604,6 +605,22 @@ export function CoverDesigner<T extends CoverableBook>({
    * two from drifting — there is one Artwork section, not two.
    */
   const sections = {
+    /**
+     * The cover at the size it is browsed at.
+     *
+     * Only for a cover, because only a cover is sold from a search result. A
+     * post is met at whatever size the feed gives it and a bookmark is held in
+     * a hand, and neither is improved by being told how it looks at 160px.
+     */
+    browseSize: isCover ? (
+      <BrowseSize
+        cover={cover}
+        layout={layout}
+        // A picture spanning the wrap, or covering the front, sits under the
+        // words — so what is behind them is not a colour anything can measure.
+        overPicture={Boolean(cover.frontImage)}
+      />
+    ) : null,
     measurements: (
       <>
         {isCover ? (
@@ -1784,6 +1801,7 @@ export function CoverDesigner<T extends CoverableBook>({
 
       {!rail && (
         <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
+          {sections.browseSize}
           {sections.measurements}
           {sections.history}
           {sections.bookPictures}
