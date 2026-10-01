@@ -840,6 +840,19 @@ export function StickerStudio() {
 
   const [sending, setSending] = useState(false);
 
+  /**
+   * Asking for a board, from wherever the asking happened.
+   *
+   * The list of boards lives in the Export panel, and the button that calls for
+   * it is in the top bar — so pressing it has to open that panel as well, or it
+   * is a button that quietly does nothing. The bar is always there and the panel
+   * is not; the bar must not depend on it.
+   */
+  const askForABoard = () => {
+    setSending((was) => !was);
+    setOpenPanel('export');
+  };
+
   const send = async (presetId: string) => {
     setBusy(true);
     setSaid(null);
@@ -1746,9 +1759,6 @@ export function StickerStudio() {
             <Button disabled={busy} onClick={() => void keep()}>
               Save to My stickers
             </Button>
-            <Button disabled={busy} onClick={() => setSending((was) => !was)}>
-              Send to a design…
-            </Button>
           </div>
 
           <BatchPanel
@@ -1948,7 +1958,7 @@ export function StickerStudio() {
           >
             {drafted && savedAt ? `Draft kept ${when(savedAt)}` : 'Not saved yet'}
           </span>
-          <Button disabled={busy} onClick={() => setSending((was) => !was)}>
+          <Button disabled={busy} onClick={askForABoard}>
             Send to a design
           </Button>
           <Button disabled={busy} onClick={() => void keep()}>
