@@ -230,3 +230,41 @@ test('the file groups by pack rather than repeating a pack heading', () => {
   // lines before sample, matching what the screen shows.
   assert.ok(text.indexOf('lines (1)') < text.indexOf('sample (2)'));
 });
+
+import { packSummaries } from '../lib/starter/credits.ts';
+
+test('an installed pack is summarised from its stickers', () => {
+  const credits = creditsOf([
+    sticker('1', source('sample', 'a.png', { author: 'Ada' })),
+    sticker('2', source('sample', 'b.png', { author: 'Grace', downloadedOn: '2026-02-02' })),
+    sticker('3', source('lines', 'c.png')),
+  ]);
+  const [lines, sample] = packSummaries(credits);
+  assert.equal(lines.pack, 'lines');
+  assert.equal(sample.count, 2);
+  assert.deepEqual(sample.authors, ['Ada', 'Grace']);
+  assert.deepEqual(sample.licences, ['CC0-1.0']);
+  assert.deepEqual(sample.sources, ['https://example.invalid/sample/a.png', 'https://example.invalid/sample/b.png']);
+  assert.equal(sample.added, '2026-02-02', 'the newest download date in it');
+});
+
+test('a pack with two licences in it says both, rather than picking one', () => {
+  const credits = creditsOf([
+    sticker('1', source('mixed', 'a.png', { licence: 'CC0-1.0' })),
+    sticker('2', source('mixed', 'b.png', { licence: 'Public Domain Mark 1.0' })),
+    sticker('3', source('mixed', 'c.png', { licence: 'CC0-1.0' })),
+  ]);
+  assert.deepEqual(packSummaries(credits)[0].licences, ['CC0-1.0', 'Public Domain Mark 1.0']);
+});
+
+test('a summary carries four ids for a collage, however many are in the pack', () => {
+  const credits = creditsOf(
+    Array.from({ length: 9 }, (_, n) => sticker(`s${n}`, source('big', `f${n}.png`))),
+  );
+  assert.equal(packSummaries(credits)[0].count, 9);
+  assert.equal(packSummaries(credits)[0].ids.length, 4);
+});
+
+test('an empty library has no packs, rather than one empty one', () => {
+  assert.deepEqual(packSummaries([]), []);
+});

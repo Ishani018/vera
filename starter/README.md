@@ -98,7 +98,8 @@ the pack rebuild byte for byte, so a change to one shows up as a change to one.
 ## Credits
 
 Everything accepted here is CC0 or public domain, so none of it has to be
-credited. **Sources and licences**, linked from the Packs page, lists every
-installed sticker with its author, licence and link, and exports a `CREDITS.txt`
+credited. The **Library** page lists every installed pack with its licence and
+source, and every installed sticker with its author, licence and link, and
+exports a `CREDITS.txt`
 anyway — not because a licence demands it, but so you can thank somebody, check
 a claim you took on trust, and find one item again if that claim was wrong.

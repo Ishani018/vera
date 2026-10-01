@@ -19,7 +19,7 @@ test('each page knows which tab it is in', () => {
   assert.equal(tabFor('/stickers'), '/stickers');
   assert.equal(tabFor('/stickers/sheet'), '/stickers/sheet');
   assert.equal(tabFor('/stickers/packs'), '/stickers/packs');
-  assert.equal(tabFor('/stickers/sources'), '/stickers/sources');
+  assert.equal(tabFor('/stickers/library'), '/stickers/library');
 });
 
 test('a page under one of them is still in that tab', () => {

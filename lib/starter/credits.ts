@@ -96,3 +96,46 @@ export function creditsText(credits: Credit[], when = new Date()): string {
   }
   return `${lines.join('\n').trimEnd()}\n`;
 }
+
+/** One installed pack, as the library screen shows it. */
+export type PackSummary = {
+  pack: string;
+  count: number;
+  /** Every distinct licence inside it. One, normally — but not guaranteed. */
+  licences: string[];
+  /** Every distinct place it came from. */
+  sources: string[];
+  authors: string[];
+  /** The ids of the first few, for a collage. */
+  ids: string[];
+  /** The newest download date in it, as written in the manifest. */
+  added: string;
+};
+
+/**
+ * The installed packs, summarised.
+ *
+ * A pack is summarised from the stickers rather than stored anywhere, for the
+ * same reason a pack is a tag: nothing here needs a table, and a table would be
+ * a second account of the truth that could disagree with the first.
+ */
+export function packSummaries(credits: Credit[]): PackSummary[] {
+  const byPack = new Map<string, Credit[]>();
+  for (const credit of credits) {
+    const list = byPack.get(credit.pack);
+    if (list) list.push(credit);
+    else byPack.set(credit.pack, [credit]);
+  }
+  const distinct = (values: string[]) => [...new Set(values.filter(Boolean))].sort();
+  return [...byPack.entries()]
+    .map(([pack, items]) => ({
+      pack,
+      count: items.length,
+      licences: distinct(items.map((item) => item.licence)),
+      sources: distinct(items.map((item) => item.sourceUrl)),
+      authors: distinct(items.map((item) => item.author)),
+      ids: items.slice(0, 4).map((item) => item.id),
+      added: items.map((item) => item.downloadedOn).sort().at(-1) ?? '',
+    }))
+    .sort((a, b) => a.pack.localeCompare(b.pack));
+}

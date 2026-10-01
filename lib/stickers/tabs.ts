@@ -37,10 +37,10 @@ export const STICKER_TABS: StickerTab[] = [
     title: 'Group stickers, install a pack, save one as a zip',
   },
   {
-    href: '/stickers/sources',
+    href: '/stickers/library',
     label: 'Library',
     icon: 'library',
-    title: 'Everything installed, with where it came from',
+    title: 'Everything installed, with its licence and where it came from',
   },
 ];
 

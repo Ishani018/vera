@@ -40,7 +40,7 @@ const TILES = [
     Icon: PackIcon,
   },
   {
-    href: '/stickers/sources',
+    href: '/stickers/library',
     label: 'Library',
     line: 'Everything installed, and where it came from.',
     Icon: LibraryIcon,
