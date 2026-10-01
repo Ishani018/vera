@@ -82,3 +82,23 @@ npm run starter:build
 Checks every pack and writes `starter/dist/<pack>.zip`, with the manifest inside
 the zip so the provenance cannot be separated from the pictures. It reports
 every problem in every pack at once, and builds nothing for a pack that has one.
+
+## The packs that are here
+
+`sample` — three plain shapes. Enough to run the whole pipeline end to end.
+
+`lines` — eight line drawings: a boat, a cat, a cup, a flower, a heart, a house,
+a leaf and a moon.
+
+Neither was downloaded. Both are drawn by a script — `scripts/make-line-pack.mjs`
+for `lines` — which settles the licence question by construction, since nothing
+came from anywhere. Change a drawing and run that script again; the pictures and
+the pack rebuild byte for byte, so a change to one shows up as a change to one.
+
+## Credits
+
+Everything accepted here is CC0 or public domain, so none of it has to be
+credited. **Sources and licences**, linked from the Packs page, lists every
+installed sticker with its author, licence and link, and exports a `CREDITS.txt`
+anyway — not because a licence demands it, but so you can thank somebody, check
+a claim you took on trust, and find one item again if that claim was wrong.

@@ -194,6 +194,31 @@ export function StickerPacks() {
     }
   };
 
+  const installer = (
+    <label
+      className={cx(
+        'cursor-pointer rounded-lg border border-ink-200 px-3 py-1.5 text-[13.5px] font-[560] transition-colors hover:border-ink-400',
+        busy && 'pointer-events-none opacity-50',
+      )}
+    >
+      Install a pack…
+      <input
+        type="file"
+        accept=".zip,application/zip"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          // Cleared so that choosing the *same* file again counts as a change.
+          // Without this, installing a pack, removing it and picking the same
+          // zip does nothing at all, which looks like a broken button rather
+          // than a browser rule.
+          e.target.value = '';
+          void install(file);
+        }}
+      />
+    </label>
+  );
+
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
@@ -220,8 +245,23 @@ export function StickerPacks() {
               <h1 className="text-[26px] font-semibold tracking-tight">Nothing to group yet</h1>
               <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-ink-500">
                 A pack is made from the stickers in My stickers. Make a few in the studio and save
-                them, then come back.
+                them, then come back — or install a pack of stickers you already have.
               </p>
+              {/* Installing is how an empty library stops being empty, so it
+                  cannot be the one thing an empty library does not offer. */}
+              <div className="mt-4 flex flex-wrap items-center gap-2">{installer}</div>
+              {installing && (
+                <p className="mt-3 text-[13px] text-ink-500">
+                  {installing.total
+                    ? `Installing ${installing.done} of ${installing.total} — ${installing.name}…`
+                    : `Reading ${installing.name}…`}
+                </p>
+              )}
+              {problem && (
+                <div className="mt-3 max-w-xl">
+                  <Notice level="error">{problem}</Notice>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -268,28 +308,7 @@ export function StickerPacks() {
                   className="max-w-xs"
                 />
                 <Button onClick={() => void make()}>Start a pack</Button>
-                <label
-                  className={cx(
-                    'cursor-pointer rounded-lg border border-ink-200 px-3 py-1.5 text-[13.5px] font-[560] transition-colors hover:border-ink-400',
-                    busy && 'pointer-events-none opacity-50',
-                  )}
-                >
-                  Install a pack…
-                  <input
-                    type="file"
-                    accept=".zip,application/zip"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      // Cleared so that choosing the *same* file again counts as
-                      // a change. Without this, installing a pack, removing it
-                      // and picking the same zip does nothing at all, which
-                      // looks like a broken button rather than a browser rule.
-                      e.target.value = '';
-                      void install(file);
-                    }}
-                  />
-                </label>
+                {installer}
                 {open && inside.length > 0 && (
                   <>
                     <Button variant="primary" disabled={busy} onClick={() => void download()}>
