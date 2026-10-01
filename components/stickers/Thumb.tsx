@@ -31,13 +31,17 @@ export function Chequerboard({
   children,
   className,
   style,
+  'aria-label': label,
 }: {
   children?: ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  'aria-label'?: string;
 }) {
   return (
     <span
+      aria-label={label}
+      role={label ? 'img' : undefined}
       className={cx('grid place-items-center overflow-hidden', className)}
       style={{ ...CHEQUER, ...style }}
     >
@@ -57,6 +61,8 @@ export function Thumb({
   badge,
   corner,
   className,
+  draggable,
+  onDragStart,
 }: {
   url: string | null | undefined;
   name: string;
@@ -72,6 +78,9 @@ export function Thumb({
   /** Shown over the top-left: an action that belongs to this one. */
   corner?: ReactNode;
   className?: string;
+  /** Dragging one somewhere, where somewhere accepts it. */
+  draggable?: boolean;
+  onDragStart?: (event: React.DragEvent) => void;
 }) {
   const inside = (
     <>
@@ -102,7 +111,11 @@ export function Thumb({
       whatever it likes with the inner one — which here is the control that
       takes a sticker back off.
     */
-    <span className={cx('group relative block min-w-0', className)}>
+    <span
+      className={cx('group relative block min-w-0', className)}
+      draggable={draggable}
+      onDragStart={onDragStart}
+    >
       {onClick ? (
         <button
           type="button"
@@ -121,5 +134,48 @@ export function Thumb({
       {badge}
       {corner}
     </span>
+  );
+}
+
+/**
+ * The first few stickers in a pack, as one square.
+ *
+ * A pack has no picture of its own, and a name in a list is not a thing anybody
+ * recognises. Four at once is enough to say "the autumn ones" at a glance, and
+ * fewer than four simply leaves the squares it does not need empty rather than
+ * stretching one picture across the card.
+ */
+export function Collage({
+  urls,
+  name,
+  className,
+}: {
+  urls: (string | null | undefined)[];
+  name: string;
+  className?: string;
+}) {
+  const four = urls.slice(0, 4);
+  return (
+    <Chequerboard
+      // One label for the square, not one per picture: the card beside it
+      // already carries the name, and four alt texts would read it five times.
+      aria-label={`${name}, ${four.length} of them`}
+      className={cx('aspect-square w-full rounded-lg border border-ink-200', className)}
+    >
+      {four.length === 0 ? (
+        <span className="text-[11px] text-ink-500">empty</span>
+      ) : (
+        <span className="grid size-full grid-cols-2 grid-rows-2 gap-0.5 p-1">
+          {four.map((url, n) => (
+            <span key={n} className="grid place-items-center overflow-hidden">
+              {url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="" className="max-h-full max-w-full object-contain" />
+              ) : null}
+            </span>
+          ))}
+        </span>
+      )}
+    </Chequerboard>
   );
 }
