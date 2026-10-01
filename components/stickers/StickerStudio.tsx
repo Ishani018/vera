@@ -6,6 +6,15 @@ import { useRouter } from 'next/navigation';
 import { UnsupportedImageError, getAsset, putAsset } from '@/lib/assets';
 import { saveToLibrary, parseTags } from '@/lib/cover/library';
 import { renderSticker, traceInk, type InkResult } from '@/lib/lineart/client';
+import {
+  DRAFT_EDGE,
+  SHOW_WORKING_AFTER,
+  SLOW_AFTER,
+  asFullSize,
+  progressFraction,
+  progressLine,
+  wanted,
+} from '@/lib/busy';
 import type { StickerOptions } from '@/lib/lineart/worker';
 import { DEFAULT_LINE_ART } from '@/lib/projects';
 import type { Paint } from '@/lib/stickers/colour';
@@ -30,8 +39,8 @@ import { ColourField } from '../cover/ColourField';
 import { Control, ModeChoice } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { Rail } from '../cover/Rail';
-import { DropZone, Field, Stage } from './StudioShell';
-import { Button, Notice, TextInput, Toggle, cx } from '../ui';
+import { DropZone, Field, Stage, useAfter } from './StudioShell';
+import { Button, Notice, Spinner, TextInput, Toggle, WhileSliding, cx } from '../ui';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 import { BatchPanel } from './BatchPanel';
 
@@ -137,9 +146,34 @@ export function StickerStudio() {
     height: number;
     transparent: boolean;
     pad: number;
+    /** Made small while a control was moving. The real one follows. */
+    rough: boolean;
   } | null>(null);
   const previewImage = useRef<HTMLImageElement>(null);
   const [busy, setBusy] = useState(false);
+
+  /**
+   * Whether a control is being dragged, and the size of the last real preview.
+   *
+   * The second is what lets a rough preview report the size the full one will
+   * be: the picture is the same picture, so shrinking the stage and rewriting
+   * the numbers under it mid-drag would be movement that means nothing.
+   */
+  const [dragging, setDragging] = useState(false);
+  const lastFull = useRef<{ width: number; height: number } | null>(null);
+
+  /** A job slow enough to deserve a sentence: an export, a batch, a save. */
+  const [work, setWork] = useState<{ what: string; done?: number; total?: number } | null>(null);
+
+  /**
+   * Two marks, two clocks.
+   *
+   * The sheen appears almost at once, so a control that was moved never looks
+   * ignored. The sentence waits a second, so an export that took 200 ms does
+   * not flash a notice nobody had time to read.
+   */
+  const showWorking = useAfter(busy, SHOW_WORKING_AFTER);
+  const showWork = useAfter(Boolean(work), SLOW_AFTER);
   const [problem, setProblem] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [tags, setTags] = useState('');
@@ -363,6 +397,7 @@ export function StickerStudio() {
   const resume = async (saved: StickerDraft) => {
     setProblem(null);
     setBusy(true);
+    setWork({ what: 'Reopening the draft' });
     try {
       const source = await getAsset(saved.sourceAssetId);
       if (!source) throw new Error('The picture this was made from is no longer here.');
@@ -420,6 +455,7 @@ export function StickerStudio() {
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be reopened.');
     } finally {
+      setWork(null);
       setBusy(false);
     }
   };
@@ -434,8 +470,15 @@ export function StickerStudio() {
   /* ------------------------------------------------------------ the preview */
 
   const options = useCallback(
-    (longEdge: number, withColour: Paint | null = null, withTouch: Paint | null = null): StickerOptions => ({
+    (
+      longEdge: number,
+      withColour: Paint | null = null,
+      withTouch: Paint | null = null,
+      /** Previews only: a ceiling on the resolution the trace runs at. */
+      traceEdge?: number,
+    ): StickerOptions => ({
       mode,
+      ...(traceEdge ? { traceEdge } : {}),
       removeBackground: mode === 'asis' && removeBackground,
       tolerance,
       smoothing,
@@ -465,31 +508,47 @@ export function StickerStudio() {
     // is exactly where the export puts it — so the preview needs to carry it
     // only when the die-cut does, because the outline has to go round it.
     const ringed = colouring && dieCutOn ? surface.current?.colour() ?? null : null;
+    // Small while the control is still moving, full size the moment it is let
+    // go: the work goes as the area, so the quick one is a fraction of it and
+    // a drag keeps up. Letting go changes `dragging`, which runs this again.
+    const rough = dragging;
+    const edge = rough ? DRAFT_EDGE : PREVIEW_EDGE;
     // The touch-up always goes in: unlike the colouring it decides which pixels
     // the sticker has at all, so there is no drawing it on top afterwards.
-    renderSticker(file, settings, options(PREVIEW_EDGE, ringed, surface.current?.touch() ?? null))
-      .then((result) => {
-        if (mine !== latest.current) return;
-        url = URL.createObjectURL(result.blob);
+    renderSticker(
+      file,
+      settings,
+      // The trace is capped to match: without that a small preview of a big
+      // photograph does all the same work and arrives no sooner.
+      options(edge, ringed, surface.current?.touch() ?? null, rough ? DRAFT_EDGE : undefined),
+    )
+      .then((made) => {
+        // An answer to an older position, however much sooner it arrived, is
+        // not the answer to the question on screen.
+        if (!wanted(mine, latest.current)) return;
+        const result = rough ? asFullSize(made, lastFull.current) : made;
+        if (!rough) lastFull.current = { width: made.width, height: made.height };
+        url = URL.createObjectURL(made.blob);
         setPreview((was) => {
           if (was) URL.revokeObjectURL(was.url);
           return {
             url: url!,
             width: result.width,
             height: result.height,
-            transparent: result.transparent,
+            transparent: made.transparent,
             pad: result.pad,
+            rough,
           };
         });
         setProblem(null);
       })
       .catch((error: Error) => {
-        if (mine === latest.current) setProblem(error.message);
+        if (wanted(mine, latest.current)) setProblem(error.message);
       })
       .finally(() => {
-        if (mine === latest.current) setBusy(false);
+        if (wanted(mine, latest.current)) setBusy(false);
       });
-  }, [file, settings, options, colouring, dieCutOn, settled]);
+  }, [file, settings, options, colouring, dieCutOn, settled, dragging]);
 
   /**
    * The traced lines as numbers, asked for once per trace.
@@ -675,6 +734,7 @@ export function StickerStudio() {
 
   const download = async () => {
     setBusy(true);
+    setWork({ what: 'Exporting the full-size sticker' });
     setSaid(null);
     try {
       const result = await makeAtSize();
@@ -684,12 +744,14 @@ export function StickerStudio() {
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be exported.');
     } finally {
+      setWork(null);
       setBusy(false);
     }
   };
 
   const keep = async () => {
     setBusy(true);
+    setWork({ what: 'Making the full-size sticker to keep' });
     setSaid(null);
     try {
       const result = await makeAtSize();
@@ -707,6 +769,7 @@ export function StickerStudio() {
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be saved.');
     } finally {
+      setWork(null);
       setBusy(false);
     }
   };
@@ -813,6 +876,7 @@ export function StickerStudio() {
 
   const downloadCutLine = async () => {
     setBusy(true);
+    setWork({ what: 'Tracing the cut line' });
     setSaid(null);
     try {
       const result = await makeAtSize();
@@ -832,6 +896,7 @@ export function StickerStudio() {
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That cut line could not be made.');
     } finally {
+      setWork(null);
       setBusy(false);
     }
   };
@@ -855,6 +920,7 @@ export function StickerStudio() {
 
   const send = async (presetId: string) => {
     setBusy(true);
+    setWork({ what: 'Making the full-size sticker for the design' });
     setSaid(null);
     try {
       const result = await makeAtSize();
@@ -872,6 +938,7 @@ export function StickerStudio() {
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be sent to a design.');
     } finally {
+      setWork(null);
       setBusy(false);
     }
   };
@@ -1970,10 +2037,13 @@ export function StickerStudio() {
         </span>
       </StudioHeader>
 
+      <WhileSliding onChange={setDragging}>
       <div className="flex min-h-0 flex-1 max-lg:flex-col">
         <Rail panels={panels} open={openPanel} onOpen={setOpenPanel} />
 
         <Stage
+          working={showWorking}
+          rough={Boolean(preview?.rough) && !showWorking}
           width={preview?.width ?? 0}
           height={preview?.height ?? 0}
           caption={
@@ -1981,7 +2051,6 @@ export function StickerStudio() {
               <>
                 The squares show where it is see-through. {preview.width} × {preview.height} px.
                 {!preview.transparent && ' Nothing in this one is transparent yet.'}
-                {busy && ' Working…'}
               </>
             ) : (
               'Working…'
@@ -1989,6 +2058,22 @@ export function StickerStudio() {
           }
           overlay={
             <>
+              {showWork && work && (
+                <Notice level="info">
+                  <span className="flex items-center gap-2">
+                    <Spinner size={13} />
+                    {progressLine(work.what, work.done, work.total)}
+                  </span>
+                  {progressFraction(work.done, work.total) !== null && (
+                    <span className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-ink-200">
+                      <span
+                        className="block h-full rounded-full bg-accent-500 transition-[width] duration-200"
+                        style={{ width: `${(progressFraction(work.done, work.total) ?? 0) * 100}%` }}
+                      />
+                    </span>
+                  )}
+                </Notice>
+              )}
               {leak !== null && (
                 <Notice level="warning">
                   That fill covered {Math.round(leak * 100)}% of the picture, which usually means it
@@ -2055,6 +2140,7 @@ export function StickerStudio() {
           )}
         </Stage>
       </div>
+      </WhileSliding>
     </main>
   );
 }

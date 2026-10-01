@@ -2,7 +2,16 @@
 
 import { SWITCH, switchReach, switchTravel } from '@/lib/switch';
 
-import { useId, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
@@ -131,6 +140,72 @@ export function NumberInput({
   );
 }
 
+/**
+ * Whether a control is being dragged right now.
+ *
+ * A slider fires a change for every pixel of a drag, and the difference between
+ * the ones in the middle of a gesture and the one at the end is what the
+ * preview can be fast and rough about. Sliders announce the gesture through a
+ * context rather than a prop so that no caller has to thread a pair of
+ * callbacks through every control it owns; where nothing is listening, this
+ * costs nothing and changes nothing.
+ */
+const Sliding = createContext<{ begin: () => void; end: () => void } | null>(null);
+
+export function WhileSliding({
+  onChange,
+  children,
+}: {
+  onChange: (sliding: boolean) => void;
+  children: ReactNode;
+}) {
+  // Counted rather than flagged: a keyboard repeat can begin a second gesture
+  // before the first has ended, and a flag would end both at the first release.
+  const depth = useRef(0);
+  const announce = useRef(onChange);
+  announce.current = onChange;
+  const value = useMemo(
+    () => ({
+      begin: () => {
+        depth.current += 1;
+        if (depth.current === 1) announce.current(true);
+      },
+      end: () => {
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) announce.current(false);
+      },
+    }),
+    [],
+  );
+  // A gesture that was still in hand when this unmounted must not leave the
+  // page believing a control is being dragged for ever.
+  useEffect(() => () => announce.current(false), []);
+  return <Sliding.Provider value={value}>{children}</Sliding.Provider>;
+}
+
+/** A spinner, for the places where a word would be too much furniture. */
+export function Spinner({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      className="animate-spin"
+      style={{ animationDuration: '900ms' }}
+    >
+      <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      <path
+        d="M8 1.5A6.5 6.5 0 0 1 14.5 8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function Slider({
   value,
   onChange,
@@ -144,6 +219,36 @@ export function Slider({
   max: number;
   step?: number;
 }) {
+  const sliding = useContext(Sliding);
+  const held = useRef(false);
+
+  /**
+   * The gesture, start and end.
+   *
+   * The release is listened for on the window rather than on the input: a drag
+   * that ends with the pointer outside the track — which is most of them —
+   * never sends the input a pointerup at all, and the preview would stay in its
+   * rough state until the next change.
+   */
+  const begin = () => {
+    if (!sliding || held.current) return;
+    held.current = true;
+    sliding.begin();
+    const done = () => {
+      held.current = false;
+      sliding.end();
+      window.removeEventListener('pointerup', done);
+      window.removeEventListener('pointercancel', done);
+    };
+    window.addEventListener('pointerup', done);
+    window.addEventListener('pointercancel', done);
+  };
+
+  // Unmounting mid-drag would otherwise leave the count raised for ever.
+  useEffect(() => () => {
+    if (held.current) sliding?.end();
+  }, [sliding]);
+
   return (
     <div className="flex items-center gap-2.5">
       <input
@@ -153,6 +258,24 @@ export function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        onPointerDown={begin}
+        // An arrow key is a gesture too: held down it repeats as fast as a
+        // drag, and it ends on the key going up.
+        onKeyDown={(e) => {
+          if (e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') begin();
+        }}
+        onKeyUp={() => {
+          if (held.current) {
+            held.current = false;
+            sliding?.end();
+          }
+        }}
+        onBlur={() => {
+          if (held.current) {
+            held.current = false;
+            sliding?.end();
+          }
+        }}
         className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-ink-200 accent-accent-500"
       />
       <span className="w-14 shrink-0 text-right tabular-nums text-[15px] text-ink-700">

@@ -58,6 +58,18 @@ export type StickerOptions = {
   /** The long edge to work and export at. */
   longEdge: number;
   /**
+   * A ceiling on the resolution the picture is *traced* at, for previews only.
+   *
+   * The trace is nearly all of the work, and it runs at the picture's own size
+   * (up to `TRACE_EDGE`) whatever size the result is asked for — so asking for
+   * a small preview of a big photograph saves almost nothing. While a control
+   * is being dragged, capping this is the difference between a preview that
+   * keeps up and one that does not.
+   *
+   * **Never set on an export.** Left out, the behaviour is exactly what it was.
+   */
+  traceEdge?: number;
+  /**
    * The colouring, at whatever size it was painted, or null for none.
    *
    * Sent as plain arrays rather than a blob because it is already pixels on
@@ -288,7 +300,7 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
     // two colours — which is the argument the line art path already makes. A
     // photograph does not, so a kept picture is never drawn above its own size.
     const ceiling = options.mode === 'asis' ? Math.min(options.longEdge, sourceLongEdge) : options.longEdge;
-    const traceAt = Math.min(sourceLongEdge, TRACE_EDGE);
+    const traceAt = Math.min(sourceLongEdge, options.traceEdge ?? TRACE_EDGE);
     const scale = traceAt / sourceLongEdge;
     const width = Math.max(1, Math.round(decoded.width * scale));
     const height = Math.max(1, Math.round(decoded.height * scale));

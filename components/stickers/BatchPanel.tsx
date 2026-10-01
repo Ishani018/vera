@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { UnsupportedImageError, putAsset } from '@/lib/assets';
 import { parseTags, saveToLibrary } from '@/lib/cover/library';
-import { Button, Notice, TextInput, cx } from '../ui';
+import { Button, Notice, Spinner, TextInput, cx } from '../ui';
+import { progressFraction, progressLine } from '@/lib/busy';
 
 /**
  * The same settings, over a folder full of pictures.
@@ -179,10 +180,28 @@ export function BatchPanel({
 
       {items.length > 0 && (
         <>
-          <p className="mt-3 text-[12.5px] text-ink-500">
-            {done} of {items.length} done{failedCount > 0 && `, ${failedCount} could not be read`}.
-            {running && ' Still working.'}
-          </p>
+          {/* A batch is slow by definition, so it says so in words and draws
+              how far along it is: sixty pictures is minutes, and a row of
+              thumbnails filling in one at a time is not a progress bar. */}
+          {running ? (
+            <div className="mt-3">
+              <p className="flex items-center gap-2 text-[12.5px] text-ink-700">
+                <Spinner size={12} />
+                {progressLine('Working through them', done, items.length)}
+                {failedCount > 0 && ` · ${failedCount} could not be read`}
+              </p>
+              <span className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-ink-200">
+                <span
+                  className="block h-full rounded-full bg-accent-500 transition-[width] duration-200"
+                  style={{ width: `${(progressFraction(done, items.length) ?? 0) * 100}%` }}
+                />
+              </span>
+            </div>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-ink-500">
+              {done} of {items.length} done{failedCount > 0 && `, ${failedCount} could not be read`}.
+            </p>
+          )}
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             {items.map((item) => (

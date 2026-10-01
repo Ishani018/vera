@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { cx } from '../ui';
+import { Spinner, cx } from '../ui';
 
 /**
  * The furniture of a studio: a stage that does not scroll away, a strip of
@@ -25,6 +25,26 @@ const BREATHING = 32;
 export type Zoom = 'fit' | number;
 
 /**
+ * True once something has been going on for a while.
+ *
+ * Both of the waiting marks need this and they need different numbers: the
+ * sheen appears almost at once so a control feels answered, the sentence waits
+ * a second so it never flashes up for work that was over before it was read.
+ */
+export function useAfter(active: boolean, ms: number): boolean {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (!active) {
+      setShown(false);
+      return;
+    }
+    const timer = setTimeout(() => setShown(true), ms);
+    return () => clearTimeout(timer);
+  }, [active, ms]);
+  return shown;
+}
+
+/**
  * The picture, on a neutral grey, centred, and never scrolled out of view.
  *
  * Grey rather than white because the sticker is the only thing on this screen
@@ -39,6 +59,8 @@ export function Stage({
   overlay,
   tools,
   caption,
+  working = false,
+  rough = false,
 }: {
   /** The picture's own size in pixels. Zero while there is nothing yet. */
   width: number;
@@ -49,6 +71,10 @@ export function Stage({
   /** A vertical strip down the left of the stage, when a tool is in hand. */
   tools?: ReactNode;
   caption?: ReactNode;
+  /** A new picture is being made. The old one stays up while it is. */
+  working?: boolean;
+  /** What is showing is the quick version, made while a control was moving. */
+  rough?: boolean;
 }) {
   const pane = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -133,6 +159,20 @@ export function Stage({
               }}
             >
               {children}
+              {working && (
+                /*
+                  Over the picture, never in place of it. Replacing the picture
+                  with a spinner would throw away the one thing somebody needs
+                  to compare the new version against — and for a change that
+                  takes 200 ms it would be a flash of nothing.
+                */
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 overflow-hidden"
+                >
+                  <div className="working-sheen absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/45 to-transparent" />
+                </div>
+              )}
             </div>
           ) : (
             <span className="text-[14px] text-white/80">Working…</span>
@@ -145,6 +185,23 @@ export function Stage({
         {overlay && <div className="pointer-events-auto w-full max-w-xl">{overlay}</div>}
         <div className="flex w-full items-end justify-between gap-3">
           <p className="max-w-[46ch] text-[11.5px] leading-snug text-white/75">{caption}</p>
+          {(working || rough) && (
+            <span
+              // Beside the zoom control, where the eye already goes for the
+              // state of the picture, and in words as well as a spinner so it
+              // is readable with motion turned down.
+              role="status"
+              title={
+                rough
+                  ? 'A quick version while the control is moving. The full-size one follows when you let go.'
+                  : 'A new version is being made. What you can see is the last one.'
+              }
+              className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-ink-200 bg-paper/95 px-2.5 py-1 text-[11.5px] text-ink-700 shadow-lg"
+            >
+              {working && <Spinner size={12} />}
+              {working ? 'Working…' : 'Quick preview'}
+            </span>
+          )}
           <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border border-ink-200 bg-paper/95 px-1.5 py-1 shadow-lg">
             <button
               type="button"
