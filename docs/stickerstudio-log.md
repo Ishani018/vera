@@ -524,7 +524,7 @@ is the real one, measured, not the one asked for.
 
 ## Stage 9 — Sticker sheet export
 
-**Commit:** `STAGE9HASH`
+**Commit:** `ae82419`
 
 A new screen at `/stickers/sheet`, linked from the studio. Choose how many of
 each saved sticker, set the paper (US Letter or A4), how big each sticker is,
@@ -590,3 +590,50 @@ paper to it.
 **Look at first:** put nine stickers on a Letter sheet at 2 inches, download it,
 and print it at 100% (not "fit to page"). Measure one. If it is two inches
 across, the whole chain is right.
+
+---
+
+## Stage 10 — Batch mode
+
+**Commit:** `STAGE10HASH`
+
+A *Many at once* panel in the studio: choose a stack of pictures and every one
+gets the settings on screen. The results appear in a grid, and a shared tag
+saves the lot to My stickers.
+
+**One at a time, and deliberately.** A dozen pictures at once means a dozen
+decoded bitmaps in memory alongside a dozen results, and a phone browser quietly
+kills the tab rather than saying why. Sequential is a little slower and
+finishes. Capped at **60 per go**, with the screen saying how many were left
+out rather than silently dropping them.
+
+**A failure belongs to its picture, not to the batch.** One file that turns out
+to be a PDF renamed `.png` must not throw away the eleven that worked. Each is
+caught on its own, the grid marks it, and the message names it and says why.
+The browser check feeds in four good pictures and one that is not a picture at
+all, and gets back *"4 of 5 done, 1 could not be read"* and
+*"broken: That file is not an image the browser can read."*
+
+**What is not carried across:** the colouring and the touch-up. Both were
+painted on *this* picture and would land nowhere sensible on another one. The
+tracing settings, the die-cut, the recolouring, the framing, the words and the
+decorations all are, because all of them are settings rather than marks on one
+particular picture.
+
+**The originals go into the store whole**, exactly as a single upload does.
+
+**Checked:** `npm test` 510 pass / 0 fail. Goldens unchanged, `golden:screen`
+0 pixels changed, build clean. Plus 11 browser checks: four of five through, the
+bad one named and reasoned, four pictures in the grid, all four saved with both
+shared tags, each keeping its own name and its own picture, and all four made at
+the size on screen (1000 px).
+
+**Only checked in the sandbox:** the largest batch I ran was five pictures. The
+limit of 60 is a judgement, not a measurement — it comes from a 1000-pixel PNG
+being a few hundred kilobytes, so sixty of them is tens of megabytes rather than
+hundreds. On a phone with a dozen 12-megapixel photographs it may still be too
+many; the Stop button is there for that.
+
+**Look at first:** drop a folder of ten or fifteen real photographs in with the
+settings you actually want, and watch the grid fill. If your machine struggles,
+tell me and I will lower the cap.

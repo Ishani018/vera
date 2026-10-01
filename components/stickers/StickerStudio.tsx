@@ -31,6 +31,7 @@ import { Control, ModeChoice } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { Button, Notice, TextInput, Toggle, cx } from '../ui';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
+import { BatchPanel } from './BatchPanel';
 
 /**
  * Any picture, into a sticker.
@@ -1891,6 +1892,20 @@ export function StickerStudio() {
                       Send to a design…
                     </Button>
                   </div>
+
+                  <BatchPanel
+                    disabled={busy}
+                    make={async (one) => {
+                      // The settings on screen, over a different picture. The
+                      // colouring and the touch-up are not carried across: they
+                      // were painted on *this* picture and would land nowhere
+                      // sensible on another one.
+                      const made = await renderSticker(one, settings, options(size));
+                      const wanted = texts.filter((t) => t.text.trim());
+                      if (!wanted.length) return made;
+                      return { ...made, blob: await withText(made.blob, made.width, made.height, wanted) };
+                    }}
+                  />
 
                   <div className="mt-4 rounded-xl border border-ink-200 bg-paper-0 p-3">
                     <span className="block text-[13.5px] font-[570]">Cut line for a cutting machine</span>
