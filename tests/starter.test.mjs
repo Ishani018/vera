@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { deflateSync } from 'node:zlib';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import {
   ALLOWED_LICENCES,
@@ -15,7 +19,7 @@ import {
   checkFolder,
   checkManifest,
 } from '../lib/starter/manifest.ts';
-import { crc32 } from '../lib/stickers/zip.ts';
+import { crc32, zipBytes } from '../lib/stickers/zip.ts';
 
 /* ------------------------------------------------------------- fixtures */
 
@@ -46,10 +50,10 @@ const item = (over = {}) => ({
   file: 'oak-leaf.png',
   name: 'Oak leaf',
   tags: ['leaf'],
-  source: 'https://example.org/items/1',
+  sourceUrl: 'https://example.org/items/1',
   author: 'Jane Smith',
   licence: 'CC0-1.0',
-  downloaded: '2026-10-01',
+  downloadedOn: '2026-10-01',
   ...over,
 });
 
@@ -110,7 +114,7 @@ test('a complete manifest has nothing wrong with it', () => {
 test('every missing field is named, all at once', () => {
   const bare = manifest({ items: [{ file: 'a.png' }] });
   const found = checkManifest(bare, 'autumn-leaves');
-  for (const field of ['name', 'tags', 'source', 'author', 'licence', 'downloaded']) {
+  for (const field of ['name', 'tags', 'sourceUrl', 'author', 'licence', 'downloadedOn']) {
     assert.ok(found.some((p) => p.why.includes(`${field} is missing`)), `${field}: ${whys(found)}`);
   }
   assert.ok(found.length >= 6, 'reported together, not one per run');
@@ -136,12 +140,12 @@ test('a file name may not wander out of its own folder', () => {
 });
 
 test('a source must be a link somebody else can open', () => {
-  const found = checkManifest(manifest({ items: [item({ source: 'my downloads folder' })] }), 'autumn-leaves');
+  const found = checkManifest(manifest({ items: [item({ sourceUrl: 'my downloads folder' })] }), 'autumn-leaves');
   assert.ok(found.some((p) => p.why.includes('a link somebody else can open')), whys(found));
 });
 
 test('a download date must be a date', () => {
-  const found = checkManifest(manifest({ items: [item({ downloaded: 'last tuesday' })] }), 'autumn-leaves');
+  const found = checkManifest(manifest({ items: [item({ downloadedOn: 'last tuesday' })] }), 'autumn-leaves');
   assert.ok(found.some((p) => p.why.includes('must be a date')), whys(found));
 });
 
@@ -226,10 +230,63 @@ test('a picture the right size passes', () => {
 
 test('the limits are stated, so changing one is deliberate', () => {
   assert.deepEqual(LIMITS, {
-    bytes: 2 * 1024 * 1024,
+    bytes: 10 * 1024 * 1024,
     pixels: 4000,
     leastPixels: 64,
     itemsPerPack: 60,
-    packBytes: 40 * 1024 * 1024,
+    packBytes: 120 * 1024 * 1024,
   });
+});
+
+/* ----------------------------------------------- the zip a real tool reads */
+
+test('a valid pack builds a zip that a real unzip can open and verify', (t) => {
+  // Shelling out on purpose. My own reader agreeing with my own writer proves
+  // nothing about whether anybody else's tool can open the file.
+  const unzip = spawnSync('unzip', ['-v'], { encoding: 'utf8' });
+  if (unzip.error) return t.skip('no unzip on this machine');
+
+  const dir = mkdtempSync(join(tmpdir(), 'starter-'));
+  try {
+    const bytes = zipBytes([
+      { name: 'manifest.json', bytes: new TextEncoder().encode('{"pack":"sample"}\n') },
+      { name: 'images/circle.png', bytes: png(240, 240) },
+      { name: 'images/ring.png', bytes: png(240, 240) },
+    ]);
+    const at = join(dir, 'sample.zip');
+    writeFileSync(at, Buffer.from(bytes));
+
+    const tested = spawnSync('unzip', ['-t', at], { encoding: 'utf8' });
+    assert.equal(tested.status, 0, tested.stdout + tested.stderr);
+    assert.match(tested.stdout, /No errors detected/);
+
+    // And what comes out is byte for byte what went in.
+    assert.equal(spawnSync('unzip', ['-o', '-q', at, '-d', dir], { encoding: 'utf8' }).status, 0);
+    assert.deepEqual(
+      new Uint8Array(readFileSync(join(dir, 'images/circle.png'))),
+      png(240, 240),
+      'the extracted picture is the one that went in',
+    );
+    assert.equal(readFileSync(join(dir, 'manifest.json'), 'utf8').trim(), '{"pack":"sample"}');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the sample pack that ships is itself valid', () => {
+  // The pack in starter/sample/ is the one anybody will copy to make their own,
+  // so it had better pass the check it is an example of.
+  const root = new URL('../starter/sample/', import.meta.url).pathname;
+  const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
+  assert.deepEqual(checkManifest(manifest, 'sample'), []);
+
+  const onDisk = readdirSync(root).filter((name) => /\.(png|jpe?g|webp)$/i.test(name));
+  assert.deepEqual(checkFolder(manifest.items, onDisk, 'sample'), []);
+  assert.equal(manifest.items.length, 3);
+
+  for (const item of manifest.items) {
+    const bytes = new Uint8Array(readFileSync(join(root, item.file)));
+    assert.deepEqual(checkBytes(item.file, bytes, 'sample'), [], item.file);
+    assert.equal(probeImage(bytes).ok, true, item.file);
+  }
 });

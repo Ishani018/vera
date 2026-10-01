@@ -14,25 +14,25 @@ import { probeImage } from './image';
  */
 
 export const LIMITS = {
-  /** Per file. Generous for a drawing, mean for a photograph nobody resized. */
-  bytes: 2 * 1024 * 1024,
+  /** Per file. Room for a large scan, short of a file nobody meant to add. */
+  bytes: 10 * 1024 * 1024,
   /** The long edge. Above this it is a photograph that wants resizing first. */
   pixels: 4000,
   /** Below this it is a thumbnail somebody grabbed by mistake. */
   leastPixels: 64,
   /** Per pack, so one pack cannot become the whole download. */
   itemsPerPack: 60,
-  packBytes: 40 * 1024 * 1024,
+  packBytes: 120 * 1024 * 1024,
 } as const;
 
 export type StarterItem = {
   file: string;
   name: string;
   tags: string[];
-  source: string;
+  sourceUrl: string;
   author: string;
   licence: string;
-  downloaded: string;
+  downloadedOn: string;
 };
 
 export type StarterManifest = {
@@ -48,7 +48,7 @@ export const PACK_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const REQUIRED: (keyof StarterItem)[] = [
-  'file', 'name', 'tags', 'source', 'author', 'licence', 'downloaded',
+  'file', 'name', 'tags', 'sourceUrl', 'author', 'licence', 'downloadedOn',
 ];
 
 export type Problem = { where: string; why: string };
@@ -103,11 +103,11 @@ export function checkManifest(raw: unknown, folder: string): Problem[] {
       if (seen.has(item.file)) say(where, 'this file is listed twice');
       seen.add(item.file);
     }
-    if (typeof item.source === 'string' && item.source && !/^https?:\/\//i.test(item.source)) {
-      say(where, 'source must be a link somebody else can open');
+    if (typeof item.sourceUrl === 'string' && item.sourceUrl && !/^https?:\/\//i.test(item.sourceUrl)) {
+      say(where, 'sourceUrl must be a link somebody else can open');
     }
-    if (typeof item.downloaded === 'string' && item.downloaded && !DATE.test(item.downloaded)) {
-      say(where, `downloaded must be a date like 2026-10-01, not "${item.downloaded}"`);
+    if (typeof item.downloadedOn === 'string' && item.downloadedOn && !DATE.test(item.downloadedOn)) {
+      say(where, `downloadedOn must be a date like 2026-10-01, not "${item.downloadedOn}"`);
     }
     // The one that matters most, and the reason the rest of this exists.
     const no = typeof item.licence === 'string' ? refusal(item.licence) : 'licence is missing';

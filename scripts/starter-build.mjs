@@ -112,17 +112,24 @@ for (const pack of packs) {
   built.push({ pack, items: manifest.items.length, bytes: zip.length });
 }
 
+/* Both halves of the report, always, so a run says what happened rather than
+   only what went wrong. A build that silently says nothing about the pack you
+   were worried about is a build you have to go and check. */
+
+if (built.length) {
+  console.log(green(`\nBuilt ${built.length} ${built.length === 1 ? 'pack' : 'packs'}:\n`));
+  for (const { pack, items, bytes } of built) {
+    console.log(`  ✓ ${pack}.zip  ${grey(`${items} stickers, ${(bytes / 1024).toFixed(0)} KB`)}`);
+  }
+  console.log(grey('\n  In starter/dist/, each with its manifest inside it.'));
+}
+
+const refused = [...new Set(problems.map((p) => p.where.split('/')[0]))];
 if (problems.length) {
-  console.error(red(`\n${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}:\n`));
-  for (const { where, why } of problems) console.error(`  ${where}\n    ${grey(why)}`);
-  console.error(red('\nNothing was built for the packs above.'));
-  // Packs that were fine are still written: one bad pack must not stop the rest.
-  if (built.length) console.error(grey(`${built.length} other pack(s) were built.`));
+  console.error(red(`\nRejected ${refused.length} ${refused.length === 1 ? 'pack' : 'packs'}, for ${problems.length} ${problems.length === 1 ? 'reason' : 'reasons'}:\n`));
+  for (const { where, why } of problems) console.error(`  ✗ ${where}\n      ${grey(why)}`);
+  console.error(red(`\n  Nothing was built for ${refused.join(', ')}.\n`));
   process.exit(1);
 }
 
-console.log(green(`\nBuilt ${built.length} ${built.length === 1 ? 'pack' : 'packs'}:\n`));
-for (const { pack, items, bytes } of built) {
-  console.log(`  ${pack}.zip  ${grey(`${items} stickers, ${(bytes / 1024).toFixed(0)} KB`)}`);
-}
-console.log(grey(`\nIn starter/dist/. Every item checked for a CC0 or public-domain licence.\n`));
+console.log(green('\n  Every item checked for a CC0 or public-domain licence.\n'));

@@ -32,10 +32,10 @@ it, so it is what you will see in the app.
       "file": "oak-leaf.png",
       "name": "Oak leaf",
       "tags": ["leaf", "autumn", "brown"],
-      "source": "https://example.org/items/12345",
+      "sourceUrl": "https://example.org/items/12345",
       "author": "Jane Smith",
       "licence": "CC0-1.0",
-      "downloaded": "2026-10-01"
+      "downloadedOn": "2026-10-01"
     }
   ]
 }
@@ -45,7 +45,7 @@ Every field is required, including `author` — write `Unknown` if the source do
 not say, rather than leaving it out, so the difference between "nobody is named"
 and "nobody checked" stays visible.
 
-`source` must be a link somebody else can open: the page you got it from, not
+`sourceUrl` must be a link somebody else can open: the page you got it from, not
 the image URL, so the licence is visible beside it.
 
 **The manifest and the folder must match exactly, both ways.** A listed file
