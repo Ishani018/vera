@@ -1,4 +1,5 @@
 import { looksLikeProject, migrateContents } from './contents';
+import { alive, isDeleted } from './deleted';
 import { migrateDesign } from './designs';
 import type {
   AnyProject,
@@ -40,12 +41,23 @@ export function buildBackup(parts: {
   templates: CoverTemplate[];
   designs: StandaloneDesign[];
 }): Backup {
+  // Filtered here rather than trusted from the caller. Every list this is
+  // handed already skips the trash, so this is the second lock on the same
+  // door — and it is the one that holds if a future caller forgets, because a
+  // backup quietly containing a deleted book is the failure nobody notices
+  // until they restore it. See `lib/deleted.ts`.
   return {
     versecraft: 2,
-    project: parts.project,
+    project: {
+      ...parts.project,
+      designs: alive(parts.project.designs ?? []),
+    },
     assets: parts.assets,
-    library: { stickers: parts.stickers, templates: parts.templates },
-    designs: parts.designs,
+    library: {
+      stickers: alive(parts.stickers),
+      templates: alive(parts.templates),
+    },
+    designs: alive(parts.designs),
   };
 }
 
@@ -71,6 +83,10 @@ export function readBackup(text: string): {
     throw new Error('That file is not an Isnaevy project.');
   }
 
+  if (isDeleted(project)) {
+    throw new Error('That backup holds a book that had been deleted.');
+  }
+
   return {
     // A file saved before poems and parts became one list still opens.
     project: { ...project, contents: migrateContents(project) } as Project,
@@ -79,7 +95,7 @@ export function readBackup(text: string): {
       stickers: parsed.library?.stickers ?? [],
       templates: parsed.library?.templates ?? [],
     },
-    designs: (parsed.designs ?? []).map(migrateDesign),
+    designs: alive((parsed.designs ?? []).map(migrateDesign)),
   };
 }
 

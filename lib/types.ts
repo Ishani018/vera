@@ -333,6 +333,14 @@ export type Design = {
   createdAt: number;
   /** Absent on designs made before anything recorded it; fall back to createdAt. */
   updatedAt?: number;
+  /**
+   * When this was put in the trash, or absent while it is not.
+   *
+   * Deletion is a soft thing here for one reason: there is no server copy.
+   * A book lives in this browser and nowhere else, so a mis-click used to be
+   * the end of it. See `lib/trash.ts`.
+   */
+  deletedAt?: number;
 };
 
 /**
@@ -382,6 +390,14 @@ export type BookBase = {
   cover: CoverSpec;
   /** The launch kit: everything made for the book that is not the book. */
   designs?: Design[];
+  /**
+   * When this was put in the trash, or absent while it is not.
+   *
+   * Deletion is a soft thing here for one reason: there is no server copy.
+   * A book lives in this browser and nowhere else, so a mis-click used to be
+   * the end of it. See `lib/trash.ts`.
+   */
+  deletedAt?: number;
 };
 
 export type PoetryProject = BookBase & {
@@ -551,6 +567,14 @@ export type LibrarySticker = {
   width: number;
   height: number;
   createdAt: number;
+  /**
+   * When this was put in the trash, or absent while it is not.
+   *
+   * Deletion is a soft thing here for one reason: there is no server copy.
+   * A book lives in this browser and nowhere else, so a mis-click used to be
+   * the end of it. See `lib/trash.ts`.
+   */
+  deletedAt?: number;
 };
 
 /**
@@ -565,6 +589,14 @@ export type CoverTemplate = {
   name: string;
   createdAt: number;
   cover: CoverSpec;
+  /**
+   * When this was put in the trash, or absent while it is not.
+   *
+   * Deletion is a soft thing here for one reason: there is no server copy.
+   * A book lives in this browser and nowhere else, so a mis-click used to be
+   * the end of it. See `lib/trash.ts`.
+   */
+  deletedAt?: number;
 };
 
 /** Anything the studio can open. */

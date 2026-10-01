@@ -1,5 +1,6 @@
 'use client';
 
+import { TRASH_DAYS } from '@/lib/deleted';
 import { useEffect, useRef, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
 import {
@@ -246,10 +247,15 @@ function StickerDetails({
 }) {
   const [name, setName] = useState(sticker?.name ?? '');
   const [tagText, setTagText] = useState(sticker?.tags.join(', ') ?? '');
+  // Deleting used to happen on one press, and used to be permanent. It is
+  // neither now, but a press that removes something still gets to be asked
+  // about once.
+  const [sure, setSure] = useState(false);
 
   useEffect(() => {
     setName(sticker?.name ?? '');
     setTagText(sticker?.tags.join(', ') ?? '');
+    setSure(false);
   }, [sticker?.id, sticker?.name, sticker?.tags]);
 
   if (!sticker) return null;
@@ -273,18 +279,36 @@ function StickerDetails({
         <button type="button" onClick={onClose} className="text-ink-500 underline">
           Cancel
         </button>
-        <button
-          type="button"
-          onClick={() => void onDelete()}
-          className="ml-auto text-red-700 underline"
-          title="Books already using this keep their own copy"
-        >
-          Delete from library
-        </button>
+        {sure ? (
+          <span className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setSure(false)} className="text-ink-500 underline">
+              Keep it
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSure(false);
+                void onDelete();
+              }}
+              className="text-red-700 underline"
+            >
+              Yes, delete
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSure(true)}
+            className="ml-auto text-red-700 underline"
+            title="Books already using this keep their own copy"
+          >
+            Delete from library
+          </button>
+        )}
       </div>
       <p className="text-[11px] leading-snug text-ink-500">
         Deleting it here leaves every book that already uses it alone — each one keeps its own
-        copy.
+        copy. It waits in the trash on the front page for {TRASH_DAYS} days.
       </p>
     </div>
   );

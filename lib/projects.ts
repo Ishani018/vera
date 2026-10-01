@@ -1,4 +1,5 @@
 import { migrateContents } from './contents';
+import { alive, isDeleted } from './deleted';
 import { getDb } from './db';
 import { listStandaloneDesigns } from './designs';
 import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
@@ -253,7 +254,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   const db = getDb();
   if (!db) return [];
   const rows = await db.projects.toArray();
-  return rows
+  return alive(rows)
     .map((row) => summarise(migrateProject(row)))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -290,6 +291,8 @@ export type ThumbItem =
       width: number;
       text: string;
       sizePt: number;
+      /** A multiple of the size, for stacking wrapped lines. */
+      lineHeight: number;
       color: string;
       weight: number;
       italic: boolean;
@@ -390,6 +393,7 @@ function itemsOn(
       // poem around in a list.
       text: (box.text ?? '').slice(0, 120),
       sizePt: box.font.sizePt,
+      lineHeight: box.font.lineHeight,
       color: box.font.color,
       weight: box.font.weight,
       italic: box.font.italic,
@@ -422,6 +426,35 @@ function itemsOn(
  */
 const NOMINAL_PAGES = 24;
 
+/**
+ * The front cover alone, as a thumbnail, from live state rather than a record.
+ *
+ * The same drawing the front page makes for a card, built from a cover and the
+ * layout it is on — so the designer can show what a book looks like at the
+ * size it is browsed at while it is still being made. `bookThumb` below is
+ * this, given a saved book.
+ */
+export function frontThumb(
+  cover: CoverSpec,
+  layout: { width: number; height: number; bleed: number; panels: Record<string, Region> },
+): Thumb {
+  const front = layout.panels.front ?? layout.panels.board;
+  const region: Region = front
+    ? {
+        x: front.x - layout.bleed,
+        y: 0,
+        width: front.width + layout.bleed,
+        height: layout.height,
+      }
+    : { x: 0, y: 0, width: layout.width, height: layout.height };
+  return {
+    width: region.width,
+    height: region.height,
+    background: cover.backgroundColor ?? '#f4efe4',
+    items: itemsOn(cover, layout.panels, layout, region),
+  };
+}
+
 function bookThumb(project: AnyProject): Thumb {
   // A record old enough to be missing its trim still gets a card rather than
   // taking the whole front page down with it.
@@ -435,20 +468,7 @@ function bookThumb(project: AnyProject): Thumb {
       items: [],
     };
   }
-  const layout = coverLayout(project, NOMINAL_PAGES);
-  const front = layout.panels.front;
-  const region: Region = {
-    x: front.x - layout.bleed,
-    y: 0,
-    width: front.width + layout.bleed,
-    height: layout.height,
-  };
-  return {
-    width: region.width,
-    height: region.height,
-    background: cover.backgroundColor ?? '#f4efe4',
-    items: itemsOn(cover, layout.panels, layout, region),
-  };
+  return frontThumb(cover, coverLayout(project, NOMINAL_PAGES));
 }
 
 function designThumb(design: Design): Thumb {
@@ -492,7 +512,9 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
   if (!db) return [];
   const rows = await db.projects.toArray();
   const entries: LibraryEntry[] = [];
-  for (const row of rows) {
+  // Anything in the trash is not here. `lib/deleted.ts` is the only thing that
+  // decides that, so this cannot drift from what the trash screen believes.
+  for (const row of alive(rows)) {
     const project = migrateProject(row);
     const summary = summarise(project);
     entries.push({
@@ -507,7 +529,7 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
       at: project.updatedAt,
       thumb: bookThumb(project),
     });
-    for (const design of project.designs ?? []) {
+    for (const design of alive(project.designs ?? [])) {
       entries.push({
         key: `${project.id}:${design.id}`,
         projectId: project.id,
@@ -557,9 +579,17 @@ export async function renameProject(id: string, name: string): Promise<void> {
   await db.projects.put({ ...migrateProject(row), name, updatedAt: Date.now() });
 }
 
+/**
+ * Puts a book in the trash. Its launch kit goes with it and its pictures stay.
+ *
+ * Marked rather than removed: see `lib/deleted.ts`. Throwing it away for good
+ * is `purge` in `lib/trash.ts`, and only the trash screen calls that.
+ */
 export async function deleteProject(id: string): Promise<void> {
   const db = getDb();
-  await db?.projects.delete(id);
+  const row = await db?.projects.get(id);
+  if (!db || !row) return;
+  await db.projects.put({ ...row, deletedAt: Date.now() });
 }
 
 export async function renameDesign(
@@ -578,12 +608,15 @@ export async function renameDesign(
   await db.projects.put({ ...project, updatedAt: Date.now() });
 }
 
+/** Puts one design from a book's launch kit in the trash. */
 export async function deleteDesign(projectId: string, designId: string): Promise<void> {
   const db = getDb();
   if (!db) return;
   const row = await db.projects.get(projectId);
   if (!row) return;
   const project = migrateProject(row);
-  const designs = (project.designs ?? []).filter((d) => d.id !== designId);
+  const designs = (project.designs ?? []).map((d) =>
+    d.id === designId ? { ...d, deletedAt: Date.now() } : d,
+  );
   await db.projects.put({ ...project, designs, updatedAt: Date.now() });
 }

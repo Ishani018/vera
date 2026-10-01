@@ -2,6 +2,7 @@
 
 import { copyAsset, putAsset } from '../assets';
 import { getDb } from '../db';
+import { alive } from '../deleted';
 import { id } from '../defaults';
 import type { CoverSpec, CoverSticker, CoverTemplate, LibrarySticker } from '../types';
 
@@ -19,7 +20,7 @@ import type { CoverSpec, CoverSticker, CoverTemplate, LibrarySticker } from '../
 export async function listStickers(): Promise<LibrarySticker[]> {
   const db = getDb();
   if (!db) return [];
-  const rows = await db.stickers.toArray();
+  const rows = alive(await db.stickers.toArray());
   return rows.sort((a, b) => b.createdAt - a.createdAt);
 }
 
@@ -87,15 +88,21 @@ export async function updateSticker(
   });
 }
 
-/** Removes a sticker from the library. Books that use it are not touched. */
+/**
+ * Puts a sticker in the trash. Books that use it are not touched.
+ *
+ * Its picture stays where it is. It used to be deleted here on the grounds
+ * that nothing else could refer to it — true, and no longer the point: the
+ * sticker can be restored for the next thirty days, and a restored sticker
+ * with no picture is not a restored sticker. The bytes go when the trash lets
+ * go of it, in `lib/trash.ts`.
+ */
 export async function removeSticker(stickerId: string): Promise<void> {
   const db = getDb();
   if (!db) return;
-  // Its asset goes too: nothing else refers to it, because everything that
-  // uses a library sticker took its own copy.
   const sticker = await db.stickers.get(stickerId);
-  await db.stickers.delete(stickerId);
-  if (sticker) await db.assets.delete(sticker.assetId).catch(() => undefined);
+  if (!sticker) return;
+  await db.stickers.put({ ...sticker, deletedAt: Date.now() });
 }
 
 /** Every tag in use, most common first, for offering rather than typing. */
@@ -142,7 +149,7 @@ export const parseTags = (input: string): string[] => tidyTags(input.split(/[,\s
 export async function listTemplates(): Promise<CoverTemplate[]> {
   const db = getDb();
   if (!db) return [];
-  const rows = await db.coverTemplates.toArray();
+  const rows = alive(await db.coverTemplates.toArray());
   return rows.sort((a, b) => b.createdAt - a.createdAt);
 }
 
@@ -175,18 +182,13 @@ export async function saveTemplate(name: string, cover: CoverSpec): Promise<Cove
   return template;
 }
 
+/** Puts a cover template in the trash. Its pictures stay until the trash lets go. */
 export async function removeTemplate(templateId: string): Promise<void> {
   const db = getDb();
   if (!db) return;
   const template = await db.coverTemplates.get(templateId);
-  await db.coverTemplates.delete(templateId);
   if (!template) return;
-  for (const sticker of template.cover.stickers) {
-    await db.assets.delete(sticker.assetId).catch(() => undefined);
-  }
-  if (template.cover.frontImage) {
-    await db.assets.delete(template.cover.frontImage.assetId).catch(() => undefined);
-  }
+  await db.coverTemplates.put({ ...template, deletedAt: Date.now() });
 }
 
 /**
@@ -216,9 +218,21 @@ async function withCopiedAsset(sticker: CoverSticker): Promise<CoverSticker> {
   return { ...sticker, id: id('cs'), assetId: copy?.id ?? sticker.assetId };
 }
 
-/** Every asset the library and the templates depend on, so pruning spares them. */
+/**
+ * Every asset the library and the templates depend on, so pruning spares them.
+ *
+ * Deliberately counts what is in the trash as well, which is why it reads the
+ * tables rather than calling the two list functions above. A sticker in the
+ * trash still has thirty days in which it can be restored, and restoring one
+ * whose picture had been swept up would hand back an empty square.
+ */
 export async function keptAssetIds(): Promise<string[]> {
-  const [stickers, templates] = await Promise.all([listStickers(), listTemplates()]);
+  const db = getDb();
+  if (!db) return [];
+  const [stickers, templates] = await Promise.all([
+    db.stickers.toArray(),
+    db.coverTemplates.toArray(),
+  ]);
   return [
     ...stickers.map((sticker) => sticker.assetId),
     ...templates.flatMap((template) => [
