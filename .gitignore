@@ -13,3 +13,6 @@ public/vendor/
 .render-check/
 .trim-compare/
 tests/golden/*.actual.png
+
+# Built starter packs: made from starter/<pack>/ by npm run starter:build.
+starter/dist/
