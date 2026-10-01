@@ -1,7 +1,7 @@
 import { migrateContents } from './contents';
 import { alive, isDeleted } from './deleted';
 import { getDb } from './db';
-import { listStandaloneDesigns } from './designs';
+import { copyName, listStandaloneDesigns } from './designs';
 import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
 import { DEFAULT_COLORING_TRIM, getTrim, inchesToPt } from './kdp';
 import { boardFor, presetById } from './presets';
@@ -313,6 +313,10 @@ export type Thumb = {
 export type LibraryEntry = {
   /** Unique across every kind, so it can key a list. */
   key: string;
+  /** The board size a design was made at, for grouping it. Books have none. */
+  presetId?: string;
+  /** How many stickers are on it, which is what the Stickers filter is. */
+  stickers: number;
   /** The book it lives in, or null for a design that belongs to none. */
   projectId: string | null;
   /** Set when the entry is a design rather than a book. */
@@ -520,6 +524,7 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
     entries.push({
       key: project.id,
       projectId: project.id,
+      stickers: project.cover?.stickers?.length ?? 0,
       kind: project.kind,
       bookKind: project.kind,
       name: summary.name,
@@ -534,6 +539,8 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
         key: `${project.id}:${design.id}`,
         projectId: project.id,
         designId: design.id,
+        presetId: design.presetId,
+        stickers: design.cover?.stickers?.length ?? 0,
         kind: 'design',
         bookKind: project.kind,
         name: design.name,
@@ -552,6 +559,8 @@ export async function listLibrary(): Promise<LibraryEntry[]> {
       key: design.id,
       projectId: null,
       designId: design.id,
+      presetId: design.presetId,
+      stickers: design.cover?.stickers?.length ?? 0,
       kind: 'design',
       bookKind: null,
       name: design.name,
@@ -606,6 +615,36 @@ export async function renameDesign(
   if (!design) return;
   design.name = name;
   await db.projects.put({ ...project, updatedAt: Date.now() });
+}
+
+/**
+ * A copy of one design inside a book's launch kit, beside the original.
+ *
+ * The same copy as a standalone design gets — new id, "copy" on the name — and
+ * it stays in the same book, because a launch kit design exists in relation to
+ * the book it launches.
+ */
+export async function duplicateDesign(projectId: string, designId: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const row = await db.projects.get(projectId);
+  if (!row) return;
+  const project = migrateProject(row);
+  const design = (project.designs ?? []).find((d) => d.id === designId);
+  if (!design) return;
+  const copy = {
+    ...structuredClone(design),
+    id: id('dsn'),
+    name: copyName(design.name),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  delete (copy as { deletedAt?: number }).deletedAt;
+  await db.projects.put({
+    ...project,
+    designs: [...(project.designs ?? []), copy],
+    updatedAt: Date.now(),
+  });
 }
 
 /** Puts one design from a book's launch kit in the trash. */

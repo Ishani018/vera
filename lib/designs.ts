@@ -1,6 +1,6 @@
 import { getDb } from './db';
 import { alive, isDeleted } from './deleted';
-import { createDesign } from './defaults';
+import { createDesign, id as newId } from './defaults';
 import { presetById } from './presets';
 import { SCHEMA } from './schema';
 import type { CoverSpec, StandaloneDesign } from './types';
@@ -86,4 +86,40 @@ export async function deleteStandaloneDesign(id: string): Promise<void> {
   const row = await db?.designs.get(id);
   if (!db || !row) return;
   await db.designs.put({ ...row, deletedAt: Date.now() });
+}
+
+/**
+ * A copy of a design, as a new design.
+ *
+ * A fresh id and "copy" on the end of the name, and nothing else changed: the
+ * board, its size and everything on it are the same objects. The copy is the
+ * newest thing you have made, so it lands at the front of the list where it can
+ * be found.
+ */
+export async function duplicateStandaloneDesign(id: string): Promise<StandaloneDesign | null> {
+  const db = getDb();
+  const original = await getDesign(id);
+  if (!db || !original) return null;
+  const now = Date.now();
+  const copy: StandaloneDesign = {
+    ...structuredClone(original),
+    id: newId('dsn'),
+    name: copyName(original.name),
+    createdAt: now,
+    updatedAt: now,
+  };
+  // A copy is a new thing, not a restored one: anything the original carried
+  // about being in the trash would make the copy invisible the moment it was
+  // made.
+  delete (copy as { deletedAt?: number }).deletedAt;
+  await db.designs.put(copy);
+  return copy;
+}
+
+/** "Autumn post" becomes "Autumn post copy", and again becomes "copy 2". */
+export function copyName(name: string): string {
+  const trimmed = name.trim() || 'Design';
+  const already = trimmed.match(/^(.*) copy(?: (\d+))?$/);
+  if (!already) return `${trimmed} copy`;
+  return `${already[1]} copy ${Number(already[2] ?? 1) + 1}`;
 }

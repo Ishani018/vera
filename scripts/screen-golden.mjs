@@ -391,9 +391,10 @@ async function seedBrowser(page) {
   // Seeding before the app has opened its own database would make an empty
   // one of our own and leave Dexie upgrading around it.
   await page.goto(BASE, { waitUntil: 'networkidle0' });
-  await page.waitForFunction(() => document.body.innerText.includes('Your designs'), {
-    timeout: 30000,
-  });
+  // A marker on the page rather than a phrase printed on it: this waits for the
+  // front page to have rendered, which is not a thing the words on it should be
+  // able to break. ("Your designs" became "Recent designs" and this stopped.)
+  await page.waitForSelector('[data-home]', { timeout: 30000 });
   // Listing what is saved is what makes Dexie open the database. Waiting for
   // the stores themselves rather than for a moment to pass: opening one that
   // does not exist yet would create an empty database of the wrong version and
