@@ -16,6 +16,7 @@ import type { LibrarySticker } from '@/lib/types';
 import { Modal } from '../Modal';
 import { StudioHeader } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
+import { BrowseGraphics } from './BrowseGraphics';
 import { Collage, Thumb } from './Thumb';
 import { DownloadIcon, LibraryIcon, UploadIcon } from './icons';
 import { Button, Notice, Spinner, TextInput, cx } from '../ui';
@@ -191,6 +192,17 @@ export function PackLibrary() {
               <Notice level="ok">{said}</Notice>
             </div>
           )}
+
+          {/* Browse on top, installed below: looking for something is what
+              brings somebody here, and what they already have is the answer to
+              "have I got this one already". */}
+          <div className="mt-6 border-t border-ink-200 pt-6">
+            <BrowseGraphics onAdded={() => void reload()} />
+          </div>
+
+          <div className="mt-8 border-t border-ink-200 pt-6">
+            <h2 className="text-[17px] font-semibold tracking-tight">Installed</h2>
+          </div>
 
           {!credits.length ? (
             <div className="mt-10 grid place-items-center">

@@ -291,8 +291,17 @@ export function readSmithsonian(body: unknown): { kept: Found[]; skipped: Skippe
 
 /* ----------------------------------------------------------- the manifest */
 
-/** A filename that is safe, unique and says what it is. */
-export function fileNameFor(found: Found, extension: string, taken: Set<string> = new Set()): string {
+/**
+ * A filename that is safe, unique and says what it is.
+ *
+ * Takes only the title, so the in-app browser can use the same naming without
+ * having to build a whole `Found` to ask the question.
+ */
+export function fileNameFor(
+  found: { title: string },
+  extension: string,
+  taken: Set<string> = new Set(),
+): string {
   const stem =
     found.title
       .toLowerCase()
