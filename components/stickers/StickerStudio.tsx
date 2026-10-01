@@ -878,6 +878,9 @@ export function StickerStudio() {
             <Link href="/stickers/sheet" className="text-[13px] text-accent-500 underline">
               Sticker sheet →
             </Link>
+            <Link href="/stickers/packs" className="text-[13px] text-accent-500 underline">
+              Packs →
+            </Link>
           </div>
 
           {!file ? (

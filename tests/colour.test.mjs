@@ -39,6 +39,18 @@ import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesig
 import { presetById } from '../lib/presets.ts';
 import { textArc } from '../lib/cover/curve.ts';
 import {
+  fileNames,
+  inPack,
+  isPackTag,
+  packOf,
+  packTag,
+  packsIn,
+  plainTags,
+  withPack,
+  withoutPack,
+} from '../lib/stickers/packs.ts';
+import { crc32, zipBytes } from '../lib/stickers/zip.ts';
+import {
   DEFAULT_SHEET,
   PAGES,
   atDpi,
@@ -1536,4 +1548,145 @@ test('the resolution decides the pixels, and the paper decides the inches', () =
   assert.equal(high.widthPx, 2550);
   assert.deepEqual(low.placed[0], high.placed[0], 'and where a sticker sits does not change with it');
   assert.equal(atDpi(2, 300), 600);
+});
+
+/* ------------------------------------------------------------------- packs */
+
+const sticker = (id, name, tags = []) => ({
+  id, name, assetId: `a-${id}`, width: 1000, height: 1000, createdAt: 1, tags,
+});
+
+test('a pack is a tag, and a tag is all a pack is', () => {
+  assert.equal(packTag('Autumn Leaves'), 'pack:autumn-leaves');
+  assert.equal(packTag('  Winter!  '), 'pack:winter');
+  assert.equal(packTag('   '), '', 'a nameless pack is not a pack');
+  assert.equal(packOf('pack:autumn'), 'autumn');
+  assert.equal(packOf('autumn'), null, 'an ordinary tag is not a pack');
+  assert.equal(isPackTag('pack:x'), true);
+});
+
+test('packs are gathered from the stickers that are in them', () => {
+  const stickers = [
+    sticker('a', 'One', ['pack:autumn', 'leaf']),
+    sticker('b', 'Two', ['pack:autumn', 'pack:winter']),
+    sticker('c', 'Three', ['leaf']),
+  ];
+  const packs = packsIn(stickers);
+  assert.deepEqual(packs.map((p) => p.name), ['autumn', 'winter'], 'sorted, so the list does not reshuffle');
+  assert.deepEqual(packs[0].stickerIds, ['a', 'b']);
+  assert.deepEqual(packs[1].stickerIds, ['b'], 'a sticker can be in two packs at once');
+});
+
+test('an ordinary tag is left alone by all of this', () => {
+  assert.deepEqual(plainTags(['leaf', 'pack:autumn', 'red']), ['leaf', 'red']);
+  assert.deepEqual(packsIn([sticker('a', 'One', ['leaf', 'red'])]), [], 'and makes no pack');
+});
+
+test('adding to a pack is idempotent, and removing leaves the rest', () => {
+  let tags = ['leaf'];
+  tags = withPack(tags, 'Autumn');
+  assert.deepEqual(tags, ['leaf', 'pack:autumn']);
+  assert.equal(withPack(tags, 'Autumn'), tags, 'already in it, so nothing changes at all');
+
+  tags = withPack(tags, 'Winter');
+  assert.deepEqual(withoutPack(tags, 'autumn'), ['leaf', 'pack:winter']);
+  assert.deepEqual(withoutPack(tags, 'nothing'), tags, 'removing a pack it is not in is harmless');
+});
+
+test('inPack asks about one sticker and one pack', () => {
+  const one = sticker('a', 'One', ['pack:autumn']);
+  assert.equal(inPack(one, 'autumn'), true);
+  assert.equal(inPack(one, 'winter'), false);
+  assert.equal(inPack(sticker('b', 'Two'), 'autumn'), false, 'no tags at all is not in anything');
+});
+
+test('two stickers with the same name get two different file names', () => {
+  const names = fileNames(['Leaf', 'Leaf', 'Leaf']);
+  assert.equal(new Set(names).size, 3, names.join(', '));
+  assert.deepEqual(names, ['01-leaf.png', '02-leaf.png', '03-leaf.png']);
+});
+
+test('a file name is safe, numbered and never empty', () => {
+  const names = fileNames(['Autumn / Winter', '  ', 'Ümlaut!!']);
+  assert.deepEqual(names, ['01-autumn-winter.png', '02-sticker.png', '03-mlaut.png']);
+  for (const name of names) {
+    assert.ok(/^[\w.-]+$/.test(name), `${name} is safe for a zip`);
+  }
+});
+
+/* ------------------------------------------------------------------- the zip */
+
+/** Reads a little-endian number out of the bytes, as a zip reader would. */
+const u32 = (b, at) => b[at] | (b[at + 1] << 8) | (b[at + 2] << 16) | (b[at + 3] << 24);
+const u16 = (b, at) => b[at] | (b[at + 1] << 8);
+
+test('a zip has the four signatures a reader looks for', () => {
+  const bytes = zipBytes([{ name: 'a.png', bytes: new Uint8Array([1, 2, 3]) }]);
+  assert.equal(u32(bytes, 0) >>> 0, 0x04034b50, 'a local file header first');
+  // End of central directory is the last 22 bytes.
+  const end = bytes.length - 22;
+  assert.equal(u32(bytes, end) >>> 0, 0x06054b50, 'and the end record last');
+  assert.equal(u16(bytes, end + 8), 1, 'one entry on this disk');
+  assert.equal(u16(bytes, end + 10), 1, 'and one in all');
+  // Central directory starts where the end record says it does.
+  const centralAt = u32(bytes, end + 16);
+  assert.equal(u32(bytes, centralAt) >>> 0, 0x02014b50);
+});
+
+test('every entry is stored, not compressed, because a PNG already is', () => {
+  const payload = new Uint8Array(500).fill(7);
+  const bytes = zipBytes([{ name: 'a.png', bytes: payload }]);
+  assert.equal(u16(bytes, 8), 0, 'method 0 is stored');
+  assert.equal(u32(bytes, 18), 500, 'compressed size');
+  assert.equal(u32(bytes, 22), 500, 'is the same as the uncompressed one');
+  // And the payload really is in there, byte for byte.
+  const nameLength = u16(bytes, 26);
+  const at = 30 + nameLength;
+  assert.deepEqual([...bytes.slice(at, at + 500)], [...payload]);
+});
+
+test('the central directory points at where each entry actually is', () => {
+  const entries = [
+    { name: 'one.png', bytes: new Uint8Array([1, 2, 3, 4]) },
+    { name: 'two.png', bytes: new Uint8Array([9, 9]) },
+  ];
+  const bytes = zipBytes(entries);
+  const end = bytes.length - 22;
+  let at = u32(bytes, end + 16);
+  for (const entry of entries) {
+    assert.equal(u32(bytes, at) >>> 0, 0x02014b50);
+    const where = u32(bytes, at + 42);
+    assert.equal(u32(bytes, where) >>> 0, 0x04034b50, `${entry.name}'s header is where it says`);
+    const nameLength = u16(bytes, where + 26);
+    assert.equal(
+      new TextDecoder().decode(bytes.slice(where + 30, where + 30 + nameLength)),
+      entry.name,
+    );
+    at += 46 + u16(bytes, at + 28);
+  }
+});
+
+test('the checksum is the one a zip reader will work out for itself', () => {
+  // A known CRC-32: "123456789" is the standard check value.
+  assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
+  assert.equal(crc32(new Uint8Array(0)), 0);
+
+  const payload = new Uint8Array([1, 2, 3, 4, 5]);
+  const bytes = zipBytes([{ name: 'a.png', bytes: payload }]);
+  assert.equal(u32(bytes, 14) >>> 0, crc32(payload), 'and it is what went in the header');
+});
+
+test('the same stickers zipped twice are the same bytes twice', () => {
+  const entries = [
+    { name: '01-a.png', bytes: new Uint8Array([1, 2, 3]) },
+    { name: '02-b.png', bytes: new Uint8Array([4, 5, 6]) },
+  ];
+  assert.deepEqual(zipBytes(entries), zipBytes(entries), 'fixed timestamps, so a pack can be compared');
+});
+
+test('an empty zip is still a readable zip', () => {
+  const bytes = zipBytes([]);
+  assert.equal(bytes.length, 22);
+  assert.equal(u32(bytes, 0) >>> 0, 0x06054b50);
+  assert.equal(u16(bytes, 10), 0);
 });

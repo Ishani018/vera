@@ -595,7 +595,7 @@ across, the whole chain is right.
 
 ## Stage 10 — Batch mode
 
-**Commit:** `STAGE10HASH`
+**Commit:** `0b503bd`
 
 A *Many at once* panel in the studio: choose a stack of pictures and every one
 gets the settings on screen. The results appear in a grid, and a shared tag
@@ -637,3 +637,64 @@ many; the Stop button is there for that.
 **Look at first:** drop a folder of ten or fifteen real photographs in with the
 settings you actually want, and watch the grid fill. If your machine struggles,
 tell me and I will lower the cap.
+
+---
+
+## Stage 11 — Packs
+
+**Commit:** `STAGE11HASH`
+
+A screen at `/stickers/packs`: name a pack, press stickers to put them in or
+take them out, and download the pack as a zip of PNGs.
+
+**Packs are a tag convention, as you asked.** `pack:autumn-leaves` on each
+sticker in it. Nothing new is stored, nothing is migrated, and **no version is
+bumped** — a browser check confirms the database is still version 5 with the
+same six stores after a pack is made and filled.
+
+**What the convention buys and what it costs**, both said on the screen:
+
+- A sticker can be in two packs at once, because it is just a sticker with two
+  tags.
+- Deleting a sticker cannot leave a pack pointing at nothing.
+- The existing tag search already finds packs, because it already searches tags.
+- But **an empty pack is not a thing** — there is nothing to hold it. Starting a
+  pack names it and waits for the first sticker.
+- And **renaming one retags every sticker in it**, which is a real edit rather
+  than a label change.
+
+**The zip is written by hand, with no dependency.** Entries are *stored* rather
+than deflated, which is not a shortcut: a PNG is already compressed, and
+deflating it again costs time and sometimes makes it bigger. Timestamps are
+fixed rather than taken from the clock, so the same stickers zipped twice give
+the same bytes and one pack can be compared with the one before it.
+
+**Verified against a real unzip**, not only against my own reader:
+
+```
+testing: 01-rooms.png   OK
+testing: 02-apple.png   OK
+testing: 03-cream.png   OK
+No errors detected in compressed data of pack.zip.
+```
+
+and the extracted `01-rooms.png` is byte-identical to the file that went in.
+
+**Private and local throughout.** No sharing, no browsing of anyone else's,
+nothing uploaded. A pack leaves the browser only as a zip somebody downloads,
+and the screen says so.
+
+**Checked:** `npm test` 523 pass / 0 fail (13 new, including the standard CRC-32
+check value `0xcbf43926` so the checksum is the one a zip reader works out for
+itself). Goldens unchanged, `golden:screen` 0 pixels changed, build clean. Plus
+15 browser checks and the `unzip -t` above.
+
+**Only checked in the sandbox:** `unzip` on Linux and my own reader both accept
+it. Windows Explorer's built-in zip handling and macOS Archive Utility are not
+tested, though a stored-entry zip with a correct central directory is the
+simplest case either of them handles. Worth opening one on your Mac before
+sending a pack anywhere.
+
+**Look at first:** make a pack of three, download it, and open the zip by
+double-clicking it in Finder. Then check a sticker you put in two packs shows in
+both.
