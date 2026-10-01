@@ -783,3 +783,87 @@ Four commits, in this order, on the `overnight` branch:
 - **Starter templates**, which are made of rectangles, and wait for them.
 - **Flip on a picture.** Same reason: a mirror that exists on screen and not in
   the PDF is worse than no mirror.
+
+---
+
+# Part four: Sticker Studio as built
+
+*Written 1 October 2026, after the work.* Part three is the plan; this is what
+actually happened to it, and where the plan turned out to be wrong.
+
+Branch `stickerstudio-2`, from `stickerstudio`. Stage-by-stage detail, hashes
+and what to look at first are in `docs/stickerstudio-log.md`.
+
+## 16. What was built
+
+Slices 1 and 2 landed on `stickerstudio`: the studio screen, the modes, the
+background removal, the die-cut outline, transparent PNG export, the fill
+bucket, the brush and eraser, undo and redo, and the `stickerDrafts` table
+(version 5) that stops a reload losing the work.
+
+Eleven further stages landed on `stickerstudio-2`:
+
+| | What | Where the plan was wrong |
+|---|---|---|
+| 1 | Touch-up brushes for the background removal | Not planned at all. The plan assumed automatic removal would be good enough; §18 below is why it never is. |
+| 2 | Send a sticker to a design of its own | Planned as "drop it on a board". Built with its **own copy** of the picture, which the plan had not thought about. |
+| 3 | Real-input testing, and three fixes it forced | The plan budgeted 1.5 days for background removal and treated it as done. It was not; see §18. |
+| 4 | Eyedropper and colour swapping | Not planned. |
+| 5 | Flip, turn and crop, as settings | Not planned. |
+| 6 | Words on a sticker, straight or curved | Planned as "later, maybe". The curve reuses `lib/cover/curve.ts`, which the plan did not anticipate being possible. |
+| 7 | Shadow, gloss and paper grain | Not planned. |
+| 8 | Cut-line SVG for a cutting machine | Not planned, and the clearest single reason a sticker seller would choose this over a general editor. |
+| 9 | Sticker sheets, exported as a PNG | Not planned. |
+| 10 | Batch mode | Not planned. |
+| 11 | Packs, as a tag convention | Not planned. |
+
+Nothing was skipped. One change was tried and reverted (§18). One thing was
+proposed rather than built, as instructed: a PDF sheet export, written up at the
+end of Stage 9 in the log.
+
+## 17. What the plan got right
+
+**"More than expected already exists."** It held all the way through. Every one
+of these eleven stages leant on something that was already there: `flood` for the
+fill bucket and the background removal, `dilate` for gap closing and the die-cut,
+`toLab` for every colour tolerance in the app, `lib/cover/curve.ts` for curved
+text, `lib/deleted.ts` for the drafts' trash rules, the existing font picker, the
+existing colour field, the existing presets, the existing designs table.
+
+**"It is a front door."** Still true, and more so: Stages 8 to 11 — cut lines,
+sheets, batches, packs — are a print-on-demand sticker seller's whole workflow,
+reached without touching the book path at all.
+
+**The fourteen-day estimate** covered slices 1 and 2. The eleven stages after
+them were not in it.
+
+## 18. What the plan got badly wrong: background removal
+
+The plan gave background removal **1.5 days** and treated it as a solved
+problem — a flood from the border in Lab, which is the right algorithm and was
+already written.
+
+Measured against realistic input (Stage 3, with the pictures in
+`docs/background-removal/`), it was not close. A page photographed under a desk
+lamp left a large blotch of unremoved paper in the bright corner with about
+**7,500 grains** scattered round it, and the cut-out came apart into
+**seventeen pieces**. One averaged paper colour with a fixed tolerance cannot
+reach both ends of an unevenly lit page.
+
+Three changes fixed it to 2 specks and 2 pieces: a flood that walks *down a
+gradient* rather than measuring from one colour, treating regions under 48 pixels
+as grain, and a soft cut where the flood stopped on a fade rather than an edge.
+Two bugs in that new code were found by measuring rather than by reading.
+
+**The general lesson, worth carrying to the rest of the plan.** Every other
+pixel estimate in Part three was made the same way: the algorithm is known, so
+the work is small. That reasoning is right about the algorithm and silent about
+the input. Where a feature meets a photograph somebody took, budget for
+measuring it against real pictures and fixing what that finds — it was roughly
+twice the implementation here.
+
+**And a corollary that shaped Stage 1.** No automatic removal is ever right
+everywhere. Hair, glass, a soft shadow touching its own object — these are not
+bugs to be fixed but cases the method cannot decide. The honest answer is a
+brush that lets a person correct it, and a screen that says plainly what it
+cannot do. That pairing is worth more than any further tuning.

@@ -402,3 +402,102 @@ failed them.
 anger and the cover is ready to follow, the flag becomes the default and then
 goes away. Until then the cover editor is exactly the one that has been making
 books.
+
+---
+
+## 14. Everything a person does to a sticker is a setting, not a change to their picture
+
+*1 October 2026 — decided across Stages 4, 5, 6 and 7*
+
+The upload is stored once and never written on. Recolouring, flipping, turning,
+cropping, words and decorations are all stored as small values on the draft row
+and applied on the way to the preview and on the way to the export, at the size
+each of those needs.
+
+**Why.** Three reasons, in order of how much they cost to find out the hard way.
+
+A sticker gets exported more than once — at 500 px for a shop listing and 2000 px
+for print — and a setting applies cleanly at both, where a baked pixel has to be
+resampled. Turning a drawing five degrees and back is free this way and costs two
+resamplings the other way, leaving it softer than it started. And every one of
+these is something a person will change their mind about, so the undo has to be
+real rather than a second destructive operation hoping to cancel the first.
+
+**What it costs.** The preview is a round trip through the worker rather than a
+local redraw, so a slider has a settle time of a second or so on a large picture.
+That is the trade, and it is the right way round: the delay is while you are
+looking, and the quality is in the file somebody pays for.
+
+**The one exception, and why.** The colouring and the touch-up layers *are*
+pixels, stored as lossless PNGs beside the draft. They have to be: they are marks
+somebody made with a brush at a particular place, not a value. They are kept at a
+fixed 1200-pixel grid rather than the export size, so changing the export size
+does not throw an afternoon's colouring away.
+
+**Reversible?** Each is a field on the draft row with a default, so dropping one
+means removing a field and a panel. Nothing stored anywhere else depends on them.
+
+---
+
+## 15. Packs are a tag, and drafts are a table
+
+*1 October 2026 — decided, and the two decisions are the same decision*
+
+Sticker packs are `pack:name` tags on the existing `stickers` rows. Half-finished
+stickers got their own `stickerDrafts` table and a version bump to 5.
+
+**Why they went different ways.** The question is not "how much data" but **who
+has to know about it**.
+
+A pack is a *view* of stickers that already exist. Every reader of the library
+can already read tags, the search already searches them, and a sticker in two
+packs is a sticker with two tags. Nothing has to learn anything. The costs are
+real and small: an empty pack cannot exist, and renaming one retags every sticker
+in it. Both are said on the screen.
+
+A draft is **not a sticker**. Putting half-traced work in the `stickers` table
+would mean every reader of the library — the cover designer, the launch kit, both
+backup builders, the trash — had to learn to ignore some of it, and the one that
+forgot would put a half-traced drawing on somebody's cover. A separate table makes
+that mistake impossible rather than merely unlikely: nothing outside
+`lib/stickers/drafts.ts` and `lib/trash.ts` reads it, and a test walks the whole
+source tree to prove nothing has started to.
+
+**The rule this gives.** Add a tag when the new thing is a way of looking at
+existing rows. Add a table when the new thing would be *mistaken for* an existing
+row. The second is worth a version bump; the first never is.
+
+**Reversible?** The tags, trivially — they are tags. The table, not really, which
+is why it was asked about before it was bumped.
+
+---
+
+## 16. A cut line is traced from the exported PNG, not from the mask that made it
+
+*1 October 2026 — decided in Stage 8*
+
+The SVG a cutting machine follows is traced from the alpha channel of the very
+PNG that goes to the printer, rather than recomputed from the artwork or kept
+from the mask the pipeline held a moment earlier.
+
+**Why.** Two files that are meant to describe the same edge, produced by two
+routes, will eventually disagree — and the way anybody finds out is a sheet of
+stickers cut a millimetre wrong. Tracing the file itself makes disagreement
+impossible rather than unlikely.
+
+It also settles a question that would otherwise need an opinion: the words and
+the drop shadow are in that alpha, so they are cut round. That is right. A shadow
+is part of the sticker.
+
+**What it costs.** The trace runs at export size on the main thread, which is a
+second or so on a large sticker, and it has to be done again whenever anything
+changes. Both are acceptable for something pressed once per sticker.
+
+**How it is checked.** The path is filled back into a canvas and compared with
+the alpha pixel by pixel — 99.8% agreement in the browser, exact in the unit
+tests before simplification. A simplified line may differ only *at the edge*: a
+disagreement in the middle would mean a loop wound the wrong way or a hole filled
+in, which is a sticker cut to the wrong shape rather than one cut a hair off.
+
+**Reversible?** Yes. It is one function over an alpha channel and nothing depends
+on how it got there.

@@ -642,7 +642,7 @@ tell me and I will lower the cap.
 
 ## Stage 11 — Packs
 
-**Commit:** `STAGE11HASH`
+**Commit:** `68dc50f`
 
 A screen at `/stickers/packs`: name a pack, press stickers to put them in or
 take them out, and download the pack as a zip of PNGs.
@@ -698,3 +698,163 @@ sending a pack anywhere.
 **Look at first:** make a pack of three, download it, and open the zip by
 double-clicking it in Finder. Then check a sticker you put in two packs shows in
 both.
+
+---
+
+# The whole thing, at the end
+
+*1 October 2026.* Eleven stages, eleven commits, none skipped.
+
+## Every hash
+
+| Stage | Commit | What |
+|---|---|---|
+| 1 | `2680d04` | Touch-up brushes for the background removal |
+| 2 | `5106297` | Send a sticker to a design of its own |
+| 3 | `9254990` | Background removal against real input, and three fixes for it |
+| 4 | `c387d93` | Eyedropper and colour swapping |
+| 5 | `056fccb` | Flip, turn and crop, as settings rather than pixels |
+| 6 | `72d6a6e` | Words on a sticker, straight or curved |
+| 7 | `1774354` | A shadow under it, a gloss across it, the grain of paper over it |
+| 8 | `c3530aa` | The die-cut outline as an SVG a cutting machine can follow |
+| 9 | `ae82419` | Arrange stickers on a sheet and export it as a PNG |
+| 10 | `0b503bd` | The same settings over a stack of pictures |
+| 11 | `68dc50f` | Packs as a tag convention, and a zip written by hand |
+
+## The rules, kept
+
+- `lib/render/coverHtml.ts`, the export routes, the storage keys and the database
+  names are **untouched**. `git diff stickerstudio..stickerstudio-2 --stat` shows
+  none of them.
+- The PDF strict digests are **`e3e2a36e0ac60ce1`** and **`d4eeeb9e99cb1bfe`**
+  after all eleven commits, with the strict tier *comparing* rather than skipping.
+- `golden:screen` showed **0 pixels changed** on both boards against a production
+  build after every commit.
+- **No golden was re-recorded.** None needed to be.
+- **No database version bump.** Still version 5, six stores. Every new thing —
+  `touchAssetId`, `swaps`, `frame`, `texts`, `decorations` — is a plain field on
+  the draft row, and packs are tags on existing sticker rows.
+- **No new dependencies.** The zip writer, the PNG writer used for the comparison
+  images, the contour tracer and the noise function are all written here.
+- **No generative AI.** Every pixel comes from arithmetic that gives the same
+  answer twice; Stage 7 has a browser check that renders the same sticker twice
+  and compares the files byte for byte.
+- Nothing of yours is deleted or overwritten. Drafts follow the trash rules, and
+  their assets are counted by the sweep so nothing is collected as an orphan.
+
+Tests went from **441 to 523**, all passing.
+
+## What was reverted
+
+**One thing.** In Stage 3, a *tapering step allowance* for the background
+removal — strict the further a pixel is from the paper colour — meant to stop the
+flood following a soft shadow into its own object. It helped the shadow slightly
+and hurt uneven lighting badly, taking the lamp-lit page from 502 specks to 1068
+with the bright corner breaking into fragments. Taken out, with the reason
+recorded in `lib/lineart/mask.ts` so nobody tries it twice.
+
+## What was proposed rather than built
+
+**A PDF sheet export**, at the end of Stage 9, as you asked. It can be done
+without touching the export routes — a single-image PDF is about 120 lines and no
+dependency — and it is worth doing, because a PNG has no physical size and a
+print dialogue will cheerfully resize a sheet whose whole point is that a
+two-inch sticker is two inches. Waiting on your word.
+
+## The six things to look at first, in order
+
+1. **Your books are still there.** Open the app and check the shelf. Nothing in
+   eleven stages touches them, and the schema argument says it cannot — but that
+   is the one thing worth seeing with your own eyes before anything else.
+2. **`docs/background-removal/texture-before.png` and `texture-after.png`**, side
+   by side. That pair is Stage 3 in one picture.
+3. **A real photograph through the touch-up brushes.** Open one in *Keep as is*,
+   turn on *Touch up the cut-out*, and check the green and red wash lands under
+   your cursor rather than offset from it. The wash is positioned by the die-cut
+   margin, which is the part most likely to be a pixel out on a different screen.
+4. **Turn a drawing 30° and straighten it.** It should look exactly as crisp as it
+   did. That is the whole claim of "settings, not pixels".
+5. **A cut line beside its PNG.** Export both and open the SVG in Inkscape or a
+   browser over the picture — they should sit exactly on top of each other.
+6. **Print one sheet at 100%** (not "fit to page") and measure a sticker with a
+   ruler. If it is two inches across, the whole chain is right.
+
+## What I could only check in this sandbox
+
+Collected from the stages, because it is the part worth reading twice:
+
+- **Every browser check ran in this container's Chromium 141 at 1400 × 1000, with
+  a mouse.** Touch and stylus use pointer events and `touch-none` so they should
+  behave, but no finger has touched any of this.
+- **The test photographs are arithmetic, not photographs.** A real camera adds
+  chroma noise and JPEG blocking that none of them have, and a phone photograph of
+  a sketchbook has lens vignetting that will look to the flood like more uneven
+  lighting. The direction of every Stage 3 change is right for that; the numbers
+  would differ.
+- **Fonts loaded from Google here.** A machine that cannot reach Google Fonts
+  falls back to the category fallback — the text still draws, in a different face,
+  and nothing can tell the difference. Kerning is also lost on a curve, because
+  each glyph is measured and placed on its own.
+- **No cutting machine has seen the SVG.** It is a plain path with a `viewBox` and
+  a size in millimetres, which is what Cricut and Silhouette document as
+  importable — but "documented as importable" and "imports" are not the same
+  sentence. One test cut before a run.
+- **Nothing has been printed.** Margins, sizes and DPI are right in the file;
+  whether a quarter-inch margin clears your printer's grip rollers is a question
+  only your printer answers.
+- **The zip passes `unzip -t` on Linux** and extracts byte-identically. Windows
+  Explorer and macOS Archive Utility are untested.
+- **The biggest batch I ran was five pictures.** The cap of 60 is a judgement from
+  file sizes, not a measurement. If your machine struggles, say so and I will
+  lower it.
+- **The gloss is a soft band, not a modelled reflection**, and whether it looks
+  convincing is a matter of taste no pixel count settles.
+
+## The exact commands for your Mac
+
+Fetch the branch and look at it:
+
+```bash
+cd ~/path/to/book
+git fetch origin stickerstudio-2
+git checkout stickerstudio-2
+npm install
+```
+
+Run the four checks exactly as they were run here — in this order, because the
+build wipes `.next` under a running server and the screen goldens refuse to run
+against `next dev`:
+
+```bash
+npm test
+npm run build
+npm start &                 # production server on :3000
+npm run golden              # digests must be e3e2a36e0ac60ce1 and d4eeeb9e99cb1bfe
+npm run golden:screen       # must say 0 pixel(s) changed on both boards
+kill %1
+```
+
+Just to use it:
+
+```bash
+npm run dev
+```
+
+then open <http://localhost:3000/stickers>. The sheet is at `/stickers/sheet`
+and the packs at `/stickers/packs`, both linked from the top of the studio.
+
+To see exactly what changed against where this branch started:
+
+```bash
+git diff --stat stickerstudio..stickerstudio-2
+git log --oneline stickerstudio..stickerstudio-2
+```
+
+To go back, if you want it gone:
+
+```bash
+git checkout stickerstudio      # the branch this was built from, untouched
+```
+
+`main`, `safety` and `stickerstudio` are all exactly where they were. Nothing was
+merged into any of them.
