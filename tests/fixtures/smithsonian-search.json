@@ -1,0 +1,79 @@
+{
+  "_note": "Hand-written in the shape the Smithsonian Open Access API documents for /openaccess/api/v1.0/search. Not captured from the API: the sandbox this was written in has no network. The nesting — content.descriptiveNonRepeating.online_media.media[].usage.access — is what the published schema specifies; the values are invented.",
+  "status": 200,
+  "response": {
+    "rowCount": 4,
+    "rows": [
+      {
+        "id": "edanmdm-nmnhbotany_1234567",
+        "title": "Pressed specimen of wild carrot",
+        "url": "https://www.si.edu/object/edanmdm-nmnhbotany_1234567",
+        "content": {
+          "descriptiveNonRepeating": {
+            "record_link": "https://www.si.edu/object/pressed-specimen-wild-carrot:nmnhbotany_1234567",
+            "online_media": {
+              "mediaCount": 1,
+              "media": [
+                {
+                  "thumbnail": "https://ids.si.edu/ids/deliveryService?id=thumb-1234567",
+                  "content": "https://ids.si.edu/ids/deliveryService?id=full-1234567",
+                  "usage": { "access": "CC0" }
+                }
+              ]
+            }
+          },
+          "indexedStructured": {
+            "object_type": ["Herbarium specimen"],
+            "topic": ["Botany", "Apiaceae"],
+            "name": ["Mary Botanist"]
+          }
+        }
+      },
+      {
+        "id": "edanmdm-nmah_7654321",
+        "title": "Advertising card with a brand mascot",
+        "url": "https://www.si.edu/object/edanmdm-nmah_7654321",
+        "content": {
+          "descriptiveNonRepeating": {
+            "record_link": "https://www.si.edu/object/advertising-card:nmah_7654321",
+            "online_media": {
+              "mediaCount": 1,
+              "media": [{ "content": "https://ids.si.edu/ids/deliveryService?id=full-7654321", "usage": { "access": "CC0" } }]
+            }
+          },
+          "indexedStructured": { "object_type": ["Trade card"], "topic": ["Advertising"] }
+        }
+      },
+      {
+        "id": "edanmdm-npg_1111111",
+        "title": "Portrait study in chalk",
+        "url": "https://www.si.edu/object/edanmdm-npg_1111111",
+        "content": {
+          "descriptiveNonRepeating": {
+            "record_link": "https://www.si.edu/object/portrait-study:npg_1111111",
+            "online_media": {
+              "mediaCount": 2,
+              "media": [
+                { "content": "https://ids.si.edu/ids/deliveryService?id=full-1111111", "usage": { "access": "Usage conditions apply" } },
+                { "content": "https://ids.si.edu/ids/deliveryService?id=alt-1111111", "usage": { "access": "Usage conditions apply" } }
+              ]
+            }
+          },
+          "indexedStructured": { "object_type": ["Drawing"], "topic": ["Portraits"] }
+        }
+      },
+      {
+        "id": "edanmdm-nmnh_2222222",
+        "title": "Beetle, dorsal view",
+        "url": "https://www.si.edu/object/edanmdm-nmnh_2222222",
+        "content": {
+          "descriptiveNonRepeating": {
+            "record_link": "https://www.si.edu/object/beetle:nmnh_2222222",
+            "online_media": { "mediaCount": 0, "media": [] }
+          },
+          "indexedStructured": { "object_type": ["Specimen"], "topic": ["Entomology"] }
+        }
+      }
+    ]
+  }
+}

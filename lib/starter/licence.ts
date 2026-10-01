@@ -45,8 +45,25 @@ export const tidyLicence = (raw: string): string =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
-export const isAllowedLicence = (raw: string): boolean =>
-  (ALLOWED_LICENCES as readonly string[]).includes(tidyLicence(raw));
+/**
+ * The one family rule, for how Wikimedia Commons writes public domain.
+ *
+ * Commons does not write "Public domain" on most public-domain files. It writes
+ * the template that made them so: `PD-US-expired`, `PD-old-100-expired`,
+ * `PD-self`, `PD-art`. Every member of that family *is* a public-domain
+ * dedication or a statement that copyright has expired, and refusing them would
+ * refuse most of the public domain on the site people are actually told to use.
+ *
+ * It is still a closed rule: "pd" has to be the whole first word. "PDQ special
+ * terms" does not match, and nor does anything whose first word merely starts
+ * with those letters.
+ */
+export const PD_FAMILY = /^pd( [a-z0-9 ]*)?$/;
+
+export const isAllowedLicence = (raw: string): boolean => {
+  const tidy = tidyLicence(raw);
+  return (ALLOWED_LICENCES as readonly string[]).includes(tidy) || PD_FAMILY.test(tidy);
+};
 
 /**
  * Licences that come up constantly and must still be refused, with the reason.

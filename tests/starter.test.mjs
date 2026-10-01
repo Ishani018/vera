@@ -606,3 +606,26 @@ test('a removed sticker keeps its row, so the trash and the asset sweep still se
     'its picture is still counted as in use');
   assert.equal(alive([removed]).length, 0, 'while being out of every list');
 });
+
+test('the Commons public-domain family is accepted', () => {
+  // Commons writes the template that made a file public domain, not the words
+  // "public domain", so refusing these would refuse most of the public domain
+  // on the site people are sent to.
+  for (const good of ['PD-US-expired', 'PD-old-100-expired', 'PD-self', 'PD-art', 'PD']) {
+    assert.equal(refusal(good), null, good);
+  }
+});
+
+test('a tag that merely starts with those letters is not in the family', () => {
+  for (const bad of ['PDQ special terms', 'Public domain-ish', 'PDF licence']) {
+    assert.ok(refusal(bad), bad);
+  }
+});
+
+test('the family rule is a prefix, not a list of every template — and that is a limit', () => {
+  // There are dozens of real PD- templates and more are added; listing them all
+  // would mean this file going stale rather than being wrong today. The cost is
+  // that an invented PD- tag is accepted on its name, so the rule is a filter
+  // and not a clearance. Pinned here so it is a decision and not a surprise.
+  assert.equal(refusal('PD-but-ask-first'), null);
+});

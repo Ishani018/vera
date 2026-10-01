@@ -103,3 +103,11 @@ source, and every installed sticker with its author, licence and link, and
 exports a `CREDITS.txt`
 anyway — not because a licence demands it, but so you can thank somebody, check
 a claim you took on trust, and find one item again if that claim was wrong.
+
+## Fetching from an API instead of downloading by hand
+
+`npm run starter:fetch <smithsonian|commons> "<query>" [count]` asks two
+official APIs for public-domain pictures and writes a pack folder with its
+manifest filled in. It runs on your own computer, keeps only what the API's own
+licence field says is CC0 or public domain, and never scrapes a web page. See
+[FETCHING.md](FETCHING.md) for how to run it and which terms to read first.

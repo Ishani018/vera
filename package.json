@@ -17,6 +17,7 @@
     "golden:screen:update": "npm run golden:screen -- --update",
     "check:render": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/render-check.mjs",
     "starter:build": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/starter-build.mjs",
+    "starter:fetch": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/starter-fetch.mjs",
     "trim-compare": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/trim-compare.mjs"
   },
   "dependencies": {

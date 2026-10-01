@@ -1,0 +1,111 @@
+{
+  "_note": "Hand-written in the shape the Wikimedia Commons API documents for action=query&generator=search&prop=imageinfo&iiprop=url|extmetadata. Not captured from the API: the sandbox this was written in has no network. The field names and nesting are what the published schema specifies; the values are invented.",
+  "batchcomplete": "",
+  "query": {
+    "pages": {
+      "101": {
+        "pageid": 101,
+        "ns": 6,
+        "title": "File:Botanical plate of a fern.jpg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Botanical_plate_of_a_fern.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Botanical_plate_of_a_fern.jpg",
+            "extmetadata": {
+              "LicenseShortName": { "value": "Public domain" },
+              "Artist": { "value": "<a href=\"/wiki/User:Someone\" title=\"User:Someone\">Jane Illustrator</a>" },
+              "Categories": { "value": "Ferns|Botanical illustrations|1890 books" },
+              "ObjectName": { "value": "Botanical plate of a fern" }
+            }
+          }
+        ]
+      },
+      "102": {
+        "pageid": 102,
+        "ns": 6,
+        "title": "File:Modern photograph of a leaf.jpg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Modern_photograph_of_a_leaf.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Modern_photograph_of_a_leaf.jpg",
+            "extmetadata": {
+              "LicenseShortName": { "value": "CC BY-SA 4.0" },
+              "Artist": { "value": "A Photographer" },
+              "Categories": { "value": "Leaves" }
+            }
+          }
+        ]
+      },
+      "103": {
+        "pageid": 103,
+        "ns": 6,
+        "title": "File:Logo of the city gardens society.svg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Logo_of_the_city_gardens_society.svg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Logo_of_the_city_gardens_society.svg",
+            "extmetadata": {
+              "LicenseShortName": { "value": "PD-textlogo" },
+              "Artist": { "value": "Unknown" },
+              "Categories": { "value": "Logos"}
+            }
+          }
+        ]
+      },
+      "104": {
+        "pageid": 104,
+        "ns": 6,
+        "title": "File:Herbarium sheet, pressed ivy.jpg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Herbarium_sheet_pressed_ivy.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Herbarium_sheet,_pressed_ivy.jpg",
+            "extmetadata": {
+              "LicenseShortName": { "value": "CC0" },
+              "Artist": { "value": "" },
+              "Categories": { "value": "Hedera|Herbarium specimens" }
+            }
+          }
+        ]
+      },
+      "105": {
+        "pageid": 105,
+        "ns": 6,
+        "title": "File:Old engraving of a thistle.jpg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Old_engraving_of_a_thistle.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Old_engraving_of_a_thistle.jpg",
+            "extmetadata": {
+              "LicenseShortName": { "value": "PD-old-100-expired" },
+              "Artist": { "value": "<span>Anon.</span>" },
+              "Categories": { "value": "Thistles|Engravings" }
+            }
+          }
+        ]
+      },
+      "106": {
+        "pageid": 106,
+        "ns": 6,
+        "title": "File:Mickey Mouse topiary in a public garden.jpg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/6/6f/Mickey_Mouse_topiary.jpg",
+            "descriptionurl": "https://commons.wikimedia.org/wiki/File:Mickey_Mouse_topiary_in_a_public_garden.jpg",
+            "extmetadata": {
+              "LicenseShortName": { "value": "CC0" },
+              "Artist": { "value": "A Gardener" },
+              "Categories": { "value": "Topiary" }
+            }
+          }
+        ]
+      },
+      "107": {
+        "pageid": 107,
+        "ns": 6,
+        "title": "File:A page with no file.jpg",
+        "extmetadata": {}
+      }
+    }
+  }
+}
