@@ -22,6 +22,12 @@ export type RailPanel = {
  * What is not built yet is shown and not clickable, for the same reason the
  * front page does it: a door that opens onto an apology is worse than a door
  * that is plainly locked.
+ *
+ * On a narrow window the column lies down and becomes a bar along the bottom,
+ * with the open panel above it. A 78-pixel column and a 300-pixel panel leave
+ * a phone nothing to work in; across the bottom they cost one row and the
+ * picture keeps the rest. Everything here is the same markup either way —
+ * only where it sits changes, so there is one rail to be right about.
  */
 export function Rail({
   panels,
@@ -41,7 +47,14 @@ export function Rail({
 
   return (
     <>
-      <nav className="flex w-[78px] shrink-0 flex-col gap-0.5 border-r border-ink-200 bg-paper p-1.5">
+      <nav
+        className={cx(
+          'flex shrink-0 gap-0.5 bg-paper',
+          'w-[78px] flex-col border-r border-ink-200 p-1.5',
+          // Narrow: along the bottom, scrollable sideways, ordered last.
+          'max-lg:order-last max-lg:w-full max-lg:flex-row max-lg:overflow-x-auto max-lg:border-r-0 max-lg:border-t',
+        )}
+      >
         {panels.map((panel) => (
           <button
             key={panel.id}
@@ -51,6 +64,7 @@ export function Rail({
             onClick={() => onOpen(panel.id === open ? null : panel.id)}
             className={cx(
               'grid justify-items-center gap-1 rounded-xl px-1 pb-1.5 pt-2 transition-colors',
+              'max-lg:min-w-[62px] max-lg:shrink-0',
               panel.id === open
                 ? 'bg-accent-50 text-accent-600'
                 : 'text-ink-500 hover:bg-ink-100 hover:text-ink-900',
@@ -68,12 +82,12 @@ export function Rail({
           </button>
         ))}
 
-        {soon.length > 0 && <hr className="mx-1 my-1.5 border-ink-200" />}
+        {soon.length > 0 && <hr className="mx-1 my-1.5 border-ink-200 max-lg:hidden" />}
         {soon.map((item) => (
           <span
             key={item.label}
             title="Not built yet"
-            className="grid cursor-not-allowed justify-items-center gap-1 rounded-xl px-1 pb-1.5 pt-2 text-ink-500 opacity-45"
+            className="grid cursor-not-allowed justify-items-center gap-1 rounded-xl px-1 pb-1.5 pt-2 text-ink-500 opacity-45 max-lg:min-w-[62px] max-lg:shrink-0"
           >
             <span aria-hidden className="text-[19px] leading-none">
               {item.glyph}
@@ -83,11 +97,19 @@ export function Rail({
           </span>
         ))}
 
-        {footer && <div className="mt-auto pt-2">{footer}</div>}
+        {footer && <div className="mt-auto pt-2 max-lg:ml-auto max-lg:mt-0 max-lg:self-center max-lg:pt-0">{footer}</div>}
       </nav>
 
       {shown && (
-        <section className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-r border-ink-200 bg-paper">
+        <section
+          className={cx(
+            'flex shrink-0 flex-col overflow-y-auto bg-paper',
+            'w-[300px] border-r border-ink-200',
+            // Narrow: a drawer across the bottom, above the bar, capped so it
+            // never takes the whole window.
+            'max-lg:order-last max-lg:max-h-[46vh] max-lg:w-full max-lg:border-r-0 max-lg:border-t',
+          )}
+        >
           <header className="flex items-baseline justify-between gap-2 px-4 pb-2 pt-4">
             <h3 className="text-[17px] font-semibold tracking-tight">{shown.label}</h3>
             <button

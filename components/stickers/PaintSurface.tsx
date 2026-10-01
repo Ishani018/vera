@@ -86,6 +86,7 @@ export function PaintSurface({
   onLeak,
   onPick,
   onCrop,
+  interactive = true,
 }: {
   ink: InkResult | null;
   tool: Tool;
@@ -111,6 +112,15 @@ export function PaintSurface({
   onPick: (at: { u: number; v: number; fromLayer: string | null }) => void;
   /** A box dragged out with the crop tool, in fractions of the picture. */
   onCrop: (box: { x: number; y: number; width: number; height: number }) => void;
+  /**
+   * Whether the pointer reaches this surface at all.
+   *
+   * The layers stay on screen whatever panel is open — the colouring is part of
+   * the picture, and a picture that loses its colour when you look at something
+   * else is a picture nobody trusts. But only a panel with a brush in it should
+   * take a click, so when none is open the surface is shown and deaf.
+   */
+  interactive?: boolean;
 }) {
   const colourCanvas = useRef<HTMLCanvasElement>(null);
   const touchCanvas = useRef<HTMLCanvasElement>(null);
@@ -421,7 +431,7 @@ export function PaintSurface({
         <canvas ref={colourCanvas} aria-label="The colouring" className="h-full w-full" />
       </div>
       <div
-        className="absolute inset-0 z-20"
+        className={cx('absolute inset-0 z-20', !interactive && 'pointer-events-none')}
         style={inset}
         onPointerDown={begin}
         onPointerMove={move}

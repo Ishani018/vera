@@ -42,7 +42,13 @@ export function Control({
   );
 }
 
-export type Choice<T extends string> = { value: T; label: string; note: string };
+export type Choice<T extends string> = {
+  value: T;
+  label: string;
+  note: string;
+  /** The longer explanation, which belongs on the card rather than under it. */
+  hint?: string;
+};
 
 /**
  * A row of big labelled cards, one of which is chosen.
@@ -60,24 +66,36 @@ export function ModeChoice<T extends string>({
   columns = 2,
   children,
 }: {
-  title: string;
+  /** Left out when the panel it sits in already says where you are. */
+  title?: string;
   hint?: ReactNode;
   value: T;
   choices: Array<Choice<T>>;
   onChange: (value: T) => void;
-  columns?: 2 | 3;
+  /**
+   * How many across. One is for a narrow panel: these cards are decided by the
+   * sentence under each label, and three of them in three hundred pixels wraps
+   * every one of those sentences into a column of single words.
+   */
+  columns?: 1 | 2 | 3;
   /** Anything to say once a particular choice has been made. */
   children?: ReactNode;
 }) {
   return (
     <div>
-      <span className="block font-[570]">{title}</span>
+      {title && <span className="block font-[570]">{title}</span>}
       {hint && <span className="mt-0.5 block text-[14px] text-ink-500">{hint}</span>}
-      <div className={cx('mt-3 grid gap-2.5', columns === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+      <div
+        className={cx(
+          'mt-3 grid gap-2.5',
+          columns === 1 ? 'grid-cols-1' : columns === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2',
+        )}
+      >
         {choices.map((choice) => (
           <button
             key={choice.value}
             type="button"
+            title={choice.hint}
             aria-pressed={choice.value === value}
             onClick={() => onChange(choice.value)}
             className={cx(
