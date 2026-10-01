@@ -16,3 +16,12 @@ tests/golden/*.actual.png
 
 # Built starter packs: made from starter/<pack>/ by npm run starter:build.
 starter/dist/
+
+# Fetched packs: downloads, not source. `npm run starter:fetch-all` writes one
+# folder per category here, and it can write them again — committing a few
+# hundred museum photographs would be committing somebody else's bytes to say
+# what a script can say in a line. The two packs that ARE committed are drawn
+# by scripts/make-line-pack.mjs rather than downloaded.
+/starter/*/
+!/starter/sample/
+!/starter/lines/

@@ -223,3 +223,15 @@ test('what a file is comes from the server first and the URL second', () => {
   assert.equal(extensionFor('https://x/y', null), null);
   assert.equal(extensionFor('https://x/y.svg', 'image/svg+xml'), null);
 });
+
+test('a fourth argument names the pack, for the curated run', () => {
+  assert.deepEqual(parseAsk(['commons', 'animal illustration engraving', '12', 'Animals']).ask, {
+    source: 'commons',
+    query: 'animal illustration engraving',
+    count: 12,
+    pack: 'animals',
+  });
+  // Left out, the folder is still named after the query.
+  assert.equal(parseAsk(['commons', 'ferns', '5']).ask.pack, undefined);
+  assert.match(parseAsk(['commons', 'ferns', '5', '***']).problem, /not a usable pack name/);
+});

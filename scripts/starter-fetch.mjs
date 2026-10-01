@@ -48,7 +48,7 @@ const stop = (message) => {
 
 const asked = parseAsk(process.argv.slice(2));
 if ('problem' in asked) stop(asked.problem);
-const { source, query, count } = asked.ask;
+const { source, query, count, pack: named } = asked.ask;
 
 /** The whole run shares one clock, so the rate limit is a rate, not a pause. */
 const startedAt = Date.now();
@@ -125,7 +125,7 @@ async function searchSmithsonian() {
 
 /* ------------------------------------------------------------ the fetching */
 
-const pack = packNameFor(query);
+const pack = named ?? packNameFor(query);
 const folder = join(ROOT, 'starter', pack);
 if (existsSync(folder) && readdirSync(folder).length) {
   stop(

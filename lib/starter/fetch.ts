@@ -28,11 +28,11 @@ export const LIMITS = {
   perRun: 100,
 } as const;
 
-export type Ask = { source: Source; query: string; count: number };
+export type Ask = { source: Source; query: string; count: number; pack?: string };
 
 /** What the command line said, or why it cannot be obeyed. */
 export function parseAsk(argv: string[]): { ask: Ask } | { problem: string } {
-  const [source, query, count] = argv;
+  const [source, query, count, pack] = argv;
   if (!source || !query) {
     return { problem: 'Usage: npm run starter:fetch <smithsonian|commons> "<query>" [count]' };
   }
@@ -50,7 +50,17 @@ export function parseAsk(argv: string[]): { ask: Ask } | { problem: string } {
         'run it again with a narrower query rather than asking for a thousand at once.',
     };
   }
-  return { ask: { source: source as Source, query: query.trim(), count: wanted } };
+  // A fourth argument names the folder, for the curated run where "Animals"
+  // is a better pack name than "animal-illustration-engraving". A name with no
+  // letters or digits in it is refused rather than quietly becoming the
+  // fallback, because somebody who named a pack meant that name.
+  if (pack !== undefined && !/[a-z0-9]/i.test(pack)) {
+    return { problem: `"${pack}" is not a usable pack name.` };
+  }
+  const named = pack ? packNameFor(pack) : undefined;
+  return {
+    ask: { source: source as Source, query: query.trim(), count: wanted, ...(named ? { pack: named } : {}) },
+  };
 }
 
 /** Milliseconds to wait before request number `n` of a run. */

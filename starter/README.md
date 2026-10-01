@@ -106,8 +106,28 @@ a claim you took on trust, and find one item again if that claim was wrong.
 
 ## Fetching from an API instead of downloading by hand
 
-`npm run starter:fetch <smithsonian|commons> "<query>" [count]` asks two
+`npm run starter:fetch <smithsonian|commons> "<query>" [count] [pack]` asks two
 official APIs for public-domain pictures and writes a pack folder with its
 manifest filled in. It runs on your own computer, keeps only what the API's own
 licence field says is CC0 or public domain, and never scrapes a web page. See
 [FETCHING.md](FETCHING.md) for how to run it and which terms to read first.
+
+### The whole collection in one go
+
+```bash
+npm run starter:fetch-all            # six packs, 12 each, from Commons
+npm run starter:fetch-all 20         # 20 each
+npm run starter:fetch-all 12 smithsonian
+```
+
+Runs the same curated list the app offers as chips — Botanical, Animals, Birds,
+Food, Vintage, Ornaments — one pack per category, through the same fetcher, at
+the same rate the service asks for, then builds the zips. A category whose
+folder already exists is left alone, so running it twice does not download what
+you already have; delete the folder to fetch it again. If a service says "slow
+down" or refuses, it stops there rather than asking five more times.
+
+**What it writes is not committed.** `.gitignore` keeps every fetched pack out
+of git: they are downloads, not source, and this script can write them again.
+The two packs that *are* committed — `sample` and `lines` — are drawn by
+`scripts/make-line-pack.mjs` rather than downloaded.
