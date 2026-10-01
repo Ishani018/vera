@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { UnsupportedImageError, getAsset, putAsset } from '@/lib/assets';
 import { saveToLibrary, parseTags } from '@/lib/cover/library';
 import { renderSticker, traceInk, type InkResult } from '@/lib/lineart/client';
+import { when } from '@/lib/when';
 import {
   DRAFT_EDGE,
   SHOW_WORKING_AFTER,
@@ -39,7 +40,9 @@ import { ColourField } from '../cover/ColourField';
 import { Control, ModeChoice } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { Rail } from '../cover/Rail';
-import { DropZone, Field, Stage, useAfter } from './StudioShell';
+import { Field, Stage, useAfter } from './StudioShell';
+import { StudioStart } from './StudioStart';
+import { StickerTabs } from './StickerTabs';
 import { Button, Notice, Spinner, TextInput, Toggle, WhileSliding, cx } from '../ui';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 import { BatchPanel } from './BatchPanel';
@@ -1935,62 +1938,18 @@ export function StickerStudio() {
       <main className="flex h-dvh flex-col">
         <StudioHeader>
           <span className="text-[15.5px] font-[560]">Sticker Studio</span>
-          <span className="ml-auto flex shrink-0 items-center gap-4 text-[13px]">
-            <Link href="/stickers/sheet" className="text-accent-500 underline">
-              Sticker sheet
-            </Link>
-            <Link href="/stickers/packs" className="text-accent-500 underline">
-              Packs
-            </Link>
-            <Link href="/" className="text-accent-500 underline">
-              Everything
-            </Link>
-          </span>
+          <Link href="/" className="ml-auto shrink-0 text-[13px] text-accent-500 underline">
+            Everything you have made
+          </Link>
         </StudioHeader>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
-            <h1 className="text-[27px] font-semibold tracking-tight">Make a sticker</h1>
-            <p className="mt-2 text-[15px] leading-relaxed text-ink-500">
-              A drawing, a painting or a photograph on plain paper. It comes back with the
-              background knocked out and, if you want one, a die-cut edge round it.
-            </p>
-
-            {resumable && (
-              <div className="mt-6 rounded-2xl border border-ink-200 bg-paper-0 px-4 py-4">
-                <p className="text-[14.5px] leading-snug">
-                  You were in the middle of{' '}
-                  <span className="font-[570]">{resumable.name || 'a sticker'}</span>.
-                </p>
-                <p className="mt-0.5 text-[12.5px] text-ink-500">
-                  Last changed {when(resumable.updatedAt)}. Nothing has been added to My stickers.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button variant="primary" disabled={busy} onClick={() => void resume(resumable)}>
-                    Carry on with it
-                  </Button>
-                  <Button
-                    disabled={busy}
-                    title="Into the trash for thirty days, like everything else"
-                    onClick={() => void discard(resumable)}
-                  >
-                    Throw it away
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6">
-              <DropZone busy={busy} onFiles={(files) => void take(files?.[0])} />
-            </div>
-
-            {problem && (
-              <div className="mt-4">
-                <Notice level="error">{problem}</Notice>
-              </div>
-            )}
-          </div>
-        </div>
+        <StudioStart
+          busy={busy}
+          problem={problem}
+          onFiles={(files) => void take(files?.[0])}
+          resumable={resumable}
+          onResume={(draft) => void resume(draft)}
+          onDiscard={(draft) => void discard(draft)}
+        />
       </main>
     );
   }
@@ -2037,6 +1996,7 @@ export function StickerStudio() {
         </span>
       </StudioHeader>
 
+      <StickerTabs />
       <WhileSliding onChange={setDragging}>
       <div className="flex min-h-0 flex-1 max-lg:flex-col">
         <Rail panels={panels} open={openPanel} onOpen={setOpenPanel} />
@@ -2193,14 +2153,3 @@ function save(blob: Blob, name: string) {
 const slug = (text: string) =>
   text.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'sticker';
 
-/** "four minutes ago", for a draft that was open a moment before a reload. */
-function when(at: number): string {
-  const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
-  if (seconds < 90) return 'a moment ago';
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} minutes ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return hours === 1 ? 'an hour ago' : `${hours} hours ago`;
-  const days = Math.round(hours / 24);
-  return days === 1 ? 'yesterday' : `${days} days ago`;
-}

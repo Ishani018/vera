@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { getAsset, getAssetUrl } from '@/lib/assets';
 import { listStickers, updateSticker } from '@/lib/cover/library';
 import {
@@ -20,6 +19,7 @@ import { removeSticker } from '@/lib/cover/library';
 import { Modal } from '../Modal';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader } from '../StudioHeader';
+import { StickerTabs } from './StickerTabs';
 import { Button, Notice, TextInput, cx } from '../ui';
 
 /**
@@ -226,20 +226,10 @@ export function StickerPacks() {
         <span className="ml-auto shrink-0 text-[13px] text-ink-500">kept on this computer only</span>
       </StudioHeader>
 
+      <StickerTabs />
+
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-          <div className="flex items-center gap-4">
-            <Link href="/stickers" className="text-[13px] text-accent-500 underline">
-              ← Sticker Studio
-            </Link>
-            <Link href="/stickers/sheet" className="text-[13px] text-accent-500 underline">
-              Sticker sheet →
-            </Link>
-            <Link href="/stickers/sources" className="text-[13px] text-accent-500 underline">
-              Sources and licences →
-            </Link>
-          </div>
-
           {!stickers.length ? (
             <div className="mt-6">
               <h1 className="text-[26px] font-semibold tracking-tight">Nothing to group yet</h1>

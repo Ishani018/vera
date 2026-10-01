@@ -91,3 +91,22 @@ test('an unknown total has no fraction, rather than a made-up one', () => {
   assert.equal(progressFraction(3, 0), null);
   assert.equal(progressFraction(3, 12), 0.25);
 });
+
+import { when } from '../lib/when.ts';
+
+test('how long ago is rounded to something a person would say', () => {
+  const now = Date.UTC(2026, 0, 2, 12, 0, 0);
+  const ago = (ms) => when(now - ms, now);
+  assert.equal(ago(0), 'a moment ago');
+  assert.equal(ago(80 * 1000), 'a moment ago');
+  assert.equal(ago(4 * 60 * 1000), '4 minutes ago');
+  assert.equal(ago(62 * 60 * 1000), 'an hour ago');
+  assert.equal(ago(5 * 3600 * 1000), '5 hours ago');
+  assert.equal(ago(26 * 3600 * 1000), 'yesterday');
+  assert.equal(ago(5 * 24 * 3600 * 1000), '5 days ago');
+});
+
+test('a clock that has slipped backwards does not say "in -3 minutes"', () => {
+  const now = Date.UTC(2026, 0, 2, 12, 0, 0);
+  assert.equal(when(now + 3 * 60 * 1000, now), 'a moment ago');
+});

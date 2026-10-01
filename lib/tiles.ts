@@ -104,10 +104,13 @@ export const TILES: Tile[] = [
     art: 'pin',
   },
   {
+    // The tile opens the hub rather than the editor: behind it are four pages
+    // — make one, lay them out, pack them, see what is installed — and a tile
+    // that dropped straight into an upload box hid three of them.
     id: 'sticker-studio',
-    label: 'Sticker Studio',
+    label: 'Stickers',
     category: 'stickers',
-    size: 'Transparent PNG, any size',
+    size: 'Make, print, pack',
     status: 'ready',
     destination: { kind: 'route', href: '/stickers' },
     art: 'sticker',

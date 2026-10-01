@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { getAssetUrl } from '@/lib/assets';
 import { listStickers } from '@/lib/cover/library';
 import { cutLine } from '@/lib/stickers/cutline';
@@ -15,6 +14,7 @@ import {
 import type { LibrarySticker } from '@/lib/types';
 import { Control } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
+import { StickerTabs } from './StickerTabs';
 import { Button, Notice, Toggle, cx } from '../ui';
 
 /**
@@ -184,12 +184,10 @@ export function StickerSheet() {
         <span className="ml-auto shrink-0 text-[13px] text-ink-500">made in this browser</span>
       </StudioHeader>
 
+      <StickerTabs />
+
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-          <Link href="/stickers" className="text-[13px] text-accent-500 underline">
-            ← Sticker Studio
-          </Link>
-
           {!stickers.length ? (
             <div className="mt-6">
               <h1 className="text-[26px] font-semibold tracking-tight">Nothing to arrange yet</h1>
