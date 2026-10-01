@@ -2,6 +2,8 @@ import { getDb } from '../db';
 import { alive, isDeleted } from '../deleted';
 import { id } from '../defaults';
 import { DEFAULT_LINE_ART } from '../projects';
+import { NO_DECORATION } from './decorate';
+import { NO_FRAME } from './frame';
 import type { StickerDraft } from '../types';
 
 /**
@@ -38,6 +40,11 @@ export function newDraft(sourceAssetId: string, name: string): StickerDraft {
     dieCut: null,
     size: 1000,
     colourAssetId: null,
+    touchAssetId: null,
+    swaps: [],
+    texts: [],
+    decorations: { ...NO_DECORATION },
+    frame: { ...NO_FRAME },
     colourAt: null,
     gapClosing: 2,
     createdAt: now,
@@ -53,6 +60,11 @@ export function migrateDraft(raw: unknown): StickerDraft {
     settings: { ...DEFAULT_LINE_ART, ...(record.settings ?? {}) },
     gapClosing: record.gapClosing ?? 2,
     colourAssetId: record.colourAssetId ?? null,
+    touchAssetId: record.touchAssetId ?? null,
+    swaps: record.swaps ?? [],
+    texts: record.texts ?? [],
+    decorations: { ...NO_DECORATION, ...(record.decorations ?? {}) },
+    frame: { ...NO_FRAME, ...(record.frame ?? {}) },
     colourAt: record.colourAt ?? null,
   };
 }

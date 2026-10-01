@@ -636,6 +636,44 @@ export type StickerDraft = {
    * pixels that were left.
    */
   colourAssetId: string | null;
+  /**
+   * The hand corrections to the background removal, stored the same way and
+   * for the same reason: a field on the row, not a new table, so no version
+   * bump — IndexedDB stores whole objects and only indexes need declaring.
+   */
+  touchAssetId: string | null;
+  /** Colours changed on a kept picture, in order. Another plain field. */
+  swaps: { from: string; to: string; tolerance: number }[];
+  /** A shadow under it, a gloss across it, the grain of paper over it. */
+  decorations: {
+    shadow: { blur: number; offsetX: number; offsetY: number; opacity: number; colour: string } | null;
+    gloss: { strength: number; angle: number } | null;
+    grain: { strength: number; scale: number } | null;
+  };
+  /** Words on the sticker. Drawn at export; never baked into the upload. */
+  texts: {
+    id: string;
+    text: string;
+    family: string;
+    fallback: string;
+    weight: number;
+    colour: string;
+    size: number;
+    lineHeight: number;
+    align: 'left' | 'center' | 'right';
+    x: number;
+    y: number;
+    width: number;
+    curve: number;
+    outline: { width: number; colour: string } | null;
+  }[];
+  /** Flipping, turning and cropping. Settings, never baked pixels. */
+  frame: {
+    flipX: boolean;
+    flipY: boolean;
+    rotate: number;
+    crop: { x: number; y: number; width: number; height: number } | null;
+  };
   colourAt: { width: number; height: number } | null;
   /** How far outlines are thickened, invisibly, to stop a fill leaking. */
   gapClosing: number;

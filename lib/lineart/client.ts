@@ -110,9 +110,10 @@ export function traceInk(
   settings: LineArtSettings,
   mode: 'convert' | 'cleanup' | 'asis',
   longEdge: number,
+  frame?: InkRequest['frame'],
 ): Promise<InkResult> {
   const id = nextId++;
-  const request: InkRequest = { id, job: 'ink', blob, settings, mode, longEdge };
+  const request: InkRequest = { id, job: 'ink', blob, settings, mode, longEdge, frame };
   return new Promise<InkResult>((resolve, reject) => {
     pending.set(id, { resolve: resolve as Waiting['resolve'], reject });
     ensureWorker().postMessage(request);

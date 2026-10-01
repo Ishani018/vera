@@ -12,6 +12,7 @@ import {
   type Analysis,
 } from './pipeline';
 import {
+  applyTouch,
   backgroundMask,
   compositeSticker,
   dieCutRing,
@@ -24,6 +25,12 @@ import {
   SOLID,
   type Mask,
 } from './mask';
+import { applyFrame, borderColour, flatten, isPlain, NO_FRAME } from '../stickers/frame';
+import type { Frame } from '../stickers/frame';
+import { decorate, hasAny, NO_DECORATION, shadowRoom } from '../stickers/decorate';
+import type { Decorations } from '../stickers/decorate';
+import { applySwaps } from '../stickers/recolour';
+import type { Swap } from '../stickers/recolour';
 import type { LineArtSettings, SourceKind } from '../types';
 
 /**
@@ -58,6 +65,21 @@ export type StickerOptions = {
    * would cost a second and gain nothing.
    */
   colour?: { width: number; height: number; data: Uint8ClampedArray } | null;
+  /**
+   * The touch-up layer: where the background removal was corrected by hand.
+   * Applied to the mask before the outline or the feathering see it, so every
+   * one of them works from the shape that is actually wanted.
+   */
+  touch?: { width: number; height: number; data: Uint8ClampedArray } | null;
+  /**
+   * Colours to change, in order, on a kept picture. Nothing for traced line
+   * art, where the one colour there is has its own control.
+   */
+  swaps?: Swap[];
+  /** Flipping, turning and cropping, applied to the source before anything else. */
+  frame?: Frame;
+  /** A shadow under it, a gloss across it, the grain of paper over it. */
+  decorations?: Decorations;
 };
 
 export type StickerRequest = {
@@ -106,6 +128,8 @@ export type InkRequest = {
   mode: 'convert' | 'cleanup' | 'asis';
   /** The grid the colouring will be painted on. */
   longEdge: number;
+  /** The same framing the sticker gets, so the two line up pixel for pixel. */
+  frame?: Frame;
 };
 
 export type InkResponse =
@@ -257,7 +281,7 @@ self.onmessage = async (event: MessageEvent<LineArtRequest | StickerRequest | In
  */
 async function makeSticker({ id, blob, settings, options }: StickerRequest): Promise<void> {
   try {
-    const decoded = await createImageBitmap(blob);
+    const decoded = await framed(blob, options.frame);
     const sourceLongEdge = Math.max(decoded.width, decoded.height);
 
     // Traced lines enlarge cleanly — a few hard edges that re-threshold back to
@@ -292,6 +316,10 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       if (!fullContext) throw new Error('This browser cannot read image data.');
       fullContext.drawImage(decoded, 0, 0, outWidth, outHeight);
       paint = fullContext.getImageData(0, 0, outWidth, outHeight);
+      // Recoloured before the background is worked out, so replacing a colour
+      // cannot quietly move the edge: the removal sees the picture the person
+      // is looking at.
+      if (options.swaps?.length) paint = applySwaps(paint, options.swaps);
       subject = options.removeBackground
         ? backgroundMask(paint, options.tolerance)
         : makeMask(outWidth, outHeight, SOLID);
@@ -306,6 +334,20 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       subject = maskFromInk(lines);
     }
     decoded.close();
+
+    // Hand corrections first, before anything has looked at the mask: the
+    // outline, the feathering and the alpha channel must all agree about where
+    // the sticker's edge is, and the person who painted it is the authority.
+    if (options.touch) {
+      subject = applyTouch(
+        subject,
+        scalePaint(
+          { width: options.touch.width, height: options.touch.height, data: options.touch.data },
+          subject.width,
+          subject.height,
+        ),
+      );
+    }
 
     // The colouring was painted on its own grid, which is rarely the size being
     // exported at. Resized to match before anything is padded, so it lines up
@@ -335,9 +377,13 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       outline = { width: subject.width, height: subject.height, data: merged };
     }
 
-    // Room for the outline, made before it is drawn, so a sticker whose artwork
-    // runs to the edge does not get its edge cut off by the edge.
-    const pad = options.dieCut ? Math.ceil(options.dieCut.width + options.smoothing) + 2 : 0;
+    // Room for the outline and for the shadow, made before either is drawn, so
+    // a sticker whose artwork runs to the edge does not get its edge cut off by
+    // the edge — and neither does the shadow it casts past that.
+    const decorations = options.decorations ?? NO_DECORATION;
+    const pad =
+      (options.dieCut ? Math.ceil(options.dieCut.width + options.smoothing) + 2 : 0) +
+      shadowRoom(decorations);
     if (pad) {
       const padded = padMask(subject, pad);
       outline = outline === subject ? padded : padMask(outline, pad);
@@ -353,7 +399,7 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       : null;
     const softened = options.smoothing > 0 ? feather(subject, Math.round(options.smoothing)) : subject;
 
-    const composed = compositeSticker({
+    const plain = compositeSticker({
       subject: softened,
       ring,
       paint,
@@ -361,6 +407,17 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       inkColour: options.inkColour,
       ringColour: options.dieCut?.colour ?? '#FFFFFF',
     });
+
+    // The shadow is cast by the whole of what is there — the outline included,
+    // because a die-cut sticker is one piece of vinyl and casts one shadow.
+    const whole: Mask = ring
+      ? {
+          width: outline.width,
+          height: outline.height,
+          data: Uint8Array.from(outline.data, (v, p) => Math.max(v, ring.data[p])),
+        }
+      : outline;
+    const composed = hasAny(decorations) ? decorate(plain, whole, decorations) : plain;
 
     const out = new OffscreenCanvas(outWidth, outHeight);
     const outContext = out.getContext('2d');
@@ -409,9 +466,9 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
  * blank plane, and colouring it behaves like painting on glass over the top.
  * That is the honest answer: there is nothing there for a fill to stop at.
  */
-async function traceInk({ id, blob, settings, mode, longEdge }: InkRequest): Promise<void> {
+async function traceInk({ id, blob, settings, mode, longEdge, frame }: InkRequest): Promise<void> {
   try {
-    const decoded = await createImageBitmap(blob);
+    const decoded = await framed(blob, frame);
     const sourceLongEdge = Math.max(decoded.width, decoded.height);
     const traceAt = Math.min(sourceLongEdge, TRACE_EDGE);
     const scale = traceAt / sourceLongEdge;
@@ -457,4 +514,39 @@ async function traceInk({ id, blob, settings, mode, longEdge }: InkRequest): Pro
     };
     self.postMessage(response);
   }
+}
+
+/**
+ * The upload, decoded and framed.
+ *
+ * Framing happens here rather than further down because everything after it —
+ * the tracing, the background removal, the colouring grid — has to agree about
+ * what the picture is. A crop applied later would leave the colouring painted
+ * on a picture that no longer exists.
+ *
+ * An unframed picture skips the canvas round trip entirely and comes back as
+ * the decoded bitmap, so the common case costs nothing.
+ */
+async function framed(blob: Blob, frame?: Frame): Promise<ImageBitmap> {
+  const decoded = await createImageBitmap(blob);
+  if (!frame || isPlain(frame ?? NO_FRAME)) return decoded;
+
+  const canvas = new OffscreenCanvas(decoded.width, decoded.height);
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('This browser cannot read image data.');
+  context.drawImage(decoded, 0, 0);
+  decoded.close();
+
+  const original = context.getImageData(0, 0, canvas.width, canvas.height);
+  // Onto the picture's own paper, not left see-through: a turn leaves empty
+  // corners, and the tracer reads a colour, so a transparent corner would be
+  // read as black and come back as solid ink.
+  const out = flatten(applyFrame(original, frame), borderColour(original));
+  const held = new OffscreenCanvas(out.width, out.height);
+  const heldContext = held.getContext('2d');
+  if (!heldContext) throw new Error('This browser cannot draw the result.');
+  const image = heldContext.createImageData(out.width, out.height);
+  image.data.set(out.data);
+  heldContext.putImageData(image, 0, 0);
+  return held.transferToImageBitmap();
 }

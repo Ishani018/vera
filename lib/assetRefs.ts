@@ -76,5 +76,7 @@ export function templateAssets(template: CoverTemplate): string[] {
  * halfway through making.
  */
 export function draftAssets(draft: StickerDraft): string[] {
-  return [draft.sourceAssetId, draft.colourAssetId].filter((id): id is string => Boolean(id));
+  return [draft.sourceAssetId, draft.colourAssetId, draft.touchAssetId].filter(
+    (id): id is string => Boolean(id),
+  );
 }

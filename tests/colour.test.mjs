@@ -3,8 +3,17 @@ import test from 'node:test';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { INK, PAPER } from '../lib/lineart/pipeline.ts';
-import { compositeSticker, maskFromInk, scalePaint } from '../lib/lineart/mask.ts';
+import { INK, PAPER, flood } from '../lib/lineart/pipeline.ts';
+import {
+  DROP,
+  KEEP,
+  REMOVAL_DEFAULTS,
+  applyTouch,
+  backgroundMask,
+  compositeSticker,
+  maskFromInk,
+  scalePaint,
+} from '../lib/lineart/mask.ts';
 import {
   HISTORY_STEPS,
   LEAK_SHARE,
@@ -16,13 +25,76 @@ import {
   fillAt,
   makePaint,
   painted,
+  parseColour,
   smear,
+  softDisc,
+  softSmear,
 } from '../lib/stickers/colour.ts';
 import { buildBackup } from '../lib/backup.ts';
 import { createProject } from '../lib/defaults.ts';
 import { draftList, migrateDraft, newDraft } from '../lib/stickers/drafts.ts';
 import { draftAssets } from '../lib/assetRefs.ts';
 import { listTrash } from '../lib/trash.ts';
+import { FILL, SEND_TO, placeCentred, roomOn } from '../lib/stickers/sendToDesign.ts';
+import { presetById } from '../lib/presets.ts';
+import { textArc } from '../lib/cover/curve.ts';
+import {
+  fileNames,
+  inPack,
+  isPackTag,
+  packOf,
+  packTag,
+  packsIn,
+  plainTags,
+  withPack,
+  withoutPack,
+} from '../lib/stickers/packs.ts';
+import { crc32, zipBytes } from '../lib/stickers/zip.ts';
+import {
+  DEFAULT_SHEET,
+  PAGES,
+  atDpi,
+  capacityFor,
+  layOutSheet,
+} from '../lib/stickers/sheet.ts';
+import {
+  cutLine,
+  cutLineSvg,
+  simplify,
+  strayed,
+  traceLoops,
+} from '../lib/stickers/cutline.ts';
+import {
+  NO_DECORATION,
+  addGloss,
+  addGrain,
+  addShadow,
+  decorate,
+  hasAny,
+  shadowRoom,
+} from '../lib/stickers/decorate.ts';
+import { arcFor, fontOf, glyphSpot, measure, newText, placeOnArc } from '../lib/stickers/text.ts';
+import {
+  NO_FRAME,
+  applyFrame,
+  borderColour,
+  contentBox,
+  crop,
+  flatten,
+  flip,
+  isPlain,
+  norm,
+  quarterFrom,
+  quarterTurn,
+  rotate,
+} from '../lib/stickers/frame.ts';
+import {
+  applySwaps,
+  labDistance,
+  matchingInPaint,
+  sampleAt,
+  toHex,
+} from '../lib/stickers/recolour.ts';
 
 /* ---------------------------------------------------------------- fixtures */
 
@@ -427,4 +499,1194 @@ test('the trash knows about drafts, so a deleted one can come back', () => {
   const draft = { ...newDraft('src', 'Fox'), colourAssetId: 'colour' };
   assert.deepEqual(draftAssets(draft), ['src', 'colour']);
   assert.deepEqual(draftAssets({ ...draft, colourAssetId: null }), ['src']);
+});
+
+/* --------------------------------------------------- the touch-up brushes */
+
+test('a soft brush lands hardest in the middle and fades to nothing at the rim', () => {
+  const hard = softDisc(40, 40, 20, 20, 8, 0);
+  assert.ok(hard.every(([, w]) => w === 255), 'no softness means a plain circle');
+
+  const soft = softDisc(40, 40, 20, 20, 8, 1);
+  const at = (x, y) => soft.find(([i]) => i === y * 40 + x)?.[1] ?? 0;
+  assert.equal(at(20, 20), 255, 'full strength at the centre');
+  assert.ok(at(20, 24) > 0 && at(20, 24) < 255, 'partway out it is partway on');
+  assert.ok(at(20, 24) < at(20, 22), 'and weaker the further out it goes');
+  assert.equal(at(20, 30), 0, 'nothing at all beyond the radius');
+});
+
+test('a soft drag takes the strongest touch, so a slow stroke is not a darker one', () => {
+  const quick = softSmear(60, 60, { x: 10, y: 30 }, { x: 50, y: 30 }, 6, 0.6);
+  const strongest = new Map(quick);
+  assert.equal(strongest.get(30 * 60 + 30), 255, 'the middle of the stroke is full strength');
+  // Every pixel appears once, whatever the overlap.
+  assert.equal(quick.length, new Set(quick.map(([i]) => i)).size);
+});
+
+test('the touch-up layer forces the mask, and softly where it was painted softly', () => {
+  // A mask that is half kept and half dropped, and a correction over the lot.
+  const base = { width: 10, height: 1, data: new Uint8Array(10).fill(0) };
+  base.data[0] = 255;
+
+  const touch = makePaint(10, 1);
+  const stroke = new Stroke(touch);
+  stroke.apply([1], KEEP);            // full strength
+  stroke.applyEach([[2, 128]], KEEP); // half strength
+  stroke.apply([0], DROP);            // and one taken away
+
+  const out = applyTouch(base, touch);
+  assert.equal(out.data[0], 0, 'a kept pixel can be dropped');
+  assert.equal(out.data[1], 255, 'and a dropped one brought back');
+  assert.equal(out.data[2], 128, 'half a brush is half the way there');
+  assert.equal(out.data[5], 0, 'and an untouched pixel is left alone');
+  assert.equal(base.data[1], 0, 'the mask it came from is not written over');
+});
+
+test('a mismatched touch-up layer is ignored rather than misapplied', () => {
+  const base = { width: 10, height: 1, data: new Uint8Array(10) };
+  assert.equal(applyTouch(base, makePaint(8, 1)), base);
+});
+
+test('painting the other target replaces it, and the same one deepens it', () => {
+  const touch = makePaint(4, 1);
+  const stroke = new Stroke(touch);
+  stroke.applyEach([[0, 200]], KEEP);
+  stroke.applyEach([[0, 90]], KEEP);
+  assert.equal(touch.data[3], 200, 'a lighter pass over the same target does not weaken it');
+
+  stroke.applyEach([[0, 90]], DROP);
+  assert.equal(touch.data[3], 90, 'but the other target replaces it outright');
+  assert.equal(touch.data[0], 0, 'and says so');
+});
+
+test('the automatic brush takes a correction off again', () => {
+  const touch = makePaint(4, 1);
+  const stroke = new Stroke(touch);
+  stroke.applyEach([[0, 255]], KEEP);
+  stroke.applyEach([[0, 255]], null);
+  assert.equal(touch.data[3], 0, 'back to letting the removal decide');
+  assert.equal(painted(touch), false);
+});
+
+test('a touch-up survives storage the way the colouring does', () => {
+  const touch = makePaint(6, 6);
+  new Stroke(touch).applyEach(softDisc(6, 6, 3, 3, 2, 0.5), KEEP);
+  const copy = { ...touch, data: Uint8ClampedArray.from(structuredClone(touch.data)) };
+  assert.deepEqual(copy.data, touch.data, 'every weight comes back exactly');
+});
+
+/* ------------------------------------------------------ onto a board of its own */
+
+test('a sticker is centred on its board and never cropped by it', () => {
+  const room = { x: 100, y: 200, width: 800, height: 400 };
+
+  // Wider than the room: the width is what runs out first.
+  const wide = placeCentred(room, 2000, 500, 1);
+  assert.equal(wide.width, 800);
+  assert.equal(wide.height, 200);
+  assert.equal(wide.x, 100, 'flush, because it fills the width exactly');
+  assert.equal(wide.y, 300, 'and centred in what is left');
+
+  // Taller than the room: the height runs out first, and it must still fit.
+  const tall = placeCentred(room, 500, 2000, 1);
+  assert.equal(tall.height, 400);
+  assert.equal(tall.width, 100);
+  assert.ok(tall.width <= room.width && tall.height <= room.height, 'contained, not covered');
+  assert.equal(tall.x, 450);
+  assert.equal(tall.y, 200);
+});
+
+test('the sticker keeps its shape whatever the board is', () => {
+  for (const [w, h] of [[1200, 800], [800, 1200], [900, 900], [3000, 210]]) {
+    const placed = placeCentred({ x: 0, y: 0, width: 1000, height: 1500 }, w, h);
+    assert.ok(
+      Math.abs(placed.width / placed.height - w / h) < 1e-9,
+      `${w}x${h} came out as ${placed.width}x${placed.height}`,
+    );
+  }
+});
+
+test('it is placed inside the safe area, with room to spare', () => {
+  const placed = placeCentred({ x: 0, y: 0, width: 1000, height: 1000 }, 1000, 1000);
+  assert.equal(placed.width, 1000 * FILL);
+  assert.ok(placed.x > 0 && placed.y > 0, 'not flush against the margin it is meant to respect');
+});
+
+test('every board offered is a real preset, and each has a safe area to centre in', () => {
+  for (const board of SEND_TO) {
+    assert.ok(presetById(board.presetId), `${board.presetId} is a preset`);
+    const room = roomOn(board.presetId);
+    assert.ok(room && room.width > 0 && room.height > 0, `${board.presetId} has room on it`);
+    // And what it states matches what the preset actually is.
+    assert.equal(board.note, presetById(board.presetId).stated);
+  }
+});
+
+test('an unknown board is refused rather than guessed at', () => {
+  assert.equal(roomOn('not-a-preset'), null);
+});
+
+/* --------------------------------------------- what the removal can manage */
+
+/** A picture: `plot(x, y)` returns [r,g,b], all opaque. */
+function scene(width, height, plot) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const [r, g, b] = plot(x, y);
+      const i = (y * width + x) * 4;
+      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+    }
+  }
+  return { width, height, data };
+}
+
+test('a flood can ask about the step it is taking, not only the pixel', () => {
+  // A ramp from 0 to 39 across, with one jump of 20 in the middle of it. A
+  // step limit of 5 crosses every gentle rise and stops at the cliff.
+  const width = 40;
+  const value = (x) => (x < 20 ? x : x + 20);
+  const reached = flood({
+    width,
+    height: 1,
+    seeds: [0],
+    passable: (i, from) => i === from || Math.abs(value(i) - value(from)) <= 5,
+  });
+  assert.equal(reached.length, 20, 'it walks up the ramp and stops at the jump');
+  assert.equal(Math.max(...reached), 19);
+});
+
+test('uneven lighting is followed, where one paper colour could not be', () => {
+  // A page lit brightly at the left and dimly at the right, with a dark blob on
+  // it. Measuring from the average paper colour alone leaves one end behind.
+  const lit = scene(120, 60, (x) => {
+    const inBlob = Math.hypot(x - 60, 0) < 0 || (x > 50 && x < 70);
+    if (inBlob) return [20, 20, 20];
+    const shade = 245 - Math.round((x / 120) * 90);
+    return [shade, shade, shade];
+  });
+
+  const mask = backgroundMask(lit, 14);
+  const kept = [...mask.data].filter((v) => v > 127).length;
+  // The blob is 20 columns of 60 rows; a little either side for the soft edge.
+  assert.ok(kept > 1000 && kept < 1600, `${kept} pixels kept of ${120 * 60}`);
+  assert.equal(mask.data[0], 0, 'the bright end is gone');
+  assert.equal(mask.data[119], 0, 'and so is the dim end');
+  assert.equal(mask.data[30 * 120 + 60] > 127, true, 'and the blob is still there');
+});
+
+test('a hole inside the subject is not punched out, however paper-coloured', () => {
+  // A dark ring with paper-coloured middle: the inside of an O.
+  const ring = scene(80, 80, (x, y) => {
+    const d = Math.hypot(x - 40, y - 40);
+    return d > 18 && d < 30 ? [25, 25, 25] : [246, 244, 238];
+  });
+  const mask = backgroundMask(ring, 14);
+  assert.equal(mask.data[40 * 80 + 40] > 127, true, 'the middle survives');
+  assert.equal(mask.data[0], 0, 'and the outside does not');
+});
+
+test('paper grain is treated as paper rather than as picture', () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const grainy = scene(100, 100, (x, y) => {
+    const inside = x > 30 && x < 70 && y > 30 && y < 70;
+    const base = inside ? 30 : 240;
+    const n = Math.round((rnd() - 0.5) * 60);
+    return [base + n, base + n, base + n];
+  });
+
+  const rough = backgroundMask(grainy, 14, { speck: 0 });
+  const tidy = backgroundMask(grainy, 14);
+  assert.ok(islands(rough) > islands(tidy) * 3,
+    `${islands(rough)} regions without despeckling, ${islands(tidy)} with`);
+});
+
+test('the cut is soft at the edge and solid inside it', () => {
+  const blob = scene(60, 60, (x, y) => {
+    const d = Math.hypot(x - 30, y - 30);
+    // A ramp at the rim rather than a cliff: a photographed edge, fading a
+    // little faster than the flood will walk so it stops partway down it.
+    const t = Math.min(1, Math.max(0, (d - 14) / 10));
+    const v = Math.round(40 + t * 200);
+    return [v, v, v];
+  });
+
+  const soft = backgroundMask(blob, 14);
+  const partial = [...soft.data].filter((v) => v > 8 && v < 247).length;
+  assert.ok(partial > 40, `${partial} part-transparent pixels along the edge`);
+  assert.equal(soft.data[30 * 60 + 30], 255, 'the middle is fully solid');
+
+  const hard = backgroundMask(blob, 14, { softness: 0 });
+  assert.equal([...hard.data].filter((v) => v > 8 && v < 247).length, 0, 'and it can be turned off');
+});
+
+test('the tuning has stated defaults, so a change to them is a change on purpose', () => {
+  assert.deepEqual(REMOVAL_DEFAULTS, { step: 6, softness: 5, speck: 48 });
+});
+
+/** How many separate regions a mask has, counting solid and clear alike. */
+function islands(mask) {
+  const { width, height, data } = mask;
+  const seen = new Uint8Array(data.length);
+  let count = 0;
+  for (let start = 0; start < data.length; start++) {
+    if (seen[start]) continue;
+    count++;
+    const solid = data[start] > 127;
+    const stack = [start];
+    seen[start] = 1;
+    while (stack.length) {
+      const i = stack.pop();
+      const x = i % width, y = (i / width) | 0;
+      const push = (n) => { if (!seen[n] && data[n] > 127 === solid) { seen[n] = 1; stack.push(n); } };
+      if (x > 0) push(i - 1);
+      if (x < width - 1) push(i + 1);
+      if (y > 0) push(i - width);
+      if (y < height - 1) push(i + width);
+    }
+  }
+  return count;
+}
+
+/* --------------------------------------------------------- changing colours */
+
+test('a colour swap on the colouring is exact, and leaves the rest alone', () => {
+  const paint = makePaint(4, 1);
+  const stroke = new Stroke(paint);
+  stroke.apply([0, 1], { r: 200, g: 30, b: 40 });
+  stroke.apply([2], { r: 30, g: 60, b: 200 });
+
+  const hit = matchingInPaint(paint, { r: 200, g: 30, b: 40 }, 0);
+  assert.deepEqual(hit, [0, 1], 'only the two that are that colour');
+
+  assert.deepEqual(matchingInPaint(paint, { r: 201, g: 30, b: 40 }, 0), [],
+    'and nothing at all when it is one off and the tolerance is zero');
+});
+
+test('an unpainted pixel is never a match, whatever its channels hold', () => {
+  const paint = makePaint(3, 1);
+  const stroke = new Stroke(paint);
+  stroke.apply([0], { r: 10, g: 20, b: 30 });
+  stroke.apply([0], null); // erased: the alpha goes, and so does the colour
+
+  assert.deepEqual(matchingInPaint(paint, { r: 0, g: 0, b: 0 }, 60), [],
+    'a transparent pixel has no colour to replace');
+});
+
+test('a tolerance is measured the way the eye measures it, not the way RGB adds up', () => {
+  // Both pairs are thirty apart in one channel and identical in the others, so
+  // in RGB they are exactly as far apart as each other. In Lab they are not,
+  // and that difference is the whole reason for converting: one tolerance
+  // cannot mean the same thing in both places unless it is measured in a space
+  // where distance means how different two colours look.
+  const grey = labDistance({ r: 120, g: 120, b: 120 }, { r: 150, g: 150, b: 150 });
+  const blue = labDistance({ r: 0, g: 0, b: 120 }, { r: 0, g: 0, b: 150 });
+  assert.notEqual(grey, blue, 'equal in RGB, unequal in Lab');
+  assert.ok(Math.abs(grey - blue) > 1, `grey ${grey.toFixed(1)}, blue ${blue.toFixed(1)}`);
+  assert.equal(labDistance({ r: 9, g: 9, b: 9 }, { r: 9, g: 9, b: 9 }), 0, 'and zero is zero');
+});
+
+test('swaps are a recipe read top to bottom, not a pile', () => {
+  const picture = {
+    width: 3,
+    height: 1,
+    data: new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 255, 255, 0, 255, 0, 255]),
+  };
+  const out = applySwaps(picture, [
+    { from: '#FF0000', to: '#0000FF', tolerance: 0 },
+    { from: '#0000FF', to: '#00FF00', tolerance: 0 },
+  ]);
+  assert.deepEqual([...out.data.slice(0, 3)], [0, 255, 0], 'red became blue and then green');
+  assert.deepEqual([...out.data.slice(4, 7)], [0, 255, 0], 'and so did what was already blue');
+});
+
+test('no swaps is the same picture, not a copy of it', () => {
+  const picture = { width: 1, height: 1, data: new Uint8ClampedArray([1, 2, 3, 255]) };
+  assert.equal(applySwaps(picture, []), picture);
+});
+
+test('a swap leaves the see-through parts see-through', () => {
+  const picture = {
+    width: 2,
+    height: 1,
+    data: new Uint8ClampedArray([255, 0, 0, 0, 255, 0, 0, 255]),
+  };
+  const out = applySwaps(picture, [{ from: '#FF0000', to: '#0000FF', tolerance: 5 }]);
+  assert.deepEqual([...out.data.slice(0, 4)], [255, 0, 0, 0], 'the transparent one is untouched');
+  assert.deepEqual([...out.data.slice(4, 8)], [0, 0, 255, 255]);
+});
+
+test('a tolerance catches a shade and its shading', () => {
+  const shades = {
+    width: 3,
+    height: 1,
+    data: new Uint8ClampedArray([200, 40, 40, 255, 180, 34, 34, 255, 40, 40, 200, 255]),
+  };
+  const out = applySwaps(shades, [{ from: '#C82828', to: '#FFFFFF', tolerance: 20 }]);
+  assert.deepEqual([...out.data.slice(0, 3)], [255, 255, 255], 'the colour itself');
+  assert.deepEqual([...out.data.slice(4, 7)], [255, 255, 255], 'and the shade next to it');
+  assert.deepEqual([...out.data.slice(8, 11)], [40, 40, 200], 'but not the blue');
+});
+
+test('a colour reads out and back again unchanged', () => {
+  for (const hex of ['#000000', '#FFFFFF', '#1B1815', '#E8B4B8', '#3355CC']) {
+    assert.equal(toHex(parseColour(hex)), hex.toUpperCase());
+  }
+});
+
+test('sampling says nothing where there is nothing', () => {
+  const paint = makePaint(4, 4);
+  new Stroke(paint).apply([5], { r: 7, g: 8, b: 9 });
+  assert.deepEqual(sampleAt(paint, 1, 1), { r: 7, g: 8, b: 9 });
+  assert.equal(sampleAt(paint, 0, 0), null, 'unpainted');
+  assert.equal(sampleAt(paint, 9, 9), null, 'and off the edge');
+});
+
+/* ---------------------------------------------- flipping, turning, cropping */
+
+/** A picture where every pixel says where it came from. */
+function numbered(width, height) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      data[i] = x; data[i + 1] = y; data[i + 2] = 7; data[i + 3] = 255;
+    }
+  }
+  return { width, height, data };
+}
+const pixel = (b, x, y) => [...b.data.slice((y * b.width + x) * 4, (y * b.width + x) * 4 + 4)];
+
+test('a plain frame is the picture itself, not a copy of it', () => {
+  const picture = numbered(4, 3);
+  assert.equal(applyFrame(picture, NO_FRAME), picture);
+  assert.equal(isPlain(NO_FRAME), true);
+  assert.equal(isPlain({ ...NO_FRAME, rotate: 360 }), true, '360 degrees is no turn at all');
+  assert.equal(isPlain({ ...NO_FRAME, flipX: true }), false);
+});
+
+test('flipping is an exact rearrangement, and doing it twice undoes it', () => {
+  const picture = numbered(5, 4);
+  const mirrored = flip(picture, true, false);
+  assert.deepEqual(pixel(mirrored, 0, 0), pixel(picture, 4, 0));
+  assert.deepEqual(pixel(mirrored, 4, 2), pixel(picture, 0, 2));
+  assert.deepEqual(flip(mirrored, true, false).data, picture.data, 'back to the very same bytes');
+
+  const upended = flip(picture, false, true);
+  assert.deepEqual(pixel(upended, 1, 0), pixel(picture, 1, 3));
+  assert.deepEqual(flip(upended, false, true).data, picture.data);
+});
+
+test('four quarter turns come back to exactly where they started', () => {
+  const picture = numbered(7, 3);
+  let turned = picture;
+  for (let n = 0; n < 4; n++) turned = quarterTurn(turned, 90);
+  assert.equal(turned.width, 7);
+  assert.equal(turned.height, 3);
+  assert.deepEqual(turned.data, picture.data, 'not one pixel invented or lost');
+});
+
+test('a quarter turn swaps the sides and puts the corners where they belong', () => {
+  const picture = numbered(4, 2);
+  const right = quarterTurn(picture, 90);
+  assert.equal(right.width, 2);
+  assert.equal(right.height, 4);
+  // The top-left goes to the top-right.
+  assert.deepEqual(pixel(right, 1, 0), pixel(picture, 0, 0));
+  // And a half turn is the same as two quarters.
+  assert.deepEqual(quarterTurn(picture, 180).data, quarterTurn(quarterTurn(picture, 90), 90).data);
+  assert.deepEqual(quarterTurn(picture, 270).data, quarterTurn(quarterTurn(picture, 180), 90).data);
+});
+
+test('any other angle makes room for the corners rather than cutting them off', () => {
+  const picture = numbered(40, 20);
+  const tilted = rotate(picture, 45);
+  assert.ok(tilted.width > 40 && tilted.height > 20, `${tilted.width}x${tilted.height}`);
+  // Nothing of the original is beyond the new edges: the corners fit.
+  const diagonal = Math.hypot(40, 20);
+  assert.ok(tilted.width <= Math.ceil(diagonal) && tilted.height <= Math.ceil(diagonal));
+});
+
+test('the corners a turn leaves behind are see-through, not black', () => {
+  const picture = numbered(30, 30);
+  const tilted = rotate(picture, 30);
+  assert.equal(pixel(tilted, 0, 0)[3], 0, 'the new corner is nothing at all');
+  assert.equal(pixel(tilted, (tilted.width / 2) | 0, (tilted.height / 2) | 0)[3], 255, 'and the middle is solid');
+});
+
+test('a turn of no degrees is the picture itself', () => {
+  const picture = numbered(6, 6);
+  assert.equal(applyFrame(picture, { ...NO_FRAME, rotate: 0 }), picture);
+});
+
+test('degrees are brought into one turn, and quarters step in both directions', () => {
+  assert.equal(norm(-90), 270);
+  assert.equal(norm(450), 90);
+  assert.equal(norm(0), 0);
+  assert.equal(quarterFrom(0, 1), 90);
+  assert.equal(quarterFrom(0, -1), 270);
+  assert.equal(quarterFrom(270, 1), 0, 'round the clock rather than past it');
+  assert.equal(quarterFrom(37, 1), 90, 'from a free angle it snaps to the nearest quarter first');
+});
+
+test('a crop keeps the part asked for, and cannot fall off the picture', () => {
+  const picture = numbered(10, 10);
+  const half = crop(picture, { x: 0.5, y: 0, width: 0.5, height: 1 });
+  assert.equal(half.width, 5);
+  assert.equal(half.height, 10);
+  assert.deepEqual(pixel(half, 0, 0), pixel(picture, 5, 0));
+
+  const past = crop(picture, { x: 0.9, y: 0.9, width: 1, height: 1 });
+  assert.ok(past.width >= 1 && past.height >= 1, 'never nothing');
+  assert.ok(past.width <= 10 && past.height <= 10, 'and never bigger than what there was');
+
+  const silly = crop(picture, { x: -1, y: -1, width: 0.2, height: 0.2 });
+  assert.ok(silly.width >= 1 && silly.height >= 1);
+});
+
+test('the order is flip, then turn, then crop', () => {
+  const picture = numbered(8, 4);
+  const framed = applyFrame(picture, { flipX: true, flipY: false, rotate: 90, crop: null });
+  const byHand = quarterTurn(flip(picture, true, false), 90);
+  assert.deepEqual(framed.data, byHand.data);
+  assert.equal(framed.width, 4);
+  assert.equal(framed.height, 8);
+});
+
+test('trimming finds the tightest box round what is actually there', () => {
+  const width = 20, height = 20;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 5; y <= 9; y++) {
+    for (let x = 4; x <= 13; x++) data[(y * width + x) * 4 + 3] = 255;
+  }
+  const box = contentBox({ width, height, data });
+  assert.deepEqual(box, { x: 4 / 20, y: 5 / 20, width: 10 / 20, height: 5 / 20 });
+
+  // And it says so when there is nothing at all.
+  assert.equal(contentBox({ width: 4, height: 4, data: new Uint8ClampedArray(64) }), null);
+});
+
+test('trimming to what is there, then cropping to it, keeps all of it', () => {
+  const width = 12, height = 12;
+  const data = new Uint8ClampedArray(width * height * 4);
+  const inside = (x, y) => x >= 3 && x <= 8 && y >= 2 && y <= 7;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) if (inside(x, y)) data[(y * width + x) * 4 + 3] = 255;
+  }
+  const picture = { width, height, data };
+  const trimmed = crop(picture, contentBox(picture));
+  assert.equal(trimmed.width, 6);
+  assert.equal(trimmed.height, 6);
+  let solid = 0;
+  for (let i = 3; i < trimmed.data.length; i += 4) if (trimmed.data[i] === 255) solid++;
+  assert.equal(solid, 36, 'every solid pixel survived, and nothing else came with it');
+});
+
+test('a turned picture is put on its own paper, not on black', () => {
+  // Cream paper with a dark mark on it: what a scan of a sketchbook page is.
+  const width = 20, height = 20;
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const dark = x > 8 && x < 12 && y > 8 && y < 12;
+      data[i] = dark ? 30 : 244;
+      data[i + 1] = dark ? 28 : 238;
+      data[i + 2] = dark ? 24 : 216;
+      data[i + 3] = 255;
+    }
+  }
+  const page = { width, height, data };
+  const paper = borderColour(page);
+  assert.deepEqual(paper, { r: 244, g: 238, b: 216 }, 'the border is all paper');
+
+  const tilted = rotate(page, 25);
+  assert.equal(pixel(tilted, 0, 0)[3], 0, 'a turn leaves the corner empty');
+
+  const onPaper = flatten(tilted, paper);
+  assert.deepEqual(pixel(onPaper, 0, 0), [244, 238, 216, 255],
+    'and flattening makes it more paper, which is what it looks like');
+  // The thing this exists to prevent: a corner read as black and traced as ink.
+  assert.notDeepEqual(pixel(onPaper, 0, 0), [0, 0, 0, 255]);
+});
+
+test('flattening leaves what was already solid exactly as it was', () => {
+  const solid = numbered(6, 6);
+  assert.deepEqual(flatten(solid, { r: 1, g: 2, b: 3 }).data, solid.data);
+});
+
+test('a picture with no paper at all is put on white rather than on nothing', () => {
+  assert.deepEqual(borderColour({ width: 3, height: 3, data: new Uint8ClampedArray(36) }),
+    { r: 255, g: 255, b: 255 });
+});
+
+/* ------------------------------------------------------- words on a sticker */
+
+test('sizes are fractions of the sticker, so they land the same at every size', () => {
+  const item = { ...newText('t1'), size: 0.1, width: 0.5, x: 0.25, y: 0.75 };
+  const small = measure(item, 500, 500);
+  const large = measure(item, 2000, 2000);
+  assert.equal(large.fontSize / small.fontSize, 4, 'four times the sticker, four times the type');
+  assert.equal(large.centreX / small.centreX, 4);
+  assert.equal(large.baselineY / small.baselineY, 4);
+  assert.equal(small.fontSize, 50);
+  assert.equal(small.boxWidth, 250);
+});
+
+test('the type size follows the long edge, so a tall sticker is not set smaller', () => {
+  const item = { ...newText('t1'), size: 0.1 };
+  assert.equal(measure(item, 400, 1000).fontSize, 100);
+  assert.equal(measure(item, 1000, 400).fontSize, 100);
+});
+
+test('a sticker and a cover bend text around the same circle', () => {
+  // The whole of what is shared: one function, called by both.
+  const shared = textArc({ width: 300, curve: 50, size: 40, lineHeight: 1.2, lines: 2 });
+  assert.ok(shared);
+  assert.equal(shared.up, true, 'positive arches up');
+  assert.equal(shared.cx, 150);
+  assert.ok(shared.radii[1] < shared.radii[0], 'the second line sits inside the first');
+
+  const hanging = textArc({ width: 300, curve: -50, size: 40, lineHeight: 1.2, lines: 2 });
+  assert.equal(hanging.up, false);
+  assert.ok(hanging.radii[1] > hanging.radii[0], 'and outside it when it hangs');
+  assert.equal(hanging.theta, shared.theta, 'the same sweep either way');
+});
+
+test('a straight box has no arc at all, rather than an arc of nothing', () => {
+  assert.equal(textArc({ width: 300, curve: 0, size: 40, lineHeight: 1.2, lines: 1 }), null);
+  assert.equal(arcFor(newText('t1'), measure(newText('t1'), 800, 800)), null);
+});
+
+test('letters are laid along the arc in order, and the words keep their length', () => {
+  const letters = [...'ABCDE'];
+  const widths = [10, 10, 10, 10, 10];
+  const placed = placeOnArc({ letters, widths, radius: 200, theta: 1, up: true, align: 'center' });
+
+  assert.deepEqual(placed.map((p) => p.letter), letters);
+  const angles = placed.map((p) => p.angle);
+  assert.deepEqual([...angles].sort((a, b) => a - b), angles, 'left to right along the circle');
+  // Centred: the middle letter sits on the middle of the arc.
+  assert.ok(Math.abs(angles[2]) < 1e-9, `${angles[2]}`);
+  // The advance is unchanged: fifty pixels of text on a radius of 200.
+  const spanned = (angles[4] - angles[0]) * 200;
+  assert.ok(Math.abs(spanned - 40) < 1e-6, `${spanned} for four ten-pixel steps`);
+});
+
+test('a hanging line runs the other way round, so it is not mirrored', () => {
+  const args = { letters: [...'AB'], widths: [10, 10], radius: 100, theta: 1, align: 'center' };
+  const over = placeOnArc({ ...args, up: true });
+  const under = placeOnArc({ ...args, up: false });
+  assert.equal(over[0].angle, -under[0].angle);
+  assert.ok(over[0].angle < over[1].angle);
+  assert.ok(under[0].angle > under[1].angle);
+});
+
+test('alignment decides where on the arc the words start', () => {
+  const args = { letters: [...'AB'], widths: [10, 10], radius: 100, theta: 1, up: true };
+  const left = placeOnArc({ ...args, align: 'left' });
+  const middle = placeOnArc({ ...args, align: 'center' });
+  const right = placeOnArc({ ...args, align: 'right' });
+  assert.ok(left[0].angle < middle[0].angle, 'left starts earliest');
+  assert.ok(middle[0].angle < right[0].angle, 'and right latest');
+  assert.ok(Math.abs(left[0].angle + 0.5) < 0.06, `left begins at the start of the sweep: ${left[0].angle}`);
+});
+
+test('nothing to set is nothing placed, rather than a divide by zero', () => {
+  assert.deepEqual(placeOnArc({ letters: [], widths: [], radius: 100, theta: 1, up: true, align: 'center' }), []);
+  assert.deepEqual(placeOnArc({ letters: ['A'], widths: [0], radius: 100, theta: 1, up: true, align: 'center' }), []);
+});
+
+test('the font shorthand names the family and keeps a fallback behind it', () => {
+  const item = { ...newText('t1'), family: 'EB Garamond', fallback: 'Georgia, serif', weight: 600 };
+  const font = fontOf(item, 48);
+  assert.ok(font.includes('600 48px'), font);
+  assert.ok(font.includes('"EB Garamond"'), 'the family is quoted, because some have spaces');
+  assert.ok(font.endsWith('Georgia, serif'), 'and something readable stands behind it');
+});
+
+test('a letter stands on the side of its circle that faces the centre', () => {
+  // The bug this pins: a hanging line drawn on the far side of its circle comes
+  // out upside down and reading backwards, like the bottom half of a stamp.
+  const common = { radius: 200, centreX: 100, baselineY: 300 };
+
+  // The middle of either kind of line sits exactly on the baseline.
+  const archMiddle = glyphSpot({ ...common, angle: 0, up: true });
+  const hangMiddle = glyphSpot({ ...common, angle: 0, up: false });
+  assert.ok(Math.abs(archMiddle.y - 300) < 1e-9, `${archMiddle.y}`);
+  assert.ok(Math.abs(hangMiddle.y - 300) < 1e-9, `${hangMiddle.y}`);
+  assert.ok(Math.abs(archMiddle.x - 100) < 1e-9);
+
+  // An arch drops away at its ends; a hanging line rises at them.
+  const archEnd = glyphSpot({ ...common, angle: 0.6, up: true });
+  const hangEnd = glyphSpot({ ...common, angle: -0.6, up: false });
+  assert.ok(archEnd.y > archMiddle.y, `arch end ${archEnd.y} below its middle`);
+  assert.ok(hangEnd.y < hangMiddle.y, `hanging end ${hangEnd.y} above its middle`);
+
+  // And both run to the right as the angle carries them along the words.
+  assert.ok(archEnd.x > archMiddle.x, `${archEnd.x}`);
+  assert.ok(hangEnd.x > hangMiddle.x, `${hangEnd.x}`);
+
+  // The turn is never past a quarter for a letter this far along, so no letter
+  // is ever anywhere near standing on its head.
+  assert.ok(Math.abs(archEnd.rotation) < Math.PI / 2);
+  assert.ok(Math.abs(hangEnd.rotation) < Math.PI / 2);
+});
+
+test('a whole curved line reads left to right, whichever way it bends', () => {
+  const widths = [20, 20, 20, 20];
+  for (const up of [true, false]) {
+    const placed = placeOnArc({
+      letters: [...'ABCD'], widths, radius: 150, theta: 1.2, up, align: 'center',
+    });
+    const spots = placed.map((p) =>
+      glyphSpot({ angle: p.angle, radius: 150, up, centreX: 200, baselineY: 400 }));
+    const xs = spots.map((s) => s.x);
+    assert.deepEqual([...xs].sort((a, b) => a - b), xs, `${up ? 'arched' : 'hanging'}: ${xs.map((n) => n.toFixed(1))}`);
+  }
+});
+
+/* --------------------------------------------------------- the decorations */
+
+/** A solid square in the middle of a transparent field, and its own shape. */
+function square(size, side, colour = [200, 60, 60]) {
+  const data = new Uint8ClampedArray(size * size * 4);
+  const mask = new Uint8Array(size * size);
+  const lo = ((size - side) / 2) | 0;
+  for (let y = lo; y < lo + side; y++) {
+    for (let x = lo; x < lo + side; x++) {
+      const p = y * size + x;
+      data[p * 4] = colour[0];
+      data[p * 4 + 1] = colour[1];
+      data[p * 4 + 2] = colour[2];
+      data[p * 4 + 3] = 255;
+      mask[p] = 255;
+    }
+  }
+  return { sticker: { width: size, height: size, data }, shape: { width: size, height: size, data: mask } };
+}
+
+const alphaAt = (b, x, y) => b.data[(y * b.width + x) * 4 + 3];
+const rgbAt = (b, x, y) => [...b.data.slice((y * b.width + x) * 4, (y * b.width + x) * 4 + 3)];
+
+test('nothing turned on is the picture itself, not a copy of it', () => {
+  const { sticker, shape } = square(40, 20);
+  assert.equal(hasAny(NO_DECORATION), false);
+  assert.equal(decorate(sticker, shape, NO_DECORATION), sticker);
+});
+
+test('a shadow adds darkness outside the sticker and leaves the sticker alone', () => {
+  const { sticker, shape } = square(60, 20);
+  const before = rgbAt(sticker, 30, 30);
+  const out = addShadow(sticker, shape, {
+    blur: 9, offsetX: 8, offsetY: 8, opacity: 0.6, colour: '#000000',
+  });
+
+  assert.deepEqual(rgbAt(out, 30, 30), before, 'the middle of the sticker is untouched');
+  assert.equal(alphaAt(out, 30, 30), 255);
+  // Below and to the right, where nothing was, there is now something dark.
+  assert.ok(alphaAt(out, 44, 44) > 0, `${alphaAt(out, 44, 44)}`);
+  assert.ok(rgbAt(out, 44, 44)[0] < 120, `${rgbAt(out, 44, 44)}`);
+  // And up and to the left, where the shadow was moved away from, still nothing.
+  assert.equal(alphaAt(out, 8, 8), 0);
+});
+
+test('a shadow keeps a white sticker white', () => {
+  // The order this exists to pin: shadow under, sticker over. The other way
+  // round and every pale sticker comes out grey.
+  const { sticker, shape } = square(40, 20, [255, 255, 255]);
+  const out = addShadow(sticker, shape, {
+    blur: 6, offsetX: 0, offsetY: 0, opacity: 1, colour: '#000000',
+  });
+  assert.deepEqual(rgbAt(out, 20, 20), [255, 255, 255]);
+});
+
+test('a gloss changes the sticker without changing its shape', () => {
+  const { sticker } = square(60, 40);
+  const out = addGloss(sticker, { strength: 0.8, angle: 115 });
+  for (let p = 3; p < sticker.data.length; p += 4) {
+    assert.equal(out.data[p], sticker.data[p], 'not one pixel of alpha moved');
+  }
+  let changed = 0;
+  for (let p = 0; p < sticker.data.length; p += 4) if (out.data[p] !== sticker.data[p]) changed++;
+  assert.ok(changed > 200, `${changed} pixels lit or shaded`);
+});
+
+test('a gloss lightens one side and darkens the other', () => {
+  const { sticker } = square(80, 70, [128, 128, 128]);
+  const out = addGloss(sticker, { strength: 1, angle: 90 });
+  const top = rgbAt(out, 40, 12)[0];
+  const bottom = rgbAt(out, 40, 68)[0];
+  assert.notEqual(top, bottom, 'a flat gloss would not be a gloss');
+  assert.ok(Math.max(top, bottom) > 128, 'something is lit');
+  assert.ok(Math.min(top, bottom) < 128, 'and something is in shade');
+});
+
+test('no strength is no decoration at all', () => {
+  const { sticker } = square(20, 10);
+  assert.equal(addGloss(sticker, { strength: 0, angle: 90 }), sticker);
+  assert.equal(addGrain(sticker, { strength: 0, scale: 3 }), sticker);
+});
+
+test('the grain is the same grain every time, on any machine', () => {
+  const { sticker } = square(50, 40);
+  const once = addGrain(sticker, { strength: 0.5, scale: 3 });
+  const twice = addGrain(sticker, { strength: 0.5, scale: 3 });
+  assert.deepEqual(once.data, twice.data, 'a pure function of the coordinates');
+
+  // And it really is grain: it varies, rather than shifting everything one way.
+  const { sticker: flat } = square(50, 40, [128, 128, 128]);
+  const grained = addGrain(flat, { strength: 1, scale: 3 });
+  const values = new Set();
+  for (let y = 6; y < 44; y++) values.add(rgbAt(grained, 25, y)[0]);
+  assert.ok(values.size > 8, `${values.size} different shades down one column`);
+  assert.ok(Math.max(...values) > 128 && Math.min(...values) < 128, 'lighter and darker, as paper is');
+});
+
+test('grain never touches what is not there', () => {
+  const { sticker } = square(40, 10);
+  const out = addGrain(sticker, { strength: 1, scale: 2 });
+  assert.equal(alphaAt(out, 1, 1), 0);
+  assert.deepEqual(rgbAt(out, 1, 1), [0, 0, 0], 'the empty corner stays empty');
+});
+
+test('a shadow asks for room, and the other two do not', () => {
+  assert.equal(shadowRoom(NO_DECORATION), 0);
+  assert.equal(shadowRoom({ ...NO_DECORATION, gloss: { strength: 1, angle: 0 } }), 0);
+  const room = shadowRoom({
+    ...NO_DECORATION,
+    shadow: { blur: 10, offsetX: 5, offsetY: 20, opacity: 1, colour: '#000' },
+  });
+  assert.ok(room >= 30 + 2, `${room} pixels for a 10-blur shadow 20 below`);
+});
+
+test('all three together go on in the order that makes sense', () => {
+  const { sticker, shape } = square(60, 30);
+  const all = {
+    shadow: { blur: 6, offsetX: 4, offsetY: 4, opacity: 0.5, colour: '#000000' },
+    gloss: { strength: 0.4, angle: 115 },
+    grain: { strength: 0.3, scale: 3 },
+  };
+  const together = decorate(sticker, shape, all);
+  const byHand = addShadow(addGloss(addGrain(sticker, all.grain), all.gloss), shape, all.shadow);
+  assert.deepEqual(together.data, byHand.data, 'grain and gloss belong to the surface; the shadow is cast by it');
+});
+
+/* ------------------------------------------------------------ the cut line */
+
+/** A mask: `inside(x, y)` says where the sticker is. */
+function shapeMask(width, height, inside) {
+  const data = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) data[y * width + x] = inside(x, y) ? 255 : 0;
+  }
+  return { width, height, data };
+}
+
+/** Whether a point is inside a set of loops, by the even-odd crossing count. */
+function insideLoops(loops, px, py) {
+  let crossings = 0;
+  for (const loop of loops) {
+    for (let i = 0; i < loop.length; i++) {
+      const a = loop[i];
+      const b = loop[(i + 1) % loop.length];
+      if (a.y > py !== b.y > py) {
+        const at = a.x + ((py - a.y) / (b.y - a.y)) * (b.x - a.x);
+        if (at > px) crossings++;
+      }
+    }
+  }
+  return crossings % 2 === 1;
+}
+
+test('a square traces to one loop of four corners', () => {
+  const mask = shapeMask(20, 20, (x, y) => x >= 5 && x < 15 && y >= 5 && y < 15);
+  const loops = traceLoops(mask);
+  assert.equal(loops.length, 1);
+  assert.equal(loops[0].length, 40, 'one point per pixel of crack, before simplifying');
+
+  const cut = cutLine(mask, 1);
+  assert.equal(cut.loops, 1);
+  assert.equal(cut.points, 4, 'and four after it');
+  assert.equal(cut.strayPx, 0, 'a straight edge is described exactly');
+  assert.ok(cut.path.startsWith('M '), cut.path);
+  assert.ok(cut.path.endsWith('Z'), cut.path);
+});
+
+test('a shape with a hole traces to two loops wound opposite ways', () => {
+  const mask = shapeMask(40, 40, (x, y) => {
+    const d = Math.hypot(x - 20, y - 20);
+    return d < 16 && d > 7;
+  });
+  const cut = cutLine(mask, 1);
+  assert.equal(cut.loops, 2, 'the outside and the hole');
+
+  const loops = traceLoops(mask).map((l) => simplify(l, 1));
+  assert.equal(insideLoops(loops, 20, 20), false, 'the hole is not inside the shape');
+  assert.equal(insideLoops(loops, 20, 8.5), true, 'but the ring is');
+  assert.equal(insideLoops(loops, 1, 1), false, 'and so is nothing outside');
+});
+
+test('two separate pieces trace to two separate loops', () => {
+  const mask = shapeMask(40, 20, (x, y) => y > 4 && y < 15 && (x < 12 || x > 26));
+  assert.equal(cutLine(mask, 1).loops, 2);
+});
+
+test('nothing at all traces to nothing, rather than to a broken path', () => {
+  const empty = cutLine(shapeMask(10, 10, () => false), 1);
+  assert.equal(empty.loops, 0);
+  assert.equal(empty.path, '');
+  assert.equal(empty.points, 0);
+});
+
+test('simplifying keeps the line within the tolerance it was given', () => {
+  const mask = shapeMask(120, 120, (x, y) => Math.hypot(x - 60, y - 60) < 50);
+  const traced = traceLoops(mask);
+  assert.equal(traced.length, 1);
+
+  for (const tolerance of [0.5, 1.5, 4]) {
+    const kept = simplify(traced[0], tolerance);
+    const stray = strayed(traced[0], kept);
+    assert.ok(stray <= tolerance + 1e-6, `at ${tolerance}px the line strayed ${stray.toFixed(3)}px`);
+    assert.ok(kept.length < traced[0].length, `${traced[0].length} points down to ${kept.length}`);
+  }
+});
+
+test('a looser tolerance gives fewer points and a bigger stray, in that order', () => {
+  const mask = shapeMask(120, 120, (x, y) => Math.hypot(x - 60, y - 60) < 50);
+  const tight = cutLine(mask, 0.5);
+  const loose = cutLine(mask, 4);
+  assert.ok(loose.points < tight.points, `${tight.points} → ${loose.points} points`);
+  assert.ok(loose.strayPx >= tight.strayPx, `${tight.strayPx} → ${loose.strayPx}px`);
+  assert.ok(tight.strayPx <= 0.5 + 1e-6);
+});
+
+test('the simplified line describes the mask, and strays only at its edge', () => {
+  // Rasterise the path back and compare it with what it was traced from. This
+  // is the check that matters: a path can be plausible and still be wrong.
+  //
+  // Simplifying moves the line, by design and by at most its tolerance, so some
+  // disagreement is the price of a file a cutting machine will open. What must
+  // be true is that all of it is *at the edge* — a disagreement anywhere else
+  // would mean a loop wound the wrong way or a hole filled in, which is a
+  // sticker cut to the wrong shape rather than one cut a hair off.
+  const size = 60;
+  const mask = shapeMask(size, size, (x, y) => {
+    const d = Math.hypot(x - 30, y - 30);
+    return (d < 24 && d > 10) || (x > 26 && x < 34 && y > 4 && y < 30);
+  });
+  const loops = traceLoops(mask).map((l) => simplify(l, 1));
+
+  const at = (x, y) =>
+    x >= 0 && y >= 0 && x < size && y < size && mask.data[y * size + x] >= 128;
+  const onEdge = (x, y) =>
+    [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].some((n) => n !== at(x, y));
+
+  let wrong = 0;
+  let awayFromEdge = 0;
+  let perimeter = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (onEdge(x, y)) perimeter++;
+      // The middle of the pixel, because the loops run along its edges.
+      if (at(x, y) === insideLoops(loops, x + 0.5, y + 0.5)) continue;
+      wrong++;
+      if (!onEdge(x, y)) awayFromEdge++;
+    }
+  }
+  assert.equal(awayFromEdge, 0, `${awayFromEdge} pixels disagree away from the edge`);
+  assert.ok(wrong < perimeter / 3, `${wrong} of a ${perimeter}-pixel perimeter moved`);
+});
+
+test('an unsimplified trace describes the mask exactly, pixel for pixel', () => {
+  const mask = shapeMask(30, 30, (x, y) => (x + y) % 11 < 6 && x > 3 && x < 26 && y > 3 && y < 26);
+  const loops = traceLoops(mask);
+  let wrong = 0;
+  for (let y = 0; y < 30; y++) {
+    for (let x = 0; x < 30; x++) {
+      if ((mask.data[y * 30 + x] >= 128) !== insideLoops(loops, x + 0.5, y + 0.5)) wrong++;
+    }
+  }
+  assert.equal(wrong, 0);
+});
+
+test('the SVG says how big it is in millimetres, not only in pixels', () => {
+  const mask = shapeMask(600, 300, (x, y) => x > 50 && x < 550 && y > 50 && y < 250);
+  const svg = cutLineSvg(cutLine(mask, 1), 300);
+  assert.ok(svg.includes('width="50.80mm"'), svg.slice(0, 200));
+  assert.ok(svg.includes('height="25.40mm"'));
+  assert.ok(svg.includes('viewBox="0 0 600 300"'));
+  assert.ok(svg.includes('fill="none"'), 'a cut line is a line, not a filled shape');
+  assert.ok(svg.includes('stroke='), 'and the machine reads the stroke');
+});
+
+test('a soft edge is cut through its middle', () => {
+  // Alpha ramping across: the line should fall where it passes half.
+  const data = new Uint8Array(20 * 3);
+  for (let y = 0; y < 3; y++) {
+    for (let x = 0; x < 20; x++) data[y * 20 + x] = Math.min(255, x * 20);
+  }
+  const loops = traceLoops({ width: 20, height: 3, data });
+  const xs = loops.flat().map((p) => p.x);
+  // 128 is first reached at x = 7 (140), so the crack is at x = 7.
+  assert.equal(Math.min(...xs), 7, `the cut falls at ${Math.min(...xs)}`);
+});
+
+/* ---------------------------------------------------------- sticker sheets */
+
+const squares = (n) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, aspect: 1 }));
+
+test('stickers are laid left to right and then down, in reading order', () => {
+  const sheet = layOutSheet(squares(6), { ...DEFAULT_SHEET, stickerWidth: 2, gap: 0.125, margin: 0.25 });
+  assert.equal(sheet.placed.length, 6);
+  assert.deepEqual(sheet.placed.map((p) => p.id), ['s0', 's1', 's2', 's3', 's4', 's5']);
+
+  // The first row runs across at one height, then it steps down.
+  assert.equal(sheet.placed[0].y, sheet.placed[1].y);
+  assert.ok(sheet.placed[1].x > sheet.placed[0].x);
+  const firstOfNextRow = sheet.placed.find((p) => p.y > sheet.placed[0].y);
+  assert.ok(firstOfNextRow);
+  assert.equal(firstOfNextRow.x, sheet.placed[0].x, 'and starts back at the left margin');
+});
+
+test('nothing is placed outside the margins', () => {
+  const settings = { ...DEFAULT_SHEET, margin: 0.4, stickerWidth: 1.5 };
+  const sheet = layOutSheet(squares(40), settings);
+  assert.ok(sheet.placed.length > 4);
+  for (const p of sheet.placed) {
+    assert.ok(p.x >= settings.margin - 1e-9, `${p.id} at x ${p.x}`);
+    assert.ok(p.y >= settings.margin - 1e-9, `${p.id} at y ${p.y}`);
+    assert.ok(p.x + p.width <= sheet.page.width - settings.margin + 1e-9, `${p.id} runs off the right`);
+    assert.ok(p.y + p.height <= sheet.page.height - settings.margin + 1e-9, `${p.id} runs off the bottom`);
+  }
+});
+
+test('nothing overlaps anything else', () => {
+  const sheet = layOutSheet(
+    Array.from({ length: 30 }, (_, i) => ({ id: `s${i}`, aspect: i % 3 === 0 ? 1.6 : 0.8 })),
+    { ...DEFAULT_SHEET, stickerWidth: 1.6 },
+  );
+  const boxes = sheet.placed;
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const b = boxes[j];
+      const apart =
+        a.x + a.width <= b.x + 1e-9 || b.x + b.width <= a.x + 1e-9 ||
+        a.y + a.height <= b.y + 1e-9 || b.y + b.height <= a.y + 1e-9;
+      assert.ok(apart, `${a.id} and ${b.id} overlap`);
+    }
+  }
+});
+
+test('every sticker keeps its own shape, whatever the sheet does', () => {
+  const pieces = [
+    { id: 'wide', aspect: 2 },
+    { id: 'tall', aspect: 0.5 },
+    { id: 'square', aspect: 1 },
+  ];
+  const sheet = layOutSheet(pieces, DEFAULT_SHEET);
+  for (const p of sheet.placed) {
+    const wanted = pieces.find((q) => q.id === p.id).aspect;
+    assert.ok(Math.abs(p.width / p.height - wanted) < 1e-9, `${p.id} came out ${p.width / p.height}`);
+    assert.equal(p.width, DEFAULT_SHEET.stickerWidth, 'and all of them share a width');
+  }
+});
+
+test('what does not fit is counted rather than quietly dropped', () => {
+  const many = layOutSheet(squares(500), DEFAULT_SHEET);
+  assert.ok(many.overflow > 0);
+  assert.equal(many.placed.length + many.overflow, 500, 'every sticker is accounted for');
+});
+
+test('a sticker too big for the paper overflows rather than being squashed onto it', () => {
+  const sheet = layOutSheet(squares(3), { ...DEFAULT_SHEET, stickerWidth: 20 });
+  assert.equal(sheet.placed.length, 0);
+  assert.equal(sheet.overflow, 3);
+});
+
+test('once a sheet is full, nothing small sneaks in behind something tall', () => {
+  // A list that ends with small ones: they must not jump ahead of the big one
+  // that ran out of room, because a sheet out of order is a sheet you cannot
+  // match up with the list you chose.
+  const pieces = [
+    ...Array.from({ length: 40 }, (_, i) => ({ id: `big${i}`, aspect: 0.5 })),
+    { id: 'late', aspect: 1 },
+  ];
+  const sheet = layOutSheet(pieces, { ...DEFAULT_SHEET, stickerWidth: 2.5 });
+  assert.equal(sheet.placed.some((p) => p.id === 'late'), false);
+});
+
+test('bigger margins and bigger gaps both fit fewer', () => {
+  const plain = capacityFor(DEFAULT_SHEET);
+  const roomier = capacityFor({ ...DEFAULT_SHEET, margin: 1 });
+  const spaced = capacityFor({ ...DEFAULT_SHEET, gap: 0.5 });
+  assert.ok(roomier < plain, `${plain} → ${roomier} with a one-inch margin`);
+  assert.ok(spaced < plain, `${plain} → ${spaced} with a half-inch gap`);
+  assert.ok(capacityFor({ ...DEFAULT_SHEET, stickerWidth: 1 }) > plain, 'and smaller ones fit more');
+});
+
+test('A4 and Letter are different sheets, and both are offered', () => {
+  assert.equal(PAGES.length, 2);
+  const letter = layOutSheet(squares(1), { ...DEFAULT_SHEET, pageId: 'letter' });
+  const a4 = layOutSheet(squares(1), { ...DEFAULT_SHEET, pageId: 'a4' });
+  assert.equal(letter.page.width, 8.5);
+  assert.equal(a4.page.height, 11.69);
+  assert.notEqual(letter.widthPx, a4.widthPx);
+});
+
+test('an unknown page falls back to the first rather than to nothing', () => {
+  const sheet = layOutSheet(squares(1), { ...DEFAULT_SHEET, pageId: 'not-a-page' });
+  assert.equal(sheet.page.id, 'letter');
+});
+
+test('the resolution decides the pixels, and the paper decides the inches', () => {
+  const low = layOutSheet(squares(1), { ...DEFAULT_SHEET, dpi: 150 });
+  const high = layOutSheet(squares(1), { ...DEFAULT_SHEET, dpi: 300 });
+  assert.equal(low.widthPx, 1275);
+  assert.equal(high.widthPx, 2550);
+  assert.deepEqual(low.placed[0], high.placed[0], 'and where a sticker sits does not change with it');
+  assert.equal(atDpi(2, 300), 600);
+});
+
+/* ------------------------------------------------------------------- packs */
+
+const sticker = (id, name, tags = []) => ({
+  id, name, assetId: `a-${id}`, width: 1000, height: 1000, createdAt: 1, tags,
+});
+
+test('a pack is a tag, and a tag is all a pack is', () => {
+  assert.equal(packTag('Autumn Leaves'), 'pack:autumn-leaves');
+  assert.equal(packTag('  Winter!  '), 'pack:winter');
+  assert.equal(packTag('   '), '', 'a nameless pack is not a pack');
+  assert.equal(packOf('pack:autumn'), 'autumn');
+  assert.equal(packOf('autumn'), null, 'an ordinary tag is not a pack');
+  assert.equal(isPackTag('pack:x'), true);
+});
+
+test('packs are gathered from the stickers that are in them', () => {
+  const stickers = [
+    sticker('a', 'One', ['pack:autumn', 'leaf']),
+    sticker('b', 'Two', ['pack:autumn', 'pack:winter']),
+    sticker('c', 'Three', ['leaf']),
+  ];
+  const packs = packsIn(stickers);
+  assert.deepEqual(packs.map((p) => p.name), ['autumn', 'winter'], 'sorted, so the list does not reshuffle');
+  assert.deepEqual(packs[0].stickerIds, ['a', 'b']);
+  assert.deepEqual(packs[1].stickerIds, ['b'], 'a sticker can be in two packs at once');
+});
+
+test('an ordinary tag is left alone by all of this', () => {
+  assert.deepEqual(plainTags(['leaf', 'pack:autumn', 'red']), ['leaf', 'red']);
+  assert.deepEqual(packsIn([sticker('a', 'One', ['leaf', 'red'])]), [], 'and makes no pack');
+});
+
+test('adding to a pack is idempotent, and removing leaves the rest', () => {
+  let tags = ['leaf'];
+  tags = withPack(tags, 'Autumn');
+  assert.deepEqual(tags, ['leaf', 'pack:autumn']);
+  assert.equal(withPack(tags, 'Autumn'), tags, 'already in it, so nothing changes at all');
+
+  tags = withPack(tags, 'Winter');
+  assert.deepEqual(withoutPack(tags, 'autumn'), ['leaf', 'pack:winter']);
+  assert.deepEqual(withoutPack(tags, 'nothing'), tags, 'removing a pack it is not in is harmless');
+});
+
+test('inPack asks about one sticker and one pack', () => {
+  const one = sticker('a', 'One', ['pack:autumn']);
+  assert.equal(inPack(one, 'autumn'), true);
+  assert.equal(inPack(one, 'winter'), false);
+  assert.equal(inPack(sticker('b', 'Two'), 'autumn'), false, 'no tags at all is not in anything');
+});
+
+test('two stickers with the same name get two different file names', () => {
+  const names = fileNames(['Leaf', 'Leaf', 'Leaf']);
+  assert.equal(new Set(names).size, 3, names.join(', '));
+  assert.deepEqual(names, ['01-leaf.png', '02-leaf.png', '03-leaf.png']);
+});
+
+test('a file name is safe, numbered and never empty', () => {
+  const names = fileNames(['Autumn / Winter', '  ', 'Ümlaut!!']);
+  assert.deepEqual(names, ['01-autumn-winter.png', '02-sticker.png', '03-mlaut.png']);
+  for (const name of names) {
+    assert.ok(/^[\w.-]+$/.test(name), `${name} is safe for a zip`);
+  }
+});
+
+/* ------------------------------------------------------------------- the zip */
+
+/** Reads a little-endian number out of the bytes, as a zip reader would. */
+const u32 = (b, at) => b[at] | (b[at + 1] << 8) | (b[at + 2] << 16) | (b[at + 3] << 24);
+const u16 = (b, at) => b[at] | (b[at + 1] << 8);
+
+test('a zip has the four signatures a reader looks for', () => {
+  const bytes = zipBytes([{ name: 'a.png', bytes: new Uint8Array([1, 2, 3]) }]);
+  assert.equal(u32(bytes, 0) >>> 0, 0x04034b50, 'a local file header first');
+  // End of central directory is the last 22 bytes.
+  const end = bytes.length - 22;
+  assert.equal(u32(bytes, end) >>> 0, 0x06054b50, 'and the end record last');
+  assert.equal(u16(bytes, end + 8), 1, 'one entry on this disk');
+  assert.equal(u16(bytes, end + 10), 1, 'and one in all');
+  // Central directory starts where the end record says it does.
+  const centralAt = u32(bytes, end + 16);
+  assert.equal(u32(bytes, centralAt) >>> 0, 0x02014b50);
+});
+
+test('every entry is stored, not compressed, because a PNG already is', () => {
+  const payload = new Uint8Array(500).fill(7);
+  const bytes = zipBytes([{ name: 'a.png', bytes: payload }]);
+  assert.equal(u16(bytes, 8), 0, 'method 0 is stored');
+  assert.equal(u32(bytes, 18), 500, 'compressed size');
+  assert.equal(u32(bytes, 22), 500, 'is the same as the uncompressed one');
+  // And the payload really is in there, byte for byte.
+  const nameLength = u16(bytes, 26);
+  const at = 30 + nameLength;
+  assert.deepEqual([...bytes.slice(at, at + 500)], [...payload]);
+});
+
+test('the central directory points at where each entry actually is', () => {
+  const entries = [
+    { name: 'one.png', bytes: new Uint8Array([1, 2, 3, 4]) },
+    { name: 'two.png', bytes: new Uint8Array([9, 9]) },
+  ];
+  const bytes = zipBytes(entries);
+  const end = bytes.length - 22;
+  let at = u32(bytes, end + 16);
+  for (const entry of entries) {
+    assert.equal(u32(bytes, at) >>> 0, 0x02014b50);
+    const where = u32(bytes, at + 42);
+    assert.equal(u32(bytes, where) >>> 0, 0x04034b50, `${entry.name}'s header is where it says`);
+    const nameLength = u16(bytes, where + 26);
+    assert.equal(
+      new TextDecoder().decode(bytes.slice(where + 30, where + 30 + nameLength)),
+      entry.name,
+    );
+    at += 46 + u16(bytes, at + 28);
+  }
+});
+
+test('the checksum is the one a zip reader will work out for itself', () => {
+  // A known CRC-32: "123456789" is the standard check value.
+  assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
+  assert.equal(crc32(new Uint8Array(0)), 0);
+
+  const payload = new Uint8Array([1, 2, 3, 4, 5]);
+  const bytes = zipBytes([{ name: 'a.png', bytes: payload }]);
+  assert.equal(u32(bytes, 14) >>> 0, crc32(payload), 'and it is what went in the header');
+});
+
+test('the same stickers zipped twice are the same bytes twice', () => {
+  const entries = [
+    { name: '01-a.png', bytes: new Uint8Array([1, 2, 3]) },
+    { name: '02-b.png', bytes: new Uint8Array([4, 5, 6]) },
+  ];
+  assert.deepEqual(zipBytes(entries), zipBytes(entries), 'fixed timestamps, so a pack can be compared');
+});
+
+test('an empty zip is still a readable zip', () => {
+  const bytes = zipBytes([]);
+  assert.equal(bytes.length, 22);
+  assert.equal(u32(bytes, 0) >>> 0, 0x06054b50);
+  assert.equal(u16(bytes, 10), 0);
 });

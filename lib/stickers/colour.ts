@@ -134,6 +134,78 @@ export function disc(width: number, height: number, cx: number, cy: number, radi
 }
 
 /**
+ * A brush with a soft edge: the pixels of a disc, each with how strongly it
+ * lands there.
+ *
+ * `softness` is the fraction of the radius that fades, so 0 is a hard circle
+ * and 1 fades the whole way from the middle. The falloff is smoothstep rather
+ * than linear, because a linear edge leaves a visible ring where the gradient
+ * stops changing and a person reads that ring as part of the picture.
+ */
+export function softDisc(
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  radius: number,
+  softness: number,
+): [number, number][] {
+  const out: [number, number][] = [];
+  const r = Math.max(0.5, radius);
+  const soft = Math.min(1, Math.max(0, softness));
+  const inner = r * (1 - soft);
+  const top = Math.max(0, Math.floor(cy - r));
+  const bottom = Math.min(height - 1, Math.ceil(cy + r));
+  const left = Math.max(0, Math.floor(cx - r));
+  const right = Math.min(width - 1, Math.ceil(cx + r));
+  for (let y = top; y <= bottom; y++) {
+    for (let x = left; x <= right; x++) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d > r) continue;
+      let w = 1;
+      if (soft > 0 && d > inner) {
+        const t = (d - inner) / (r - inner);
+        w = 1 - t * t * (3 - 2 * t);
+      }
+      if (w > 0) out.push([y * width + x, Math.round(w * 255)]);
+    }
+  }
+  return out;
+}
+
+/** `smear`, but with a soft brush. The strongest touch at each pixel wins. */
+export function softSmear(
+  width: number,
+  height: number,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  radius: number,
+  softness: number,
+): [number, number][] {
+  const steps = Math.max(
+    1,
+    Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / Math.max(1, radius / 3)),
+  );
+  const strongest = new Map<number, number>();
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps;
+    for (const [i, w] of softDisc(
+      width,
+      height,
+      from.x + (to.x - from.x) * t,
+      from.y + (to.y - from.y) * t,
+      radius,
+      softness,
+    )) {
+      // The strongest, not the sum: adding them would make the middle of a
+      // slow drag harder than the middle of a quick one.
+      if ((strongest.get(i) ?? 0) < w) strongest.set(i, w);
+    }
+  }
+  return [...strongest];
+}
+
+/**
  * The pixels of a line between two points of a drag.
  *
  * A pointer moving quickly reports a handful of positions a long way apart.
@@ -205,6 +277,38 @@ export class Stroke {
       } else {
         data[i] = data[i + 1] = data[i + 2] = data[i + 3] = 0;
       }
+    }
+  }
+
+  /**
+   * The same, with a weight per pixel: a soft brush, where the edge of the
+   * stroke lands more gently than the middle of it.
+   *
+   * The strongest touch wins rather than accumulating, so passing over the
+   * same place twice in one stroke does not darken it.
+   */
+  applyEach(entries: Iterable<[number, number]>, colour: Rgb | null) {
+    const { data } = this.paint;
+    for (const [p, weight] of entries) {
+      const i = p * 4;
+      if (!this.before.has(p)) {
+        this.before.set(
+          p,
+          (data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3],
+        );
+      }
+      if (!colour) {
+        // Erasing softly: take the weight off what is there.
+        data[i + 3] = Math.max(0, data[i + 3] - weight);
+        if (data[i + 3] === 0) data[i] = data[i + 1] = data[i + 2] = 0;
+        continue;
+      }
+      // A different target replaces what was there; the same one is deepened.
+      const same = data[i] === colour.r && data[i + 1] === colour.g && data[i + 2] === colour.b;
+      data[i] = colour.r;
+      data[i + 1] = colour.g;
+      data[i + 2] = colour.b;
+      data[i + 3] = same ? Math.max(data[i + 3], weight) : weight;
     }
   }
 

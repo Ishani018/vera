@@ -118,8 +118,51 @@ export function maskFromInk(lines: Gray): Mask {
  *
  * `tolerance` is a Lab distance. Around 12 lifts a clean white scan; past 40 it
  * starts eating pale parts of the subject.
+ *
+ * Three things beyond the flood, each earning its place on a real photograph
+ * rather than on a clean scan:
+ *
+ * **It walks down a gradient instead of measuring from one colour.** A page
+ * photographed under a lamp is far brighter at the lamp end than at the other,
+ * and a single averaged paper colour with a fixed tolerance leaves the bright
+ * end behind as a blotch. So a pixel joins the background if it is close to
+ * *the pixel it spread from* as well as broadly paper-like overall — the flood
+ * walks down the lighting gradient in small steps, and a real edge is a step
+ * too big to cross.
+ *
+ * **It cuts softly.** A hard threshold gives a staircase on every curve, which
+ * is the one thing that reads as cheap. Pixels whose distance falls in a band
+ * just past the tolerance come out part-transparent, so the edge fades the way
+ * a photographed edge actually does.
+ *
+ * **It ignores grain.** Paper texture leaves thousands of one-pixel islands and
+ * holes. Anything smaller than `speck` is taken to be the paper's texture
+ * rather than the picture, and goes the same way as its surroundings.
  */
-export function backgroundMask(source: Bitmap, tolerance: number): Mask {
+export type RemovalTuning = {
+  /**
+   * How far one step of the flood may move in Lab. Small enough that a drawn
+   * edge stops it, large enough that lighting does not.
+   */
+  step?: number;
+  /** The Lab band past `tolerance` over which the edge fades out. */
+  softness?: number;
+  /** Islands and holes of at most this many pixels are treated as texture. */
+  speck?: number;
+};
+
+export const REMOVAL_DEFAULTS: Required<RemovalTuning> = {
+  step: 6,
+  softness: 5,
+  speck: 48,
+};
+
+export function backgroundMask(
+  source: Bitmap,
+  tolerance: number,
+  tuning: RemovalTuning = {},
+): Mask {
+  const { step, softness, speck } = { ...REMOVAL_DEFAULTS, ...tuning };
   const { width, height } = source;
   const lab = toLab(source);
   const seeds: number[] = [];
@@ -143,17 +186,142 @@ export function backgroundMask(source: Bitmap, tolerance: number): Mask {
   const n = seeds.length || 1;
   const [pl, pa, pb] = [sl / n, sa / n, sb / n];
 
-  const near = (i: number) => {
+  /** How far a pixel is from the paper the border says this is. */
+  const fromPaper = (i: number) => {
     const dl = lab.l[i] - pl;
     const da = lab.a[i] - pa;
     const db = lab.b[i] - pb;
-    return Math.sqrt(dl * dl + da * da + db * db) <= tolerance;
+    return Math.sqrt(dl * dl + da * da + db * db);
   };
 
-  const background = flood({ width, height, seeds, passable: near });
+  /** How far one pixel is from its neighbour. */
+  const between = (i: number, j: number) => {
+    const dl = lab.l[i] - lab.l[j];
+    const da = lab.a[i] - lab.a[j];
+    const db = lab.b[i] - lab.b[j];
+    return Math.sqrt(dl * dl + da * da + db * db);
+  };
+
+  // Generous overall, strict about each step: the total allowance is what lets
+  // the flood follow a lamp's falloff right across the page, and the step is
+  // what stops it walking straight into the subject when it gets there.
+  //
+  // A tapering step — strict the further from paper it gets — was tried, to
+  // stop the flood following a soft shadow into the object it belongs to. It
+  // made the shadow a little better and the uneven lighting much worse, because
+  // brightly lit paper is itself a long way from the average paper colour and
+  // the taper would not let the flood reach it. A soft shadow against its own
+  // subject is what the touch-up brushes are for; the screen says so.
+  const roam = tolerance + softness + step * 4;
+  const passable = (i: number, from: number) =>
+    i === from
+      ? fromPaper(i) <= tolerance + softness
+      : between(i, from) <= step && fromPaper(i) <= roam;
+
+  const background = flood({ width, height, seeds, passable });
   const data = new Uint8Array(width * height).fill(SOLID);
   for (const i of background) data[i] = CLEAR;
+
+  if (speck > 0) unspeckle(data, width, height, speck);
+  if (softness > 0) softenEdge(data, width, height, between, step, softness);
   return { width, height, data };
+}
+
+/**
+ * Islands and holes too small to be part of the picture, filled in.
+ *
+ * Grain on a photographed page leaves thousands of these, and every one of them
+ * is a speck of paper stuck to the sticker or a pinhole through it. A region
+ * this small is never a feature somebody drew, so it becomes whatever surrounds
+ * it — which for an island is the background, and for a hole is the subject.
+ */
+function unspeckle(data: Uint8Array, width: number, height: number, speck: number) {
+  const seen = new Uint8Array(data.length);
+  for (let start = 0; start < data.length; start++) {
+    if (seen[start]) continue;
+    const solid = data[start] > 127;
+    const stack = [start];
+    const region: number[] = [];
+    seen[start] = 1;
+    // Every region is walked all the way, even the huge one that is obviously
+    // not a speck. Stopping early and moving on leaves the rest of it unvisited
+    // but its frontier marked, so later rounds find its middle as a fresh
+    // region — a small one — and punch a hole in the picture.
+    while (stack.length) {
+      const i = stack.pop()!;
+      region.push(i);
+      const x = i % width;
+      const y = (i / width) | 0;
+      const push = (j: number) => {
+        if (!seen[j] && data[j] > 127 === solid) {
+          seen[j] = 1;
+          stack.push(j);
+        }
+      };
+      if (x > 0) push(i - 1);
+      if (x < width - 1) push(i + 1);
+      if (y > 0) push(i - width);
+      if (y < height - 1) push(i + width);
+    }
+    if (region.length > speck) continue;
+    for (const i of region) data[i] = solid ? CLEAR : SOLID;
+  }
+}
+
+/**
+ * The cut, made gradual where the picture fades rather than stops.
+ *
+ * Measured by the step the flood refused to take, not by the distance from the
+ * paper. The flood stopped at this pixel *because* that step was bigger than it
+ * would cross — so how much bigger is exactly the question worth asking. A step
+ * barely over the line is a gentle fade and comes out part-transparent; a step
+ * far over it is a drawn edge and stays solid.
+ *
+ * Only along the boundary, so a pale pixel deep inside the subject stays fully
+ * opaque. Fading by colour alone would make a pale subject half-transparent all
+ * over, which is the wrong answer to a different question.
+ */
+function softenEdge(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  between: (i: number, j: number) => number,
+  step: number,
+  softness: number,
+) {
+  const faded = new Map<number, number>();
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] !== SOLID) continue;
+    const x = i % width;
+    const y = (i / width) | 0;
+    let nearest = Infinity;
+    const look = (j: number) => {
+      if (data[j] !== CLEAR) return;
+      const d = between(i, j);
+      if (d < nearest) nearest = d;
+    };
+    if (x > 0) look(i - 1);
+    if (x < width - 1) look(i + 1);
+    if (y > 0) look(i - width);
+    if (y < height - 1) look(i + width);
+    if (nearest === Infinity) continue;
+
+    // A pixel whose step is *within* the allowance did not stop the flood by
+    // being too different — it stopped for the overall distance from paper, at
+    // the far end of a long gradient. Fading that one would cut a transparent
+    // ring out of the subject rather than soften its edge.
+    if (nearest <= step) continue;
+
+    const over = nearest - step;
+    if (over >= softness) continue;
+    const t = Math.max(0, over) / softness;
+    // Smoothstep again, for the same reason as the brush: a linear ramp leaves
+    // a visible line where it stops changing.
+    faded.set(i, Math.round(255 * (t * t * (3 - 2 * t))));
+  }
+  // Written after the pass, so one softened pixel is never read as background
+  // by the pixel beside it.
+  for (const [i, alpha] of faded) data[i] = alpha;
 }
 
 /* ------------------------------------------------------------- the die cut */
@@ -333,3 +501,34 @@ export function scalePaint(paint: Bitmap, width: number, height: number): Bitmap
   }
   return { width, height, data: out };
 }
+
+/**
+ * The background removal, corrected by hand.
+ *
+ * Automatic removal is a guess, and on a real photograph it is wrong in a few
+ * places every time — a shadow under an edge it keeps, a pale patch inside the
+ * subject it takes. This is the correction: a layer painted over the picture
+ * saying "keep this whatever you decided" and "drop this whatever you decided",
+ * applied to the mask before anything else looks at it, so the export, the
+ * die-cut and the preview all see the same corrected shape.
+ *
+ * The layer is a straight RGBA picture, which is how it can be stored as a
+ * lossless PNG and reopened a week later exactly as it was painted. Its red
+ * channel is what the pixel should become and its alpha is how strongly, so a
+ * soft brush blends towards its target instead of stamping a hard-edged hole.
+ */
+export function applyTouch(base: Mask, touch: Bitmap): Mask {
+  if (touch.width !== base.width || touch.height !== base.height) return base;
+  const data = new Uint8Array(base.data);
+  for (let p = 0, i = 0; p < data.length; p++, i += 4) {
+    const weight = touch.data[i + 3];
+    if (!weight) continue;
+    const target = touch.data[i];
+    data[p] = Math.round(data[p] + ((target - data[p]) * weight) / 255);
+  }
+  return { width: base.width, height: base.height, data };
+}
+
+/** What the restore and remove brushes paint, as colours in the touch layer. */
+export const KEEP = { r: 255, g: 255, b: 255 };
+export const DROP = { r: 0, g: 0, b: 0 };
