@@ -578,6 +578,15 @@ export type StickerSource = {
   author: string;
   licence: string;
   downloadedOn: string;
+  /**
+   * What was created at install time, so a later change to it is visible.
+   *
+   * Removing a pack must not take away work. Without a record of what the pack
+   * put there, there is no way to tell a sticker you renamed and recoloured
+   * from one you have never opened — and "remove the pack" would quietly mean
+   * "remove your work too".
+   */
+  installedAs?: { name: string; tags: string[] };
 };
 
 export type LibrarySticker = {

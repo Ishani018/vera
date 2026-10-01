@@ -65,6 +65,9 @@ export const sourceFor = (manifest: StarterManifest, item: StarterItem): Sticker
   author: item.author,
   licence: item.licence,
   downloadedOn: item.downloadedOn,
+  // What the pack put there, kept so that removing the pack later can tell a
+  // sticker nobody has touched from one somebody has made their own.
+  installedAs: { name: item.name, tags: tagsFor(manifest, item) },
 });
 
 /** Where a pack keeps its pictures inside the zip. */
@@ -128,3 +131,61 @@ export const summarise = (outcomes: ItemOutcome[]) => ({
   skipped: outcomes.filter((o) => o.state === 'skipped').length,
   failed: outcomes.filter((o) => o.state === 'failed').length,
 });
+
+/* ----------------------------------------------------------- uninstalling */
+
+const sameTags = (a: string[], b: string[]) =>
+  a.length === b.length && [...a].sort().join('\u0000') === [...b].sort().join('\u0000');
+
+/**
+ * Has this sticker been made somebody's own since it was installed?
+ *
+ * Renamed, retagged, or its picture swapped. Anything that has been is kept
+ * when its pack is removed, because "remove the pack" must never mean "remove
+ * the work you did to it". A sticker installed before this record existed has
+ * nothing to compare against, and is treated as edited — the cautious way
+ * round, since keeping something by mistake is recoverable and removing it is
+ * the thing we are being careful about.
+ */
+export function isEdited(sticker: LibrarySticker): boolean {
+  const was = sticker.source?.installedAs;
+  if (!was) return true;
+  return sticker.name !== was.name || !sameTags(sticker.tags, was.tags);
+}
+
+/** Packs other than this one that a sticker has been put into by hand. */
+export const otherPacks = (sticker: LibrarySticker, pack: string): string[] =>
+  sticker.tags
+    .filter((tag) => tag.startsWith('pack:') && tag !== `pack:${pack}`)
+    .map((tag) => tag.slice('pack:'.length));
+
+export type RemovalPlan = {
+  /** To be put in the trash. */
+  remove: LibrarySticker[];
+  /** Left alone, each with the reason it was left. */
+  keep: { sticker: LibrarySticker; because: string }[];
+};
+
+/**
+ * What removing a pack should actually take away.
+ *
+ * Only what came from that pack, only what is still as the pack left it, and
+ * never something that now belongs to another pack as well. Everything kept is
+ * kept for a stated reason, because a count of "3 removed, 2 kept" with no
+ * explanation is a count nobody can act on.
+ */
+export function planRemoval(library: LibrarySticker[], pack: string): RemovalPlan {
+  const remove: LibrarySticker[] = [];
+  const keep: RemovalPlan['keep'] = [];
+  for (const sticker of fromPack(library, pack)) {
+    const others = otherPacks(sticker, pack);
+    if (others.length) {
+      keep.push({ sticker, because: `it is also in ${others.join(' and ')}` });
+    } else if (isEdited(sticker)) {
+      keep.push({ sticker, because: 'you have changed it' });
+    } else {
+      remove.push(sticker);
+    }
+  }
+  return { remove, keep };
+}

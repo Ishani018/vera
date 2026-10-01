@@ -15,7 +15,9 @@ import {
 } from '@/lib/stickers/packs';
 import { makeZip } from '@/lib/stickers/zip';
 import { installPack, summarise } from '@/lib/starter/installClient';
-import type { ItemOutcome } from '@/lib/starter/install';
+import { planRemoval, type ItemOutcome } from '@/lib/starter/install';
+import { removeSticker } from '@/lib/cover/library';
+import { Modal } from '../Modal';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader } from '../StudioHeader';
 import { Button, Notice, TextInput, cx } from '../ui';
@@ -42,6 +44,7 @@ export function StickerPacks() {
   const [problem, setProblem] = useState<string | null>(null);
   const [installing, setInstalling] = useState<{ done: number; total: number; name: string } | null>(null);
   const [failures, setFailures] = useState<ItemOutcome[]>([]);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   /**
    * Installing a pack somebody added themselves.
@@ -115,6 +118,36 @@ export function StickerPacks() {
     setNewName('');
     setProblem(null);
     setSaid(`Ready. Add stickers to ${tag.slice('pack:'.length)} below.`);
+  };
+
+  /**
+   * Removing a pack, which takes away less than its name suggests on purpose.
+   *
+   * Only what came from the pack, only what is still as the pack left it, and
+   * never something you have since put in another pack. Everything it takes
+   * goes to the trash for thirty days like anything else, so a mistake here
+   * costs a trip to the Trash screen rather than the work itself.
+   */
+  const remove = async (pack: string) => {
+    setBusy(true);
+    setSaid(null);
+    setProblem(null);
+    try {
+      const plan = planRemoval(stickers, pack);
+      for (const sticker of plan.remove) await removeSticker(sticker.id);
+      await reload();
+      setRemoving(null);
+      const kept = plan.keep.map((k) => `${k.sticker.name} (${k.because})`);
+      setSaid(
+        `${pack}: ${plan.remove.length} moved to the trash` +
+          (kept.length ? `. Kept ${kept.join(', ')}` : '') +
+          '.',
+      );
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'That pack could not be removed.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const toggle = async (sticker: LibrarySticker) => {
@@ -255,9 +288,16 @@ export function StickerPacks() {
                   />
                 </label>
                 {open && inside.length > 0 && (
-                  <Button variant="primary" disabled={busy} onClick={() => void download()}>
-                    Download {open} as a zip
-                  </Button>
+                  <>
+                    <Button variant="primary" disabled={busy} onClick={() => void download()}>
+                      Download {open} as a zip
+                    </Button>
+                    {inside.some((sticker) => sticker.source?.pack === open) && (
+                      <Button disabled={busy} onClick={() => setRemoving(open)}>
+                        Remove this pack
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -288,6 +328,45 @@ export function StickerPacks() {
                 <div className="mt-3 max-w-xl">
                   <Notice level="ok">{said}</Notice>
                 </div>
+              )}
+
+              {removing && (
+                <Modal title={`Remove ${removing}?`} onClose={() => setRemoving(null)} width="max-w-md">
+                  {(() => {
+                    const plan = planRemoval(stickers, removing);
+                    return (
+                      <>
+                        <p className="text-[14.5px] leading-relaxed">
+                          {plan.remove.length === 0
+                            ? 'Nothing would be removed.'
+                            : plan.remove.length === 1
+                              ? 'One sticker goes to the trash, where it stays for thirty days.'
+                              : `${plan.remove.length} stickers go to the trash, where they stay for thirty days.`}
+                        </p>
+                        {plan.keep.length > 0 && (
+                          <ul className="mt-3 list-disc space-y-1 pl-5 text-[13.5px] text-ink-500">
+                            {plan.keep.map((k) => (
+                              <li key={k.sticker.id}>
+                                <span className="font-[560] text-ink-700">{k.sticker.name}</span> stays
+                                — {k.because}.
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                          <Button onClick={() => setRemoving(null)}>Keep it</Button>
+                          <Button
+                            variant="primary"
+                            disabled={busy || plan.remove.length === 0}
+                            onClick={() => void remove(removing)}
+                          >
+                            Remove {plan.remove.length}
+                          </Button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </Modal>
               )}
 
               {open && (

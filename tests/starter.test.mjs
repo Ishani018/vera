@@ -21,9 +21,14 @@ import {
 } from '../lib/starter/manifest.ts';
 import { crc32, zipBytes } from '../lib/stickers/zip.ts';
 import { readZip } from '../lib/stickers/unzip.ts';
+import { stickerAssets } from '../lib/assetRefs.ts';
+import { alive } from '../lib/deleted.ts';
 import {
   fromPack,
+  isEdited,
   itemBytes,
+  otherPacks,
+  planRemoval,
   openPack,
   planInstall,
   sourceFor,
@@ -380,6 +385,9 @@ test('provenance is carried as fields, not folded into tags', () => {
     author: 'Jane Smith',
     licence: 'CC0-1.0',
     downloadedOn: '2026-10-01',
+    // What the pack put there, so removing it later can tell an untouched
+    // sticker from one somebody has made their own.
+    installedAs: { name: 'Oak leaf', tags: ['pack:sample', 'leaf'] },
   });
 });
 
@@ -502,4 +510,99 @@ test('a flipped byte in a file name is not a checksum problem, and is caught lat
   const read = readZip(renamed);
   assert.equal(read.length, 1, 'the zip is still perfectly readable');
   assert.equal(read[0].name, 'a.txt', 'the index still says the old name');
+});
+
+/* ----------------------------------------------------------- uninstalling */
+
+const asInstalled = (pack, file, over = {}) => {
+  const base = installed(pack, file);
+  return {
+    ...base,
+    name: `Item ${file}`,
+    tags: [`pack:${pack}`, 'shape'],
+    source: { ...base.source, installedAs: { name: `Item ${file}`, tags: [`pack:${pack}`, 'shape'] } },
+    ...over,
+  };
+};
+
+test('removing a pack takes only that pack, and only what it put there', () => {
+  const library = [
+    asInstalled('sample', 'a.png'),
+    asInstalled('sample', 'b.png'),
+    asInstalled('autumn', 'c.png'),
+    sticker({ name: 'Mine', tags: ['pack:sample'] }),
+  ];
+  const plan = planRemoval(library, 'sample');
+  assert.deepEqual(plan.remove.map((s) => s.source.file), ['a.png', 'b.png']);
+  assert.equal(plan.keep.length, 0, 'nothing of this pack was kept back');
+
+  const left = library.filter((s) => !plan.remove.includes(s));
+  assert.deepEqual(left.map((s) => s.name), ['Item c.png', 'Mine'],
+    'the other pack and my own sticker are untouched');
+});
+
+test('a sticker that is also in another pack stays', () => {
+  const shared = asInstalled('sample', 'a.png', {
+    tags: ['pack:sample', 'pack:autumn', 'shape'],
+  });
+  const plan = planRemoval([shared, asInstalled('sample', 'b.png')], 'sample');
+  assert.deepEqual(plan.remove.map((s) => s.source.file), ['b.png']);
+  assert.equal(plan.keep.length, 1);
+  assert.match(plan.keep[0].because, /also in autumn/);
+});
+
+test('a sticker you renamed stays, and says so', () => {
+  const renamed = asInstalled('sample', 'a.png', { name: 'My lovely circle' });
+  const plan = planRemoval([renamed], 'sample');
+  assert.deepEqual(plan.remove, []);
+  assert.match(plan.keep[0].because, /you have changed it/);
+});
+
+test('a sticker you retagged stays', () => {
+  const retagged = asInstalled('sample', 'a.png', { tags: ['pack:sample', 'shape', 'favourite'] });
+  const plan = planRemoval([retagged], 'sample');
+  assert.deepEqual(plan.remove, []);
+  assert.match(plan.keep[0].because, /you have changed it/);
+});
+
+test('the same tags in a different order are not a change', () => {
+  const reordered = asInstalled('sample', 'a.png', { tags: ['shape', 'pack:sample'] });
+  assert.equal(isEdited(reordered), false);
+  assert.equal(planRemoval([reordered], 'sample').remove.length, 1);
+});
+
+test('a sticker installed before any of this was recorded is kept, not guessed about', () => {
+  const old = asInstalled('sample', 'a.png');
+  delete old.source.installedAs;
+  assert.equal(isEdited(old), true, 'nothing to compare against, so leave it alone');
+  assert.deepEqual(planRemoval([old], 'sample').remove, []);
+});
+
+test('something already in the trash is not removed twice', () => {
+  const plan = planRemoval([asInstalled('sample', 'a.png', { deletedAt: 1000 })], 'sample');
+  assert.deepEqual(plan.remove, []);
+  assert.deepEqual(plan.keep, []);
+});
+
+test('removing a pack nothing came from removes nothing', () => {
+  const plan = planRemoval([sticker({ tags: ['pack:sample'] })], 'sample');
+  assert.deepEqual(plan.remove, []);
+});
+
+test('other packs a sticker belongs to are named, and its own is not', () => {
+  const sticker = asInstalled('sample', 'a.png', {
+    tags: ['pack:sample', 'pack:autumn', 'pack:winter', 'shape'],
+  });
+  assert.deepEqual(otherPacks(sticker, 'sample'), ['autumn', 'winter']);
+  assert.deepEqual(otherPacks(sticker, 'autumn').sort(), ['sample', 'winter']);
+});
+
+test('a removed sticker keeps its row, so the trash and the asset sweep still see it', () => {
+  // Removal is the app's ordinary soft delete: the row stays, with deletedAt on
+  // it. That is what lets the trash offer it back, and what stops the asset
+  // sweep deciding its picture is an orphan while it is still recoverable.
+  const removed = { ...asInstalled('sample', 'a.png'), deletedAt: Date.now() };
+  assert.deepEqual(stickerAssets(removed), [removed.assetId],
+    'its picture is still counted as in use');
+  assert.equal(alive([removed]).length, 0, 'while being out of every list');
 });
