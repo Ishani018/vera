@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { CATEGORIES, INTERIORS, TILES, tileSize } from '../lib/tiles.ts';
 import { presetById } from '../lib/presets.ts';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('every tile is distinct, named and filed under a real category', () => {
   const ids = TILES.map((tile) => tile.id);
@@ -29,6 +34,16 @@ test('a ready tile opens something that exists', () => {
       assert.ok(
         presetById(tile.destination.presetId),
         `${tile.id} points at a board that does not exist: ${tile.destination.presetId}`,
+      );
+    }
+    if (tile.destination.kind === 'route') {
+      // Read off the filesystem rather than compared against a list kept here,
+      // because a list kept here would be a second place to remember to update
+      // and the whole point of this test is that nobody has to remember.
+      const path = join(ROOT, 'app', tile.destination.href.replace(/^\//, ''), 'page.tsx');
+      assert.ok(
+        existsSync(path),
+        `${tile.id} points at ${tile.destination.href}, which has no page: ${path}`,
       );
     }
   }

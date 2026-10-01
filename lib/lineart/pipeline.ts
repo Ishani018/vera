@@ -535,39 +535,78 @@ export function despeckle(image: Gray, minArea: number): Gray {
   const { width, height, data } = image;
   const out = new Uint8ClampedArray(data);
   const seen = new Uint8Array(width * height);
-  const stack: number[] = [];
-  const region: number[] = [];
 
   for (let start = 0; start < data.length; start++) {
     if (data[start] !== INK || seen[start]) continue;
-    stack.length = 0;
-    region.length = 0;
-    stack.push(start);
-    seen[start] = 1;
-
-    while (stack.length) {
-      const i = stack.pop()!;
-      region.push(i);
-      const x = i % width;
-      const y = (i / width) | 0;
-      // Four-connected: diagonal-only touches are not one line, and joining
-      // them would keep chains of noise that read as a line and are not one.
-      if (x > 0) push(i - 1);
-      if (x < width - 1) push(i + 1);
-      if (y > 0) push(i - width);
-      if (y < height - 1) push(i + width);
-    }
+    const region = flood({
+      width,
+      height,
+      seeds: [start],
+      seen,
+      passable: (i) => data[i] === INK,
+    });
     if (region.length < minArea) for (const i of region) out[i] = PAPER;
   }
 
-  function push(n: number) {
-    if (!seen[n] && data[n] === INK) {
+  return { width, height, data: out };
+}
+
+/**
+ * Every pixel reachable from the seeds, four-connected.
+ *
+ * Four-connected because a diagonal-only touch is not one line, and joining
+ * those would keep chains of noise that read as a line and are not one.
+ *
+ * An explicit stack, not recursion: a recursive fill overflows on a large
+ * connected region, which on a dark painting is most of the page.
+ *
+ * `seen` is taken rather than made so a caller walking every region in an
+ * image can share one across the whole walk — which is what `despeckle` does,
+ * and what makes it one pass instead of one per region. A caller with a single
+ * seed can leave it out.
+ */
+export function flood({
+  width,
+  height,
+  seeds,
+  passable,
+  seen = new Uint8Array(width * height),
+}: {
+  width: number;
+  height: number;
+  seeds: number[];
+  /** True where the fill may spread. Called once per pixel considered. */
+  passable: (index: number) => boolean;
+  seen?: Uint8Array;
+}): number[] {
+  const stack: number[] = [];
+  const region: number[] = [];
+
+  for (const seed of seeds) {
+    if (seen[seed] || !passable(seed)) continue;
+    seen[seed] = 1;
+    stack.push(seed);
+  }
+
+  while (stack.length) {
+    const i = stack.pop()!;
+    region.push(i);
+    const x = i % width;
+    const y = (i / width) | 0;
+    if (x > 0) step(i - 1);
+    if (x < width - 1) step(i + 1);
+    if (y > 0) step(i - width);
+    if (y < height - 1) step(i + width);
+  }
+
+  function step(n: number) {
+    if (!seen[n] && passable(n)) {
       seen[n] = 1;
       stack.push(n);
     }
   }
 
-  return { width, height, data: out };
+  return region;
 }
 
 /* ---------------------------------------------------------------- settings */

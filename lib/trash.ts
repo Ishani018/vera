@@ -1,9 +1,16 @@
 import { forgetAssetUrl } from './assets';
 import { getDb } from './db';
-import { designAssets, projectAssets, stickerAssets, templateAssets } from './assetRefs';
+import {
+  designAssets,
+  draftAssets,
+  projectAssets,
+  stickerAssets,
+  templateAssets,
+} from './assetRefs';
 import { daysLeft, isDeleted, TRASH_DAYS, DAY_MS, withoutMark } from './deleted';
 import { migrateProject } from './projects';
 import { migrateDesign } from './designs';
+import { migrateDraft } from './stickers/drafts';
 import type { CoverTemplate, Design, LibrarySticker } from './types';
 
 /**
@@ -17,7 +24,7 @@ import type { CoverTemplate, Design, LibrarySticker } from './types';
 
 /* ------------------------------------------------------------------ rows */
 
-export type TrashKind = 'book' | 'design' | 'sticker' | 'template';
+export type TrashKind = 'book' | 'design' | 'sticker' | 'template' | 'draft';
 
 export type TrashEntry = {
   /** Unique across kinds, so it can key a list. */
@@ -48,13 +55,15 @@ export async function listTrash(): Promise<TrashEntry[]> {
   const db = getDb();
   if (!db) return [];
 
-  const [projectRows, designRows, stickerRows, templateRows, assetRows] = await Promise.all([
-    db.projects.toArray(),
-    db.designs.toArray(),
-    db.stickers.toArray(),
-    db.coverTemplates.toArray(),
-    db.assets.toArray(),
-  ]);
+  const [projectRows, designRows, stickerRows, templateRows, draftRows, assetRows] =
+    await Promise.all([
+      db.projects.toArray(),
+      db.designs.toArray(),
+      db.stickers.toArray(),
+      db.coverTemplates.toArray(),
+      db.stickerDrafts.toArray(),
+      db.assets.toArray(),
+    ]);
 
   const projects = projectRows.map(migrateProject);
   const designs = designRows.map(migrateDesign);
@@ -69,6 +78,7 @@ export async function listTrash(): Promise<TrashEntry[]> {
   for (const design of designs) count(designAssets(design));
   for (const sticker of stickerRows) count(stickerAssets(sticker));
   for (const template of templateRows) count(templateAssets(template));
+  for (const draft of draftRows) count(draftAssets(draft));
 
   /** The bytes this one holds alone. */
   const soleBytes = (ids: string[]): number => {
@@ -140,6 +150,20 @@ export async function listTrash(): Promise<TrashEntry[]> {
       deletedAt: sticker.deletedAt!,
       daysLeft: daysLeft(sticker, now),
       bytes: soleBytes(stickerAssets(sticker)),
+    });
+  }
+
+  for (const draft of draftRows.map(migrateDraft)) {
+    if (!isDeleted(draft)) continue;
+    entries.push({
+      key: draft.id,
+      kind: 'draft',
+      id: draft.id,
+      name: draft.name || 'Untitled sticker',
+      what: 'Unfinished sticker',
+      deletedAt: draft.deletedAt!,
+      daysLeft: daysLeft(draft, now),
+      bytes: soleBytes(draftAssets(draft)),
     });
   }
 
@@ -225,6 +249,11 @@ export async function restore(entry: Pick<TrashEntry, 'kind' | 'id' | 'projectId
     if (row) await db.coverTemplates.put(withoutMark(row));
     return;
   }
+  if (entry.kind === 'draft') {
+    const row = await db.stickerDrafts.get(entry.id);
+    if (row) await db.stickerDrafts.put(withoutMark(row));
+    return;
+  }
   if (entry.projectId) {
     const row = await db.projects.get(entry.projectId);
     if (!row) return;
@@ -254,6 +283,7 @@ export async function purge(entry: Pick<TrashEntry, 'kind' | 'id' | 'projectId'>
   if (entry.kind === 'book') await db.projects.delete(entry.id);
   else if (entry.kind === 'sticker') await db.stickers.delete(entry.id);
   else if (entry.kind === 'template') await db.coverTemplates.delete(entry.id);
+  else if (entry.kind === 'draft') await db.stickerDrafts.delete(entry.id);
   else if (entry.projectId) {
     const row = await db.projects.get(entry.projectId);
     if (row) {
@@ -297,11 +327,12 @@ export async function purgeExpired(now = Date.now()): Promise<number> {
 async function sweepAssets(): Promise<number> {
   const db = getDb();
   if (!db) return 0;
-  const [projectRows, designRows, stickerRows, templateRows] = await Promise.all([
+  const [projectRows, designRows, stickerRows, templateRows, draftRows] = await Promise.all([
     db.projects.toArray(),
     db.designs.toArray(),
     db.stickers.toArray(),
     db.coverTemplates.toArray(),
+    db.stickerDrafts.toArray(),
   ]);
 
   const used = new Set<string>([
@@ -309,6 +340,9 @@ async function sweepAssets(): Promise<number> {
     ...designRows.map(migrateDesign).flatMap(designAssets),
     ...stickerRows.flatMap(stickerAssets),
     ...templateRows.flatMap((template: CoverTemplate) => templateAssets(template)),
+    // Drafts count. Without this a sweep would decide the upload somebody is
+    // halfway through making a sticker from was an orphan.
+    ...draftRows.flatMap(draftAssets),
   ]);
 
   const all = await db.assets.toArray();

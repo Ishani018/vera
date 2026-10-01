@@ -599,6 +599,52 @@ export type CoverTemplate = {
   deletedAt?: number;
 };
 
+/**
+ * A sticker still being made.
+ *
+ * Everything needed to put the Studio back exactly as it was left, and nothing
+ * that could be mistaken for a finished sticker. The upload and the colouring
+ * are referred to by asset id rather than carried here, so the row stays small
+ * enough to write on every change without thinking about it.
+ *
+ * The original is never overwritten. Every setting can be changed later and
+ * re-applied from `sourceAssetId`, which is the same reason a colouring page
+ * keeps its source and its line art apart.
+ */
+export type StickerDraft = {
+  id: string;
+  name: string;
+  /** As typed, not yet parsed, so reopening shows what was written. */
+  tags: string;
+  /** The upload, untouched and at full resolution. */
+  sourceAssetId: string;
+  mode: 'convert' | 'cleanup' | 'asis';
+  settings: LineArtSettings;
+  removeBackground: boolean;
+  tolerance: number;
+  smoothing: number;
+  inkColour: string;
+  dieCut: { width: number; colour: string; radius: number } | null;
+  /** The long edge the finished PNG is exported at. */
+  size: number;
+  /**
+   * The colouring, as its own PNG, at the size it was painted.
+   *
+   * Its own layer rather than painted into the line art, so the line weight
+   * can be changed afterwards without losing the colours — and stored
+   * losslessly, so opening a draft a week later starts from exactly the
+   * pixels that were left.
+   */
+  colourAssetId: string | null;
+  colourAt: { width: number; height: number } | null;
+  /** How far outlines are thickened, invisibly, to stop a fill leaking. */
+  gapClosing: number;
+  createdAt: number;
+  updatedAt: number;
+  /** The trash rules apply here too. See `lib/deleted.ts`. */
+  deletedAt?: number;
+};
+
 /** Anything the studio can open. */
 export type AnyProject = PoetryProject | ColoringBook;
 
