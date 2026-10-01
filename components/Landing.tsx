@@ -24,15 +24,14 @@ import {
 } from '@/lib/projects';
 import {
   CATEGORIES,
-  CATEGORY_TINT,
   INTERIORS,
   TILES,
   tileSize,
   type Tile,
-  type TileArt,
   type TileDestination,
 } from '@/lib/tiles';
 import type { AnyProject } from '@/lib/types';
+import { PREVIEW_ROUND } from '@/lib/preview';
 import {
   HOME_FILTERS,
   badgeFor,
@@ -67,6 +66,7 @@ import {
   TrashIcon,
 } from './icons';
 import { PackIcon } from './stickers/icons';
+import { TilePreview, PreviewBox } from './TilePreview';
 import { Modal } from './Modal';
 import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
@@ -404,12 +404,14 @@ export function Landing() {
                       onClick={() => void onTile(tile)}
                       className="group flex w-16 flex-col items-center gap-1.5"
                     >
-                      <span
-                        className="grid size-12 place-items-center rounded-full text-ink-700 transition-colors group-hover:text-accent-500"
-                        style={{ background: CATEGORY_TINT[tile.category] }}
+                      <PreviewBox
+                        category={tile.category}
+                        size={PREVIEW_ROUND}
+                        round
+                        className="text-ink-700 transition-colors group-hover:text-accent-500"
                       >
                         <shortcut.Icon size={22} />
-                      </span>
+                      </PreviewBox>
                       <span className="w-full truncate text-center text-[11.5px] leading-tight text-ink-700">
                         {shortcut.label}
                       </span>
@@ -545,9 +547,9 @@ export function Landing() {
               const inGroup = TILES.filter((tile) => tile.category === group.id);
               if (!inGroup.length) return null;
               return (
-                <div key={group.id} className="mb-5 last:mb-0">
+                <div key={group.id} className="mb-6 last:mb-0">
                   <h3 className="text-[12px] uppercase tracking-wide text-ink-500">{group.label}</h3>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {inGroup.map((tile) => (
                       <button
                         key={tile.id}
@@ -564,12 +566,9 @@ export function Landing() {
                             : 'cursor-not-allowed border-dashed border-ink-200 opacity-50',
                         )}
                       >
-                        <span
-                          className="grid h-11 w-11 shrink-0 place-items-center rounded-lg"
-                          style={{ background: CATEGORY_TINT[tile.category] }}
-                        >
-                          <TileDrawing art={tile.art} />
-                        </span>
+                        <TilePreview art={tile.art} category={tile.category} />
+                        {/* Beside the box and vertically centred by the row, so
+                            a two-line size never slides under the drawing. */}
                         <span className="min-w-0">
                           <span className="flex items-baseline gap-1.5">
                             <span className="truncate text-[14.5px] font-[570]">{tile.label}</span>
@@ -831,93 +830,6 @@ function IconButton({
       {children}
     </button>
   );
-}
-
-/** One drawing per tile, at the tile's own proportions. */
-function TileDrawing({ art }: { art: TileArt }) {
-  const stroke = '#b5ada1';
-  const paper = '#fff';
-  switch (art) {
-    case 'interior':
-      return (
-        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="An open book">
-          <rect x="8" y="8" width="51" height="64" fill={paper} stroke={stroke} />
-          <rect x="61" y="8" width="51" height="64" fill={paper} stroke={stroke} />
-          {[22, 30, 38, 46].map((y, i) => (
-            <rect key={y} x="16" y={y} width={[30, 22, 34, 18][i]} height="2.4" fill={stroke} />
-          ))}
-          {[22, 30, 38].map((y, i) => (
-            <rect key={y} x="69" y={y} width={[26, 34, 20][i]} height="2.4" fill={stroke} />
-          ))}
-        </svg>
-      );
-    case 'wrap':
-      return (
-        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="A wrap cover">
-          <rect x="6" y="12" width="48" height="56" fill={paper} stroke={stroke} />
-          <rect x="54" y="12" width="12" height="56" fill="#e7e1d6" stroke={stroke} />
-          <rect x="66" y="12" width="48" height="56" fill={paper} stroke={stroke} />
-          <rect x="76" y="26" width="28" height="4" fill="#8a7d66" />
-          <rect x="76" y="34" width="18" height="3" fill={stroke} />
-        </svg>
-      );
-    case 'square':
-      return (
-        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="A square post">
-          <rect x="32" y="4" width="56" height="56" fill={paper} stroke={stroke} />
-          <circle cx="60" cy="26" r="11" fill="#e7e1d6" />
-          <rect x="42" y="44" width="36" height="4" fill="#8a7d66" />
-          <rect x="48" y="52" width="24" height="3" fill={stroke} />
-        </svg>
-      );
-    case 'pin':
-      return (
-        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="A tall pin">
-          <rect x="42" y="2" width="36" height="72" fill={paper} stroke={stroke} />
-          <rect x="48" y="10" width="24" height="26" fill="#e7e1d6" />
-          <rect x="48" y="44" width="24" height="4" fill="#8a7d66" />
-          <rect x="48" y="52" width="16" height="3" fill={stroke} />
-        </svg>
-      );
-    case 'postcard':
-      return (
-        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="A postcard">
-          <rect x="34" y="6" width="52" height="68" fill={paper} stroke={stroke} />
-          <rect x="40" y="12" width="40" height="30" fill="#e7e1d6" />
-          <rect x="40" y="50" width="32" height="3.5" fill="#8a7d66" />
-          <rect x="40" y="58" width="22" height="3" fill={stroke} />
-        </svg>
-      );
-    case 'bookmark':
-      return (
-        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="A bookmark">
-          <rect x="52" y="2" width="16" height="72" fill={paper} stroke={stroke} />
-          <rect x="56" y="10" width="8" height="8" fill="#e7e1d6" />
-          <rect x="56" y="24" width="8" height="26" fill={stroke} opacity="0.5" />
-          <path d="M52 74 L60 66 L68 74 Z" fill="#e7e1d6" stroke={stroke} />
-        </svg>
-      );
-    case 'sticker':
-      // A shape with a die-cut edge round it, which is the thing itself.
-      return (
-        <svg viewBox="0 0 120 80" className="h-20" role="img" aria-label="A die-cut sticker">
-          <path
-            d="M44 12 Q60 4 76 12 Q92 22 88 42 Q84 64 60 70 Q34 66 30 44 Q26 22 44 12 Z"
-            fill={paper}
-            stroke={stroke}
-            strokeWidth="5"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M46 22 Q60 16 72 24 Q82 34 76 48 Q66 60 54 56 Q40 50 42 36 Q43 27 46 22 Z"
-            fill="#e7e1d6"
-            stroke={stroke}
-          />
-          <circle cx="54" cy="36" r="3" fill={stroke} />
-          <circle cx="67" cy="38" r="3" fill={stroke} />
-        </svg>
-      );
-  }
 }
 
 function when(at: number): string {
