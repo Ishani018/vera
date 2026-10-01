@@ -210,6 +210,9 @@ export function StickerPacks() {
             <Link href="/stickers/sheet" className="text-[13px] text-accent-500 underline">
               Sticker sheet →
             </Link>
+            <Link href="/stickers/sources" className="text-[13px] text-accent-500 underline">
+              Sources and licences →
+            </Link>
           </div>
 
           {!stickers.length ? (
