@@ -1,5 +1,7 @@
 'use client';
 
+import { SWITCH, switchReach, switchTravel } from '@/lib/switch';
+
 import { useId, useState, type ReactNode } from 'react';
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
@@ -192,17 +194,36 @@ export function Toggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
+        style={
+          {
+            width: SWITCH.trackWidth,
+            height: SWITCH.trackHeight,
+            '--reach': `${-switchReach()}px`,
+          } as React.CSSProperties
+        }
         className={cx(
-          'relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors',
+          'relative shrink-0 rounded-full transition-colors',
+          // The track is shorter than a finger. A pseudo-element reaches out to
+          // a proper target without making the switch look like a slab.
+          "before:absolute before:inset-x-0 before:content-['']",
+          'before:top-[var(--reach)] before:bottom-[var(--reach)]',
           checked ? 'bg-accent-500' : 'bg-ink-300',
-          disabled && 'opacity-60',
+          disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
         )}
       >
         <span
-          className={cx(
-            'absolute top-[3px] h-6 w-6 rounded-full bg-paper shadow transition-transform',
-            checked ? 'translate-x-[23px]' : 'translate-x-[3px]',
-          )}
+          data-switch-knob
+          style={{
+            width: SWITCH.knob,
+            height: SWITCH.knob,
+            top: SWITCH.inset,
+            // Said from the left edge, which is the whole of the fix.
+            left: SWITCH.inset,
+            translate: `${checked ? switchTravel() : 0}px 0`,
+          }}
+          // `translate` rather than `transform`, so this transitions what it
+          // actually sets. Reduced motion is handled once, in globals.css.
+          className="absolute rounded-full bg-paper shadow transition-[translate] duration-150"
         />
       </button>
     </div>
