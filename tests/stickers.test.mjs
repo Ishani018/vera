@@ -428,3 +428,62 @@ test('a sticker on a board is measured in inches, whatever the board is for', ()
   assert.equal(stickerDpi(s), 300, '360pt is five inches; 1500px across it is 300 dpi');
   assert.deepEqual(stickerWarnings(s, post).map((w) => w.kind), []);
 });
+
+/* ------------------------------------------------------------ sheet units */
+
+import {
+  MM_PER_INCH,
+  fromSteps,
+  fromUnits,
+  readable,
+  toSteps,
+  toUnits,
+  unitsFor,
+} from '../lib/stickers/sheet.ts';
+
+test('a metric page is thought about in millimetres', () => {
+  assert.equal(unitsFor('a4'), 'mm');
+  assert.equal(unitsFor('letter'), 'in');
+  // An unknown page is not metric by accident.
+  assert.equal(unitsFor('tabloid'), 'in');
+});
+
+test('converting there and back changes nothing', () => {
+  for (const inches of [0, 0.125, 0.25, 2, 8.5]) {
+    assert.ok(Math.abs(fromUnits(toUnits(inches, 'mm'), 'mm') - inches) < 1e-12);
+    assert.equal(fromUnits(toUnits(inches, 'in'), 'in'), inches);
+  }
+});
+
+test('an inch is 25.4 millimetres and nothing else', () => {
+  assert.equal(MM_PER_INCH, 25.4);
+  assert.equal(toUnits(1, 'mm'), 25.4);
+});
+
+test('measurements read out the way each system writes them', () => {
+  assert.equal(readable(0.25, 'in'), '0.25 in');
+  assert.equal(readable(0.25, 'mm'), '6.4 mm');
+  assert.equal(readable(2, 'in'), '2 in');
+  assert.equal(readable(2, 'mm'), '50.8 mm');
+  // No trailing zeros: "0.5 mm", never "0.50 mm".
+  assert.equal(readable(0.5 / 25.4, 'mm'), '0.5 mm');
+});
+
+test('a slider in millimetres lands on half millimetres, not on 0.37', () => {
+  const steps = toSteps(0.25, 'mm');
+  assert.equal(steps, 13); // 6.35 mm to the nearest half
+  assert.equal(readable(fromSteps(steps, 'mm'), 'mm'), '6.5 mm');
+});
+
+test('a slider in inches lands on hundredths', () => {
+  assert.equal(toSteps(0.25, 'in'), 25);
+  assert.equal(readable(fromSteps(25, 'in'), 'in'), '0.25 in');
+});
+
+test('every step is a whole number, so a drag never falls between two', () => {
+  for (const units of ['in', 'mm']) {
+    for (const inches of [0, 0.3, 1.7, 3]) {
+      assert.equal(toSteps(inches, units) % 1, 0);
+    }
+  }
+});

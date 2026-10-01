@@ -140,3 +140,69 @@ export function capacityFor(settings: SheetSettings, aspect = 1): number {
 
 /** Inches to pixels at the sheet's resolution, rounded once and consistently. */
 export const atDpi = (inches: number, dpi: number): number => Math.round(inches * dpi);
+
+/* ------------------------------------------------------------------- units */
+
+/**
+ * Which units a page is thought about in.
+ *
+ * A4 is a metric page — it is 210 by 297 mm, and 8.27 inches is a rounding of
+ * that, not how anybody describes it. Quoting a margin on A4 in hundredths of
+ * an inch is asking somebody to convert in their head to check it against a
+ * printer manual written in millimetres. Letter is the other way round.
+ *
+ * The stored numbers stay in inches throughout. This is about what is shown.
+ */
+export const METRIC_PAGES = new Set(['a4']);
+
+export type Units = 'in' | 'mm';
+
+export const unitsFor = (pageId: string): Units => (METRIC_PAGES.has(pageId) ? 'mm' : 'in');
+
+export const MM_PER_INCH = 25.4;
+
+export const toUnits = (inches: number, units: Units): number =>
+  units === 'mm' ? inches * MM_PER_INCH : inches;
+
+export const fromUnits = (value: number, units: Units): number =>
+  units === 'mm' ? value / MM_PER_INCH : value;
+
+/**
+ * A measurement as it should be read out.
+ *
+ * Millimetres to one decimal and inches to two: a tenth of a millimetre is
+ * already finer than any home printer places paper, and a hundredth of an inch
+ * is the same thing in the other system. More digits would be false precision
+ * in both.
+ */
+export function readable(inches: number, units: Units): string {
+  const value = toUnits(inches, units);
+  return units === 'mm' ? `${roundTo(value, 1)} mm` : `${roundTo(value, 2)} in`;
+}
+
+/**
+ * Rounding that does not depend on how a number happens to be stored.
+ *
+ * A quarter inch is 6.35 mm, and `(6.35).toFixed(1)` is "6.3": the nearest
+ * double to 6.35 is a hair below it, so the half rounds down. The nudge is
+ * relative and twelve orders of magnitude smaller than any measurement here,
+ * so it moves nothing except a value sitting exactly on a half.
+ */
+export function roundTo(value: number, places: number): number {
+  const factor = 10 ** places;
+  return Math.round(value * factor * (1 + Number.EPSILON * 4)) / factor;
+}
+
+/**
+ * The steps a slider in these units should take, as whole numbers.
+ *
+ * Sliders here count in whole steps and convert, so that dragging one lands on
+ * round numbers in the units on screen rather than on 0.37 mm.
+ */
+export const STEP = { in: 0.01, mm: 0.5 } as const;
+
+export const toSteps = (inches: number, units: Units): number =>
+  Math.round(toUnits(inches, units) / STEP[units]);
+
+export const fromSteps = (steps: number, units: Units): number =>
+  fromUnits(steps * STEP[units], units);

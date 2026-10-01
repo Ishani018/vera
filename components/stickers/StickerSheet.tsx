@@ -8,16 +8,19 @@ import {
   DEFAULT_SHEET,
   PAGES,
   atDpi,
+  fromSteps,
   layOutSheet,
+  readable,
+  toSteps,
+  unitsFor,
   type SheetSettings,
 } from '@/lib/stickers/sheet';
 import type { LibrarySticker } from '@/lib/types';
-import { Control } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
 import { Thumb } from './Thumb';
 import { MinusIcon } from './icons';
-import { Button, Notice, Toggle, cx } from '../ui';
+import { Button, Notice, Slider, Toggle, cx } from '../ui';
 
 /**
  * A sheet of stickers, arranged and exported as a PNG.
@@ -179,6 +182,45 @@ export function StickerSheet() {
 
   const set = (patch: Partial<SheetSettings>) => setSettings((was) => ({ ...was, ...patch }));
 
+  const units = unitsFor(settings.pageId);
+
+  /** One measurement, in whatever units the chosen paper is sold in. */
+  const Measure = ({
+    label,
+    hint,
+    value,
+    least,
+    most,
+    onChange,
+  }: {
+    label: string;
+    hint: string;
+    value: number;
+    least: number;
+    most: number;
+    onChange: (inches: number) => void;
+  }) => (
+    <div>
+      <span className="block text-[13px] font-[570]" title={hint}>
+        {label}
+      </span>
+      <div className="mt-1.5">
+        <Slider
+          value={toSteps(value, units)}
+          min={toSteps(least, units)}
+          max={toSteps(most, units)}
+          step={1}
+          onChange={(steps) => onChange(fromSteps(steps, units))}
+          // The number shown is the value actually stored, not the step the
+          // slider is sitting on: the default 2 in is 50.8 mm, which is not on
+          // the half-millimetre grid, and reading "51 mm" beside a caption
+          // saying "50.8 mm" would be two answers to one question.
+          format={() => readable(value, units)}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
@@ -188,200 +230,220 @@ export function StickerSheet() {
 
       <StickerTabs />
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-          {!stickers.length ? (
-            <div className="mt-6">
-              <h1 className="text-[26px] font-semibold tracking-tight">Nothing to arrange yet</h1>
-              <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-ink-500">
-                A sheet is made from the stickers in My stickers. Make one in the studio and save
-                it, then come back.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <div>
-                <div className="overflow-hidden rounded-2xl border border-ink-200 bg-ink-100 p-4">
-                  <canvas
-                    ref={canvas}
-                    aria-label="The sheet"
-                    className="mx-auto block h-auto max-h-[62vh] w-auto max-w-full bg-paper shadow-sm"
-                  />
-                </div>
-                <p className="mt-2 text-[12.5px] text-ink-500">
-                  {total === 0
-                    ? 'Choose how many of each sticker to put on the sheet.'
-                    : `${sheet.placed.length} of ${total} on the sheet.`}
-                  {sheet.overflow > 0 &&
-                    ` ${sheet.overflow} did not fit — make them smaller, or print a second sheet.`}
-                </p>
-                {problem && (
-                  <div className="mt-3">
-                    <Notice level="error">{problem}</Notice>
-                  </div>
-                )}
-                {said && (
-                  <div className="mt-3">
-                    <Notice level="ok">{said}</Notice>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-6">
-                <div>
-                  <span className="block font-[570]">Paper</span>
-                  <div className="mt-2 flex flex-col gap-1.5">
-                    {PAGES.map((page) => (
-                      <button
-                        key={page.id}
-                        type="button"
-                        aria-pressed={settings.pageId === page.id}
-                        onClick={() => set({ pageId: page.id })}
-                        className={cx(
-                          'rounded-lg border px-3 py-2 text-left text-[13.5px] transition-colors',
-                          settings.pageId === page.id
-                            ? 'border-accent-500 bg-accent-50'
-                            : 'border-ink-200 hover:border-ink-300',
-                        )}
-                      >
-                        <span className="font-[560]">{page.name}</span>
-                        <span className="ml-2 text-ink-500">
-                          {page.width} × {page.height} in
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <Control
-                  label="How big each sticker is"
-                  hint="Across, in tenths of an inch. Every sticker on the sheet shares this width and keeps its own shape."
-                  value={Math.round(settings.stickerWidth * 10)}
-                  min={5}
-                  max={60}
-                  onChange={(n) => set({ stickerWidth: n / 10 })}
-                />
-                <Control
-                  label="Margin"
-                  hint="Blank paper at every edge, in hundredths of an inch. A quarter inch is inside what most printers can reach."
-                  value={Math.round(settings.margin * 100)}
-                  min={0}
-                  max={100}
-                  onChange={(n) => set({ margin: n / 100 })}
-                />
-                <Control
-                  label="Space between them"
-                  hint="In hundredths of an inch. Enough to get scissors or a blade between them."
-                  value={Math.round(settings.gap * 100)}
-                  min={0}
-                  max={75}
-                  onChange={(n) => set({ gap: n / 100 })}
-                />
-
-                <Toggle
-                  label="Show cut lines"
-                  checked={settings.cutLines}
-                  onChange={(cutLines) => set({ cutLines })}
-                />
-                <p className="-mt-3 text-[13px] leading-snug text-ink-500">
-                  A dashed red line round each one, traced from its own edge at the size it sits on
-                  the sheet. For cutting by hand — a cutting machine wants the SVG from the studio.
-                </p>
-
-                <div>
-                  <span className="block font-[570]">Resolution</span>
-                  <div className="mt-2 flex gap-1.5">
-                    {[150, 300, 600].map((dpi) => (
-                      <button
-                        key={dpi}
-                        type="button"
-                        aria-pressed={settings.dpi === dpi}
-                        onClick={() => set({ dpi })}
-                        className={cx(
-                          'flex-1 rounded-lg border px-2 py-2 text-[13.5px] font-[560] transition-colors',
-                          settings.dpi === dpi
-                            ? 'border-accent-500 bg-accent-50'
-                            : 'border-ink-200 hover:border-ink-300',
-                        )}
-                      >
-                        {dpi} DPI
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-ink-200 pt-5">
-                  <span className="block font-[570]">Which stickers</span>
-                  <p className="mt-0.5 text-[12.5px] text-ink-500">
-                    Press one to add it. The number is how many are on the sheet.
-                  </p>
-                  {/* Pictures, not a list of names: nobody remembers which of
-                      forty things they called "Leaf 2", and the thing being
-                      chosen is a picture. */}
-                  <div className="mt-3 grid grid-cols-3 gap-2.5">
-                    {stickers.map((sticker) => {
-                      const count = counts[sticker.id] ?? 0;
-                      return (
-                        <Thumb
-                          key={sticker.id}
-                          url={urls[sticker.id]}
-                          name={sticker.name}
-                          title={`${sticker.name} — press to add one${count ? `, ${count} on the sheet` : ''}`}
-                          selected={count > 0}
-                          onClick={() =>
-                            setCounts((was) => ({
-                              ...was,
-                              [sticker.id]: Math.min(200, (was[sticker.id] ?? 0) + 1),
-                            }))
-                          }
-                          badge={
-                            count > 0 ? (
-                              <span className="pointer-events-none absolute right-1 top-1 flex min-w-5 items-center justify-center rounded-full bg-accent-500 px-1.5 py-0.5 text-[11px] font-[600] tabular-nums text-paper shadow">
-                                {count}
-                              </span>
-                            ) : null
-                          }
-                          corner={
-                            count > 0 ? (
-                              <button
-                                type="button"
-                                aria-label={`One fewer ${sticker.name}`}
-                                title={`One fewer ${sticker.name}`}
-                                onClick={() =>
-                                  setCounts((was) => ({
-                                    ...was,
-                                    [sticker.id]: Math.max(0, (was[sticker.id] ?? 0) - 1),
-                                  }))
-                                }
-                                className="absolute left-1 top-1 grid size-5 place-items-center rounded-full border border-ink-200 bg-paper/95 text-ink-700 shadow transition-colors hover:border-accent-500"
-                              >
-                                <MinusIcon size={12} />
-                              </button>
-                            ) : null
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button
-                      variant="primary"
-                      disabled={busy || !sheet.placed.length}
-                      onClick={() => void download()}
-                    >
-                      Download the sheet (PNG)
-                    </Button>
-                    <Button disabled={busy} onClick={() => setCounts({})}>
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+      {!stickers.length ? (
+        <div className="grid flex-1 place-items-center px-6">
+          <div className="max-w-xl text-center">
+            <h1 className="text-[24px] font-semibold tracking-tight">Nothing to arrange yet</h1>
+            <p className="mt-2 text-[15px] leading-relaxed text-ink-500">
+              A sheet is made from the stickers in My stickers. Make one in the studio and save it,
+              then come back.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        /*
+          Two columns, both of them fixed to the window: the sheet on the left
+          at whatever size the window allows, the controls on the right with
+          their own scrollbar. The page itself never scrolls, so the Download
+          button cannot be below the fold — which is where it was, under a
+          column of sliders, on a 720px screen.
+        */
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col bg-ink-100 p-4">
+            {/*
+              The pane is positioned and the canvas fills it absolutely. A
+              canvas carries its own size — 612 by 792 at 72 DPI for Letter —
+              and `max-height: 100%` against a flexible parent is a circular
+              question a browser answers by letting it have its way, which
+              pushed the window past 900 px tall on a 720 px screen.
+            */}
+            <div className="relative min-h-0 flex-1">
+              <canvas
+                ref={canvas}
+                aria-label="The sheet"
+                className="absolute inset-0 m-auto max-h-full max-w-full bg-paper object-contain shadow-sm"
+              />
+            </div>
+            <p className="mt-2 shrink-0 text-center text-[12px] text-ink-500">
+              {total === 0
+                ? 'Press a sticker on the right to put it on the sheet.'
+                : `${sheet.placed.length} of ${total} on the sheet · ${sheet.page.name} · ` +
+                  `${readable(settings.stickerWidth, units)} across each`}
+              {sheet.overflow > 0 && ` · ${sheet.overflow} did not fit`}
+            </p>
+          </div>
+
+          <div className="flex w-[352px] shrink-0 flex-col border-l border-ink-200 bg-paper">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="w-12 shrink-0 text-[12px] text-ink-500">Paper</span>
+                {PAGES.map((page) => (
+                  <button
+                    key={page.id}
+                    type="button"
+                    aria-pressed={settings.pageId === page.id}
+                    title={`${page.name} — ${readable(page.width, unitsFor(page.id))} by ${readable(page.height, unitsFor(page.id))}`}
+                    onClick={() => set({ pageId: page.id })}
+                    className={cx(
+                      'rounded-lg border px-2.5 py-1.5 text-[13px] font-[560] transition-colors',
+                      settings.pageId === page.id
+                        ? 'border-accent-500 bg-accent-50'
+                        : 'border-ink-200 hover:border-ink-300',
+                    )}
+                  >
+                    {page.name}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span className="w-12 shrink-0 text-[12px] text-ink-500">Detail</span>
+                {[150, 300, 600].map((dpi) => (
+                  <button
+                    key={dpi}
+                    type="button"
+                    aria-pressed={settings.dpi === dpi}
+                    title={
+                      dpi === 150
+                        ? 'Fine for a draft on plain paper'
+                        : dpi === 300
+                          ? 'What a printer wants for something you sell'
+                          : 'Twice that again — a much larger file, for glossy stock'
+                    }
+                    onClick={() => set({ dpi })}
+                    className={cx(
+                      'rounded-lg border px-2.5 py-1.5 text-[13px] font-[560] transition-colors',
+                      settings.dpi === dpi
+                        ? 'border-accent-500 bg-accent-50'
+                        : 'border-ink-200 hover:border-ink-300',
+                    )}
+                  >
+                    {dpi} DPI
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3.5">
+                <Measure
+                  label="Sticker width"
+                  hint="How wide each one is on the paper. They all share this width and each keeps its own shape."
+                  value={settings.stickerWidth}
+                  least={0.5}
+                  most={6}
+                  onChange={(stickerWidth) => set({ stickerWidth })}
+                />
+                <Measure
+                  label="Margin"
+                  hint="Blank paper at every edge. A quarter inch is inside what most printers can reach."
+                  value={settings.margin}
+                  least={0}
+                  most={1}
+                  onChange={(margin) => set({ margin })}
+                />
+                <Measure
+                  label="Space between"
+                  hint="Enough to get scissors or a blade between them."
+                  value={settings.gap}
+                  least={0}
+                  most={0.75}
+                  onChange={(gap) => set({ gap })}
+                />
+                {/* The explanation is a tooltip: it is four lines of prose
+                    about a switch whose label already says what it does. */}
+                <span
+                  className="block"
+                  title="A dashed red line round each one, traced from its own edge. For cutting by hand — a cutting machine wants the SVG from the studio."
+                >
+                  <Toggle
+                    label="Cut lines"
+                    checked={settings.cutLines}
+                    onChange={(cutLines) => set({ cutLines })}
+                  />
+                </span>
+              </div>
+
+              <div className="mt-5 border-t border-ink-200 pt-4">
+                <span className="block text-[13px] font-[570]">
+                  Which stickers
+                  <span className="ml-2 font-normal text-ink-500">press to add one</span>
+                </span>
+                <div className="mt-2.5 grid grid-cols-3 gap-2.5">
+                  {stickers.map((sticker) => {
+                    const count = counts[sticker.id] ?? 0;
+                    return (
+                      <Thumb
+                        key={sticker.id}
+                        url={urls[sticker.id]}
+                        name={sticker.name}
+                        title={`${sticker.name} — press to add one${count ? `, ${count} on the sheet` : ''}`}
+                        selected={count > 0}
+                        onClick={() =>
+                          setCounts((was) => ({
+                            ...was,
+                            [sticker.id]: Math.min(200, (was[sticker.id] ?? 0) + 1),
+                          }))
+                        }
+                        badge={
+                          count > 0 ? (
+                            <span className="pointer-events-none absolute right-1 top-1 flex min-w-5 items-center justify-center rounded-full bg-accent-500 px-1.5 py-0.5 text-[11px] font-[600] tabular-nums text-paper shadow">
+                              {count}
+                            </span>
+                          ) : null
+                        }
+                        corner={
+                          count > 0 ? (
+                            <button
+                              type="button"
+                              aria-label={`One fewer ${sticker.name}`}
+                              title={`One fewer ${sticker.name}`}
+                              onClick={() =>
+                                setCounts((was) => ({
+                                  ...was,
+                                  [sticker.id]: Math.max(0, (was[sticker.id] ?? 0) - 1),
+                                }))
+                              }
+                              className="absolute left-1 top-1 grid size-5 place-items-center rounded-full border border-ink-200 bg-paper/95 text-ink-700 shadow transition-colors hover:border-accent-500"
+                            >
+                              <MinusIcon size={12} />
+                            </button>
+                          ) : null
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {problem && (
+                <div className="mt-3">
+                  <Notice level="error">{problem}</Notice>
+                </div>
+              )}
+              {said && (
+                <div className="mt-3">
+                  <Notice level="ok">{said}</Notice>
+                </div>
+              )}
+            </div>
+
+            {/* Never below the fold: the one thing this page is for. */}
+            <div className="shrink-0 border-t border-ink-200 px-4 py-3">
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  disabled={busy || !sheet.placed.length}
+                  onClick={() => void download()}
+                >
+                  Download the sheet
+                </Button>
+                <Button disabled={busy || !total} onClick={() => setCounts({})}>
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

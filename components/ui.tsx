@@ -212,12 +212,15 @@ export function Slider({
   min,
   max,
   step = 0.1,
+  format,
 }: {
   value: number;
   onChange: (value: number) => void;
   min: number;
   max: number;
   step?: number;
+  /** How the number beside it reads — "6.5 mm" rather than 13. */
+  format?: (value: number) => string;
 }) {
   const sliding = useContext(Sliding);
   const held = useRef(false);
@@ -278,8 +281,8 @@ export function Slider({
         }}
         className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-ink-200 accent-accent-500"
       />
-      <span className="w-14 shrink-0 text-right tabular-nums text-[15px] text-ink-700">
-        {Number(value.toFixed(2))}
+      <span className="w-[4.5rem] shrink-0 text-right tabular-nums text-[14px] text-ink-700">
+        {format ? format(value) : Number(value.toFixed(2))}
       </span>
     </div>
   );
