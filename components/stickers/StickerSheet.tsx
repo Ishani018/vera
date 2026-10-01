@@ -48,7 +48,20 @@ export function StickerSheet() {
   const canvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    void listStickers().then(setStickers);
+    void listStickers().then((rows) => {
+      setStickers(rows);
+      /*
+        A selection handed over from the hub, in the address: "put these four
+        on a sheet" arrives as ?add=id,id,id and becomes one of each. Read once,
+        on the way in, and checked against what is actually in the library — an
+        address can say anything, and an id that is not here is simply ignored.
+      */
+      const asked = new URLSearchParams(window.location.search).get('add');
+      if (!asked) return;
+      const here = new Set(rows.map((one) => one.id));
+      const wanted = asked.split(',').filter((id) => here.has(id));
+      if (wanted.length) setCounts(Object.fromEntries(wanted.map((id) => [id, 1])));
+    });
   }, []);
 
   // One object URL per sticker, kept while the screen is open and let go of

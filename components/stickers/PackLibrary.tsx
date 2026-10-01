@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { getAssetUrl } from '@/lib/assets';
 import { listStickers } from '@/lib/cover/library';
 import {
@@ -204,11 +203,7 @@ export function PackLibrary() {
                 </h2>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-ink-500">
                   This is where stickers that came from somewhere else live, with the licence and
-                  the link for each one. Stickers you drew yourself are in{' '}
-                  <Link href="/stickers" className="text-accent-500 underline">
-                    My stickers
-                  </Link>
-                  .
+                  the link for each one. The ones you drew yourself are under Make a sticker.
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   {installer}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { UnsupportedImageError, getAsset, putAsset } from '@/lib/assets';
 import { saveToLibrary, parseTags } from '@/lib/cover/library';
@@ -1937,10 +1936,9 @@ export function StickerStudio() {
     return (
       <main className="flex h-dvh flex-col">
         <StudioHeader>
+          {/* No link home beside it: the wordmark to its left is that link,
+              and has been all along. */}
           <span className="text-[15.5px] font-[560]">Sticker Studio</span>
-          <Link href="/" className="ml-auto shrink-0 text-[13px] text-accent-500 underline">
-            Everything you have made
-          </Link>
         </StudioHeader>
         <StudioStart
           busy={busy}
