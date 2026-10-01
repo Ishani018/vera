@@ -558,11 +558,35 @@ export type FontedBook = {
  * to be used at, so the same sticker prints sharply whether it ends up an inch
  * across or six.
  */
+/**
+ * Where a sticker came from, when it came from a starter pack.
+ *
+ * Plain fields on the row rather than tags, which is what they are for: a
+ * licence is not a thing you search by, and a URL in a tag list is a URL
+ * somebody will accidentally edit. Adding fields needs no database version
+ * bump — IndexedDB stores whole objects and only *indexes* are declared, which
+ * is the same reason the sticker drafts could gain fields without one.
+ *
+ * Absent on everything made in the studio, which is most of what is here.
+ */
+export type StickerSource = {
+  /** The pack's folder name, which is also its `pack:` tag. */
+  pack: string;
+  /** The file inside that pack. Pack and file together identify an item. */
+  file: string;
+  sourceUrl: string;
+  author: string;
+  licence: string;
+  downloadedOn: string;
+};
+
 export type LibrarySticker = {
   id: string;
   name: string;
   /** Free-form, for grouping: "cats", "flowers", "badges". */
   tags: string[];
+  /** Set only on stickers installed from a starter pack. */
+  source?: StickerSource;
   assetId: string;
   width: number;
   height: number;

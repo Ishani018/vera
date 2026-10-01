@@ -49,12 +49,15 @@ export async function saveToLibrary({
   width,
   height,
   tags = [],
+  source,
 }: {
   name: string;
   assetId: string;
   width: number;
   height: number;
   tags?: string[];
+  /** Where it came from, for anything installed from a starter pack. */
+  source?: LibrarySticker['source'];
 }): Promise<LibrarySticker> {
   const db = getDb();
   if (!db) throw new Error('No local database available.');
@@ -67,6 +70,7 @@ export async function saveToLibrary({
     width,
     height,
     createdAt: Date.now(),
+    ...(source ? { source } : {}),
   };
   await db.stickers.put(sticker);
   return sticker;

@@ -20,6 +20,16 @@ import {
   checkManifest,
 } from '../lib/starter/manifest.ts';
 import { crc32, zipBytes } from '../lib/stickers/zip.ts';
+import { readZip } from '../lib/stickers/unzip.ts';
+import {
+  fromPack,
+  itemBytes,
+  openPack,
+  planInstall,
+  sourceFor,
+  summarise,
+  tagsFor,
+} from '../lib/starter/install.ts';
 
 /* ------------------------------------------------------------- fixtures */
 
@@ -289,4 +299,207 @@ test('the sample pack that ships is itself valid', () => {
     assert.deepEqual(checkBytes(item.file, bytes, 'sample'), [], item.file);
     assert.equal(probeImage(bytes).ok, true, item.file);
   }
+});
+
+/* ------------------------------------------------------------- installing */
+
+const sticker = (over = {}) => ({
+  id: `lib-${Math.random().toString(36).slice(2)}`,
+  name: 'Something',
+  tags: [],
+  assetId: 'a1',
+  width: 240,
+  height: 240,
+  createdAt: 1,
+  ...over,
+});
+const installed = (pack, file, over = {}) =>
+  sticker({ name: file, source: { pack, file, sourceUrl: 'https://x', author: 'A', licence: 'CC0-1.0', downloadedOn: '2026-10-01' }, ...over });
+
+const items = [item({ file: 'a.png' }), item({ file: 'b.png' }), item({ file: 'c.png' })];
+
+test('a first install installs everything', () => {
+  const plan = planInstall(items, 'sample', []);
+  assert.deepEqual(plan.install.map((i) => i.file), ['a.png', 'b.png', 'c.png']);
+  assert.deepEqual(plan.skip, []);
+});
+
+test('installing twice makes no duplicates', () => {
+  const library = items.map((i) => installed('sample', i.file));
+  const plan = planInstall(items, 'sample', library);
+  assert.deepEqual(plan.install, [], 'nothing to add the second time');
+  assert.deepEqual(plan.skip.map((i) => i.file), ['a.png', 'b.png', 'c.png']);
+});
+
+test('a half-installed pack installs only what is missing', () => {
+  const plan = planInstall(items, 'sample', [installed('sample', 'b.png')]);
+  assert.deepEqual(plan.install.map((i) => i.file), ['a.png', 'c.png']);
+  assert.deepEqual(plan.skip.map((i) => i.file), ['b.png']);
+});
+
+test('the same file name in a different pack is a different sticker', () => {
+  const plan = planInstall(items, 'sample', [installed('autumn', 'a.png')]);
+  assert.equal(plan.install.length, 3, 'autumn/a.png says nothing about sample/a.png');
+});
+
+test('stickers of your own are never counted as installed, whatever they are called', () => {
+  const mine = [sticker({ name: 'a.png' }), sticker({ name: 'Circle', tags: ['pack:sample'] })];
+  const plan = planInstall(items, 'sample', mine);
+  assert.equal(plan.install.length, 3, 'a name or a tag is not provenance');
+  assert.equal(plan.skip.length, 0);
+});
+
+test('a sticker in the trash does not block installing it again', () => {
+  const plan = planInstall(items, 'sample', [installed('sample', 'a.png', { deletedAt: 1000 })]);
+  assert.deepEqual(plan.install.map((i) => i.file), ['a.png', 'b.png', 'c.png']);
+});
+
+test('what came from a pack is found by provenance, not by tag', () => {
+  const library = [
+    installed('sample', 'a.png'),
+    installed('autumn', 'b.png'),
+    sticker({ tags: ['pack:sample'] }),
+    installed('sample', 'c.png', { deletedAt: 5 }),
+  ];
+  const found = fromPack(library, 'sample');
+  assert.equal(found.length, 1, 'one living sticker really from the pack');
+  assert.equal(found[0].source.file, 'a.png');
+});
+
+test('the tags an installed sticker carries are the pack and its own', () => {
+  const made = tagsFor({ pack: 'sample', name: 'Sample', items: [] }, item({ tags: ['shape', 'circle'] }));
+  assert.deepEqual(made, ['pack:sample', 'shape', 'circle']);
+});
+
+test('provenance is carried as fields, not folded into tags', () => {
+  const source = sourceFor({ pack: 'sample', name: 'Sample', items: [] }, item({ file: 'a.png' }));
+  assert.deepEqual(source, {
+    pack: 'sample',
+    file: 'a.png',
+    sourceUrl: 'https://example.org/items/1',
+    author: 'Jane Smith',
+    licence: 'CC0-1.0',
+    downloadedOn: '2026-10-01',
+  });
+});
+
+/* --------------------------------------------------------- opening a pack */
+
+/** A pack zip, built the way the builder builds one. */
+const packZip = (manifestObject, pictures) =>
+  zipBytes([
+    { name: 'manifest.json', bytes: new TextEncoder().encode(JSON.stringify(manifestObject)) },
+    ...pictures.map(([name, bytes]) => ({ name: `images/${name}`, bytes })),
+  ]);
+
+test('a good pack opens', () => {
+  const made = manifest({ pack: 'sample', items: [item({ file: 'a.png' })] });
+  const opened = openPack(packZip(made, [['a.png', png(240, 240)]]));
+  assert.equal(opened.manifest.pack, 'sample');
+  assert.equal(opened.files.length, 2);
+});
+
+test('a pack whose licence would be refused by the builder is refused here too', () => {
+  // A zip is a file that has been somewhere. Trusting it because it is a zip
+  // would make every rule in the builder advisory.
+  const bad = manifest({ pack: 'sample', items: [item({ file: 'a.png', licence: 'CC BY 4.0' })] });
+  assert.throws(() => openPack(packZip(bad, [['a.png', png(240, 240)]])), /refused/);
+});
+
+test('a zip that is not a pack says so', () => {
+  const notAPack = zipBytes([{ name: 'readme.txt', bytes: new TextEncoder().encode('hello') }]);
+  assert.throws(() => openPack(notAPack), /no manifest\.json/);
+});
+
+test('a corrupt pack is caught by the checksum rather than installed', () => {
+  const made = manifest({ pack: 'sample', items: [item({ file: 'a.png' })] });
+  const bytes = packZip(made, [['a.png', png(240, 240)]]);
+  // Inside the first entry's *data*, which is what a zip's CRC protects: the
+  // local header is 30 bytes plus the name, and "manifest.json" is thirteen.
+  bytes[30 + 13 + 4] ^= 0xff;
+  assert.throws(() => openPack(bytes), /corrupt|checksum/i);
+});
+
+test('a failed picture does not stop the rest', () => {
+  const made = manifest({
+    pack: 'sample',
+    items: [item({ file: 'a.png' }), item({ file: 'gone.png' }), item({ file: 'c.png' })],
+  });
+  // The middle one is listed but its bytes are not in the zip.
+  const { files } = openPack(packZip(made, [['a.png', png(240, 240)], ['c.png', png(240, 240)]]));
+
+  const outcomes = made.items.map((it) => {
+    const got = itemBytes(files, it);
+    return 'why' in got
+      ? { file: it.file, state: 'failed', why: got.why }
+      : { file: it.file, state: 'installed' };
+  });
+  assert.deepEqual(summarise(outcomes), { installed: 2, skipped: 0, failed: 1 });
+  assert.equal(outcomes[1].why, 'missing from the pack');
+});
+
+test('a picture that is not an image fails on its own, with a reason', () => {
+  const made = manifest({ pack: 'sample', items: [item({ file: 'a.png' })] });
+  const { files } = openPack(
+    packZip(made, [['a.png', new TextEncoder().encode('<!DOCTYPE html><html></html>')]]),
+  );
+  const got = itemBytes(files, made.items[0]);
+  assert.ok('why' in got);
+  assert.match(got.why, /web page/);
+});
+
+test('the summary counts each outcome once', () => {
+  assert.deepEqual(
+    summarise([
+      { file: 'a', state: 'installed' },
+      { file: 'b', state: 'skipped' },
+      { file: 'c', state: 'failed', why: 'x' },
+      { file: 'd', state: 'installed' },
+    ]),
+    { installed: 2, skipped: 1, failed: 1 },
+  );
+});
+
+/* ------------------------------------------------------------ the zip reader */
+
+test('what the writer writes, the reader reads', () => {
+  const entries = [
+    { name: 'manifest.json', bytes: new TextEncoder().encode('{"pack":"x"}') },
+    { name: 'images/one.png', bytes: png(64, 64) },
+  ];
+  const read = readZip(zipBytes(entries));
+  assert.deepEqual(read.map((f) => f.name), entries.map((e) => e.name));
+  assert.deepEqual(read[1].bytes, entries[1].bytes);
+});
+
+test('a damaged zip is refused rather than half-read', () => {
+  assert.throws(() => readZip(new Uint8Array(64)), /not a zip/i);
+
+  const good = zipBytes([{ name: 'a.txt', bytes: new TextEncoder().encode('hello') }]);
+
+  // A flip in the data: the checksum catches it. 30 + 5 for "a.txt".
+  const inData = Uint8Array.from(good);
+  inData[30 + 5 + 1] ^= 0xff;
+  assert.throws(() => readZip(inData), /corrupt|checksum/i);
+
+  // A flip in the central directory's signature: nothing lines up, and the
+  // reader says so rather than reading something that is not there.
+  const inIndex = Uint8Array.from(good);
+  const end = inIndex.length - 22;
+  const centralAt = inIndex[end + 16] | (inIndex[end + 17] << 8);
+  inIndex[centralAt] ^= 0xff;
+  assert.throws(() => readZip(inIndex), /damaged|index/i);
+});
+
+test('a flipped byte in a file name is not a checksum problem, and is caught later', () => {
+  // Worth pinning because it is the one kind of corruption a zip cannot see:
+  // a name is not covered by any checksum, so it simply becomes another name.
+  // For a pack that means a picture the manifest does not list, which the
+  // manifest check refuses — but the zip itself reads perfectly well.
+  const good = zipBytes([{ name: 'a.txt', bytes: new TextEncoder().encode('hello') }]);
+  const renamed = Uint8Array.from(good);
+  renamed[30] = 'b'.charCodeAt(0);
+  const read = readZip(renamed);
+  assert.equal(read.length, 1, 'the zip is still perfectly readable');
+  assert.equal(read[0].name, 'a.txt', 'the index still says the old name');
 });

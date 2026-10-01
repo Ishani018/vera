@@ -14,6 +14,8 @@ import {
   withoutPack,
 } from '@/lib/stickers/packs';
 import { makeZip } from '@/lib/stickers/zip';
+import { installPack, summarise } from '@/lib/starter/installClient';
+import type { ItemOutcome } from '@/lib/starter/install';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader } from '../StudioHeader';
 import { Button, Notice, TextInput, cx } from '../ui';
@@ -38,6 +40,44 @@ export function StickerPacks() {
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [installing, setInstalling] = useState<{ done: number; total: number; name: string } | null>(null);
+  const [failures, setFailures] = useState<ItemOutcome[]>([]);
+
+  /**
+   * Installing a pack somebody added themselves.
+   *
+   * It only ever adds. Nothing already in the library is written over or
+   * removed, a second install of the same pack skips what is there rather than
+   * making a second copy, and one picture that will not open does not stop the
+   * rest — which is said in the summary rather than swallowed.
+   */
+  const install = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setSaid(null);
+    setProblem(null);
+    setFailures([]);
+    setInstalling({ done: 0, total: 0, name: file.name });
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const result = await installPack(bytes, setInstalling);
+      const count = summarise(result.outcomes);
+      await reload();
+      setChosen(result.pack);
+      setFailures(result.outcomes.filter((o) => o.state === 'failed'));
+      setSaid(
+        `${result.name}: ${count.installed} installed` +
+          (count.skipped ? `, ${count.skipped} already here` : '') +
+          (count.failed ? `, ${count.failed} could not be read` : '') +
+          '.',
+      );
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'That pack could not be installed.');
+    } finally {
+      setInstalling(null);
+      setBusy(false);
+    }
+  };
 
   const reload = async () => setStickers(await listStickers());
   useEffect(() => {
@@ -157,6 +197,8 @@ export function StickerPacks() {
                 sticker in it.
               </p>
               <p className="mt-1 text-[13px] text-ink-500">
+                Installing a pack only ever adds: nothing you already have is written over or
+                removed, and installing the same pack twice adds nothing the second time.{' '}
                 All of this stays on this computer. Nothing is shared and nothing is browsable by
                 anyone else; a pack leaves here only as a zip you download.
               </p>
@@ -190,6 +232,28 @@ export function StickerPacks() {
                   className="max-w-xs"
                 />
                 <Button onClick={() => void make()}>Start a pack</Button>
+                <label
+                  className={cx(
+                    'cursor-pointer rounded-lg border border-ink-200 px-3 py-1.5 text-[13.5px] font-[560] transition-colors hover:border-ink-400',
+                    busy && 'pointer-events-none opacity-50',
+                  )}
+                >
+                  Install a pack…
+                  <input
+                    type="file"
+                    accept=".zip,application/zip"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      // Cleared so that choosing the *same* file again counts as
+                      // a change. Without this, installing a pack, removing it
+                      // and picking the same zip does nothing at all, which
+                      // looks like a broken button rather than a browser rule.
+                      e.target.value = '';
+                      void install(file);
+                    }}
+                  />
+                </label>
                 {open && inside.length > 0 && (
                   <Button variant="primary" disabled={busy} onClick={() => void download()}>
                     Download {open} as a zip
@@ -197,9 +261,27 @@ export function StickerPacks() {
                 )}
               </div>
 
+              {installing && (
+                <p className="mt-3 text-[13px] text-ink-500">
+                  {installing.total
+                    ? `Installing ${installing.done} of ${installing.total} — ${installing.name}…`
+                    : `Reading ${installing.name}…`}
+                </p>
+              )}
+
               {problem && (
                 <div className="mt-3 max-w-xl">
                   <Notice level="error">{problem}</Notice>
+                </div>
+              )}
+
+              {failures.length > 0 && (
+                <div className="mt-3 max-w-xl">
+                  <Notice level="warning">
+                    {failures
+                      .map((f) => `${f.file}: ${'why' in f ? f.why : 'could not be read'}`)
+                      .join(' · ')}
+                  </Notice>
                 </div>
               )}
               {said && (
