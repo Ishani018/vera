@@ -13,6 +13,10 @@ import { NextResponse } from 'next/server';
  * only thing that actually knows, and a probe that guesses from markup breaks
  * the first time Next changes its markup.
  *
+ * It also says which commit it was built from, which answers the other question
+ * that comes up whenever something is checked on a machine that is not the one
+ * it was built on: is the thing I am looking at the thing that was just built?
+ *
  * Deliberately says nothing else. There is no deployment here to be healthy or
  * unhealthy: everything this app makes lives in the visitor's own browser.
  */
@@ -22,7 +26,10 @@ export const dynamic = 'force-dynamic';
 
 export function GET() {
   return NextResponse.json(
-    { mode: process.env.NODE_ENV === 'production' ? 'production' : 'development' },
+    {
+      mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+      commit: process.env.BUILD_COMMIT ?? 'unknown',
+    },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
