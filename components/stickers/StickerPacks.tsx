@@ -20,6 +20,8 @@ import { Modal } from '../Modal';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
+import { Thumb } from './Thumb';
+import { TickIcon } from './icons';
 import { Button, Notice, TextInput, cx } from '../ui';
 
 /**
@@ -386,39 +388,26 @@ export function StickerPacks() {
                   <span className="block font-[570]">
                     What is in {open} — press one to put it in or take it out
                   </span>
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5">
                     {stickers.map((sticker) => {
                       const member = inPack(sticker, open);
                       return (
-                        <button
+                        <Thumb
                           key={sticker.id}
-                          type="button"
-                          aria-pressed={member}
+                          url={urls[sticker.id]}
+                          name={sticker.name}
+                          note={member ? 'in this pack' : plainTags(sticker.tags ?? []).join(', ') || '—'}
+                          title={`${sticker.name} — press to ${member ? 'take it out of' : 'put it in'} ${open}`}
+                          selected={member}
                           onClick={() => void toggle(sticker)}
-                          className={cx(
-                            'rounded-xl border p-2 text-left transition-colors',
-                            member
-                              ? 'border-accent-500 bg-accent-50'
-                              : 'border-ink-200 hover:border-ink-300',
-                          )}
-                        >
-                          <span className="grid aspect-square place-items-center overflow-hidden rounded-lg bg-ink-100">
-                            {urls[sticker.id] && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={urls[sticker.id]}
-                                alt=""
-                                className="max-h-full max-w-full object-contain"
-                              />
-                            )}
-                          </span>
-                          <span className="mt-1.5 block truncate text-[13px] font-[560]">
-                            {sticker.name}
-                          </span>
-                          <span className="block truncate text-[11.5px] text-ink-500">
-                            {member ? 'in this pack' : plainTags(sticker.tags ?? []).join(', ') || '—'}
-                          </span>
-                        </button>
+                          badge={
+                            member ? (
+                              <span className="pointer-events-none absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-accent-500 text-paper shadow">
+                                <TickIcon size={12} />
+                              </span>
+                            ) : null
+                          }
+                        />
                       );
                     })}
                   </div>

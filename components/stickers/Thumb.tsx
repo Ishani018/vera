@@ -94,16 +94,30 @@ export function Thumb({
     </>
   );
 
-  const shell = cx('group relative block min-w-0 text-left', className);
-  return onClick ? (
-    <button type="button" title={title ?? name} onClick={onClick} disabled={disabled} className={cx(shell, disabled && 'opacity-50')}>
-      {inside}
-      {badge}
-      {corner}
-    </button>
-  ) : (
-    <span title={title ?? name} className={shell}>
-      {inside}
+  const shell = 'block min-w-0 text-left w-full';
+  return (
+    /*
+      The badge and the corner button live *beside* the tile, not inside it: a
+      button inside a button is invalid HTML, and a browser is free to do
+      whatever it likes with the inner one — which here is the control that
+      takes a sticker back off.
+    */
+    <span className={cx('group relative block min-w-0', className)}>
+      {onClick ? (
+        <button
+          type="button"
+          title={title ?? name}
+          onClick={onClick}
+          disabled={disabled}
+          className={cx(shell, disabled && 'opacity-50')}
+        >
+          {inside}
+        </button>
+      ) : (
+        <span title={title ?? name} className={shell}>
+          {inside}
+        </span>
+      )}
       {badge}
       {corner}
     </span>

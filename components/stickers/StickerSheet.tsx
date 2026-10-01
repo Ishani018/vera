@@ -15,6 +15,8 @@ import type { LibrarySticker } from '@/lib/types';
 import { Control } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
+import { Thumb } from './Thumb';
+import { MinusIcon } from './icons';
 import { Button, Notice, Toggle, cx } from '../ui';
 
 /**
@@ -310,47 +312,56 @@ export function StickerSheet() {
 
                 <div className="border-t border-ink-200 pt-5">
                   <span className="block font-[570]">Which stickers</span>
-                  <div className="mt-3 flex flex-col gap-2">
-                    {stickers.map((sticker) => (
-                      <div key={sticker.id} className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-200 bg-ink-100">
-                          {urls[sticker.id] && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={urls[sticker.id]}
-                              alt=""
-                              className="max-h-full max-w-full object-contain"
-                            />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-[13.5px]">{sticker.name}</span>
-                        <span className="flex items-center gap-1">
-                          <Button
-                            onClick={() =>
-                              setCounts((was) => ({
-                                ...was,
-                                [sticker.id]: Math.max(0, (was[sticker.id] ?? 0) - 1),
-                              }))
-                            }
-                          >
-                            −
-                          </Button>
-                          <span className="w-7 text-center text-[13.5px] tabular-nums">
-                            {counts[sticker.id] ?? 0}
-                          </span>
-                          <Button
-                            onClick={() =>
-                              setCounts((was) => ({
-                                ...was,
-                                [sticker.id]: Math.min(200, (was[sticker.id] ?? 0) + 1),
-                              }))
-                            }
-                          >
-                            +
-                          </Button>
-                        </span>
-                      </div>
-                    ))}
+                  <p className="mt-0.5 text-[12.5px] text-ink-500">
+                    Press one to add it. The number is how many are on the sheet.
+                  </p>
+                  {/* Pictures, not a list of names: nobody remembers which of
+                      forty things they called "Leaf 2", and the thing being
+                      chosen is a picture. */}
+                  <div className="mt-3 grid grid-cols-3 gap-2.5">
+                    {stickers.map((sticker) => {
+                      const count = counts[sticker.id] ?? 0;
+                      return (
+                        <Thumb
+                          key={sticker.id}
+                          url={urls[sticker.id]}
+                          name={sticker.name}
+                          title={`${sticker.name} — press to add one${count ? `, ${count} on the sheet` : ''}`}
+                          selected={count > 0}
+                          onClick={() =>
+                            setCounts((was) => ({
+                              ...was,
+                              [sticker.id]: Math.min(200, (was[sticker.id] ?? 0) + 1),
+                            }))
+                          }
+                          badge={
+                            count > 0 ? (
+                              <span className="pointer-events-none absolute right-1 top-1 flex min-w-5 items-center justify-center rounded-full bg-accent-500 px-1.5 py-0.5 text-[11px] font-[600] tabular-nums text-paper shadow">
+                                {count}
+                              </span>
+                            ) : null
+                          }
+                          corner={
+                            count > 0 ? (
+                              <button
+                                type="button"
+                                aria-label={`One fewer ${sticker.name}`}
+                                title={`One fewer ${sticker.name}`}
+                                onClick={() =>
+                                  setCounts((was) => ({
+                                    ...was,
+                                    [sticker.id]: Math.max(0, (was[sticker.id] ?? 0) - 1),
+                                  }))
+                                }
+                                className="absolute left-1 top-1 grid size-5 place-items-center rounded-full border border-ink-200 bg-paper/95 text-ink-700 shadow transition-colors hover:border-accent-500"
+                              >
+                                <MinusIcon size={12} />
+                              </button>
+                            ) : null
+                          }
+                        />
+                      );
+                    })}
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">

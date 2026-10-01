@@ -3,6 +3,7 @@
 import { TRASH_DAYS } from '@/lib/deleted';
 import { useEffect, useRef, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
+import { Chequerboard } from '../stickers/Thumb';
 import {
   allTags,
   listStickers,
@@ -126,7 +127,7 @@ export function StickerLibrary({
           {shown.length === 0 ? (
             <p className="mt-2 text-[12px] text-ink-500">Nothing matches that.</p>
           ) : (
-            <div className="mt-2 grid grid-cols-4 gap-1.5">
+            <div className="mt-2 grid grid-cols-3 gap-2">
               {shown.map((sticker) => (
                 <LibraryThumb
                   key={sticker.id}
@@ -213,13 +214,22 @@ function LibraryThumb({
         }}
         onClick={onPlace}
         title={`${sticker.name}${sticker.tags.length ? ` · ${sticker.tags.join(', ')}` : ''}`}
-        className="grid aspect-square w-full place-items-center overflow-hidden rounded border border-ink-200 bg-ink-100 transition-colors hover:border-accent-500"
+        className="block w-full text-left"
       >
-        {url ? (
-          <img src={url} alt={sticker.name} className="max-h-full max-w-full object-contain" />
-        ) : (
-          <span className="text-[10px] text-ink-500">…</span>
-        )}
+        {/* A chequerboard, not a grey square: a white sticker on grey is a
+            grey square, and white is the commonest sticker there is. */}
+        <Chequerboard className="aspect-square w-full rounded border border-ink-200 transition-colors group-hover:border-accent-500">
+          {url ? (
+            <img src={url} alt={sticker.name} className="max-h-[88%] max-w-[88%] object-contain" />
+          ) : (
+            <span className="text-[10px] text-ink-500">…</span>
+          )}
+        </Chequerboard>
+        {/* The name small and underneath, so the picture is what you scan and
+            the name is there when two pictures look alike. */}
+        <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-ink-500">
+          {sticker.name}
+        </span>
       </button>
       <button
         type="button"

@@ -7,6 +7,7 @@ import { creditsOf, creditsText, packCounts, searchCredits } from '@/lib/starter
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
+import { Chequerboard } from './Thumb';
 import { Button, TextInput, cx } from '../ui';
 
 /**
@@ -162,18 +163,18 @@ export function StickerSources() {
                 <ul className="mt-4 divide-y divide-ink-100 border-y border-ink-100">
                   {shown.map((credit) => (
                     <li key={credit.id} className="flex items-start gap-4 py-4">
-                      <span className="grid size-16 shrink-0 place-items-center rounded-lg border border-ink-100 bg-[conic-gradient(#f3f3f3_0_25%,#fff_0_50%,#f3f3f3_0_75%,#fff_0)] bg-[length:12px_12px]">
+                      <Chequerboard className="size-24 shrink-0 rounded-lg border border-ink-200">
                         {urls[credit.id] ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={urls[credit.id]}
                             alt={credit.name}
-                            className="max-h-14 max-w-14 object-contain"
+                            className="max-h-[88%] max-w-[88%] object-contain"
                           />
                         ) : (
                           <span className="text-[11px] text-ink-500">no picture</span>
                         )}
-                      </span>
+                      </Chequerboard>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[15px] font-[560]">{credit.name}</p>
                         <p className="mt-0.5 text-[13px] text-ink-500">

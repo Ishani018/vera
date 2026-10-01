@@ -97,3 +97,10 @@ export const DownloadIcon = ({ size = 20, className }: IconProps) => (
     <path d="M3.75 16V18A2.25 2.25 0 0 0 6 20.25h12A2.25 2.25 0 0 0 20.25 18v-2" />
   </svg>
 );
+
+/** A tick, for something that is in. */
+export const TickIcon = ({ size = 20, className }: IconProps) => (
+  <svg {...base(size)} className={className} strokeWidth={2.2}>
+    <path d="M5 12.5 10 17.5 19 6.5" />
+  </svg>
+);
