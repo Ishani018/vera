@@ -416,7 +416,7 @@ export function Landing() {
               onClick={() => place.go?.()}
               className={cx(
                 'nudge-hover relative z-10 flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px]',
-                'transition-colors duration-[--motion-base]',
+                'transition-colors duration-[var(--motion-base)]',
                 place.soon
                   ? 'cursor-not-allowed text-ink-400'
                   : place.id === 'home'
@@ -548,7 +548,7 @@ export function Landing() {
                         </span>
                         {/* The badge carries its category's own colour. */}
                         <span
-                          className="pointer-events-none absolute left-4 top-4 rounded-md px-1.5 py-0.5 text-[10.5px] font-[560] shadow-[--shadow-rest]"
+                          className="pointer-events-none absolute left-4 top-4 rounded-md px-1.5 py-0.5 text-[10.5px] font-[560] shadow-[var(--shadow-rest)]"
                           style={{
                             background: CATEGORY_TINT[categoryOf(entry)],
                             color: CATEGORY_INK[categoryOf(entry)],
@@ -643,9 +643,9 @@ export function Landing() {
                         }}
                         className={cx(
                           'bob-hover flex items-center gap-3 rounded-xl border p-3 text-left',
-                          'transition-[transform,background-color,border-color,box-shadow] duration-[--motion-base] ease-[--ease-out]',
+                          'transition-[transform,background-color,border-color,box-shadow] duration-[var(--motion-base)] ease-[var(--ease-out)]',
                           tile.status === 'ready'
-                            ? 'border-ink-200 hover:-translate-y-0.5 hover:border-accent-500 hover:bg-accent-50/40 hover:shadow-[--shadow-raised] active:scale-[0.99]'
+                            ? 'border-ink-200 hover:-translate-y-0.5 hover:border-accent-500 hover:bg-accent-50/40 hover:shadow-[var(--shadow-raised)] active:scale-[0.99]'
                             : 'cursor-not-allowed border-dashed border-ink-200 opacity-50',
                         )}
                       >

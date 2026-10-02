@@ -204,6 +204,23 @@ export function StickerStudio() {
   const [tags, setTags] = useState('');
   const [said, setSaid] = useState<string | null>(null);
 
+  /**
+   * A stamp pressed onto the sticker the moment it is kept.
+   *
+   * A sentence in a green box says the saving worked; it does not say that the
+   * thing on the screen is the thing that was saved. A stamp on the picture
+   * does, and it is the gesture everybody already has for "this one is done".
+   *
+   * A counter rather than a flag, so saving twice stamps twice: the `key` makes
+   * React replace the element, which is what restarts the animation.
+   */
+  const [stamp, setStamp] = useState(0);
+  useEffect(() => {
+    if (!stamp) return;
+    const clear = setTimeout(() => setStamp(0), 1400);
+    return () => clearTimeout(clear);
+  }, [stamp]);
+
   /* --------------------------------------------------------- the colouring */
 
   /** Which door is open. Picture first: that is the first decision there is. */
@@ -886,6 +903,7 @@ export function StickerStudio() {
         tags: parseTags(tags),
       });
       setSaid('Kept in My stickers — it is in every book and every design now.');
+      setStamp((n) => n + 1);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be saved.');
     } finally {
@@ -2153,6 +2171,27 @@ export function StickerStudio() {
                   onCrop={(box) => setFrameRemembering({ ...frame, crop: box })}
                 />
               )}
+              {stamp > 0 && (
+                <span
+                  key={stamp}
+                  // Over everything, and deaf: it is a thing that happened, not
+                  // a thing to press. The centring and the tilt are on this
+                  // wrapper and the animation is on the child, because an
+                  // animation that sets `transform` replaces the whole of it —
+                  // both on this element would put the stamp in the corner.
+                  role="status"
+                  className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 rotate-[-8deg]"
+                >
+                  <span
+                    className={cx(
+                      'stamped grid size-[108px] place-items-center rounded-full border-[3px] border-sage-600',
+                      'bg-paper/85 text-center text-[13px] font-[700] uppercase tracking-wide text-sage-600',
+                    )}
+                  >
+                    Kept
+                  </span>
+                </span>
+              )}
               {/* On top of the colouring and deaf to the pointer, so a click
                   goes to the canvas underneath rather than to a picture that
                   has nothing to do with it. */}
@@ -2215,7 +2254,7 @@ function EffectSwatch({
       onClick={() => onChange(!on)}
       className={cx(
         'pop-chosen flex flex-col items-center gap-1.5 rounded-xl border-2 px-1 pt-2 pb-1.5',
-        'transition-[transform,background-color,border-color] duration-[--motion-base] ease-[--ease-out]',
+        'transition-[transform,background-color,border-color] duration-[var(--motion-base)] ease-[var(--ease-out)]',
         on ? 'border-accent-500 bg-accent-50' : 'border-ink-200 hover:border-ink-300',
       )}
     >
@@ -2263,7 +2302,7 @@ function ToolStrip({
               onClick={() => onPick(choice.value)}
               className={cx(
                 'pop-chosen grid size-9 place-items-center rounded-lg border text-[15px] leading-none',
-                'transition-[transform,background-color,border-color,color] duration-[--motion-fast] ease-[--ease-out]',
+                'transition-[transform,background-color,border-color,color] duration-[var(--motion-fast)] ease-[var(--ease-out)]',
                 tool === choice.value
                   ? 'border-accent-500 bg-accent-50 text-accent-600'
                   : 'border-white/25 text-white/85 hover:border-white/60 hover:text-white',

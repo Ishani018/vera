@@ -61,6 +61,7 @@ export function Thumb({
   badge,
   corner,
   className,
+  style,
   draggable,
   onDragStart,
 }: {
@@ -78,6 +79,8 @@ export function Thumb({
   /** Shown over the top-left: an action that belongs to this one. */
   corner?: ReactNode;
   className?: string;
+  /** For the custom properties an animation reads, such as a stagger's `--n`. */
+  style?: React.CSSProperties;
   /** Dragging one somewhere, where somewhere accepts it. */
   draggable?: boolean;
   onDragStart?: (event: React.DragEvent) => void;
@@ -87,12 +90,12 @@ export function Thumb({
       <Chequerboard
         className={cx(
           'peel aspect-square w-full rounded-lg border',
-          'transition-[transform,box-shadow,border-color] duration-[--motion-base] ease-[--ease-out]',
-          'shadow-[--shadow-rest]',
+          'transition-[transform,box-shadow,border-color] duration-[var(--motion-base)] ease-[var(--ease-out)]',
+          'shadow-[var(--shadow-rest)]',
           selected ? 'border-accent-500' : 'border-ink-200',
           onClick &&
             !disabled &&
-            'group-hover:-translate-y-0.5 group-hover:rotate-[-1.5deg] group-hover:border-accent-500 group-hover:shadow-[--shadow-raised]',
+            'group-hover:-translate-y-0.5 group-hover:rotate-[-1.5deg] group-hover:border-accent-500 group-hover:shadow-[var(--shadow-raised)]',
         )}
       >
         {url ? (
@@ -117,6 +120,7 @@ export function Thumb({
     */
     <span
       className={cx('group relative block min-w-0', className)}
+      style={style}
       draggable={draggable}
       onDragStart={onDragStart}
     >

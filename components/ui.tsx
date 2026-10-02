@@ -43,7 +43,7 @@ export function Info({ children, label }: { children: string; label?: string }) 
         className={cx(
           'ml-1 inline-grid size-[15px] shrink-0 translate-y-[1px] place-items-center rounded-full',
           'border border-ink-300 text-[10px] font-[600] leading-none text-ink-500',
-          'transition-colors duration-[--motion-fast] hover:border-accent-500 hover:text-accent-500',
+          'transition-colors duration-[var(--motion-fast)] hover:border-accent-500 hover:text-accent-500',
           open && 'border-accent-500 bg-accent-50 text-accent-600',
         )}
       >
@@ -393,7 +393,7 @@ export function Toggle({
           } as React.CSSProperties
         }
         className={cx(
-          'relative shrink-0 rounded-full transition-colors duration-[--motion-base]',
+          'relative shrink-0 rounded-full transition-colors duration-[var(--motion-base)]',
           // The track is shorter than a finger. A pseudo-element reaches out to
           // a proper target without making the switch look like a slab.
           "before:absolute before:inset-x-0 before:content-['']",
@@ -417,7 +417,7 @@ export function Toggle({
           // A gentle spring: it overshoots a hair and settles, which is what a
           // switch does. The travel is still the same number of pixels, so the
           // knob cannot leave the track — `tests/switch.test.mjs` holds that.
-          className="absolute rounded-full bg-paper shadow-[--shadow-raised] transition-[translate] duration-[--motion-slow] ease-[--ease-spring]"
+          className="absolute rounded-full bg-paper shadow-[var(--shadow-raised)] transition-[translate] duration-[var(--motion-slow)] ease-[var(--ease-spring)]"
         />
       </button>
     </div>
@@ -529,12 +529,12 @@ export function Choice({
       onClick={onSelect}
       className={cx(
         'flex shrink-0 snap-start flex-col items-center gap-3 rounded-2xl border-2 p-3 pb-2.5 text-center',
-        'transition-[transform,background-color,border-color,box-shadow] duration-[--motion-base] ease-[--ease-out]',
+        'transition-[transform,background-color,border-color,box-shadow] duration-[var(--motion-base)] ease-[var(--ease-out)]',
         'hover:-translate-y-0.5 active:scale-[0.98]',
         wide ? 'w-[138px]' : 'w-[112px]',
         selected
-          ? 'border-accent-500 bg-accent-50 shadow-[--shadow-raised]'
-          : 'border-ink-200 hover:border-ink-300 hover:shadow-[--shadow-rest]',
+          ? 'border-accent-500 bg-accent-50 shadow-[var(--shadow-raised)]'
+          : 'border-ink-200 hover:border-ink-300 hover:shadow-[var(--shadow-rest)]',
       )}
     >
       <span className="flex min-h-[70px] items-center justify-center">{children}</span>
@@ -610,10 +610,10 @@ export function SegmentedControl<T extends string>({
           onClick={() => onChange(o.value)}
           className={cx(
             'rounded-lg px-4 py-2 text-[15px] font-[550]',
-            'transition-[transform,background-color,color,box-shadow] duration-[--motion-base] ease-[--ease-out]',
+            'transition-[transform,background-color,color,box-shadow] duration-[var(--motion-base)] ease-[var(--ease-out)]',
             'active:scale-[0.98]',
             value === o.value
-              ? 'bg-paper text-ink-900 shadow-[--shadow-raised]'
+              ? 'bg-paper text-ink-900 shadow-[var(--shadow-raised)]'
               : 'text-ink-500 hover:text-ink-900',
           )}
         >

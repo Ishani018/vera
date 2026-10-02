@@ -209,10 +209,30 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
       )}
 
       {looking && !items.length && (
-        <p className="mt-4 flex items-center gap-2 text-[13.5px] text-ink-500">
-          <Spinner size={13} />
-          Looking…
-        </p>
+        <>
+          <p className="mt-4 text-[13.5px] text-ink-500">Looking…</p>
+          {/*
+            Blocks the shape of the pictures that are coming, rather than a
+            spinner. A spinner says "wait" and nothing about what for; twelve
+            squares say "about this many pictures, nearly here", and when they
+            land nothing on the page moves to make room for them.
+          */}
+          <div
+            aria-hidden="true"
+            className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-6"
+          >
+            {Array.from({ length: 12 }, (_, n) => (
+              <div key={n} className="min-w-0">
+                <div
+                  className="skeleton aspect-square w-full rounded-lg border border-ink-200"
+                  style={{ '--n': n % 6 } as React.CSSProperties}
+                />
+                <div className="skeleton mt-1.5 h-2.5 w-4/5 rounded" />
+                <div className="skeleton mt-1 h-2.5 w-3/5 rounded" />
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {items.length > 0 && (
@@ -231,8 +251,15 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-6">
-            {items.map((item) => (
-              <div key={`${item.id}-${item.fileUrl}`} className="group relative min-w-0">
+            {items.map((item, n) => (
+              <div
+                key={`${item.id}-${item.fileUrl}`}
+                // One after another rather than all in one frame, which reads as
+                // a page reloading. The stagger stops at twelve so a long result
+                // does not take a second to finish arriving.
+                className="stagger-in group relative min-w-0"
+                style={{ '--n': Math.min(n, 12) } as React.CSSProperties}
+              >
                 <Chequerboard className="aspect-square w-full rounded-lg border border-ink-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

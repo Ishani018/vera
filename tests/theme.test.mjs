@@ -296,3 +296,51 @@ test('every colour utility built on our own tokens names one that exists', () =>
   }
   assert.deepEqual([...new Set(strays)], []);
 });
+
+/* ------------------------- arbitrary values must say var() out loud */
+
+/**
+ * `shadow-[--shadow-rest]` and `duration-[--motion-base]` compiled to nothing.
+ *
+ * Tailwind 4 emits the bracket's contents verbatim, so `shadow-[--shadow-rest]`
+ * becomes `--tw-shadow: --shadow-rest` — a literal string, not a reference, and
+ * an invalid `box-shadow` is simply no shadow. The same shorthand worked in
+ * Tailwind 3, which is why thirty-three of them were written and none of them
+ * ran: every card shadow in the app was missing, and every motion duration and
+ * easing fell back to the browser's default.
+ *
+ * The fix is to write `var()`, so this refuses the shorthand outright. It also
+ * checks the token exists, since a correct `var()` naming nothing is the other
+ * half of the same mistake.
+ */
+test('an arbitrary utility value that means a token says var() and names a real one', () => {
+  const tokens = new Set(
+    (readFileSync(join(ROOT, 'app', 'tokens.css'), 'utf8').match(/--[a-z0-9-]+(?=\s*:)/g) ?? []),
+  );
+  const walk = (dir) =>
+    readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) return walk(path);
+      return /\.tsx$/.test(path) ? [path] : [];
+    });
+
+  const shorthand = [];
+  const missing = [];
+  for (const path of [...walk(join(ROOT, 'components')), ...walk(join(ROOT, 'app'))]) {
+    const source = readFileSync(path, 'utf8');
+    const where = path.slice(ROOT.length + 1);
+    for (const found of source.match(/[a-z-]+-\[--[a-z0-9-]+\]/g) ?? []) {
+      shorthand.push(`${where}: ${found} — write it as -[var(--…)]`);
+    }
+    for (const found of source.match(/[a-z-]+-\[var\(--[a-z0-9-]+\)\]/g) ?? []) {
+      const name = found.slice(found.indexOf('var(') + 4, found.lastIndexOf(')'));
+      // A property the component sets on itself (like --reach or --tilt-x) is
+      // not a theme token and is not expected in tokens.css.
+      if (!tokens.has(name) && !source.includes(`'${name}'`) && !source.includes(`"${name}"`)) {
+        missing.push(`${where}: ${found} — no such token`);
+      }
+    }
+  }
+  assert.deepEqual(shorthand, []);
+  assert.deepEqual(missing, []);
+});

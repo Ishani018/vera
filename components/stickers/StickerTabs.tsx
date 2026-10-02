@@ -74,7 +74,7 @@ export function StickerTabs() {
                 aria-current={current ? 'page' : undefined}
                 className={cx(
                   'nudge-hover flex items-center gap-2 whitespace-nowrap px-3 py-2.5 text-[13.5px]',
-                  'transition-colors duration-[--motion-base]',
+                  'transition-colors duration-[var(--motion-base)]',
                   current ? 'font-[600]' : 'text-ink-700 hover:text-ink-900',
                 )}
                 style={current ? { color: `var(--color-${TAB_COLOUR[here] ?? 'accent'}-600)` } : undefined}

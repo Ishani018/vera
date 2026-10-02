@@ -92,7 +92,7 @@ export function Rail({
             onClick={() => onOpen(panel.id === open ? null : panel.id)}
             className={cx(
               'nudge-hover relative z-10 grid justify-items-center gap-1 rounded-xl px-1 pb-1.5 pt-2',
-              'transition-colors duration-[--motion-base]',
+              'transition-colors duration-[var(--motion-base)]',
               'max-lg:min-w-[62px] max-lg:shrink-0',
               panel.id === open
                 ? 'text-accent-600'

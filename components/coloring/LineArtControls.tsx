@@ -125,7 +125,7 @@ export function ModeChoice<T extends string>({
             onClick={() => onChange(choice.value)}
             className={cx(
               'pop-chosen flex items-center gap-2.5 rounded-xl border-2 px-2.5 py-1.5 text-left',
-              'transition-[transform,background-color,border-color] duration-[--motion-base] ease-[--ease-out]',
+              'transition-[transform,background-color,border-color] duration-[var(--motion-base)] ease-[var(--ease-out)]',
               choice.value === value
                 ? 'border-accent-500 bg-accent-50'
                 : 'border-ink-200 hover:border-ink-300',

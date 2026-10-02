@@ -329,12 +329,12 @@ export function Advanced({ title = 'Advanced', children }: { title?: string; chi
       <summary
         className={cx(
           'flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-[570]',
-          'transition-colors duration-[--motion-fast] hover:text-accent-600',
+          'transition-colors duration-[var(--motion-fast)] hover:text-accent-600',
         )}
       >
         <span
           aria-hidden
-          className="inline-block text-[10px] text-ink-500 transition-transform duration-[--motion-base] ease-[--ease-out] group-open:rotate-90"
+          className="inline-block text-[10px] text-ink-500 transition-transform duration-[var(--motion-base)] ease-[var(--ease-out)] group-open:rotate-90"
         >
           ▶
         </span>
