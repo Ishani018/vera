@@ -1,0 +1,14 @@
+{
+  "transparent": {
+    "note": "starter/lines/cat.png — 94% fully transparent, the case the flatten is for",
+    "name": "cat-1026x1026.png",
+    "bytes": 98320,
+    "sha256": "6e2ca05ed20a7e74aa44fb3f07a1d93a1ac93b8965331fcc6599f6022418db30"
+  },
+  "opaque": {
+    "note": "tests/fixtures/cat-opaque.png — the same drawing on white, no alpha channel",
+    "name": "cat-opaque-1026x1026.png",
+    "bytes": 98320,
+    "sha256": "6e2ca05ed20a7e74aa44fb3f07a1d93a1ac93b8965331fcc6599f6022418db30"
+  }
+}

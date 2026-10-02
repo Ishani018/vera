@@ -13,6 +13,7 @@ import {
   despeckle,
   dilate,
   erode,
+  flattenOntoWhite,
   guessSource,
   lightness,
   otsuThreshold,
@@ -701,4 +702,113 @@ test('the speck floor on a drawn page is small enough to keep punctuation', () =
     if (out.data[y * 200 + x] === INK) stopInk++;
   }
   assert.ok(stopInk > 0, 'the full stop was swept up with the dust');
+});
+
+/* ------------------------------- a transparent background is not black */
+
+/**
+ * The bug: a PNG with a transparent background traced as if it were on black.
+ *
+ * Every decode in the worker draws onto a fresh OffscreenCanvas, which starts as
+ * transparent black — rgba(0, 0, 0, 0). The tracer reads the colour channels and
+ * ignores the alpha, so a drawing with no background at all came through as a
+ * drawing on *black paper*: "Painting or photo" found an edge round the whole
+ * picture and filled the rest, and "Already line art" thresholded the lot to ink.
+ * The one kind of file a person is most likely to bring to a sticker maker.
+ */
+
+/** A drawing on nothing: a dark square, and transparent everywhere else. */
+const onNothing = (width, height, inside) => {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (inside(x, y)) {
+        // A real transparent PNG stores dark pixels as dark with alpha 255.
+        data[i] = data[i + 1] = data[i + 2] = 20;
+        data[i + 3] = 255;
+      }
+      // Everything else stays rgba(0, 0, 0, 0), exactly as a canvas hands it over.
+    }
+  }
+  return { width, height, data };
+};
+
+const inkShare = (out) => {
+  let ink = 0;
+  for (const v of out.data) if (v === INK) ink += 1;
+  return ink / out.data.length;
+};
+
+const middleSquare = (x, y) => x >= 24 && x < 40 && y >= 24 && y < 40;
+
+test('a transparent background is traced as paper, not as ink — already line art', () => {
+  const out = runCleanup(onNothing(64, 64, middleSquare), DEFAULTS);
+  const share = inkShare(out);
+  // The square is 256 of 4096 pixels: a sixteenth. Thickening moves that a
+  // little, and reading the background as black moved it to very nearly all.
+  assert.ok(share > 0.02 && share < 0.25, `${(share * 100).toFixed(1)}% ink`);
+  // The corner is background, and background is paper.
+  assert.equal(out.data[0], PAPER);
+});
+
+test('a transparent background is traced as paper, not as ink — painting or photo', () => {
+  const out = runLineArt(onNothing(64, 64, middleSquare), DEFAULTS);
+  assert.equal(out.data[0], PAPER, 'the corner of a transparent picture is paper');
+  assert.ok(inkShare(out) < 0.35, `${(inkShare(out) * 100).toFixed(1)}% ink`);
+});
+
+test('and the square is still found', () => {
+  // Whatever else happens, the thing that was drawn has to come out as a thing.
+  const out = runCleanup(onNothing(64, 64, middleSquare), DEFAULTS);
+  assert.equal(out.data[32 * 64 + 32], INK, 'the middle of the square is ink');
+});
+
+test('a half-transparent pixel lands between its colour and white', () => {
+  // Not a special case of "see-through means white": alpha 128 over white is the
+  // average of the two, which is what compositing has always meant.
+  const data = new Uint8ClampedArray(4 * 4 * 4);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = data[i + 1] = data[i + 2] = 0;
+    data[i + 3] = 128;
+  }
+  const grey = toGray(flattenOntoWhite({ width: 4, height: 4, data }), false);
+  // 0 over 255 at half strength, which rounds to 127 or 128.
+  assert.ok(Math.abs(grey.data[0] - 127) <= 1, String(grey.data[0]));
+});
+
+test('a picture with no transparency is handed back unchanged, same object', () => {
+  // The flatten must cost nothing for the overwhelmingly common case, and must
+  // not copy a multi-megapixel bitmap to achieve nothing.
+  const solid = bitmap(8, 8, () => 120);
+  assert.equal(flattenOntoWhite(solid), solid);
+});
+
+test('guessing what kind of picture it is also sees white, not black', () => {
+  // The guess runs on the same bytes. On black, a drawing on nothing looks like
+  // a page that is almost entirely ink, which is not what it is.
+  const guess = guessSource(onNothing(64, 64, middleSquare));
+  assert.ok(guess.ink < 0.3, `ink ${guess.ink}`);
+});
+
+test('the cached analysis sees white too, in both modes', () => {
+  /*
+    The worker fills `analysis` by calling these directly and hands the result to
+    runLineArt, so runLineArt's own flatten is never reached on that path. If
+    these did not flatten, a transparent picture would trace correctly the first
+    time and wrongly every time after — which is worse than wrong every time,
+    because nobody would believe the report.
+  */
+  const picture = onNothing(64, 64, middleSquare);
+  const greyAnalysis = analyseGrey(picture, DEFAULTS);
+  // The corner of a drawing on nothing, flattened, is as bright as paper gets.
+  assert.ok(greyAnalysis.data[0] > 200, String(greyAnalysis.data[0]));
+
+  const cached = runLineArt(picture, DEFAULTS, { grey: greyAnalysis });
+  assert.equal(cached.data[0], PAPER, 'the corner, traced from the cached analysis');
+
+  const edges = { ...DEFAULTS, mode: 'edges' };
+  const ridges = analyseRidges(picture, edges);
+  const fromRidges = runLineArt(picture, edges, { ridges });
+  assert.equal(fromRidges.data[0], PAPER, 'the corner, in outline mode');
 });

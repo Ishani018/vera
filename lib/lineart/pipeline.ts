@@ -760,8 +760,57 @@ const GUESS_RADIUS = 3;
  * It is a guess, and it is offered as one: the page carries a flag saying so,
  * and the poet can say otherwise.
  */
+/**
+ * The picture, composited onto white.
+ *
+ * Every decode on the way in draws onto a fresh canvas, and a fresh canvas is
+ * *transparent black* — rgba(0, 0, 0, 0). Everything below here reads the colour
+ * channels and ignores the alpha, because by this point a picture is a field of
+ * brightnesses and nothing else. Put those two facts together and a PNG with a
+ * transparent background was being traced as a drawing on **black paper**:
+ * "Painting or photo" found an edge all the way round and filled everything
+ * outside the drawing, and "Already line art" thresholded the whole page to ink.
+ *
+ * That is the one kind of file somebody is most likely to bring to a sticker
+ * maker, and it was the one kind that could not work.
+ *
+ * White because white is what a transparent PNG is drawn on everywhere else it is
+ * ever shown — a browser, a document, a sheet of paper — so it is the background
+ * the person was looking at when they decided the drawing was finished. A
+ * partly-transparent pixel lands between its own colour and white, which is what
+ * compositing has always meant; this is not a rule that see-through means white.
+ *
+ * A fully opaque picture is handed straight back, the same object, uncopied. That
+ * is nearly every picture, and a multi-megapixel copy to achieve nothing would be
+ * a cost on the common case to fix the rare one.
+ */
+export function flattenOntoWhite(source: Bitmap): Bitmap {
+  let seeThrough = false;
+  for (let i = 3; i < source.data.length; i += 4) {
+    if (source.data[i] !== 255) {
+      seeThrough = true;
+      break;
+    }
+  }
+  if (!seeThrough) return source;
+
+  const data = new Uint8ClampedArray(source.data);
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i + 3];
+    if (alpha === 255) continue;
+    const of = alpha / 255;
+    data[i] = Math.round(data[i] * of + 255 * (1 - of));
+    data[i + 1] = Math.round(data[i + 1] * of + 255 * (1 - of));
+    data[i + 2] = Math.round(data[i + 2] * of + 255 * (1 - of));
+    data[i + 3] = 255;
+  }
+  return { width: source.width, height: source.height, data };
+}
+
 export function guessSource(source: Bitmap): { kind: SourceKind; ink: number; solid: number } {
-  const small = reduce(stretchContrast(toGray(source)), GUESS_EDGE);
+  // On the flattened picture, for the same reason the tracers are: a drawing on
+  // nothing, read on black, looks like a page that is almost entirely ink.
+  const small = reduce(stretchContrast(toGray(flattenOntoWhite(source))), GUESS_EDGE);
   const cut = otsuThreshold(small);
 
   const binary = new Uint8ClampedArray(small.data.length);
@@ -834,7 +883,7 @@ export function otsuThreshold(image: Gray): number {
  */
 export function runCleanup(source: Bitmap, settings: LineArtSettings): Gray {
   const options = resolve(settings, Math.max(source.width, source.height));
-  const grey = stretchContrast(toGray(source, settings.invert));
+  const grey = stretchContrast(toGray(flattenOntoWhite(source), settings.invert));
 
   // A little above Otsu's cut so pale background texture and the faint grey of
   // a soft shadow fall on the paper side rather than becoming ink.
@@ -980,9 +1029,15 @@ export function analysisKey(settings: LineArtSettings): string {
 /** The greys the tonal threshold works on. */
 export function analyseGrey(source: Bitmap, settings: LineArtSettings): Gray {
   const options = resolve(settings, Math.max(source.width, source.height));
+  // Flattened here as well as in `runLineArt`, because the worker calls this
+  // directly to fill its cache and hands the result back in `analysis` — so
+  // `runLineArt`'s own flatten is never reached on the cached path.
+  // `flattenOntoWhite` returns the same object for an opaque picture, so saying
+  // it twice costs nothing.
+  const flat = flattenOntoWhite(source);
   // Stretch before blurring: the blur is there to soften texture, and doing it
   // first would flatten the very differences the stretch needs to measure.
-  return blur(stretchContrast(toGray(source, settings.invert)), options.blurRadius);
+  return blur(stretchContrast(toGray(flat, settings.invert)), options.blurRadius);
 }
 
 /**
@@ -992,7 +1047,10 @@ export function analyseGrey(source: Bitmap, settings: LineArtSettings): Gray {
  */
 export function analyseRidges(source: Bitmap, settings: LineArtSettings): Ridges {
   const options = resolve(settings, Math.max(source.width, source.height));
-  return thinEdges(colorSobel(prepareForEdges(toLab(source, settings.invert), options)));
+  // Flattened for the same reason `analyseGrey` is: the worker caches this.
+  return thinEdges(
+    colorSobel(prepareForEdges(toLab(flattenOntoWhite(source), settings.invert), options)),
+  );
 }
 
 /**
@@ -1004,10 +1062,12 @@ export function analyseRidges(source: Bitmap, settings: LineArtSettings): Ridges
  * cache on `analysisKey`.
  */
 export function runLineArt(
-  source: Bitmap,
+  wholeSource: Bitmap,
   settings: LineArtSettings,
   analysis?: Analysis,
 ): Gray {
+  // See `flattenOntoWhite`: a transparent background is paper, not black ink.
+  const source = flattenOntoWhite(wholeSource);
   const options = resolve(settings, Math.max(source.width, source.height));
   const edges = settings.mode === 'edges';
   // Only the half this mode needs is ever built, so shading never pays for a

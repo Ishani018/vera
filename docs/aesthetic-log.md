@@ -446,6 +446,51 @@ After the revert: 745 tests pass; both PDF digests `e3e2a36e0ac60ce1` and
 `cat-1026x1026.png  25236 bytes  sha256 b9eabef0…212994` again, byte for byte;
 build clean. Nothing was re-recorded.
 
+### Stage 5, shipped after all — the transparent PNG fix
+
+The stage above was reverted on 2 October because it moved the fixed-picture
+export digest. It is now in, on a decision taken awake, and the baseline has been
+re-recorded on purpose. **The old digest and the new one, for the record:**
+
+| | sha256 | bytes |
+| --- | --- | --- |
+| **old** | `b9eabef0e5424e828acb78c0801e62bab06737140751fa59b047558407212994` | 25,236 |
+| **new** | `6e2ca05ed20a7e74aa44fb3f07a1d93a1ac93b8965331fcc6599f6022418db30` | 98,320 |
+
+**Why it moved.** The picture that test pins is `starter/lines/cat.png`, and it is
+94.0% fully transparent with its transparent pixels stored as `rgb(0,0,0)`. The
+harness traces it in "Already line art". So the old baseline was a hash of a
+sticker that had been traced on *black paper*: the whole page thresholded to ink
+and the drawing disappeared inside it. The file nearly quadrupled because 94% of
+the picture stopped being solid black. `docs/transparent-png/comparison.png` shows
+all three panels — what you upload, what came out before, what comes out now.
+
+**What proves only transparent inputs changed.** The export test now pins two
+pictures instead of one:
+
+- `starter/lines/cat.png` — transparent, the case the fix is for;
+- `tests/fixtures/cat-opaque.png` — *the same drawing* composited onto white by
+  hand and written as PNG colour type 2, which has no alpha channel at all.
+
+The opaque one exports to `6e2ca05e…18db30` **both before and after** the fix,
+byte for byte. That is the measurement that says the flatten is a no-op on
+anything already opaque. And after the fix both pictures export to the *same*
+bytes — which is "composite onto white, then proceed exactly as before" stated as
+an assertion rather than as a sentence. The harness checks all three facts.
+
+Baselines now live in `tests/golden/export-digests.json` rather than in this
+prose, so the next person can see what changed and when.
+
+**The lesson about fixtures**, worth more than the fix: a regression fixture that
+is itself an instance of a bug will defend the bug, and it will do it
+convincingly, because the test is doing exactly what it was built to do. The one
+picture pinning this export path was 94% transparent. Pin two when a code path has
+two kinds of input.
+
+Unchanged by this, and checked: 752 tests pass (7 new), both PDF digests
+`e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe`, `golden:screen` 0 pixels changed, build
+clean, `npm run check:topbar` passing.
+
 ### Stage 6 — the layout audit — `2e9bac7`
 
 A browser test visits all nine pages at 1280×720 and 800 wide in all three
