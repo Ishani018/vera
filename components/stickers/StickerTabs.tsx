@@ -59,7 +59,7 @@ export function StickerTabs() {
   }, [here]);
 
   return (
-    <nav aria-label="Stickers" className="shrink-0 border-b border-ink-200 bg-paper-0 px-2 sm:px-4">
+    <nav aria-label="Stickers" className="shrink-0 border-b border-ink-200 bg-paper px-2 sm:px-4">
       <ul className="relative mx-auto flex max-w-5xl items-stretch gap-1 overflow-x-auto">
         <span className="tab-underline" style={mark} aria-hidden="true" />
         {STICKER_TABS.map(({ href, label, icon, title }, n) => {

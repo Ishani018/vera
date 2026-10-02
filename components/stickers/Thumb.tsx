@@ -86,7 +86,7 @@ export function Thumb({
     <>
       <Chequerboard
         className={cx(
-          'aspect-square w-full rounded-lg border',
+          'peel aspect-square w-full rounded-lg border',
           'transition-[transform,box-shadow,border-color] duration-[--motion-base] ease-[--ease-out]',
           'shadow-[--shadow-rest]',
           selected ? 'border-accent-500' : 'border-ink-200',
@@ -142,14 +142,17 @@ export function Thumb({
 }
 
 /**
- * The first few stickers in a pack, as one square.
+ * A pack, as three of its stickers held like a hand of cards.
  *
- * A pack has no picture of its own, and a name in a list is not a thing anybody
- * recognises. Four at once is enough to say "the autumn ones" at a glance, and
- * fewer than four simply leaves the squares it does not need empty rather than
- * stretching one picture across the card.
+ * A pack has no picture of its own, and its name in a list is not something
+ * anybody recognises — "the autumn ones" is recognised by seeing two leaves and
+ * an acorn. Three fanned in perspective says "a stack of these"; a grid of four
+ * says "four separate things", which is the one thing a pack is not.
+ *
+ * Fewer than three simply fans fewer. None leaves the square empty and says so,
+ * rather than stretching one picture across the card.
  */
-export function Collage({
+export function Fan({
   urls,
   name,
   className,
@@ -158,27 +161,44 @@ export function Collage({
   name: string;
   className?: string;
 }) {
-  const four = urls.slice(0, 4);
+  const three = urls.slice(0, 3);
+
+  /** Back, middle, front. The front one is the least turned, as a held hand is. */
+  const laid = [
+    { turn: '-9deg', shift: '-11%', lean: '14deg' },
+    { turn: '0deg', shift: '0%', lean: '0deg' },
+    { turn: '9deg', shift: '11%', lean: '-14deg' },
+  ].slice(3 - three.length);
+
   return (
     <Chequerboard
       // One label for the square, not one per picture: the card beside it
-      // already carries the name, and four alt texts would read it five times.
-      aria-label={`${name}, ${four.length} of them`}
-      className={cx('aspect-square w-full rounded-lg border border-ink-200', className)}
+      // already carries the name, and three alt texts would read it four times.
+      aria-label={`${name}, ${three.length} of them`}
+      className={cx('fan aspect-square w-full rounded-lg border border-ink-200', className)}
     >
-      {four.length === 0 ? (
+      {three.length === 0 ? (
         <span className="text-[11px] text-ink-500">empty</span>
       ) : (
-        <span className="grid size-full grid-cols-2 grid-rows-2 gap-0.5 p-1">
-          {four.map((url, n) => (
-            <span key={n} className="grid place-items-center overflow-hidden">
-              {url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={url} alt="" className="max-h-full max-w-full object-contain" />
-              ) : null}
-            </span>
-          ))}
-        </span>
+        three.map((url, n) => (
+          <span
+            key={n}
+            className="fan-card grid place-items-center bg-paper"
+            style={
+              {
+                '--turn': laid[n].turn,
+                '--shift': laid[n].shift,
+                '--lean': laid[n].lean,
+                zIndex: n + 1,
+              } as React.CSSProperties
+            }
+          >
+            {url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={url} alt="" className="max-h-[82%] max-w-[82%] object-contain" />
+            ) : null}
+          </span>
+        ))
       )}
     </Chequerboard>
   );

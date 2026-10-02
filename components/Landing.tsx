@@ -313,7 +313,7 @@ export function Landing() {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setSearching(true)}
             onBlur={() => window.setTimeout(() => setSearching(false), 150)}
-            className="w-full rounded-full border border-ink-200 bg-paper-0 py-2 pl-9 pr-3 text-[13.5px] outline-none transition-colors focus:border-accent-500"
+            className="w-full rounded-full border border-ink-200 bg-paper py-2 pl-9 pr-3 text-[13.5px] outline-none transition-colors focus:border-accent-500"
           />
           {searching && query.trim() && (
             <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-[60vh] overflow-y-auto rounded-xl border border-ink-200 bg-paper p-1.5 shadow-xl">
@@ -393,7 +393,7 @@ export function Landing() {
         */}
         <nav
           aria-label="Places"
-          className="relative flex w-14 shrink-0 flex-col gap-1 border-r border-ink-200 bg-paper-0 p-2 lg:w-48"
+          className="relative flex w-14 shrink-0 flex-col gap-1 border-r border-ink-200 bg-paper p-2 lg:w-48"
           onPointerLeave={() => setHovered(null)}
         >
           {/*

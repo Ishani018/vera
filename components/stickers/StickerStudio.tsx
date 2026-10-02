@@ -1925,7 +1925,7 @@ export function StickerStudio() {
           </div>
 
           {sending && (
-            <div className="mt-3 rounded-xl border border-ink-200 bg-paper-0 p-3">
+            <div className="mt-3 rounded-xl border border-ink-200 bg-paper p-3">
               <span className="block text-[13.5px] font-[570]">Put it on a board</span>
               <div className="flex flex-col gap-1.5">
                 {SEND_TO.map((board) => (
@@ -2265,7 +2265,7 @@ function ToolStrip({
                 'pop-chosen grid size-9 place-items-center rounded-lg border text-[15px] leading-none',
                 'transition-[transform,background-color,border-color,color] duration-[--motion-fast] ease-[--ease-out]',
                 tool === choice.value
-                  ? 'border-accent-500 bg-accent-50 text-accent-700'
+                  ? 'border-accent-500 bg-accent-50 text-accent-600'
                   : 'border-white/25 text-white/85 hover:border-white/60 hover:text-white',
               )}
             >

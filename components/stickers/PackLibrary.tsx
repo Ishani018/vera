@@ -17,7 +17,7 @@ import { Modal } from '../Modal';
 import { StudioHeader } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
 import { BrowseGraphics } from './BrowseGraphics';
-import { Collage, Thumb } from './Thumb';
+import { Fan, Thumb } from './Thumb';
 import { DownloadIcon, LibraryIcon, UploadIcon } from './icons';
 import { Button, Notice, Spinner, TextInput, cx } from '../ui';
 
@@ -235,7 +235,7 @@ export function PackLibrary() {
                 {packs.map((summary) => (
                   <div
                     key={summary.pack}
-                    className="flex flex-col rounded-2xl border border-ink-200 bg-paper-0 p-3"
+                    className="group flex flex-col rounded-2xl border border-ink-200 bg-paper p-3"
                   >
                     <button
                       type="button"
@@ -243,7 +243,7 @@ export function PackLibrary() {
                       onClick={() => setPack(pack === summary.pack ? null : summary.pack)}
                       className="block text-left"
                     >
-                      <Collage
+                      <Fan
                         urls={summary.ids.map((id) => urls[id])}
                         name={summary.pack}
                         className={cx(pack === summary.pack && 'border-accent-500')}

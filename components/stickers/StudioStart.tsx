@@ -118,7 +118,7 @@ export function StudioStart({
           )}
 
           {resumable && (
-            <div className="mt-5 flex flex-wrap items-center gap-4 rounded-2xl border border-ink-200 bg-paper-0 p-4">
+            <div className="mt-5 flex flex-wrap items-center gap-4 rounded-2xl border border-ink-200 bg-paper p-4">
               <Thumb
                 url={urls[resumable.id]}
                 name={resumable.name || 'A sticker'}

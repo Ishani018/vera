@@ -243,3 +243,56 @@ test('the allow-list is only the colours that go into somebody’s files', () =>
     'components/stickers/StickerStudio.tsx',
   ]);
 });
+
+/* --------------------------------- every colour class names a real token */
+
+/**
+ * `bg-paper-0` was used in seven places and compiled to nothing.
+ *
+ * Tailwind silently drops a utility whose token does not exist, so the elements
+ * simply had no background and nobody saw a build error. This is the cheapest
+ * guard against the next one: the families below are ours, so every utility
+ * built on one of them must name a token that `app/tokens.css` actually defines.
+ */
+const OUR_FAMILIES = [
+  'paper',
+  'ink',
+  'accent',
+  'coral',
+  'sun',
+  'lilac',
+  'sage',
+  'denim',
+  'clay',
+  'ground',
+];
+
+test('every colour utility built on our own tokens names one that exists', () => {
+  const css = readFileSync(join(ROOT, 'app', 'tokens.css'), 'utf8');
+  const defined = new Set((css.match(/--color-[a-z0-9-]+/g) ?? []).map((n) => n.slice('--color-'.length)));
+
+  const walk = (dir) =>
+    readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) return walk(path);
+      return /\.(tsx|css)$/.test(path) ? [path] : [];
+    });
+
+  const families = OUR_FAMILIES.join('|');
+  // The utilities that take a colour, with an optional opacity suffix.
+  const pattern = new RegExp(
+    `\\b(?:bg|text|border|outline|ring|decoration|fill|stroke|from|via|to|shadow|caret|accent)-(?:(${families})(?:-[a-z0-9]+)*)`,
+    'g',
+  );
+
+  const strays = [];
+  for (const path of [...walk(join(ROOT, 'components')), ...walk(join(ROOT, 'app'))]) {
+    if (path.endsWith('tokens.css')) continue;
+    for (const found of readFileSync(path, 'utf8').match(pattern) ?? []) {
+      // Drop the utility prefix and any /40 opacity, leaving the token name.
+      const token = found.slice(found.indexOf('-') + 1).split('/')[0];
+      if (!defined.has(token)) strays.push(`${path.slice(ROOT.length + 1)}: ${found}`);
+    }
+  }
+  assert.deepEqual([...new Set(strays)], []);
+});

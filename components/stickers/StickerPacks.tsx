@@ -20,7 +20,7 @@ import { Modal } from '../Modal';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
-import { Collage, Thumb } from './Thumb';
+import { Fan, Thumb } from './Thumb';
 import { PlusIcon, TickIcon } from './icons';
 import { Button, Notice, TextInput, cx } from '../ui';
 
@@ -296,7 +296,7 @@ export function StickerPacks() {
                 {packs.map((pack) => (
                   <div
                     key={pack.tag}
-                    className="flex flex-col rounded-2xl border border-ink-200 bg-paper-0 p-3 transition-colors hover:border-ink-300"
+                    className="group flex flex-col rounded-2xl border border-ink-200 bg-paper p-3 transition-colors hover:border-ink-300"
                   >
                     <button
                       type="button"
@@ -304,7 +304,7 @@ export function StickerPacks() {
                       onClick={() => setChosen(pack.name)}
                       className="block text-left"
                     >
-                      <Collage
+                      <Fan
                         urls={pack.stickerIds.map((id) => urls[id])}
                         name={pack.name}
                         className="transition-colors group-hover:border-accent-500"

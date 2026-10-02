@@ -911,3 +911,274 @@ input[type='range']:hover::-moz-range-thumb {
     repeating-linear-gradient(-37deg, rgb(255 255 255 / 0.55) 0 1px, transparent 1px 2px),
     var(--color-ink-300);
 }
+
+/* ------------------------------------------------------------------ stickers */
+
+/*
+  A sticker card that behaves like a sticker.
+
+  The thing on the card is a die-cut vinyl sticker, and the one gesture everyone
+  has made with one is lifting a corner to see whether it will come off the
+  backing. So the corner curls when the pointer is on the card, and a band of
+  light crosses it once, the way light crosses gloss vinyl when you tilt it.
+
+  Both are drawn in CSS on two pseudo-elements of the tile — a gradient under a
+  clip-path for the curl, a gradient band for the sheen — so there is no image
+  to load and nothing to go wrong at another size. Only transform and opacity
+  move.
+*/
+.peel {
+  position: relative;
+}
+
+.peel::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 30%;
+  height: 30%;
+  /* The back of the sticker, with the fold's own shadow along its edge. */
+  background: linear-gradient(
+    315deg,
+    var(--color-ink-100) 0%,
+    var(--color-ink-50) 42%,
+    color-mix(in srgb, var(--color-ink-400) 55%, transparent) 54%,
+    transparent 56%
+  );
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  opacity: 0;
+  transform: scale(0.25);
+  transform-origin: 100% 100%;
+  transition:
+    transform var(--motion-slow) var(--ease-out),
+    opacity var(--motion-base) var(--ease-out);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.peel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    102deg,
+    transparent 36%,
+    rgb(255 255 255 / 0.55) 50%,
+    transparent 64%
+  );
+  opacity: 0;
+  transform: translateX(-110%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.group:hover .peel::before,
+.group:focus-within .peel::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.group:hover .peel::after,
+.group:focus-within .peel::after {
+  animation: peel-sheen var(--motion-slower) var(--ease-out);
+}
+
+@keyframes peel-sheen {
+  from {
+    opacity: 0;
+    transform: translateX(-110%);
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+    Not merely quicker. A corner that snaps up the instant the pointer arrives
+    is still a thing that moved, and somebody who asked for less movement
+    because movement makes them ill is not helped by it happening faster.
+  */
+  .peel::before,
+  .peel::after,
+  .group:hover .peel::before,
+  .group:hover .peel::after,
+  .group:focus-within .peel::before,
+  .group:focus-within .peel::after {
+    animation: none;
+    transform: none;
+    opacity: 0;
+  }
+}
+
+/*
+  A pack, as three of its stickers held like cards.
+
+  A pack has no picture of its own, and its name in a list is not something
+  anybody recognises — "the autumn ones" is recognised by seeing two leaves and
+  an acorn. Three fanned in perspective says "a stack of these" in a way a
+  2×2 grid of four does not: a grid reads as four separate things, and what a
+  pack is, is one thing with several inside it.
+
+  The fan spreads a little further when the card is hovered, which is the same
+  gesture as thumbing a stack to see what is in it.
+*/
+.fan {
+  position: relative;
+  perspective: 700px;
+}
+
+.fan-card {
+  position: absolute;
+  inset: 10%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-ink-200);
+  box-shadow: var(--shadow-rest);
+  transform: rotate(var(--turn, 0deg)) translateX(var(--shift, 0%)) rotateY(var(--lean, 0deg));
+  transition: transform var(--motion-slow) var(--ease-out);
+  overflow: hidden;
+}
+
+.group:hover .fan-card,
+.group:focus-within .fan-card {
+  transform: rotate(calc(var(--turn, 0deg) * 1.7)) translateX(calc(var(--shift, 0%) * 1.5))
+    rotateY(var(--lean, 0deg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .fan-card,
+  .group:focus-within .fan-card {
+    transform: rotate(var(--turn, 0deg)) translateX(var(--shift, 0%)) rotateY(var(--lean, 0deg));
+  }
+}
+
+/*
+  Stickers landing on the sheet.
+
+  The sheet is a page that stickers get placed on, and placing something is a
+  movement with a small overshoot at the end of it. `--n` staggers them, so a
+  sheet of twelve arrives as twelve placings rather than as one block appearing.
+  Capped in the component at a tenth of a second's worth of stagger, because a
+  sheet of sixty should not take four seconds to show up.
+*/
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -14px, 0) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.drop-in {
+  animation: drop-in var(--motion-slower) var(--ease-spring) both;
+  animation-delay: calc(var(--n, 0) * 45ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drop-in {
+    animation: none;
+  }
+}
+
+/*
+  A sticker that has just been saved, stamped onto the library.
+
+  Pressed down rather than faded in: the word for what just happened is "saved
+  to your library", and a stamp is the one gesture that means a thing is now
+  definitely somewhere. Under half a second, and it happens once.
+*/
+@keyframes stamped {
+  0% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stamped {
+  animation: stamped var(--motion-slow) var(--ease-spring) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamped {
+    animation: none;
+  }
+}
+
+/*
+  Results arriving one after another rather than all at once.
+
+  A search that returns twenty pictures in one frame reads as a page reloading.
+  A 40 ms stagger reads as a list filling up, which is what happened. `--n` is
+  the position in the list, set by the component and capped there.
+*/
+.stagger-in {
+  animation: arrive var(--motion-slow) var(--ease-out) both;
+  animation-delay: calc(var(--n, 0) * 40ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in {
+    animation: none;
+  }
+}
+
+/*
+  A grey block where a picture is about to be, with a light passing over it.
+
+  Not a spinner: a spinner says "wait" and says nothing about what for, while a
+  block the shape of the thing being fetched says "four pictures, nearly here"
+  and keeps the layout from jumping when they land.
+*/
+@keyframes skeleton-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(240%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--color-ink-100);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 46%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    color-mix(in srgb, white 55%, transparent) 50%,
+    transparent 100%
+  );
+  animation: skeleton-sweep 1.3s var(--ease-in-out) infinite;
+  animation-delay: calc(var(--n, 0) * 90ms);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    display: none;
+  }
+}
