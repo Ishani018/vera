@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isnaevy — direction B, paper desk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Caveat:wght@500;600&display=swap">
+<style>
+/*
+  DIRECTION B — PAPER DESK
+  A mockup. Not wired to anything, not imported by the app.
+
+  The idea: this app is where you make things to print and cut, so the screen is
+  the desk you would do that on. A self-healing cutting mat under everything,
+  kraft and cream paper on top of it, washi tape holding things down, pencil
+  labels in the margin, and rubber stamps for status.
+
+  Depth comes from paper being a real thickness — a tight, dark, offset shadow
+  with almost no blur — not from a glow. Colours are the real tokens.
+*/
+:root {
+  --ink: #221C15;
+  --pencil: #5C5349;
+  --cream: #F6F0E4;
+  --kraft: #DCC9A8;
+  --paper: #FFFDF7;
+  --mat: #0B6A62;          /* the brand teal, as the cutting mat */
+  --mat-line: rgba(255,255,255,0.16);
+  --red: #C9452C;
+  --stamp: #9A3220;
+  --tape: rgba(232, 163, 61, 0.55);
+  --tape2: rgba(11, 106, 98, 0.30);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  color: var(--ink);
+  font: 15px/1.5 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* The cutting mat: a 10mm grid with a heavier line every 50mm, on the teal. */
+  background-color: var(--mat);
+  background-image:
+    linear-gradient(var(--mat-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mat-line) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.09) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+}
+.hand { font-family: "Caveat", "Bradley Hand", cursive; }
+.wordmark { font-family: "Great Vibes", "Snell Roundhand", cursive; font-size: 34px; line-height: 1; }
+
+/* Paper, in two weights. The shadow is tight and dark: a sheet lying on a mat. */
+.sheet-paper {
+  background: var(--paper);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.18), 2px 3px 0 rgba(0,0,0,0.13);
+}
+.app { display: flex; flex-direction: column; height: 100%; padding: 14px; gap: 12px; }
+
+/* ------------------------------------------------------------------ top */
+.bar {
+  flex: 0 0 auto; position: relative;
+  display: flex; align-items: center; gap: 14px;
+  background: var(--cream);
+  padding: 11px 18px;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2), 2px 4px 0 rgba(0,0,0,0.14);
+}
+/* Washi tape, holding the bar to the mat. */
+.tape {
+  position: absolute; width: 92px; height: 26px;
+  background: var(--tape);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+}
+.tape.a { left: 26px; top: -13px; transform: rotate(-2.5deg); }
+.tape.b { right: 120px; top: -13px; transform: rotate(1.8deg); background: var(--tape2); }
+.search {
+  flex: 1 1 auto; min-width: 0; max-width: 400px;
+  display: flex; align-items: center; gap: 9px;
+  background: var(--paper); padding: 8px 14px; border-radius: 2px;
+  border: 1px solid #CDC2AC; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+.search input { border: 0; outline: 0; background: none; font: inherit; width: 100%; color: var(--ink); }
+.search input::placeholder { color: #8A8073; }
+.create {
+  margin-left: auto; flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--red); color: #fff; border: 0; border-radius: 2px;
+  font: inherit; font-weight: 600; font-size: 14.5px; padding: 10px 18px; cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.3), 2px 3px 0 rgba(0,0,0,0.2);
+}
+.create:active { transform: translate(1px, 2px); box-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+
+/* ----------------------------------------------------------------- body */
+.main { flex: 1 1 auto; min-height: 0; display: flex; gap: 12px; }
+.rail {
+  flex: 0 0 auto; width: 176px; padding: 14px 10px;
+  background: var(--kraft); border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2), 2px 4px 0 rgba(0,0,0,0.14);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.rail a {
+  display: flex; align-items: center; gap: 10px; text-decoration: none;
+  color: #3A332A; padding: 8px 10px; border-radius: 2px; font-size: 14.5px; font-weight: 500;
+}
+.rail a.on { background: rgba(255,255,255,0.62); font-weight: 600; box-shadow: inset 2px 0 0 var(--red); }
+.rail .spacer { flex: 1 1 auto; }
+.rail .tab {
+  font-family: "Caveat", cursive; font-size: 17px; color: #6B5F4B;
+  padding: 2px 10px 6px; letter-spacing: 0.01em;
+}
+.rail .count { margin-left: auto; font-size: 12px; color: #6B5F4B; }
+
+.desk {
+  flex: 1 1 auto; min-width: 0; overflow: auto;
+  background: var(--cream); border-radius: 3px; padding: 20px 22px 26px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2), 2px 4px 0 rgba(0,0,0,0.14);
+}
+h1 { font-size: 22px; margin: 0 0 2px; font-weight: 650; letter-spacing: -0.01em; }
+.said { color: var(--pencil); margin: 0 0 20px; font-size: 14px; }
+h2 {
+  font-family: "Caveat", cursive; font-size: 21px; font-weight: 600;
+  margin: 24px 0 10px; color: #4A4238;
+}
+h2:first-of-type { margin-top: 2px; }
+h2 .rule { display: inline-block; width: 42px; border-bottom: 1.5px dashed #B5A98F; margin: 0 0 5px 8px; }
+
+/* ------------------------------------------------------------ shortcuts */
+.shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+.shortcut {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  background: var(--paper); border: 1px solid #D5C9B2; border-radius: 2px;
+  padding: 8px 14px 8px 10px; font: inherit; font-size: 14px; color: var(--ink);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.14), 2px 2px 0 rgba(0,0,0,0.08);
+}
+.shortcut svg { color: #4A4238; }
+
+/* --------------------------------------------------- recent, as pinned paper */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 22px 20px; }
+.card { position: relative; background: var(--paper); padding: 10px 10px 12px;
+        box-shadow: 0 1px 0 rgba(0,0,0,0.18), 2px 3px 0 rgba(0,0,0,0.12); }
+.card .tape {
+  width: 62px; height: 20px; left: 50%; top: -10px; margin-left: -31px;
+  transform: rotate(-1.6deg);
+}
+.card:nth-child(2n) .tape { transform: rotate(2deg); background: var(--tape2); }
+.card .win {
+  position: relative;
+  aspect-ratio: 1 / 0.78; display: grid; place-items: center;
+  background: #FBF7EE; border: 1px solid #E2D8C4;
+}
+.card .win img { width: 62%; height: 62%; object-fit: contain; }
+.card .name { margin-top: 9px; font-weight: 600; font-size: 14.5px; }
+.card .meta { color: var(--pencil); font-size: 12.5px; }
+/* A rubber stamp, rotated, pressed over the corner of the window — never over
+   the name, which is the one thing on the card that has to stay readable. */
+.stamp {
+  position: absolute; right: -5px; bottom: -9px; z-index: 2;
+  border: 2px solid var(--stamp); color: var(--stamp);
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 7px; transform: rotate(-9deg); opacity: 0.82; border-radius: 2px;
+  background: rgba(255,253,247,0.55);
+}
+.stamp.teal { border-color: var(--mat); color: var(--mat); }
+
+/* ---------------------------------------------------------- empty state */
+.empty {
+  margin-top: 10px; position: relative;
+  background: var(--paper); border: 1px dashed #C3B69C; padding: 22px 22px 22px 20px;
+  display: flex; gap: 20px; align-items: center;
+}
+.empty img { width: 86px; height: 86px; flex: 0 0 auto; }
+.empty h3 { margin: 0 0 4px; font-size: 16.5px; font-weight: 650; }
+.empty p { margin: 0 0 12px; color: var(--pencil); font-size: 14px; max-width: 48ch; }
+.empty .go {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  background: var(--mat); color: #fff; border: 0; border-radius: 2px;
+  font: inherit; font-weight: 600; padding: 8px 15px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.3), 2px 3px 0 rgba(0,0,0,0.18);
+}
+.note {
+  font-family: "Caveat", cursive; font-size: 19px; color: #6B5F4B;
+  transform: rotate(-3deg); margin-left: auto; align-self: flex-start; max-width: 160px;
+}
+.note .arrow { display: block; font-size: 24px; line-height: 1; margin-left: 24px; }
+@media (max-width: 900px) {
+  .rail { width: 56px; padding: 12px 6px; }
+  .rail .word, .rail .count, .rail .tab { display: none; }
+  .rail a { justify-content: center; padding: 10px 0; }
+  .desk { padding: 16px 14px 20px; }
+  .empty { flex-wrap: wrap; }
+  .note { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="bar">
+    <span class="tape a"></span><span class="tape b"></span>
+    <span class="wordmark">Isnaevy</span>
+    <label class="search">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="8.5" cy="8.5" r="5.5" stroke="#4A4238" stroke-width="1.6"/>
+        <path d="M12.8 12.8L17 17" stroke="#4A4238" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <input placeholder="Search your designs and stickers" aria-label="Search">
+    </label>
+    <button class="create">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 4v12M4 10h12" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+      </svg>
+      Create
+    </button>
+  </header>
+
+  <div class="main">
+    <nav class="rail">
+      <div class="tab">on the desk</div>
+      <a class="on" href="#">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.6"/>
+          <rect x="11" y="3" width="6" height="6" stroke="currentColor" stroke-width="1.6"/>
+          <rect x="3" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.6"/>
+          <rect x="11" y="11" width="6" height="6" stroke="currentColor" stroke-width="1.6"/>
+        </svg><span class="word">Everything</span>
+      </a>
+      <a href="#">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M3 4.5h5.5a1.5 1.5 0 011.5 1.5v10a1.5 1.5 0 00-1.5-1.5H3v-10z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M17 4.5h-5.5A1.5 1.5 0 0010 6v10a1.5 1.5 0 011.5-1.5H17v-10z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg><span class="word">Books</span>
+      </a>
+      <a href="#">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M10 3a7 7 0 010 14" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2.6"/>
+        </svg><span class="word">Stickers</span>
+      </a>
+      <a href="#">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="14" height="12" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M3 12l4-3.5 3.5 3 2.5-2L17 13" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg><span class="word">Covers</span>
+      </a>
+      <div class="spacer"></div>
+      <a href="#">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M4 6h12M8 6V4.5h4V6M5.5 6l.7 9.6A1.4 1.4 0 007.6 17h4.8a1.4 1.4 0 001.4-1.4L14.5 6"
+                stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg><span class="word">Trash</span><span class="count">3</span>
+      </a>
+    </nav>
+
+    <main class="desk">
+      <h1>What will you make today?</h1>
+      <p class="said">Everything you make is kept on this computer, and never leaves it.</p>
+
+      <h2>Start something<span class="rule"></span></h2>
+      <div class="shortcuts">
+        <button class="shortcut">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><rect x="4" y="3.5" width="12" height="13" stroke="currentColor" stroke-width="1.6"/><path d="M7 7.5h6M7 10.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          Poetry book
+        </button>
+        <button class="shortcut">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6.5" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2" stroke="currentColor" stroke-width="1.6"/></svg>
+          Sticker
+        </button>
+        <button class="shortcut">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="3.5" width="13" height="13" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 12l3.5-3 3 2.5 2.5-2 4 3.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          Instagram post
+        </button>
+        <button class="shortcut">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="3.5" width="13" height="13" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 8h13M8 3.5v13" stroke="currentColor" stroke-width="1.6"/></svg>
+          Sticker sheet
+        </button>
+        <button class="shortcut">
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><path d="M10 3.5l2 4.4 4.5.5-3.4 3 1 4.6-4.1-2.4-4.1 2.4 1-4.6-3.4-3 4.5-.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          Colouring book
+        </button>
+      </div>
+
+      <h2>Recent<span class="rule"></span></h2>
+      <div class="grid">
+        <article class="card">
+          <span class="tape"></span>
+          <div class="win"><img src="art/moon.png" alt=""><span class="stamp">48 pp</span></div>
+          <div class="name">Salt and Small Hours</div>
+          <div class="meta">Poetry · 2 days ago</div>
+        </article>
+        <article class="card">
+          <span class="tape"></span>
+          <div class="win"><img src="art/cat.png" alt=""><span class="stamp teal">die-cut</span></div>
+          <div class="name">Cat, winking</div>
+          <div class="meta">1000 × 1000 px · yesterday</div>
+        </article>
+        <article class="card">
+          <span class="tape"></span>
+          <div class="win"><img src="art/boat.png" alt=""><span class="stamp">print ready</span></div>
+          <div class="name">Harbour Lights</div>
+          <div class="meta">5.5 × 8.5 in · 4 days ago</div>
+        </article>
+        <article class="card">
+          <span class="tape"></span>
+          <div class="win"><img src="art/leaf.png" alt=""><span class="stamp teal">square</span></div>
+          <div class="name">Autumn Market</div>
+          <div class="meta">1080 × 1080 px · last week</div>
+        </article>
+      </div>
+
+      <h2>Sticker sheets<span class="rule"></span></h2>
+      <div class="empty">
+        <img src="art/cat.png" alt="">
+        <div>
+          <h3>Nothing on the cutting mat yet</h3>
+          <p>A sheet is a page of your stickers, laid out to print and cut. Pick the ones
+             you want and it works out how many fit.</p>
+          <button class="go">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 4v12M4 10h12" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+            Make a sheet
+          </button>
+        </div>
+        <p class="note">he’ll go on the first one<span class="arrow">↙</span></p>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

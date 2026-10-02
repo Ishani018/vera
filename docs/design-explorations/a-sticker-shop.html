@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isnaevy — direction A, sticker shop</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap">
+<style>
+/*
+  DIRECTION A — STICKER SHOP
+  A mockup. Not wired to anything, not imported by the app.
+
+  The idea: the thing this app makes is a die-cut vinyl sticker, so the app
+  should be made of them. Thick ink outlines, flat blocks of colour, and hard
+  offset shadows with no blur at all — the shadow a sticker casts on a table,
+  not the soft glow of a web card. Nothing is a gradient and nothing is pastel.
+
+  Colours are the real tokens: teal #0B6A62 (the one constant across all three
+  themes), red #C9452C, cream #FCF9F4. Art is the real line drawings.
+*/
+:root {
+  --ink: #1D1813;
+  --cream: #FCF9F4;
+  --paper: #FFFFFF;
+  --red: #C9452C;
+  --red-deep: #9A3220;
+  --teal: #0B6A62;
+  --teal-deep: #08544E;
+  --sun: #E8A33D;
+  --rule: 2.5px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font: 15px/1.45 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+.wordmark { font-family: "Great Vibes", "Snell Roundhand", cursive; font-size: 36px; line-height: 1; }
+
+/* Everything that sits on the page sits on it the same way: an ink outline and
+   a hard shadow offset down-right. One rule, no blur, no exceptions. */
+.block {
+  border: var(--rule) solid var(--ink);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.app { display: flex; flex-direction: column; height: 100%; }
+
+/* ---------------------------------------------------------------- top bar */
+.bar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 20px;
+  border-bottom: var(--rule) solid var(--ink);
+  background: var(--cream);
+  flex: 0 0 auto;
+}
+.search {
+  flex: 1 1 auto; min-width: 0; max-width: 420px;
+  display: flex; align-items: center; gap: 9px;
+  border: var(--rule) solid var(--ink); border-radius: 999px;
+  background: var(--paper); padding: 8px 15px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.search input {
+  border: 0; outline: 0; background: none; font: inherit; font-weight: 500;
+  width: 100%; color: var(--ink);
+}
+.search input::placeholder { color: #6E6354; }
+.create {
+  margin-left: auto; flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 8px;
+  border: var(--rule) solid var(--ink); border-radius: 999px;
+  background: var(--red); color: #fff;
+  font: inherit; font-weight: 700; font-size: 15px;
+  padding: 10px 20px; cursor: pointer;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.create:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+
+/* ---------------------------------------------------------------- body */
+.main { display: flex; min-height: 0; flex: 1 1 auto; }
+.rail {
+  flex: 0 0 auto; width: 196px;
+  border-right: var(--rule) solid var(--ink);
+  padding: 16px 12px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--cream);
+}
+.rail a {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 12px; border-radius: 10px; text-decoration: none; color: var(--ink);
+  font-weight: 600; font-size: 14.5px;
+  border: var(--rule) solid transparent;
+}
+.rail a.on { background: var(--teal); color: #fff; border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.rail .spacer { flex: 1 1 auto; }
+.rail .trash { color: #6E6354; font-weight: 600; }
+.rail .count {
+  margin-left: auto; font-size: 12px; font-weight: 700;
+  background: var(--ink); color: var(--cream); border-radius: 999px; padding: 1px 8px;
+}
+.sheet { flex: 1 1 auto; min-width: 0; overflow: auto; padding: 22px 26px 30px; }
+
+h1 { font-size: 23px; margin: 0 0 3px; letter-spacing: -0.015em; font-weight: 800; }
+.said { color: #6E6354; margin: 0 0 18px; font-size: 14px; font-weight: 500; }
+h2 {
+  font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+  margin: 26px 0 12px; font-weight: 800;
+}
+h2:first-of-type { margin-top: 6px; }
+
+/* ------------------------------------------------------------- shortcuts */
+.shortcuts { display: flex; flex-wrap: wrap; gap: 12px; }
+.shortcut {
+  display: flex; align-items: center; gap: 10px;
+  border: var(--rule) solid var(--ink); border-radius: 12px;
+  background: var(--paper); padding: 9px 15px 9px 11px;
+  box-shadow: 4px 4px 0 var(--ink); cursor: pointer;
+  font: inherit; font-weight: 700; font-size: 14px; color: var(--ink);
+}
+.shortcut .swatch {
+  width: 30px; height: 30px; border: 2px solid var(--ink); border-radius: 7px;
+  display: grid; place-items: center; flex: 0 0 auto;
+}
+.shortcut:nth-child(1) .swatch { background: var(--red); }
+.shortcut:nth-child(2) .swatch { background: var(--teal); }
+.shortcut:nth-child(3) .swatch { background: var(--sun); }
+.shortcut:nth-child(4) .swatch { background: #fff; }
+.shortcut:nth-child(5) .swatch { background: var(--teal); }
+
+/* ------------------------------------------------- recent, as die-cut stickers */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 20px; }
+.sticker { position: relative; }
+.sticker .plate {
+  position: relative;
+  border: var(--rule) solid var(--ink);
+  border-radius: 13px;
+  background: var(--paper);
+  box-shadow: 5px 5px 0 var(--ink);
+  aspect-ratio: 4 / 3;
+  display: grid; place-items: center;
+  overflow: hidden;
+  /* The corner peel. The plate's own corner is cut away and the backing shows
+     through behind it, with the fold drawn as an ink line — the same two
+     triangles a lifted sticker actually makes. No blur anywhere. */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 38px), calc(100% - 38px) 100%, 0 100%);
+}
+.sticker .peel {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 40px; height: 40px;
+  /* The underside of the sticker curling up: the backing, an ink fold line
+     exactly on the diagonal, and the shaded underside beyond it. One gradient,
+     so the fold can never drift away from the cut. */
+  background: linear-gradient(
+    135deg,
+    var(--cream) 0 49.2%,
+    var(--ink) 49.2% 52.2%,
+    #EDE6D9 52.2% 100%
+  );
+  border-bottom: var(--rule) solid var(--ink);
+  border-right: var(--rule) solid var(--ink);
+  border-bottom-right-radius: 11px;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.sticker img { width: 64%; height: 64%; object-fit: contain; }
+.sticker .plate.red { background: #FBE4DE; }
+.sticker .plate.teal { background: #DDEBE9; }
+.sticker .plate.sun { background: #FBEEDA; }
+.sticker .label { margin-top: 10px; font-weight: 700; font-size: 14.5px; }
+.sticker .meta { color: #6E6354; font-size: 12.5px; font-weight: 500; }
+.tag {
+  position: absolute; left: -6px; top: -9px; z-index: 2;
+  border: 2px solid var(--ink); border-radius: 999px;
+  padding: 2px 9px; font-size: 11.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.tag.book { background: var(--sun); }
+.tag.cover { background: var(--red); color: #fff; }
+.tag.sticker { background: var(--teal); color: #fff; }
+.tag.post { background: #fff; }
+
+/* ------------------------------------------------------------ empty state */
+.empty {
+  margin-top: 14px;
+  border: var(--rule) dashed var(--ink);
+  border-radius: 14px;
+  padding: 26px 24px;
+  display: flex; align-items: center; gap: 18px;
+  background: #FFFDF8;
+}
+.empty .who { position: relative; flex: 0 0 auto; margin-top: 18px; }
+.empty img { width: 92px; height: 92px; flex: 0 0 auto; }
+.empty h3 { margin: 0 0 4px; font-size: 17px; font-weight: 800; }
+.empty p { margin: 0 0 12px; color: #6E6354; font-size: 14px; max-width: 46ch; }
+.empty .go {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: var(--rule) solid var(--ink); border-radius: 999px;
+  background: var(--teal); color: #fff; font: inherit; font-weight: 700;
+  padding: 8px 17px; cursor: pointer; box-shadow: 4px 4px 0 var(--ink);
+}
+/* Said by the cat, so it is attached to the cat. */
+.bubble {
+  position: absolute; left: 8px; bottom: calc(100% + 10px); white-space: nowrap;
+  background: var(--sun); border: var(--rule) solid var(--ink);
+  border-radius: 12px; padding: 6px 11px; font-weight: 700; font-size: 13.5px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+/* The tail points down at the cat that is saying it. */
+.bubble::before {
+  content: ''; position: absolute; left: 20px; bottom: -8px;
+  width: 11px; height: 11px; background: var(--sun);
+  border-right: var(--rule) solid var(--ink); border-bottom: var(--rule) solid var(--ink);
+  transform: rotate(45deg);
+}
+@media (max-width: 900px) {
+  .rail { width: 60px; padding: 14px 8px; }
+  .rail a span.word, .rail .count { display: none; }
+  .rail a { justify-content: center; padding: 10px 0; }
+  .sheet { padding: 18px 16px 24px; }
+  .empty { flex-direction: column; align-items: flex-start; gap: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="bar">
+    <span class="wordmark">Isnaevy</span>
+    <label class="search">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <circle cx="8.5" cy="8.5" r="5.5" stroke="#1D1813" stroke-width="2.5"/>
+        <path d="M13 13l4 4" stroke="#1D1813" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <input placeholder="Search your designs and stickers" aria-label="Search">
+    </label>
+    <button class="create">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 3.5v13M3.5 10h13" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      Create
+    </button>
+  </header>
+
+  <div class="main">
+    <nav class="rail">
+      <a class="on" href="#">
+        <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="2.5" y="2.5" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="2.5"/>
+          <rect x="11.5" y="2.5" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="2.5"/>
+          <rect x="2.5" y="11.5" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="2.5"/>
+          <rect x="11.5" y="11.5" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="2.5"/>
+        </svg>
+        <span class="word">Everything</span>
+      </a>
+      <a href="#">
+        <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M3.5 4.5h5a2 2 0 012 2v10a2 2 0 00-2-2h-5v-10z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M16.5 4.5h-5a2 2 0 00-2 2v10a2 2 0 012-2h5v-10z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <span class="word">Books</span>
+      </a>
+      <a href="#">
+        <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="2.5"/>
+        </svg>
+        <span class="word">Stickers</span>
+      </a>
+      <a href="#">
+        <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="2.5" y="3.5" width="15" height="13" rx="2" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M2.5 12l4-3.5 4 3 3-2.5 4 3.5" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <span class="word">Covers</span>
+      </a>
+      <div class="spacer"></div>
+      <a class="trash" href="#">
+        <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M4 5.5h12M8 5.5V4h4v1.5M5.5 5.5l.8 10a1.5 1.5 0 001.5 1.4h4.4a1.5 1.5 0 001.5-1.4l.8-10"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="word">Trash</span><span class="count">3</span>
+      </a>
+    </nav>
+
+    <main class="sheet">
+      <h1>What will you make today?</h1>
+      <p class="said">Everything you make is kept on this computer, and never leaves it.</p>
+
+      <h2>Start something</h2>
+      <div class="shortcuts">
+        <button class="shortcut">
+          <span class="swatch">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 4.5h12v11H4z" stroke="#1D1813" stroke-width="2.5"/><path d="M7 8h6M7 11h4" stroke="#1D1813" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </span>Poetry book
+        </button>
+        <button class="shortcut">
+          <span class="swatch">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6.5" stroke="#fff" stroke-width="2.5"/><circle cx="10" cy="10" r="2" fill="#fff"/></svg>
+          </span>Sticker
+        </button>
+        <button class="shortcut">
+          <span class="swatch">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="3.5" y="3.5" width="13" height="13" rx="1.5" stroke="#1D1813" stroke-width="2.5"/><path d="M3.5 12l3.5-3 3 2.5 2.5-2 4 3.5" stroke="#1D1813" stroke-width="2.5" stroke-linejoin="round"/></svg>
+          </span>Instagram post
+        </button>
+        <button class="shortcut">
+          <span class="swatch">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M3.5 3.5h13v13h-13z" stroke="#1D1813" stroke-width="2.5"/><path d="M3.5 8h13M8 3.5v13" stroke="#1D1813" stroke-width="2.5"/></svg>
+          </span>Sticker sheet
+        </button>
+        <button class="shortcut">
+          <span class="swatch">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 3.5l2 4.5 4.5.5-3.5 3 1 4.5-4-2.5-4 2.5 1-4.5-3.5-3 4.5-.5z" stroke="#fff" stroke-width="2.3" stroke-linejoin="round"/></svg>
+          </span>Colouring book
+        </button>
+      </div>
+
+      <h2>Recent</h2>
+      <div class="grid">
+        <article class="sticker">
+          <span class="tag book">Book</span>
+          <div class="plate sun"><img src="art/moon.png" alt=""><span class="peel"></span></div>
+          <div class="label">Salt and Small Hours</div>
+          <div class="meta">Poetry · 48 pages · 2 days ago</div>
+        </article>
+        <article class="sticker">
+          <span class="tag sticker">Sticker</span>
+          <div class="plate teal"><img src="art/cat.png" alt=""><span class="peel"></span></div>
+          <div class="label">Cat, winking</div>
+          <div class="meta">1000 × 1000 px · yesterday</div>
+        </article>
+        <article class="sticker">
+          <span class="tag cover">Cover</span>
+          <div class="plate red"><img src="art/boat.png" alt=""><span class="peel"></span></div>
+          <div class="label">Harbour Lights</div>
+          <div class="meta">5.5 × 8.5 in · 4 days ago</div>
+        </article>
+        <article class="sticker">
+          <span class="tag post">Post</span>
+          <div class="plate"><img src="art/leaf.png" alt=""><span class="peel"></span></div>
+          <div class="label">Autumn Market</div>
+          <div class="meta">1080 × 1080 px · last week</div>
+        </article>
+      </div>
+
+      <h2>Sticker sheets</h2>
+      <div class="empty">
+        <span class="who">
+          <img src="art/cat.png" alt="">
+          <span class="bubble">Start with me?</span>
+        </span>
+        <div>
+          <h3>No sheets yet</h3>
+          <p>A sheet is a page of your stickers, laid out to print and cut. Pick the ones
+             you want and it works out how many fit.</p>
+          <button class="go">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 3.5v13M3.5 10h13" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            Make a sheet
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>
