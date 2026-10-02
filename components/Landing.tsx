@@ -24,6 +24,8 @@ import {
 } from '@/lib/projects';
 import {
   CATEGORIES,
+  CATEGORY_INK,
+  CATEGORY_TINT,
   INTERIORS,
   TILES,
   tileSize,
@@ -35,6 +37,7 @@ import { PREVIEW_ROUND } from '@/lib/preview';
 import {
   HOME_FILTERS,
   badgeFor,
+  categoryOf,
   cleanUpLine,
   emptyDesigns,
   filterEntries,
@@ -67,6 +70,7 @@ import {
 } from './icons';
 import { PackIcon } from './stickers/icons';
 import { TilePreview, PreviewBox } from './TilePreview';
+import { Tilt } from './Tilt';
 import { Modal } from './Modal';
 import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
@@ -176,6 +180,47 @@ export function Landing() {
     }
     setPending(tile);
   };
+
+  /* ------------------------------------------------------ the sliding pill */
+
+  /**
+   * Where the highlight sits: on whatever the pointer is over, or on the
+   * current page when it is over nothing.
+   *
+   * Measured from the buttons themselves rather than computed from a row
+   * height, so it stays right when the labels disappear at a narrow window.
+   */
+  const items = useRef<(HTMLButtonElement | null)[]>([]);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [pill, setPill] = useState<React.CSSProperties>({ opacity: 0 });
+
+  useEffect(() => {
+    const at = hovered ?? 0;
+    const node = items.current[at];
+    const rail = node?.parentElement;
+    if (!node || !rail) return;
+    const a = node.getBoundingClientRect();
+    const b = rail.getBoundingClientRect();
+    setPill({
+      opacity: 1,
+      width: a.width,
+      height: a.height,
+      transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)`,
+    });
+  }, [hovered, entries]);
+
+  /**
+   * Whether the cards may do their arrival.
+   *
+   * Only the first list somebody sees: a grid that re-animated every time a
+   * filter changed would flicker every time they looked for something.
+   */
+  const [fresh, setFresh] = useState(true);
+  useEffect(() => {
+    if (!entries?.length) return;
+    const timer = setTimeout(() => setFresh(false), 1200);
+    return () => clearTimeout(timer);
+  }, [entries]);
 
   /* A picture for each sticker a search might turn up. Asked for once. */
   useEffect(() => {
@@ -333,7 +378,7 @@ export function Landing() {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="btn btn-create ml-auto shrink-0 rounded-full px-4 py-2 text-[14px]"
+          className="btn btn-create shimmer ml-auto shrink-0 rounded-full px-4 py-2 text-[14px]"
         >
           <PlusIcon size={17} />
           Create
@@ -348,26 +393,38 @@ export function Landing() {
         */}
         <nav
           aria-label="Places"
-          className="flex w-14 shrink-0 flex-col gap-1 border-r border-ink-200 bg-paper-0 p-2 lg:w-48"
+          className="relative flex w-14 shrink-0 flex-col gap-1 border-r border-ink-200 bg-paper-0 p-2 lg:w-48"
+          onPointerLeave={() => setHovered(null)}
         >
-          {PLACES.map((place) => (
+          {/*
+            One highlight for the whole rail, moved rather than redrawn: it
+            slides to whichever item the pointer is on and settles back on the
+            current one. A transform and nothing else, so the rail never lays
+            itself out again.
+          */}
+          <span className="slider-pill" style={pill} aria-hidden="true" />
+          {PLACES.map((place, n) => (
             <button
               key={place.id}
+              ref={(node) => void (items.current[n] = node)}
               type="button"
               title={place.title}
               aria-current={place.id === 'home' ? 'page' : undefined}
               disabled={place.soon}
+              onPointerEnter={() => !place.soon && setHovered(n)}
+              onFocus={() => !place.soon && setHovered(n)}
               onClick={() => place.go?.()}
               className={cx(
-                'flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] transition-colors',
+                'nudge-hover relative z-10 flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px]',
+                'transition-colors duration-[--motion-base]',
                 place.soon
                   ? 'cursor-not-allowed text-ink-400'
                   : place.id === 'home'
-                    ? 'bg-accent-50 font-[600] text-accent-500'
-                    : 'text-ink-700 hover:bg-ink-100',
+                    ? 'font-[600] text-accent-500'
+                    : 'text-ink-700 hover:text-ink-900',
               )}
             >
-              <span className="shrink-0">
+              <span className="nudge shrink-0">
                 <place.Icon size={19} />
               </span>
               <span className="hidden min-w-0 flex-1 truncate text-left lg:block">
@@ -389,10 +446,19 @@ export function Landing() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-5xl px-5 py-6">
-            <h1 className="display text-[22px] tracking-tight">What will you make today?</h1>
+            {/*
+              The band. A warm wash, one line that sounds like a person, and the
+              seven things made most often — so the first screen is an invitation
+              rather than an index.
+            */}
+            <section className="hero px-6 py-5">
+              <h1 className="display text-[26px] tracking-tight">What will you make today?</h1>
+              <p className="mt-1 text-[13.5px] text-ink-500">
+                Everything you make is kept on this computer, and never leaves it.
+              </p>
 
-            {/* The seven things made most often, as one press each. */}
-            <ul aria-label="Start something" className="mt-4 flex flex-wrap gap-x-5 gap-y-3">
+              {/* The seven things made most often, as one press each. */}
+              <ul aria-label="Start something" className="mt-5 flex flex-wrap gap-x-5 gap-y-3">
               {SHORTCUTS.map((shortcut) => {
                 const tile = TILES.find((one) => one.id === shortcut.id);
                 if (!tile) return null;
@@ -402,13 +468,13 @@ export function Landing() {
                       type="button"
                       title={tileSize(tile)}
                       onClick={() => void onTile(tile)}
-                      className="group flex w-16 flex-col items-center gap-1.5"
+                      className="pop-hover group flex w-16 flex-col items-center gap-1.5"
                     >
                       <PreviewBox
                         category={tile.category}
                         size={PREVIEW_ROUND}
                         round
-                        className="text-ink-700 transition-colors group-hover:text-accent-500"
+                        className="pop text-ink-700 group-hover:text-accent-500"
                       >
                         <shortcut.Icon size={22} />
                       </PreviewBox>
@@ -419,7 +485,8 @@ export function Landing() {
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+            </section>
 
             <section className="mt-7">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -469,13 +536,24 @@ export function Landing() {
                   aria-label="Recent designs"
                   className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
                 >
-                  {shown.map((entry) => (
-                    <li key={entry.key} className="group relative">
-                      <div className="relative rounded-2xl border border-ink-200 bg-paper p-2.5 transition-colors group-hover:border-accent-500">
+                  {shown.map((entry, n) => (
+                    <li
+                      key={entry.key}
+                      className={cx('group relative', fresh && 'arrive')}
+                      style={{ '--n': n } as React.CSSProperties}
+                    >
+                      <Tilt className="card tilt-lift relative p-2.5">
                         <span className="grid h-32 place-items-center overflow-hidden rounded-xl bg-ink-100 p-2">
                           <ThumbArt thumb={entry.thumb} />
                         </span>
-                        <span className="pointer-events-none absolute left-4 top-4 rounded-md bg-paper/90 px-1.5 py-0.5 text-[10.5px] font-[560] text-ink-700 shadow-sm">
+                        {/* The badge carries its category's own colour. */}
+                        <span
+                          className="pointer-events-none absolute left-4 top-4 rounded-md px-1.5 py-0.5 text-[10.5px] font-[560] shadow-[--shadow-rest]"
+                          style={{
+                            background: CATEGORY_TINT[categoryOf(entry)],
+                            color: CATEGORY_INK[categoryOf(entry)],
+                          }}
+                        >
                           {badgeFor(entry)}
                         </span>
                         {renaming === entry.key ? (
@@ -510,7 +588,7 @@ export function Landing() {
                             className="absolute inset-0 rounded-2xl"
                           />
                         )}
-                      </div>
+                      </Tilt>
 
                       <span
                         className={cx(
@@ -547,7 +625,11 @@ export function Landing() {
               const inGroup = TILES.filter((tile) => tile.category === group.id);
               if (!inGroup.length) return null;
               return (
-                <div key={group.id} className="mb-6 last:mb-0">
+                <div
+                  key={group.id}
+                  className="arrive-quick mb-6 last:mb-0"
+                  style={{ '--n': CATEGORIES.findIndex((one) => one.id === group.id) } as React.CSSProperties}
+                >
                   <h3 className="text-[12px] uppercase tracking-wide text-ink-500">{group.label}</h3>
                   <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {inGroup.map((tile) => (
@@ -560,13 +642,14 @@ export function Landing() {
                           void onTile(tile);
                         }}
                         className={cx(
-                          'flex items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+                          'bob-hover flex items-center gap-3 rounded-xl border p-3 text-left',
+                          'transition-[transform,background-color,border-color,box-shadow] duration-[--motion-base] ease-[--ease-out]',
                           tile.status === 'ready'
-                            ? 'border-ink-200 hover:border-accent-500 hover:bg-accent-50/40'
+                            ? 'border-ink-200 hover:-translate-y-0.5 hover:border-accent-500 hover:bg-accent-50/40 hover:shadow-[--shadow-raised] active:scale-[0.99]'
                             : 'cursor-not-allowed border-dashed border-ink-200 opacity-50',
                         )}
                       >
-                        <TilePreview art={tile.art} category={tile.category} />
+                        <TilePreview art={tile.art} category={tile.category} className="bob" />
                         {/* Beside the box and vertically centred by the row, so
                             a two-line size never slides under the drawing. */}
                         <span className="min-w-0">

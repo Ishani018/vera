@@ -1,5 +1,6 @@
 import type { LibraryEntry } from './projects';
 import { presetById } from './presets';
+import type { TileCategory } from './tiles';
 
 /**
  * How the front page sorts, searches and groups what you have made.
@@ -94,4 +95,20 @@ export function cleanUpLine(empties: LibraryEntry[]): string {
     return `${empties[0].name || 'One design'} has nothing on it. It goes to the trash.`;
   }
   return `${empties.length} designs have nothing on them. They go to the trash.`;
+}
+
+/**
+ * Which category's colour a card wears.
+ *
+ * The badge says what a thing is, so its colour should say the same: a book is
+ * the sunny one, a post the dusty blue, a printed thing the clay. A design
+ * whose preset has gone falls back to the brand teal rather than to nothing —
+ * an uncoloured badge in a grid of coloured ones reads as a fault.
+ */
+export function categoryOf(entry: LibraryEntry): TileCategory {
+  if (entry.kind !== 'design') return 'books';
+  const preset = presetById(entry.presetId ?? '');
+  if (preset?.kind === 'screen') return 'social';
+  if (preset?.kind === 'print') return 'print';
+  return 'covers';
 }

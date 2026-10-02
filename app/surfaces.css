@@ -392,3 +392,333 @@ input[type='range']:hover::-moz-range-thumb {
     background-color var(--motion-base) var(--ease-out);
   pointer-events: none;
 }
+
+/* ------------------------------------------------------------------ hero */
+
+/*
+  The band across the top of the front page.
+
+  A gradient of the theme's own warm end, with one soft radial bloom behind the
+  words so it is not a flat wash. Nothing in it moves except the shimmer below,
+  and nothing in it is an image.
+*/
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in srgb, var(--color-coral-500) 16%, var(--color-ink-200));
+  background-image:
+    radial-gradient(
+      120% 140% at 12% -20%,
+      color-mix(in srgb, var(--color-sun-50) 85%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 120% at 100% 0%,
+      color-mix(in srgb, var(--color-coral-50) 80%, transparent) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--color-paper) 70%, var(--color-ink-50)) 0%,
+      var(--color-ink-50) 100%
+    );
+  box-shadow: var(--shadow-rest);
+}
+
+/*
+  A shimmer that crosses the Create button every few seconds and stops when the
+  pointer is on it — at that point the button has the person's attention and the
+  shimmer is just something moving under their cursor.
+*/
+@keyframes create-shimmer {
+  0% {
+    transform: translateX(-140%);
+  }
+  55%,
+  100% {
+    transform: translateX(240%);
+  }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    color-mix(in srgb, white 42%, transparent) 50%,
+    transparent 100%
+  );
+  animation: create-shimmer 4.5s var(--ease-in-out) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.shimmer:hover::after,
+.shimmer:focus-visible::after {
+  animation-play-state: paused;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer::after {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------- shortcuts */
+
+/*
+  A round shortcut, with a little height to it.
+
+  The 3D is two things and no more: an inner highlight at the top and an inner
+  shade at the bottom, which is how a dome is drawn; and a tilt on hover of
+  five degrees, which is enough to read as a tip and not enough to look like a
+  mistake. Both are transforms and inset shadows — no layout, no repaint of
+  anything round it.
+*/
+.pop {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 70%, transparent),
+    inset 0 -2px 4px rgb(var(--shade) / 0.08),
+    var(--shadow-rest);
+  transition:
+    transform var(--motion-base) var(--ease-spring),
+    box-shadow var(--motion-base) var(--ease-out);
+  will-change: transform;
+}
+
+.pop-hover:hover .pop,
+.pop-hover:focus-visible .pop {
+  transform: translateY(-3px) rotate(-5deg) scale(1.06);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 80%, transparent),
+    inset 0 -2px 4px rgb(var(--shade) / 0.1),
+    var(--shadow-float);
+}
+
+.pop-hover:active .pop {
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* The icon inside nudges a touch further than the chip it sits in. */
+.nudge {
+  transition: transform var(--motion-base) var(--ease-spring);
+}
+.nudge-hover:hover .nudge,
+.nudge-hover:focus-visible .nudge {
+  transform: translateX(2px) scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop-hover:hover .pop,
+  .pop-hover:focus-visible .pop,
+  .nudge-hover:hover .nudge,
+  .pop-hover:active .pop {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ tilt */
+
+/*
+  A card that leans towards the pointer.
+
+  The angles arrive as two custom properties set by a pointermove handler, and
+  nothing else changes — one composited transform per frame. Six degrees is the
+  ceiling: past that a card reads as broken rather than as responsive.
+*/
+.tilt {
+  transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))
+    translateY(var(--tilt-lift, 0px));
+  transform-style: preserve-3d;
+  transition:
+    transform var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out);
+  will-change: transform;
+}
+
+/*
+  The lift and the shadow belong to the tilt, not to `.card-lift`.
+
+  A hover rule that sets `transform: translateY(-3px)` would replace the whole
+  transform — rotations and all — because a transform is one property and not
+  three. So the rise travels as `--tilt-lift` inside the same transform, and
+  only the shadow and the edge change on hover.
+*/
+.tilt-lift:hover {
+  box-shadow: var(--shadow-float);
+  border-color: color-mix(in srgb, var(--color-accent-500) 35%, var(--color-ink-200));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------- arrival */
+
+/*
+  Cards that fade and rise as they arrive, 40 ms apart.
+
+  Only on a first load: a list that re-animated every time a filter changed
+  would be a list that flickered every time somebody looked for something.
+  The delay is a custom property so the markup carries a number, not a class
+  per position.
+*/
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.arrive {
+  animation: arrive var(--motion-slow) var(--ease-out) both;
+  animation-delay: calc(var(--n, 0) * 40ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrive {
+    animation: veil-in var(--motion-fast) linear both;
+    animation-delay: 0ms;
+  }
+}
+
+/* A dialog's groups, arriving in the same way but quicker. */
+.arrive-quick {
+  animation: arrive var(--motion-base) var(--ease-out) both;
+  animation-delay: calc(var(--n, 0) * 50ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrive-quick {
+    animation: veil-in var(--motion-fast) linear both;
+    animation-delay: 0ms;
+  }
+}
+
+/* A preview that bobs when the card under the pointer is hovered. */
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.bob-hover:hover .bob {
+  animation: bob 1.4s var(--ease-in-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bob-hover:hover .bob {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------- drop zone */
+
+/*
+  The dashed border travels slowly round the box, which says "put something
+  here" without a word. On drag-over it glows, the whole box breathes once, and
+  the icon jumps.
+*/
+@keyframes march {
+  to {
+    background-position:
+      100% 0,
+      -100% 100%,
+      0 -100%,
+      100% 100%;
+  }
+}
+
+.dropzone {
+  border: 0;
+  border-radius: var(--radius-lg);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      var(--color-ink-300) 0 10px,
+      transparent 10px 20px
+    ),
+    repeating-linear-gradient(90deg, var(--color-ink-300) 0 10px, transparent 10px 20px),
+    repeating-linear-gradient(0deg, var(--color-ink-300) 0 10px, transparent 10px 20px),
+    repeating-linear-gradient(0deg, var(--color-ink-300) 0 10px, transparent 10px 20px);
+  background-size:
+    200% 2px,
+    200% 2px,
+    2px 200%,
+    2px 200%;
+  background-position:
+    0 0,
+    0 100%,
+    0 0,
+    100% 0;
+  background-repeat: no-repeat;
+  animation: march 14s linear infinite;
+  transition:
+    transform var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.012);
+  }
+}
+
+.dropzone[data-over='true'] {
+  background-color: color-mix(in srgb, var(--color-accent-50) 70%, transparent);
+  box-shadow:
+    0 0 0 2px var(--color-accent-500),
+    0 12px 32px -12px color-mix(in srgb, var(--color-accent-500) 60%, transparent);
+  animation:
+    march 14s linear infinite,
+    breathe 1.6s var(--ease-in-out) infinite;
+}
+
+@keyframes hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-7px);
+  }
+  70% {
+    transform: translateY(-2px);
+  }
+}
+
+.dropzone[data-over='true'] .hop {
+  animation: hop 0.9s var(--ease-spring) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropzone,
+  .dropzone[data-over='true'],
+  .dropzone[data-over='true'] .hop {
+    animation: none;
+  }
+}

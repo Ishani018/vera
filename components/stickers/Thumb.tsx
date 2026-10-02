@@ -86,9 +86,13 @@ export function Thumb({
     <>
       <Chequerboard
         className={cx(
-          'aspect-square w-full rounded-lg border transition-colors',
+          'aspect-square w-full rounded-lg border',
+          'transition-[transform,box-shadow,border-color] duration-[--motion-base] ease-[--ease-out]',
+          'shadow-[--shadow-rest]',
           selected ? 'border-accent-500' : 'border-ink-200',
-          onClick && !disabled && 'group-hover:border-accent-500',
+          onClick &&
+            !disabled &&
+            'group-hover:-translate-y-0.5 group-hover:rotate-[-1.5deg] group-hover:border-accent-500 group-hover:shadow-[--shadow-raised]',
         )}
       >
         {url ? (

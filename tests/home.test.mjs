@@ -163,3 +163,20 @@ test('a name that merely ends in the word copy is not mistaken for one', () => {
   // "Photocopy" is a name, not a copy of "Photo".
   assert.equal(copyName('Photocopy'), 'Photocopy copy');
 });
+
+import { categoryOf } from '../lib/home.ts';
+
+test('a card wears the colour of what it is', () => {
+  assert.equal(categoryOf(entry({ kind: 'poetry' })), 'books');
+  assert.equal(categoryOf(entry({ kind: 'coloring' })), 'books');
+  assert.equal(categoryOf(entry({ presetId: 'instagram-post' })), 'social');
+  assert.equal(categoryOf(entry({ presetId: 'pinterest-pin' })), 'social');
+  assert.equal(categoryOf(entry({ presetId: 'postcard-a6' })), 'print');
+  assert.equal(categoryOf(entry({ presetId: 'bookmark' })), 'print');
+});
+
+test('a design whose size has gone still wears a colour', () => {
+  // An uncoloured badge in a grid of coloured ones reads as a fault.
+  assert.equal(categoryOf(entry({ presetId: 'something-that-went-away' })), 'covers');
+  assert.equal(categoryOf(entry({ presetId: undefined })), 'covers');
+});

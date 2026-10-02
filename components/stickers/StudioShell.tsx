@@ -342,13 +342,17 @@ export function DropZone({
       }}
       onDragLeave={() => setOver(false)}
       onDrop={drop}
+      data-over={over}
       className={cx(
-        'block cursor-pointer rounded-2xl border-2 border-dashed px-8 py-14 text-center transition-colors',
+        // The dashes travel slowly round the box, which says "put something
+        // here" without a word. The border is drawn as four repeating
+        // gradients rather than as a dashed border, because a border cannot be
+        // animated without the browser laying the box out again.
+        'dropzone block cursor-pointer px-8 py-14 text-center',
         busy && 'pointer-events-none opacity-50',
-        over ? 'border-accent-500 bg-accent-50' : 'border-ink-300 hover:border-accent-500',
       )}
     >
-      <span aria-hidden className="block text-[30px] leading-none">
+      <span aria-hidden className="hop block text-[30px] leading-none">
         ⬚
       </span>
       <span className="mt-3 block text-[16.5px] font-[570]">

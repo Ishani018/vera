@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { STICKER_TABS, tabFor, type TabIcon } from '@/lib/stickers/tabs';
 import { cx } from '../ui';
 import { LibraryIcon, MakeIcon, PackIcon, SheetIcon, type IconProps } from './icons';
@@ -31,26 +32,56 @@ const ICONS: Record<TabIcon, (props: IconProps) => React.ReactElement> = {
 export function StickerTabs() {
   const path = usePathname() ?? '/stickers';
   const here = tabFor(path);
+
+  /**
+   * One underline for the bar, slid to whichever tab is current.
+   *
+   * Measured from the tab itself and moved with a transform, so changing page
+   * costs a composited move rather than a layout. It starts without a width,
+   * so the first paint has no mark in the wrong place to correct.
+   */
+  const tabs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const [mark, setMark] = useState<React.CSSProperties>({ opacity: 0 });
+
+  useEffect(() => {
+    const at = STICKER_TABS.findIndex((tab) => tab.href === here);
+    const node = tabs.current[at];
+    const bar = node?.closest('ul');
+    if (!node || !bar) return;
+    const a = node.getBoundingClientRect();
+    const b = bar.getBoundingClientRect();
+    setMark({
+      opacity: 1,
+      width: a.width,
+      transform: `translateX(${a.left - b.left}px)`,
+      background: `var(--color-${TAB_COLOUR[here] ?? 'accent'}-500)`,
+    });
+  }, [here]);
+
   return (
     <nav aria-label="Stickers" className="shrink-0 border-b border-ink-200 bg-paper-0 px-2 sm:px-4">
-      <ul className="mx-auto flex max-w-5xl items-stretch gap-1 overflow-x-auto">
-        {STICKER_TABS.map(({ href, label, icon, title }) => {
+      <ul className="relative mx-auto flex max-w-5xl items-stretch gap-1 overflow-x-auto">
+        <span className="tab-underline" style={mark} aria-hidden="true" />
+        {STICKER_TABS.map(({ href, label, icon, title }, n) => {
           const current = here === href;
           const Icon = ICONS[icon];
           return (
             <li key={href}>
               <Link
+                ref={(node) => void (tabs.current[n] = node)}
                 href={href}
                 title={title}
                 aria-current={current ? 'page' : undefined}
                 className={cx(
-                  'flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-[13.5px] transition-colors',
-                  current
-                    ? 'border-accent-500 font-[600] text-accent-500'
-                    : 'border-transparent text-ink-700 hover:border-ink-300 hover:text-ink-900',
+                  'nudge-hover flex items-center gap-2 whitespace-nowrap px-3 py-2.5 text-[13.5px]',
+                  'transition-colors duration-[--motion-base]',
+                  current ? 'font-[600]' : 'text-ink-700 hover:text-ink-900',
                 )}
+                style={current ? { color: `var(--color-${TAB_COLOUR[here] ?? 'accent'}-600)` } : undefined}
               >
-                <Icon size={17} />
+                <span className="nudge">
+                  <Icon size={17} />
+                </span>
                 {label}
               </Link>
             </li>
@@ -60,3 +91,18 @@ export function StickerTabs() {
     </nav>
   );
 }
+
+/**
+ * A colour per tab, from the palette's roles.
+ *
+ * Making a sticker is the lilac one because stickers are lilac throughout;
+ * a sheet is printed, so it is clay; a pack is the sunny one; and the library
+ * keeps the brand teal. The underline and the label take the same colour, so
+ * the mark and the word agree.
+ */
+const TAB_COLOUR: Record<string, string> = {
+  '/stickers': 'lilac',
+  '/stickers/sheet': 'clay',
+  '/stickers/packs': 'sun',
+  '/stickers/library': 'accent',
+};
