@@ -17,6 +17,45 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
 }
 
+/**
+ * The (i) that holds an explanation.
+ *
+ * A panel full of paragraphs is a panel nobody reads: the words are in the way
+ * of the controls they describe, and every one of them is read once and then
+ * skipped for ever. So the sentence goes in here, where it is one press away
+ * at the moment somebody wants it.
+ *
+ * A real button with a `title`, not a hover-only tooltip: the browser's own
+ * tooltip is reachable by keyboard and read by a screen reader, and pressing it
+ * on a touch screen shows the same words in a line under the label. Nothing is
+ * hidden from anybody — it is only out of the way.
+ */
+export function Info({ children, label }: { children: string; label?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        title={children}
+        aria-label={label ? `About ${label}` : 'What this does'}
+        aria-expanded={open}
+        onClick={() => setOpen((was) => !was)}
+        className={cx(
+          'ml-1 inline-grid size-[15px] shrink-0 translate-y-[1px] place-items-center rounded-full',
+          'border border-ink-300 text-[10px] font-[600] leading-none text-ink-500',
+          'transition-colors duration-[--motion-fast] hover:border-accent-500 hover:text-accent-500',
+          open && 'border-accent-500 bg-accent-50 text-accent-600',
+        )}
+      >
+        i
+      </button>
+      {open && (
+        <span className="mt-1 block text-[12px] leading-snug text-ink-500">{children}</span>
+      )}
+    </>
+  );
+}
+
 export function Field({
   label,
   hint,
@@ -259,8 +298,22 @@ export function Slider({
     if (held.current) sliding?.end();
   }, [sliding]);
 
+  /*
+    Where the thumb is, as a fraction — so the bubble over it can be put in the
+    right place with a transform rather than by measuring anything.
+  */
+  const along = max > min ? (value - min) / (max - min) : 0;
+
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="has-bubble flex items-center gap-2.5">
+      <span className="relative flex-1">
+        <span
+          className="tip value-bubble"
+          aria-hidden="true"
+          style={{ '--at': `calc(${along} * (100% - 18px) + 9px)` } as React.CSSProperties}
+        >
+          {format ? format(value) : Number(value.toFixed(2))}
+        </span>
       <input
         type="range"
         min={min}
@@ -286,8 +339,9 @@ export function Slider({
             sliding?.end();
           }
         }}
-        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-ink-200 accent-accent-500"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-200 accent-accent-500"
       />
+      </span>
       <span className="w-[4.5rem] shrink-0 text-right tabular-nums text-[14px] text-ink-700">
         {format ? format(value) : Number(value.toFixed(2))}
       </span>
@@ -313,13 +367,17 @@ export function Toggle({
   const id = useId();
   return (
     <div className="flex items-center justify-between gap-4">
-      <label
-        htmlFor={id}
-        className={cx('min-w-0 select-none', disabled ? 'text-ink-500' : 'cursor-pointer')}
-      >
-        <span className="block font-[570] text-ink-900">{label}</span>
-        {hint && <span className="mt-0.5 block text-[14px] leading-snug text-ink-500">{hint}</span>}
-      </label>
+      {/*
+        The label stays short and the explanation moves into the (i) beside it.
+        A switch with two lines of prose under it is a switch somebody has to
+        read past every time they come back to the panel.
+      */}
+      <span className={cx('min-w-0 select-none', disabled ? 'text-ink-500' : '')}>
+        <label htmlFor={id} className={cx('font-[570] text-ink-900', !disabled && 'cursor-pointer')}>
+          {label}
+        </label>
+        {hint && <Info label={label}>{hint}</Info>}
+      </span>
       <button
         id={id}
         type="button"

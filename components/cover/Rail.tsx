@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cx } from '../ui';
 
 export type RailPanel = {
@@ -45,32 +45,61 @@ export function Rail({
 }) {
   const shown = panels.find((panel) => panel.id === open) ?? null;
 
+  /**
+   * One highlight for the rail, slid to whichever panel is open.
+   *
+   * Measured from the buttons rather than worked out from a row height, so it
+   * is right whether the rail is down the side or along the bottom — and moved
+   * with a transform, so opening a panel costs a composited move and no layout.
+   * The rail's own width is untouched: the board is measured from it.
+   */
+  const items = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pill, setPill] = useState<React.CSSProperties>({ opacity: 0 });
+
+  useEffect(() => {
+    const at = panels.findIndex((panel) => panel.id === open);
+    const node = at >= 0 ? items.current[at] : null;
+    const rail = node?.parentElement;
+    if (!node || !rail) return setPill((was: React.CSSProperties) => ({ ...was, opacity: 0 }));
+    const a = node.getBoundingClientRect();
+    const b = rail.getBoundingClientRect();
+    setPill({
+      opacity: 1,
+      width: a.width,
+      height: a.height,
+      transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)`,
+    });
+  }, [open, panels]);
+
   return (
     <>
       <nav
         className={cx(
-          'flex shrink-0 gap-0.5 bg-paper',
+          'relative flex shrink-0 gap-0.5 bg-paper',
           'w-[78px] flex-col border-r border-ink-200 p-1.5',
           // Narrow: along the bottom, scrollable sideways, ordered last.
           'max-lg:order-last max-lg:w-full max-lg:flex-row max-lg:overflow-x-auto max-lg:border-r-0 max-lg:border-t',
         )}
       >
-        {panels.map((panel) => (
+        <span className="slider-pill" style={pill} aria-hidden="true" />
+        {panels.map((panel, n) => (
           <button
             key={panel.id}
+            ref={(node) => void (items.current[n] = node)}
             type="button"
             title={panel.id === open ? `Close ${panel.label}` : panel.label}
             aria-pressed={panel.id === open}
             onClick={() => onOpen(panel.id === open ? null : panel.id)}
             className={cx(
-              'grid justify-items-center gap-1 rounded-xl px-1 pb-1.5 pt-2 transition-colors',
+              'nudge-hover relative z-10 grid justify-items-center gap-1 rounded-xl px-1 pb-1.5 pt-2',
+              'transition-colors duration-[--motion-base]',
               'max-lg:min-w-[62px] max-lg:shrink-0',
               panel.id === open
-                ? 'bg-accent-50 text-accent-600'
-                : 'text-ink-500 hover:bg-ink-100 hover:text-ink-900',
+                ? 'text-accent-600'
+                : 'text-ink-500 hover:text-ink-900',
             )}
           >
-            <span aria-hidden className="text-[19px] leading-none">
+            <span aria-hidden className="nudge text-[19px] leading-none">
               {panel.glyph}
             </span>
             {/* Centred and allowed to wrap: "Background" does not fit a rail
@@ -102,8 +131,11 @@ export function Rail({
 
       {shown && (
         <section
+          /* Slides in from the rail and fades, 200 ms. The width is fixed and
+             unchanged, so nothing it does moves the board. */
+          key={shown.id}
           className={cx(
-            'flex shrink-0 flex-col overflow-y-auto bg-paper',
+            'panel-in flex shrink-0 flex-col overflow-y-auto bg-paper',
             'w-[300px] border-r border-ink-200',
             // Narrow: a drawer across the bottom, above the bar, capped so it
             // never takes the whole window.

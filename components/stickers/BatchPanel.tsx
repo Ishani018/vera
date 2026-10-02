@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { UnsupportedImageError, putAsset } from '@/lib/assets';
 import { parseTags, saveToLibrary } from '@/lib/cover/library';
-import { Button, Notice, Spinner, TextInput, cx } from '../ui';
+import { Button, Info, Notice, Spinner, TextInput, cx } from '../ui';
 import { progressFraction, progressLine } from '@/lib/busy';
 
 /**
@@ -144,12 +144,14 @@ export function BatchPanel({
 
   return (
     <div className="border-t border-ink-200 pt-5">
-      <span className="block font-[570]">Many at once</span>
-      <p className="mt-0.5 mb-3 text-[14px] leading-snug text-ink-500">
-        Choose a stack of pictures and every one of them gets the settings on this screen. They go
-        through one at a time, so a big batch does not run the browser out of memory, and a picture
-        that fails fails on its own.
-      </p>
+      <span className="mb-3 block font-[570]">
+        Many at once
+        <Info label="Many at once">
+          {'Choose a stack of pictures and every one of them gets the settings on this screen. ' +
+            'They go through one at a time, so a big batch does not run the browser out of ' +
+            'memory, and a picture that fails fails on its own.'}
+        </Info>
+      </span>
 
       <label
         className={cx(
@@ -161,7 +163,7 @@ export function BatchPanel({
           {running ? 'Working through them…' : 'Choose pictures…'}
         </span>
         <span className="mt-1 block text-[12.5px] text-ink-500">
-          PNG, JPEG or WebP. Up to {BATCH_LIMIT} at a time.
+          PNG, JPEG or WebP — {BATCH_LIMIT} at a time
         </span>
         <input
           type="file"

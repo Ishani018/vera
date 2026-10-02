@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Spinner, cx } from '../ui';
+import { Info, Spinner, cx } from '../ui';
 
 /**
  * The furniture of a studio: a stage that does not scroll away, a strip of
@@ -300,10 +300,48 @@ export function Field({
 }) {
   return (
     <div className="border-b border-ink-200 px-4 py-4 last:border-b-0">
-      {title && <h4 className="text-[13.5px] font-[600] tracking-tight">{title}</h4>}
-      {help && <p className="mt-0.5 text-[12.5px] leading-snug text-ink-500">{help}</p>}
+      {/* The title stays; the sentence under it moves into the (i). */}
+      {title && (
+        <h4 className="text-[13.5px] font-[600] tracking-tight">
+          {title}
+          {help && <Info label={title}>{help}</Info>}
+        </h4>
+      )}
       <div className={cx(title || help ? 'mt-3' : '', 'flex flex-col gap-4')}>{children}</div>
     </div>
+  );
+}
+
+/**
+ * A section that starts closed.
+ *
+ * For the controls somebody sets once and then never looks at again. They are
+ * not hidden — the heading says what is in there and one press opens it — but
+ * they are not in the way of the three controls that get used every time, and
+ * a panel that fits on the screen is a panel nobody has to scroll.
+ *
+ * `<details>` rather than state of our own: it is open to the keyboard, it is
+ * found by the browser's own find-on-page, and it needs no JavaScript at all.
+ */
+export function Advanced({ title = 'Advanced', children }: { title?: string; children: ReactNode }) {
+  return (
+    <details className="group rounded-xl border border-ink-200 bg-ink-50/60">
+      <summary
+        className={cx(
+          'flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-[570]',
+          'transition-colors duration-[--motion-fast] hover:text-accent-600',
+        )}
+      >
+        <span
+          aria-hidden
+          className="inline-block text-[10px] text-ink-500 transition-transform duration-[--motion-base] ease-[--ease-out] group-open:rotate-90"
+        >
+          ▶
+        </span>
+        {title}
+      </summary>
+      <div className="flex flex-col gap-4 px-3 pb-3 pt-1">{children}</div>
+    </details>
   );
 }
 

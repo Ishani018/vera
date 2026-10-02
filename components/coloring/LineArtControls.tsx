@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Slider, cx } from '../ui';
+import { Info, Slider, cx } from '../ui';
+import { CHEQUER } from '../stickers/Thumb';
 
 /**
  * The controls the line-art pipeline is driven by, in one place.
@@ -33,9 +34,12 @@ export function Control({
 }) {
   return (
     <div>
-      <span className="block font-[570]">{label}</span>
-      <span className="mt-0.5 block text-[14px] text-ink-500">{hint}</span>
-      <div className="mt-3">
+      {/* Four words and an (i). The sentence is one press away. */}
+      <span className="block font-[570]">
+        {label}
+        {hint && <Info label={label}>{hint}</Info>}
+      </span>
+      <div className="mt-2">
         <Slider value={value} onChange={onChange} min={min} max={max} step={step} />
       </div>
     </div>
@@ -48,6 +52,14 @@ export type Choice<T extends string> = {
   note: string;
   /** The longer explanation, which belongs on the card rather than under it. */
   hint?: string;
+  /**
+   * A small picture of what this choice does to *your* picture.
+   *
+   * Three words about tracing are three words; the same three cards with the
+   * actual result on each are a decision somebody can make by looking. Left
+   * out, the card is a card.
+   */
+  preview?: string | null;
 };
 
 /**
@@ -83,11 +95,24 @@ export function ModeChoice<T extends string>({
 }) {
   return (
     <div>
-      {title && <span className="block font-[570]">{title}</span>}
-      {hint && <span className="mt-0.5 block text-[14px] text-ink-500">{hint}</span>}
+      {/* The title, and its sentence one press away in the (i). */}
+      {title && (
+        <span className="block font-[570]">
+          {title}
+          {typeof hint === 'string' && <Info label={title}>{hint}</Info>}
+        </span>
+      )}
+      {hint && typeof hint !== 'string' && (
+        <span className="mt-0.5 block text-[14px] text-ink-500">{hint}</span>
+      )}
+      {!title && typeof hint === 'string' && (
+        <span className="block">
+          <Info label="these">{hint}</Info>
+        </span>
+      )}
       <div
         className={cx(
-          'mt-3 grid gap-2.5',
+          'mt-2 grid gap-2',
           columns === 1 ? 'grid-cols-1' : columns === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2',
         )}
       >
@@ -99,14 +124,30 @@ export function ModeChoice<T extends string>({
             aria-pressed={choice.value === value}
             onClick={() => onChange(choice.value)}
             className={cx(
-              'rounded-xl border-2 px-3 py-3 text-left transition-colors',
+              'pop-chosen flex items-center gap-2.5 rounded-xl border-2 px-2.5 py-1.5 text-left',
+              'transition-[transform,background-color,border-color] duration-[--motion-base] ease-[--ease-out]',
               choice.value === value
                 ? 'border-accent-500 bg-accent-50'
                 : 'border-ink-200 hover:border-ink-300',
             )}
           >
-            <span className="block text-[15px] font-[570]">{choice.label}</span>
-            <span className="mt-0.5 block text-[13px] text-ink-500">{choice.note}</span>
+            {choice.preview !== undefined && (
+              <span
+                className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-200"
+                style={CHEQUER}
+              >
+                {choice.preview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={choice.preview} alt="" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-[9px] text-ink-500">…</span>
+                )}
+              </span>
+            )}
+            <span className="min-w-0">
+              <span className="block text-[14px] font-[570]">{choice.label}</span>
+              <span className="block truncate text-[12px] text-ink-500">{choice.note}</span>
+            </span>
           </button>
         ))}
       </div>

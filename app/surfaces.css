@@ -722,3 +722,99 @@ input[type='range']:hover::-moz-range-thumb {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------ the editors */
+
+/*
+  A panel arriving beside the rail: in from the rail's edge and fading, 200 ms.
+  A transform and an opacity, so the board beside it is never laid out again.
+*/
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.panel-in {
+  animation: panel-in var(--motion-base) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-in {
+    animation: veil-in var(--motion-fast) linear both;
+  }
+}
+
+/*
+  A swatch that pops when it is chosen.
+
+  One keyframe pair rather than a transition, because it has to happen on the
+  press and then be over — a transition would hold the bigger size for as long
+  as the swatch stayed selected.
+*/
+@keyframes pop-in {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pop-chosen[aria-pressed='true'],
+.pop-chosen[data-chosen='true'] {
+  animation: pop-in var(--motion-slow) var(--ease-spring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop-chosen[aria-pressed='true'],
+  .pop-chosen[data-chosen='true'] {
+    animation: none;
+  }
+}
+
+/*
+  The floating toolbar over a selected thing: a soft shadow, and a fade when
+  the selection changes so it reads as a new toolbar rather than as the old one
+  jumping.
+*/
+.floating-bar {
+  box-shadow: var(--shadow-float);
+  animation: surface-in var(--motion-base) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-bar {
+    animation: veil-in var(--motion-fast) linear both;
+  }
+}
+
+/*
+  The bubble over a slider's thumb.
+
+  Positioned by one custom property the input's handler writes, so dragging
+  moves it with a transform and nothing else is touched.
+*/
+.value-bubble {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 0;
+  left: var(--at, 0px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.has-bubble:hover .value-bubble,
+.has-bubble:focus-within .value-bubble {
+  opacity: 1;
+}

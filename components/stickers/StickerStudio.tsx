@@ -39,10 +39,10 @@ import { ColourField } from '../cover/ColourField';
 import { Control, ModeChoice } from '../coloring/LineArtControls';
 import { StudioHeader } from '../StudioHeader';
 import { Rail } from '../cover/Rail';
-import { Field, Stage, useAfter } from './StudioShell';
+import { Advanced, Field, Stage, useAfter } from './StudioShell';
 import { StudioStart } from './StudioStart';
 import { StickerTabs } from './StickerTabs';
-import { Button, Notice, Spinner, TextInput, Toggle, WhileSliding, cx } from '../ui';
+import { Button, Info, Notice, Spinner, TextInput, Toggle, WhileSliding, cx } from '../ui';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 import { BatchPanel } from './BatchPanel';
 
@@ -74,7 +74,7 @@ type Mode = 'convert' | 'cleanup' | 'asis';
 const SIZES = [
   { px: 500, label: '500 px', note: 'Small — for a screen' },
   { px: 1000, label: '1000 px', note: 'The usual sticker size' },
-  { px: 2000, label: '2000 px', note: 'Large — prints at 300 DPI to about 6 inches' },
+  { px: 2000, label: '2000 px', note: 'Large — 6 inches at 300 DPI' },
 ];
 
 const PICK: { value: Tool; label: string; note: string }[] = [
@@ -468,6 +468,60 @@ export function StickerStudio() {
     await deleteDraft(saved.id);
     setResumable(await latestDraft());
   };
+
+  /* ------------------------------------------------- what each mode would do */
+
+  /**
+   * A thumbnail of your own picture in each of the three modes.
+   *
+   * Three words about tracing are three words; three cards with the actual
+   * result on each is a decision somebody can make by looking. Tiny on purpose
+   * — 120 px with the trace capped to match — so all three together cost less
+   * than one ordinary preview, and only recomputed when the picture changes,
+   * not on every slider move.
+   */
+  const [modeShots, setModeShots] = useState<Record<Mode, string | null>>({
+    convert: null,
+    cleanup: null,
+    asis: null,
+  });
+
+  useEffect(() => {
+    if (!file) return;
+    let live = true;
+    const made: string[] = [];
+    void (async () => {
+      for (const which of ['convert', 'cleanup', 'asis'] as Mode[]) {
+        try {
+          const shot = await renderSticker(file, settings, {
+            mode: which,
+            removeBackground: which === 'asis',
+            tolerance,
+            smoothing,
+            inkColour,
+            dieCut: null,
+            longEdge: 120,
+            traceEdge: 120,
+            swaps: [],
+            frame,
+            decorations: NO_DECORATION,
+          });
+          if (!live) return;
+          const url = URL.createObjectURL(shot.blob);
+          made.push(url);
+          setModeShots((was) => ({ ...was, [which]: url }));
+        } catch {
+          // A mode that cannot be previewed simply has no picture on its card.
+        }
+      }
+    })();
+    return () => {
+      live = false;
+      for (const url of made) URL.revokeObjectURL(url);
+    };
+    // Deliberately not every setting: the cards answer "which of these three",
+    // and that answer does not change when the detail slider moves two points.
+  }, [file, frame]);
 
   /* ------------------------------------------------------------ the preview */
 
@@ -969,12 +1023,14 @@ export function StickerStudio() {
                 value: 'convert',
                 label: 'Painting or photo',
                 note: 'Traced into line art',
+                preview: modeShots.convert,
                 hint: 'Finds the drawing in a painting or photograph and traces it as lines.',
               },
               {
                 value: 'cleanup',
                 label: 'Already line art',
                 note: 'Cleaned up, never traced',
+                preview: modeShots.cleanup,
                 hint:
                   'Nothing is traced on this one — tracing a drawing would find both sides of ' +
                   'every stroke and give a hollow, doubled outline.',
@@ -983,6 +1039,7 @@ export function StickerStudio() {
                 value: 'asis',
                 label: 'Keep as is',
                 note: 'Colours kept exactly',
+                preview: modeShots.asis,
                 hint: 'The picture is kept as it is, in its own colours, and only cut out.',
               },
             ]}
@@ -996,25 +1053,37 @@ export function StickerStudio() {
               value={settings.detail}
               onChange={(detail) => setSettings((s) => ({ ...s, detail }))}
             />
-            <Control
-              label="Line weight"
-              hint="How heavy the strokes come out."
-              value={settings.thickness}
-              onChange={(thickness) => setSettings((s) => ({ ...s, thickness }))}
-            />
-            <Control
-              label="Tidying"
-              hint="Removes specks and softens ragged edges."
-              value={settings.cleanup}
-              onChange={(cleanup) => setSettings((s) => ({ ...s, cleanup }))}
-            />
             <div>
-              <span className="block font-[570]">Line colour</span>
-              <span className="mt-0.5 mb-2 block text-[14px] text-ink-500">
-                The sticker is this colour and everything else is see-through.
+              <span className="mb-2 block font-[570]">
+                Line colour
+                <Info label="Line colour">
+                  The sticker is this colour and everything else is see-through.
+                </Info>
               </span>
               <ColourField label="Line colour" value={inkColour} onChange={setInkColour} />
             </div>
+            {/* Set once and rarely again: closed, so the three that matter are
+                the three on screen. */}
+            <Advanced>
+              <Control
+                label="Line weight"
+                hint="How heavy the strokes come out."
+                value={settings.thickness}
+                onChange={(thickness) => setSettings((s) => ({ ...s, thickness }))}
+              />
+              <Control
+                label="Tidying"
+                hint="Removes specks and softens ragged edges."
+                value={settings.cleanup}
+                onChange={(cleanup) => setSettings((s) => ({ ...s, cleanup }))}
+              />
+              <Control
+                label="Smoothing"
+                hint="How much the traced edge is softened before it is cut out."
+                value={settings.smoothing}
+                onChange={(smoothing) => setSettings((s) => ({ ...s, smoothing }))}
+              />
+            </Advanced>
           </Field>
         )}
       </>
@@ -1111,16 +1180,14 @@ export function StickerStudio() {
       </>
     ),
 
-    more: (
+    colour: (
       <div className="flex flex-col gap-6 px-4 py-4">
-        <div className="border-t border-ink-200 pt-5">
-          <Toggle label="Colour it in" checked={colouring} onChange={setColouring} />
-          {!colouring ? (
-            <p className="mt-2 text-[13px] leading-snug text-ink-500">
-              Fill the shapes with a bucket, or paint by hand. The colour goes under the
-              lines, so it never paints over the drawing.
-            </p>
-          ) : !ink ? (
+        <div>
+          <Toggle
+            label="Colour it in"
+            hint="Fill the shapes with a bucket, or paint by hand. The colour goes under the lines, so it never paints over the drawing."
+            checked={colouring} onChange={setColouring} />
+          {!colouring ? null : !ink ? (
             <p className="mt-3 text-[13px] text-ink-500">Reading the lines…</p>
           ) : (
             <div className="mt-4 flex flex-col gap-5">
@@ -1194,92 +1261,15 @@ export function StickerStudio() {
                   Clear colouring
                 </Button>
               </div>
-              <p className="-mt-3 text-[12px] leading-snug text-ink-500">
-                ⌘Z and ⇧⌘Z work too. Clearing is one undo away, like anything else.
-              </p>
             </div>
           )}
         </div>
         <div className="border-t border-ink-200 pt-5">
-          <Toggle label="Touch up the cut-out" checked={touchUp} onChange={setTouchUp} />
-          {!touchUp ? (
-            <p className="mt-2 text-[13px] leading-snug text-ink-500">
-              Paint back anything the background removal took by mistake, or take away
-              anything it left behind. What you paint decides the sticker&rsquo;s edge, so
-              the die-cut outline follows it too.
-            </p>
-          ) : !ink ? (
-            <p className="mt-3 text-[13px] text-ink-500">Reading the picture…</p>
-          ) : (
-            <div className="mt-4 flex flex-col gap-5">
-              <div>
-                <span className="mb-2 block font-[570]">Brush</span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {TOUCH.map((choice) => (
-                    <button
-                      key={choice.value}
-                      type="button"
-                      aria-pressed={tool === choice.value}
-                      title={choice.note}
-                      onClick={() => setTool(choice.value)}
-                      className={cx(
-                        'rounded-lg border px-2 py-2 text-[13px] font-[560] transition-colors',
-                        tool === choice.value
-                          ? 'border-accent-500 bg-accent-50'
-                          : 'border-ink-200 hover:border-ink-300',
-                      )}
-                    >
-                      {choice.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[13px] leading-snug text-ink-500">
-                  {TOUCH.find((t) => t.value === tool)?.note ??
-                    'Pick one of these to paint on the cut-out.'}
-                </p>
-                <p className="mt-1.5 text-[12.5px] leading-snug text-ink-500">
-                  Green is kept, red is dropped. The picture itself catches up a moment
-                  after you stop.
-                </p>
-              </div>
-
-              {isTouchTool(tool) && (
-                <>
-                  <Control
-                    label="Brush size"
-                    hint="The radius, in pixels of the picture."
-                    value={brush}
-                    min={2}
-                    max={120}
-                    onChange={setBrush}
-                  />
-                  <Control
-                    label="Softness"
-                    hint="How much of the brush fades at its edge. Soft is for hair-fine edges and shadows; hard is for a clean cut."
-                    value={Math.round(softness * 100)}
-                    min={0}
-                    max={100}
-                    onChange={(n) => setSoftness(n / 100)}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => surface.current?.undo()}>Undo</Button>
-                    <Button onClick={() => surface.current?.redo()}>Redo</Button>
-                    <Button onClick={() => surface.current?.clearAll()}>
-                      Clear touch-ups
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="border-t border-ink-200 pt-5">
-          <Toggle label="Change a colour" checked={recolouring} onChange={setRecolouring} />
-          {!recolouring ? (
-            <p className="mt-2 text-[13px] leading-snug text-ink-500">
-              Pick a colour out of the picture, or point at one and swap it for another.
-            </p>
-          ) : !ink ? (
+          <Toggle
+            label="Change a colour"
+            hint="Pick a colour out of the picture, or point at one and swap it for another. Colours are settings, not painted-over pixels: the original is never written on, and every swap can be undone."
+            checked={recolouring} onChange={setRecolouring} />
+          {!recolouring ? null : !ink ? (
             <p className="mt-3 text-[13px] text-ink-500">Reading the picture…</p>
           ) : (
             <div className="mt-4 flex flex-col gap-5">
@@ -1385,122 +1375,91 @@ export function StickerStudio() {
                   Redo
                 </Button>
               </div>
-              <p className="-mt-3 text-[12px] leading-snug text-ink-500">
-                Colours are settings, not painted-over pixels: the original is never
-                written on, and every change can come off.
-              </p>
             </div>
           )}
         </div>
-        <div className="border-t border-ink-200 pt-5">
-          <Toggle label="Flip, turn or crop" checked={framing} onChange={setFraming} />
-          {!framing ? (
-            <p className="mt-2 text-[13px] leading-snug text-ink-500">
-              All of it kept as settings, not as pixels — your upload is never written on
-              and nothing is applied until you export.
-            </p>
+      </div>
+    ),
+
+    touchup: (
+      <div className="flex flex-col gap-6 px-4 py-4">
+        <div>
+          <Toggle
+            label="Touch up the cut-out"
+            hint="Paint back anything the background removal took by mistake, or take away anything it left behind. Green is kept, red is dropped; the picture catches up a moment after you stop."
+            checked={touchUp} onChange={setTouchUp} />
+          {!touchUp ? null : !ink ? (
+            <p className="mt-3 text-[13px] text-ink-500">Reading the picture…</p>
           ) : (
             <div className="mt-4 flex flex-col gap-5">
               <div>
-                <span className="mb-2 block font-[570]">Flip</span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Button
-                    onClick={() => setFrameRemembering({ ...frame, flipX: !frame.flipX })}
-                  >
-                    {frame.flipX ? '✓ ' : ''}Left to right
-                  </Button>
-                  <Button
-                    onClick={() => setFrameRemembering({ ...frame, flipY: !frame.flipY })}
-                  >
-                    {frame.flipY ? '✓ ' : ''}Top to bottom
-                  </Button>
+                <span className="mb-2 block font-[570]">Brush</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {TOUCH.map((choice) => (
+                    <button
+                      key={choice.value}
+                      type="button"
+                      aria-pressed={tool === choice.value}
+                      title={choice.note}
+                      onClick={() => setTool(choice.value)}
+                      className={cx(
+                        'rounded-lg border px-2 py-2 text-[13px] font-[560] transition-colors',
+                        tool === choice.value
+                          ? 'border-accent-500 bg-accent-50'
+                          : 'border-ink-200 hover:border-ink-300',
+                      )}
+                    >
+                      {choice.label}
+                    </button>
+                  ))}
                 </div>
-              </div>
-
-              <div>
-                <span className="mb-2 block font-[570]">Turn</span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Button
-                    onClick={() =>
-                      setFrameRemembering({ ...frame, rotate: quarterFrom(frame.rotate, -1) })
-                    }
-                  >
-                    ↺ Quarter left
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      setFrameRemembering({ ...frame, rotate: quarterFrom(frame.rotate, 1) })
-                    }
-                  >
-                    ↻ Quarter right
-                  </Button>
-                </div>
-                <p className="mt-2 text-[12.5px] leading-snug text-ink-500">
-                  Quarter turns move the pixels rather than sampling them, so four of them
-                  bring the picture back exactly as it was.
+                <p className="mt-2 text-[13px] leading-snug text-ink-500">
+                  {TOUCH.find((t) => t.value === tool)?.note ??
+                    'Pick one of these to paint on the cut-out.'}
                 </p>
               </div>
 
-              <Control
-                label="Or any angle"
-                hint="Anything that is not a quarter turn is resampled, so it softens the picture a little — but only at export, and only once, however many times you change your mind."
-                value={Math.round(norm(frame.rotate))}
-                min={0}
-                max={359}
-                onChange={(rotate) => setFrameRemembering({ ...frame, rotate })}
-              />
-
-              <div>
-                <span className="mb-2 block font-[570]">Crop</span>
-                <p className="mb-2 text-[13px] leading-snug text-ink-500">
-                  {frame.crop
-                    ? `Keeping ${Math.round(frame.crop.width * 100)}% across and ${Math.round(frame.crop.height * 100)}% down. Drag again to change it.`
-                    : 'Drag a box on the picture to keep only that part.'}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    onClick={() => {
-                      const box = previewContent();
-                      if (box) setFrameRemembering({ ...frame, crop: box });
-                      else setSaid('There is nothing to trim to — the picture is empty.');
-                    }}
-                  >
-                    Trim to the sticker
-                  </Button>
-                  <Button
-                    disabled={!frame.crop}
-                    onClick={() => setFrameRemembering({ ...frame, crop: null })}
-                  >
-                    Whole picture
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button disabled={!frameDepth.past} onClick={undoFrame}>
-                  Undo
-                </Button>
-                <Button disabled={!frameDepth.future} onClick={redoFrame}>
-                  Redo
-                </Button>
-                <Button
-                  disabled={isPlain(frame)}
-                  onClick={() => setFrameRemembering({ ...NO_FRAME })}
-                >
-                  Straighten it all out
-                </Button>
-              </div>
+              {isTouchTool(tool) && (
+                <>
+                  <Control
+                    label="Brush size"
+                    hint="The radius, in pixels of the picture."
+                    value={brush}
+                    min={2}
+                    max={120}
+                    onChange={setBrush}
+                  />
+                  <Control
+                    label="Softness"
+                    hint="How much of the brush fades at its edge. Soft is for hair-fine edges and shadows; hard is for a clean cut."
+                    value={Math.round(softness * 100)}
+                    min={0}
+                    max={100}
+                    onChange={(n) => setSoftness(n / 100)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => surface.current?.undo()}>Undo</Button>
+                    <Button onClick={() => surface.current?.redo()}>Redo</Button>
+                    <Button onClick={() => surface.current?.clearAll()}>
+                      Clear touch-ups
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
-        <div className="border-t border-ink-200 pt-5">
-          <Toggle label="Put words on it" checked={lettering} onChange={setLettering} />
-          {!lettering ? (
-            <p className="mt-2 text-[13px] leading-snug text-ink-500">
-              Straight or curved round a circle, in any of the fonts, with an outline if it
-              needs one. Drawn onto the sticker when you export it.
-            </p>
-          ) : (
+      </div>
+    ),
+
+    words: (
+      <div className="flex flex-col gap-6 px-4 py-4">
+        <div>
+          <Toggle
+            label="Put words on it"
+            hint="Straight or curved round a circle, in any of the fonts, with an outline if it needs one. Drawn at export, never baked into the upload."
+            checked={lettering} onChange={setLettering} />
+          {!lettering ? null : (
             <div className="mt-4 flex flex-col gap-5">
               {texts.length > 1 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -1660,12 +1619,13 @@ export function StickerStudio() {
             </div>
           )}
         </div>
-        <div className="border-t border-ink-200 pt-5">
+      </div>
+    ),
+
+    effects: (
+      <div className="flex flex-col gap-6 px-4 py-4">
+        <div>
           <span className="block font-[570]">Finishing</span>
-          <p className="mt-0.5 mb-3 text-[14px] leading-snug text-ink-500">
-            All optional, all off to start with, and all worked out the same way every
-            time — what you see here is what comes out.
-          </p>
 
           <Toggle
             label="Drop shadow"
@@ -1782,26 +1742,126 @@ export function StickerStudio() {
       </div>
     ),
 
+    frame: (
+      <div className="flex flex-col gap-6 px-4 py-4">
+        <div>
+          <Toggle
+            label="Flip, turn or crop"
+            hint="All of it kept as settings, not as pixels — your upload is never written on and nothing is thrown away. Quarter turns move the pixels rather than sampling them, so four of them bring the picture back exactly."
+            checked={framing} onChange={setFraming} />
+          {!framing ? null : (
+            <div className="mt-4 flex flex-col gap-5">
+              <div>
+                <span className="mb-2 block font-[570]">Flip</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button
+                    onClick={() => setFrameRemembering({ ...frame, flipX: !frame.flipX })}
+                  >
+                    {frame.flipX ? '✓ ' : ''}Left to right
+                  </Button>
+                  <Button
+                    onClick={() => setFrameRemembering({ ...frame, flipY: !frame.flipY })}
+                  >
+                    {frame.flipY ? '✓ ' : ''}Top to bottom
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <span className="mb-2 block font-[570]">Turn</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button
+                    onClick={() =>
+                      setFrameRemembering({ ...frame, rotate: quarterFrom(frame.rotate, -1) })
+                    }
+                  >
+                    ↺ Quarter left
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      setFrameRemembering({ ...frame, rotate: quarterFrom(frame.rotate, 1) })
+                    }
+                  >
+                    ↻ Quarter right
+                  </Button>
+                </div>
+              </div>
+
+              <Control
+                label="Or any angle"
+                hint="Anything that is not a quarter turn is resampled, so it softens the picture a little — but only at export, and only once, however many times you change your mind."
+                value={Math.round(norm(frame.rotate))}
+                min={0}
+                max={359}
+                onChange={(rotate) => setFrameRemembering({ ...frame, rotate })}
+              />
+
+              <div>
+                <span className="mb-2 block font-[570]">Crop</span>
+                <p className="mb-2 text-[13px] leading-snug text-ink-500">
+                  {frame.crop
+                    ? `Keeping ${Math.round(frame.crop.width * 100)}% across and ${Math.round(frame.crop.height * 100)}% down. Drag again to change it.`
+                    : 'Drag a box on the picture to keep only that part.'}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => {
+                      const box = previewContent();
+                      if (box) setFrameRemembering({ ...frame, crop: box });
+                      else setSaid('There is nothing to trim to — the picture is empty.');
+                    }}
+                  >
+                    Trim to the sticker
+                  </Button>
+                  <Button
+                    disabled={!frame.crop}
+                    onClick={() => setFrameRemembering({ ...frame, crop: null })}
+                  >
+                    Whole picture
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={!frameDepth.past} onClick={undoFrame}>
+                  Undo
+                </Button>
+                <Button disabled={!frameDepth.future} onClick={redoFrame}>
+                  Redo
+                </Button>
+                <Button
+                  disabled={isPlain(frame)}
+                  onClick={() => setFrameRemembering({ ...NO_FRAME })}
+                >
+                  Straighten it all out
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    ),
+
     export: (
       <div className="px-4 py-4">
         <div className="border-t border-ink-200 pt-5">
           <span className="block font-[570]">Size</span>
-          <div className="mt-2 flex flex-col gap-1.5">
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
             {SIZES.map((choice) => (
               <button
                 key={choice.px}
                 type="button"
                 aria-pressed={size === choice.px}
+                title={choice.note}
                 onClick={() => setSize(choice.px)}
                 className={cx(
-                  'rounded-lg border px-3 py-2 text-left text-[13.5px] transition-colors',
+                  'pop-chosen rounded-lg border px-2 py-2 text-center text-[13.5px] transition-colors',
                   size === choice.px
                     ? 'border-accent-500 bg-accent-50'
                     : 'border-ink-200 hover:border-ink-300',
                 )}
               >
                 <span className="font-[560]">{choice.label}</span>
-                <span className="ml-2 text-ink-500">{choice.note}</span>
               </button>
             ))}
           </div>
@@ -1830,6 +1890,9 @@ export function StickerStudio() {
             </Button>
           </div>
 
+          {/* Both of these are occasional: a batch and a cutting machine. */}
+          <div className="mt-4 flex flex-col gap-3">
+          <Advanced title="Many at once">
           <BatchPanel
             disabled={busy}
             make={async (one) => {
@@ -1843,37 +1906,28 @@ export function StickerStudio() {
               return { ...made, blob: await withText(made.blob, made.width, made.height, wanted) };
             }}
           />
+          </Advanced>
 
-          <div className="mt-4 rounded-xl border border-ink-200 bg-paper-0 p-3">
-            <span className="block text-[13.5px] font-[570]">Cut line for a cutting machine</span>
-            <p className="mt-0.5 mb-3 text-[12.5px] leading-snug text-ink-500">
-              An SVG of the sticker&rsquo;s own edge, traced from the PNG you would send to
-              the printer — so the blade follows the picture rather than a second guess at
-              it. The words and the shadow are part of that edge, because they are part of
-              the sticker.
-            </p>
+          <Advanced title="Cut line (SVG)">
             <Control
-              label="How closely to follow the edge"
+              label="Follow the edge"
               hint="In pixels of the exported sticker. Tighter follows every bump and makes a bigger file; looser is a shorter path a machine cuts more smoothly. The message afterwards says how far it actually strayed."
               value={Math.round(cutTolerance * 10)}
               min={2}
               max={60}
               onChange={(n) => setCutTolerance(n / 10)}
             />
-            <div className="mt-3">
+            <div>
               <Button disabled={busy} onClick={() => void downloadCutLine()}>
-                Download cut line (SVG)
+                Download cut line
               </Button>
             </div>
+          </Advanced>
           </div>
 
           {sending && (
             <div className="mt-3 rounded-xl border border-ink-200 bg-paper-0 p-3">
               <span className="block text-[13.5px] font-[570]">Put it on a board</span>
-              <p className="mt-0.5 mb-2 text-[12.5px] leading-snug text-ink-500">
-                It is placed in the middle at this size, with its own copy of the picture —
-                so changing or deleting the sticker later cannot reach the design.
-              </p>
               <div className="flex flex-col gap-1.5">
                 {SEND_TO.map((board) => (
                   <button
@@ -1890,9 +1944,6 @@ export function StickerStudio() {
               </div>
             </div>
           )}
-          <p className="mt-2 text-[12px] leading-snug text-ink-500">
-            Your original is kept whole and at full resolution either way.
-          </p>
         </div>
       </div>
     ),
@@ -1912,21 +1963,33 @@ export function StickerStudio() {
    */
   const undoHere = () => {
     if (openPanel === 'words' && textDepth.past) return undoText();
-    if (openPanel === 'effects' && frameDepth.past) return undoFrame();
+    if (openPanel === 'frame' && frameDepth.past) return undoFrame();
     if (openPanel === 'colour' && swapDepth.past) return undoSwap();
     surface.current?.undo();
   };
   const redoHere = () => {
     if (openPanel === 'words' && textDepth.future) return redoText();
-    if (openPanel === 'effects' && frameDepth.future) return redoFrame();
+    if (openPanel === 'frame' && frameDepth.future) return redoFrame();
     if (openPanel === 'colour' && swapDepth.future) return redoSwap();
     surface.current?.redo();
   };
 
+  /*
+    One panel per thing you might be doing, rather than one called "More".
+
+    "More" was a holding pen: four unrelated jobs behind one word, so finding
+    the words tool meant opening a panel that said nothing about words. Each is
+    now named for what is inside it, and the rail says what the app can do
+    without anything being opened.
+  */
   const panels = [
     { id: 'picture', label: 'Picture', glyph: '▣', node: sections.picture },
     { id: 'look', label: 'Look', glyph: '◉', node: sections.look },
-    { id: 'more', label: 'More', glyph: '⋯', node: sections.more },
+    { id: 'frame', label: 'Frame', glyph: '⧉', node: sections.frame },
+    { id: 'colour', label: 'Colour', glyph: '◐', node: sections.colour },
+    { id: 'touchup', label: 'Touch-up', glyph: '✣', node: sections.touchup },
+    { id: 'words', label: 'Words', glyph: 'T', node: sections.words },
+    { id: 'effects', label: 'Effects', glyph: '✦', node: sections.effects },
     { id: 'export', label: 'Export', glyph: '↧', node: sections.export },
   ];
 
