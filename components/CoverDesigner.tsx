@@ -1496,7 +1496,7 @@ export function CoverDesigner<T extends CoverableBook>({
         */}
         {rail && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <SelectionToolbar box={selectionBox} pane={paneBox}>
+            <SelectionToolbar box={selectionBox} pane={paneBox} of={selected?.id ?? sticker?.id ?? null}>
               {selected && (
                 <>
                   <div className="w-[136px]">

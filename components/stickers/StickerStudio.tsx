@@ -1617,19 +1617,38 @@ export function StickerStudio() {
         <div>
           <span className="block font-[570]">Finishing</span>
 
-          <Toggle
-            label="Drop shadow"
-            checked={Boolean(decorations.shadow)}
-            onChange={(on) =>
-              decorate({
-                shadow: on
-                  ? { blur: 18, offsetX: 6, offsetY: 10, opacity: 0.35, colour: '#1B1815' }
-                  : null,
-              })
-            }
-          />
+          {/* Three pictures of the three effects, each one the switch for it. */}
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <EffectSwatch
+              label="Drop shadow"
+              hint="Lifts the sticker off whatever it is put on."
+              on={Boolean(decorations.shadow)}
+              tile={SHADOW_TILE}
+              onChange={(on) =>
+                decorate({
+                  shadow: on
+                    ? { blur: 18, offsetX: 6, offsetY: 10, opacity: 0.35, colour: '#1B1815' }
+                    : null,
+                })
+              }
+            />
+            <EffectSwatch
+              label="Gloss"
+              hint="A sheen across it, the way vinyl catches the light."
+              on={Boolean(decorations.gloss)}
+              tile={GLOSS_TILE}
+              onChange={(on) => decorate({ gloss: on ? { strength: 0.35, angle: 115 } : null })}
+            />
+            <EffectSwatch
+              label="Paper"
+              hint="A fine grain over it, like a printed sticker rather than a screen."
+              on={Boolean(decorations.grain)}
+              tile={GRAIN_TILE}
+              onChange={(on) => decorate({ grain: on ? { strength: 0.4, scale: 3 } : null })}
+            />
+          </div>
           {decorations.shadow && (
-            <div className="mt-4 mb-5 flex flex-col gap-5">
+            <div className="mt-5 mb-5 flex flex-col gap-5">
               <Control
                 label="Softness"
                 hint="How far it spreads, in pixels of the exported sticker."
@@ -1673,14 +1692,9 @@ export function StickerStudio() {
             </div>
           )}
 
-          <div className="mt-4">
-            <Toggle
-              label="Glossy highlight"
-              checked={Boolean(decorations.gloss)}
-              onChange={(on) => decorate({ gloss: on ? { strength: 0.35, angle: 115 } : null })}
-            />
+          <div>
             {decorations.gloss && (
-              <div className="mt-4 mb-1 flex flex-col gap-5">
+              <div className="mt-5 mb-1 flex flex-col gap-5">
                 <Control
                   label="Strength"
                   hint="Lightens where the light falls and darkens where it does not, which is what makes it read as vinyl rather than as a white smear."
@@ -1701,14 +1715,9 @@ export function StickerStudio() {
             )}
           </div>
 
-          <div className="mt-4">
-            <Toggle
-              label="Paper texture"
-              checked={Boolean(decorations.grain)}
-              onChange={(on) => decorate({ grain: on ? { strength: 0.4, scale: 3 } : null })}
-            />
+          <div>
             {decorations.grain && (
-              <div className="mt-4 flex flex-col gap-5">
+              <div className="mt-5 flex flex-col gap-5">
                 <Control
                   label="Strength"
                   hint="How much grain. It lightens as well as darkens, because paper does both."
@@ -2163,6 +2172,58 @@ export function StickerStudio() {
   );
 }
 
+
+/**
+ * What a finishing effect looks like, as a tile the size of a postage stamp.
+ *
+ * Three switches called Drop shadow, Glossy highlight and Paper texture is
+ * three phrases to picture, and the only way to find out what any of them did
+ * was to turn it on and look at the sticker. The tile is the answer: a square
+ * with the effect on it, so the choice is made by looking rather than by
+ * reading. Drawn in CSS, so it costs nothing to load and is crisp at any zoom.
+ */
+const SHADOW_TILE = 'tile-shadow';
+const GLOSS_TILE = 'tile-gloss';
+const GRAIN_TILE = 'tile-grain';
+
+/**
+ * One finishing effect: its tile, its name, and the switch all in one press.
+ *
+ * A pressed state rather than a separate toggle beside it, because a tile that
+ * only illustrates a switch is a second thing to understand; a tile that *is*
+ * the switch is one.
+ */
+function EffectSwatch({
+  label,
+  hint,
+  on,
+  tile,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  on: boolean;
+  /** The class that draws the tile. The colours live with the other surfaces. */
+  tile: string;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      title={`${label} — ${hint}`}
+      onClick={() => onChange(!on)}
+      className={cx(
+        'pop-chosen flex flex-col items-center gap-1.5 rounded-xl border-2 px-1 pt-2 pb-1.5',
+        'transition-[transform,background-color,border-color] duration-[--motion-base] ease-[--ease-out]',
+        on ? 'border-accent-500 bg-accent-50' : 'border-ink-200 hover:border-ink-300',
+      )}
+    >
+      <span aria-hidden="true" className={cx('size-7 shrink-0 rounded-md border border-black/15', tile)} />
+      <span className="text-[12px] font-[560] leading-tight">{label}</span>
+    </button>
+  );
+}
 
 /**
  * The tools, down the side of the picture they work on.

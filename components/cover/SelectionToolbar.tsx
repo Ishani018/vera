@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cx } from '../ui';
 
 /** Where the selected thing is, in pixels inside the canvas pane. */
@@ -25,15 +25,40 @@ const ASSUMED_HEIGHT = 44;
 export function SelectionToolbar({
   box,
   pane,
+  of,
   children,
 }: {
   box: SelectionBox | null;
   /** The visible canvas, which the toolbar may not leave. */
   pane: { width: number; height: number };
+  /**
+   * What is selected. Not used to draw anything — only to notice that the
+   * selection has become a *different* thing.
+   */
+  of?: string | null;
   children: ReactNode;
 }) {
   const self = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 320, height: ASSUMED_HEIGHT });
+
+  /**
+   * A fade when the selection changes, so a new toolbar reads as a new toolbar.
+   *
+   * Without it, clicking from the title to a sticker slides one bar of buttons
+   * to another place and swaps its contents, and the eye reports that the thing
+   * it was looking at jumped. A 180ms fade says "this one belongs to that".
+   *
+   * Replayed rather than remounted: a remount would lose the measured size for
+   * a frame and the bar would be drawn once in the wrong place.
+   */
+  useEffect(() => {
+    const node = self.current;
+    if (!node) return;
+    for (const animation of node.getAnimations()) {
+      animation.cancel();
+      animation.play();
+    }
+  }, [of]);
 
   useLayoutEffect(() => {
     const el = self.current;
@@ -75,8 +100,9 @@ export function SelectionToolbar({
       role="toolbar"
       data-selection-toolbar
       className={cx(
-        'pointer-events-auto absolute z-20 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-1',
-        'rounded-xl border border-ink-200 bg-paper/97 px-1.5 py-1 shadow-xl backdrop-blur-sm',
+        'floating-bar pointer-events-auto absolute z-20 flex max-w-[calc(100%-8px)]',
+        'flex-wrap items-center gap-1',
+        'rounded-xl border border-ink-200 bg-paper/97 px-1.5 py-1 backdrop-blur-sm',
       )}
       style={{ left: Math.round(left), top: Math.round(Math.max(4, top)) }}
       // The canvas clears the selection when it is clicked; the toolbar is over
