@@ -306,3 +306,52 @@ one fix, in stage 6.
 #### Added dependencies
 
 None.
+
+### Stage 4 — a book on the first screen — `dd93d24`
+
+Five faces (two boards, a spine, a fore edge, the top of the page block), a 900 px
+perspective on the parent, and two slow transforms: `book-turn` through 52° over
+eighteen seconds and `book-float` seven pixels over six, on separate layers so the
+browser composites two transforms and touches no layout. `components/BookMock.tsx`
+and the `.book*` rules at the end of `app/surfaces.css`.
+
+CSS only, as asked: zero `img`, `canvas` or `svg` inside it, and nothing added to
+first load — it is markup and a stylesheet rule. Which also means it wears the
+theme rather than being a picture of one: coral in Sunrise (`rgb(201,69,44)`), the
+lagoon's warmer red (`rgb(191,74,52)`), candy's pink (`rgb(192,53,104)`), read
+straight from the tokens.
+
+#### Two things it got wrong on the first pass
+
+- It was `pointer-events: none`, being decorative — which makes `.book:hover`
+  unreachable, so the pause-on-hover rule was written, compiled and dead. Caught
+  by a check that hovered it and found it still turning. It takes the pointer now,
+  keeps `aria-hidden`, and sits in its own space with nothing behind it to click.
+- Under `prefers-reduced-motion` it is a still frame turned 18°, not the same turn
+  done faster.
+
+#### Checked
+
+745 tests pass; both PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe`
+unchanged; `golden:screen` 0 pixels changed; build clean; export still
+`b9eabef0…212994`; contrast sweep still all-AA. In Chrome at 1280×720 and 800 wide
+in all three themes (18 checks each width): five faces, five `matrix3d`
+transforms, `preserve-3d`, `book-turn` and `book-float` running with a breathing
+shadow, no image of any kind inside it, inside the band at both widths (33 px clear
+of the right edge), running until the pointer arrives and paused while it is there,
+turning again when it leaves. With reduced motion both animations are `none` and
+the frame is still turned.
+
+Frame times with it turning, from `scratchpad/perf.mjs`: hover+tilt, menu open,
+page change and idle all 16.7 ms median, 16.8 ms p95, nothing over 20 ms.
+
+#### Only checkable in the sandbox
+
+The screenshots say the geometry is right; whether it reads as a *book* rather
+than a red box at a jaunty angle is a judgement for a real screen. The shots are
+in the scratchpad as `s4-book-<theme>-<width>.png` and will be in
+`docs/aesthetic-shots/` after stage 6.
+
+#### Added dependencies
+
+None.
