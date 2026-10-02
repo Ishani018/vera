@@ -355,3 +355,93 @@ in the scratchpad as `s4-book-<theme>-<width>.png` and will be in
 #### Added dependencies
 
 None.
+
+### Stage 5 — the transparent PNG bug — **written, proven, and reverted**
+
+Nothing from this stage is on `main`. It was written, it worked, and the brief's
+own rule required it to be taken out again. This is the most important entry in
+this log, because the bug is real and it is still there.
+
+#### The bug
+
+Every decode on the way into the tracer draws onto a fresh `OffscreenCanvas`, and
+a fresh canvas is **transparent black** — `rgba(0, 0, 0, 0)`. Everything below
+that point reads the colour channels and ignores the alpha, because by then a
+picture is a field of brightnesses and nothing else. So a PNG with a transparent
+background was traced as a drawing **on black paper**: "Painting or photo" found
+an edge all the way round the picture and filled everything outside the drawing,
+and "Already line art" thresholded the whole page to ink.
+
+That is the one kind of file somebody is most likely to bring to a sticker maker,
+and it was the one kind that could not work. The same reasoning is already written
+down three feet away, in `framed()` in `lib/lineart/worker.ts`: *"Onto the
+picture's own paper, not left see-through: a turn leaves empty corners, and the
+tracer reads a colour, so a transparent corner would be read as black and come
+back as solid ink."* That flatten only runs when a frame is being applied.
+
+#### The fix that worked
+
+`flattenOntoWhite(source)` in `lib/lineart/pipeline.ts`, applied at the top of
+`runCleanup`, `runLineArt`, `analyseGrey`, `analyseRidges` and `guessSource`. White
+because white is what a transparent PNG is drawn on everywhere else it is ever
+shown, so it is the background the person was looking at when they decided the
+drawing was finished. A partly-transparent pixel lands between its own colour and
+white, which is what compositing has always meant — not a rule that see-through
+means white. A fully opaque picture is returned as the same object, uncopied, so
+the common case pays nothing.
+
+`analyseGrey` and `analyseRidges` needed it as well as `runLineArt`, because the
+worker calls them directly to fill its cache and hands the result back in
+`analysis` — so `runLineArt`'s own flatten is never reached on the cached path. Not
+doing that would have given a picture that traced correctly the first time and
+wrongly every time after, which is worse than wrong every time.
+
+Seven new tests, all passing: paper not ink in each mode, the drawn shape still
+found, a half-transparent pixel landing halfway, an opaque picture returned
+unchanged and uncopied, the guess seeing white, and the cached analysis path in
+both modes. 752 tests passed in total.
+
+#### Why it was reverted
+
+The stage says: *"Keep the fixed-picture export test unchanged… If the
+fixed-picture export digest would change, stop and revert this stage instead of
+re-recording it."*
+
+The digest changed, from
+`b9eabef0e5424e828acb78c0801e62bab06737140751fa59b047558407212994` (25,236 bytes)
+to `6e2ca05ed20a7e74aa44fb3f07a1d93a1ac93b8965331fcc6599f6022418db30`
+(98,320 bytes).
+
+**It had to.** The fixed picture that test pins is
+`starter/lines/cat.png`, and that file is **94.0% fully transparent, 1.5% partly
+transparent, 4.6% opaque, with its transparent pixels stored as `rgb(0,0,0)`**,
+measured by inflating the PNG and counting its alpha channel. The harness traces
+it in **"Already line art"** mode. So the pinned baseline *is an instance of the
+bug*: it has been traced on black all along, and `b9eabef0…` is the digest of that
+wrong output. The file nearly quadrupled because 94% of the picture stopped being
+solid ink.
+
+There is no honest fix that leaves that digest alone — any fix that spared it
+would have to spare exactly the case it is meant to repair. The two instructions
+genuinely conflict, and the brief itself says which one wins, so the stage is out.
+
+#### What is on disk, and what to do next
+
+The whole stage is kept, unapplied, in the sandbox:
+
+```
+scratchpad/stage5-pipeline.ts.rejected
+scratchpad/stage5-lineart.test.mjs.rejected
+```
+
+The decision this needs is one a person should take awake: the fix is right, the
+test is right to notice, and the baseline is wrong. The way through is to re-record
+the fixed-picture digest **in the same commit as the fix**, with the measurement
+above in the message — or to repoint the test at an opaque fixture and add a
+transparent one beside it with its own digest, which is better, because then the
+test covers both kinds of file instead of pinning one.
+
+After the revert: 745 tests pass; both PDF digests `e3e2a36e0ac60ce1` and
+`d4eeeb9e99cb1bfe` unchanged; the fixed-picture export is
+`cat-1026x1026.png  25236 bytes  sha256 b9eabef0…212994` again, byte for byte;
+build clean. Nothing was re-recorded.
