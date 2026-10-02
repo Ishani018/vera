@@ -220,3 +220,89 @@ sticker stamps KEPT on the picture, centred, deaf to the pointer, gone by itself
 #### Added dependencies
 
 None.
+
+### Stage 3 — feedback and flow — `0bc3e36`
+
+Five things:
+
+- **Page to page.** `@view-transition { navigation: auto }` in `app/globals.css`
+  gives a real cross-fade on a full page load. Client navigations inside the app
+  get a plain fade on `body`, driven by a `data-arriving` flag on `<html>` from
+  `components/Flow.tsx`. See below for why that is the honest answer rather than
+  a shortcut.
+- **Toasts** (`components/Toasts.tsx`): transient messages move out of the panels
+  into the bottom-right corner, newest at the bottom, at most three stacked,
+  sliding in and fading out on a timer. Warnings and errors stay where they were.
+- **A progress ring** (`ProgressRing` in `components/ui.tsx`), in the batch panel
+  and the studio's work overlay. It carries its own number, so it needs no width
+  and sits beside the words rather than under them. With no total it spins.
+- **A skeleton** where a list has not arrived: the designer's sticker panel used
+  to say "Nothing saved yet…" for as long as the library took to read, so it
+  flashed that on every open on a library with forty stickers in it.
+- **One well done a session** (`components/WellDone.tsx`): six shapes float up for
+  900 ms the first time something is exported or saved, then never again in that
+  session. The flag is in `sessionStorage`, so it is per tab and per visit.
+
+#### Why the view transition is partly a fade, and not a cut corner
+
+`document.startViewTransition` needs the new DOM to exist by the time its callback
+returns. `router.push` does not work that way: it starts a navigation and resolves
+later, so the transition captures the old page twice and shows nothing at all. The
+fix React and Next have for this is `<ViewTransition>` behind
+`experimental.viewTransition`, and React 19.2.8 — the version installed here —
+does not export it; it is in the experimental channel only. Using it means
+swapping React for an experimental build, which is a new dependency under rule 5
+and a bad trade on an unattended run.
+
+So: the browser does the real thing where it can do it unaided, and a 200 ms
+opacity fade covers the rest. `components/Flow.tsx` is the single place that
+changes when a stable React ships the component, and it says so.
+
+#### Found and fixed while driving it
+
+`WellDone` had its stop-timer in the same effect as its start, keyed on the same
+counter. A second export changed the counter, React ran the cleanup and cancelled
+the timer that was about to take the shapes away, and the "already celebrated"
+guard then returned early without setting another — so six shapes stayed on the
+screen for the rest of the session. The timer is now its own effect, keyed on what
+it stops. Caught by the check that the celebration never happens twice.
+
+#### Checked
+
+745 tests pass; both PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe`
+unchanged; `golden:screen` 0 pixels changed; build clean; export still
+`b9eabef0…212994`; the contrast sweep reports every piece of text on all four
+screens passing AA. In Chrome at 1280×720 and 800 wide: the `@view-transition`
+rule is in the live stylesheet; a navigation runs `route-fade` on `body`; a batch
+shows a ring labelled "How far through the batch" with a real dash array; keeping
+a sticker raises a `toast-in` message in the bottom-right under `aria-live=polite`
+whose container is `pointer-events: none`; the session's first finish floats six
+`rise` shapes for 0.9 s staggered 0/70/140 ms and none on the second; a library
+being read never claims to be empty, over 37 frames at 1280 and 38 at 800.
+
+#### Only checkable in the sandbox
+
+- The ring could not be shown on an export: a 2000 px sticker finishes in about
+  half a second on this machine, and the studio's overlay deliberately waits a
+  full second (`SLOW_AFTER` in `lib/busy.ts`) so a quick job never flashes a
+  progress indicator. The ring is checked on a three-picture batch instead, which
+  is slow by definition. On a slower machine the export would show it too.
+- Catching the library's skeleton depends on how warm IndexedDB is: it was caught
+  at 800 (9 blocks sweeping) and not at 1280, where the read finished inside one
+  frame. What is asserted at both widths is the regression — that the panel never
+  claims to be empty while it is reading.
+- `@view-transition` is declared and present in the live stylesheet, but a real
+  cross-document transition cannot be *seen* in a headless screenshot run. That
+  one needs a Mac and an eye.
+
+#### Carried forward to the layout audit
+
+At 800 wide `/design` overflows the viewport by its whole width (`scrollWidth -
+innerWidth` = 800). Same root cause as the stage 1 finding that the board is not
+drawn at that width: the designer has no narrow layout, so its sidebar and rail
+take the whole row and everything else is pushed off to the side. Two findings,
+one fix, in stage 6.
+
+#### Added dependencies
+
+None.
