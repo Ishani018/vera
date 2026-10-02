@@ -152,7 +152,7 @@ export function PackLibrary() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-[24px] font-semibold tracking-tight">Library</h1>
+            <h1 className="display text-[24px] tracking-tight">Library</h1>
             <div className="flex flex-wrap gap-2">
               {installer}
               {credits.length > 0 && (
@@ -201,7 +201,7 @@ export function PackLibrary() {
           </div>
 
           <div className="mt-8 border-t border-ink-200 pt-6">
-            <h2 className="text-[17px] font-semibold tracking-tight">Installed</h2>
+            <h2 className="display text-[17px] tracking-tight">Installed</h2>
           </div>
 
           {!credits.length ? (

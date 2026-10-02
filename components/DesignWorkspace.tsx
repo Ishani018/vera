@@ -119,7 +119,7 @@ export function DesignWorkspace() {
         <StudioHeader />
         <div className="grid flex-1 place-items-center px-6">
           <div className="text-center">
-            <h1 className="text-[24px] font-semibold tracking-tight">That design isn’t here</h1>
+            <h1 className="display text-[24px] tracking-tight">That design isn’t here</h1>
             <p className="mt-2 text-[16px] text-ink-500">
               It may have been deleted.{' '}
               <Link href="/" className="text-accent-500 underline">

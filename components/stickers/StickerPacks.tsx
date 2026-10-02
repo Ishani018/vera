@@ -280,7 +280,7 @@ export function StickerPacks() {
           {open === null ? (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h1 className="text-[24px] font-semibold tracking-tight">Packs</h1>
+                <h1 className="display text-[24px] tracking-tight">Packs</h1>
                 {installer}
               </div>
               {/* One line. The rest of what a pack is lives in the tooltips on
@@ -385,7 +385,7 @@ export function StickerPacks() {
                 >
                   ← All packs
                 </button>
-                <h1 className="text-[22px] font-semibold tracking-tight">{open}</h1>
+                <h1 className="display text-[22px] tracking-tight">{open}</h1>
                 <span className="text-[13px] text-ink-500">
                   {inside.length} {inside.length === 1 ? 'sticker' : 'stickers'}
                 </span>

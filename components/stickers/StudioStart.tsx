@@ -101,7 +101,7 @@ export function StudioStart({
       <StickerTabs />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-          <h1 className="text-[24px] font-semibold tracking-tight">Stickers</h1>
+          <h1 className="display text-[24px] tracking-tight">Stickers</h1>
           <p className="mt-1 text-[13.5px] text-ink-500">
             A drawing, a painting or a photograph, cut out and ready to print. Kept on this
             computer.

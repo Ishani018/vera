@@ -246,7 +246,7 @@ export function StickerSheet() {
       {!stickers.length ? (
         <div className="grid flex-1 place-items-center px-6">
           <div className="max-w-xl text-center">
-            <h1 className="text-[24px] font-semibold tracking-tight">Nothing to arrange yet</h1>
+            <h1 className="display text-[24px] tracking-tight">Nothing to arrange yet</h1>
             <p className="mt-2 text-[15px] leading-relaxed text-ink-500">
               A sheet is made from the stickers in My stickers. Make one in the studio and save it,
               then come back.

@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import './tokens.css';
+@import './surfaces.css';
 
 :root {
   color-scheme: light;

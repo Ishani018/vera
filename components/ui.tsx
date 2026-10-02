@@ -39,9 +39,16 @@ export function Field({
   );
 }
 
-const inputClass =
-  'w-full rounded-xl border border-ink-300 bg-paper px-3.5 py-3 text-[15.5px] text-ink-900 ' +
-  'transition-colors hover:border-ink-400 focus:border-accent-500 focus:outline-none';
+/*
+  Every field, one class. The look is `.field` in app/surfaces.css — a hairline,
+  an inset shadow so it reads as a hole rather than a plate, and a ring on focus
+  that is three pixels of the accent at 18% rather than a hard outline.
+
+  The padding and the type size stay as utilities and stay as they were: they
+  decide how tall a row of controls is, and the board is measured from what the
+  chrome leaves behind.
+*/
+const inputClass = 'field w-full px-3.5 py-3 text-[15.5px] text-ink-900';
 
 // ComponentPropsWithRef rather than the HTML attribute types: React 19 passes
 // `ref` to function components as an ordinary prop, and the editor needs one on
@@ -328,7 +335,7 @@ export function Toggle({
           } as React.CSSProperties
         }
         className={cx(
-          'relative shrink-0 rounded-full transition-colors',
+          'relative shrink-0 rounded-full transition-colors duration-[--motion-base]',
           // The track is shorter than a finger. A pseudo-element reaches out to
           // a proper target without making the switch look like a slab.
           "before:absolute before:inset-x-0 before:content-['']",
@@ -349,7 +356,10 @@ export function Toggle({
           }}
           // `translate` rather than `transform`, so this transitions what it
           // actually sets. Reduced motion is handled once, in globals.css.
-          className="absolute rounded-full bg-paper shadow transition-[translate] duration-150"
+          // A gentle spring: it overshoots a hair and settles, which is what a
+          // switch does. The travel is still the same number of pixels, so the
+          // knob cannot leave the track — `tests/switch.test.mjs` holds that.
+          className="absolute rounded-full bg-paper shadow-[--shadow-raised] transition-[translate] duration-[--motion-slow] ease-[--ease-spring]"
         />
       </button>
     </div>
@@ -460,11 +470,13 @@ export function Choice({
       type="button"
       onClick={onSelect}
       className={cx(
-        'flex shrink-0 snap-start flex-col items-center gap-3 rounded-2xl border-2 p-3 pb-2.5 text-center transition-colors',
+        'flex shrink-0 snap-start flex-col items-center gap-3 rounded-2xl border-2 p-3 pb-2.5 text-center',
+        'transition-[transform,background-color,border-color,box-shadow] duration-[--motion-base] ease-[--ease-out]',
+        'hover:-translate-y-0.5 active:scale-[0.98]',
         wide ? 'w-[138px]' : 'w-[112px]',
         selected
-          ? 'border-accent-500 bg-accent-50'
-          : 'border-ink-200 hover:border-ink-300',
+          ? 'border-accent-500 bg-accent-50 shadow-[--shadow-raised]'
+          : 'border-ink-200 hover:border-ink-300 hover:shadow-[--shadow-rest]',
       )}
     >
       <span className="flex min-h-[70px] items-center justify-center">{children}</span>
@@ -504,24 +516,19 @@ export function Button({
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'primary' | 'ghost' | 'danger';
+  variant?: 'default' | 'primary' | 'create' | 'ghost' | 'danger';
 }) {
-  const variants = {
-    default: 'border border-ink-300 bg-paper hover:bg-ink-50 hover:border-ink-400',
-    primary: 'border border-accent-500 bg-accent-500 text-paper font-semibold hover:bg-accent-600',
-    ghost: 'border border-transparent text-ink-500 hover:bg-ink-100 hover:text-ink-900',
-    danger: 'border border-red-200 bg-paper text-red-700 hover:bg-red-50',
-  };
+  /*
+    The look lives in `app/surfaces.css`; this names which one. The padding and
+    the type size stay here and stay as they were, because the header's height
+    is the tallest thing in it and the board's size is measured from what is
+    left over.
+  */
   return (
     <button
       type="button"
       {...props}
-      className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[15px] font-[550]',
-        'transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-        variants[variant],
-        className,
-      )}
+      className={cx('btn', `btn-${variant}`, 'px-4 py-2.5 text-[15px]', className)}
     />
   );
 }
@@ -544,9 +551,11 @@ export function SegmentedControl<T extends string>({
           title={o.title}
           onClick={() => onChange(o.value)}
           className={cx(
-            'rounded-lg px-4 py-2 text-[15px] font-[550] transition-colors',
+            'rounded-lg px-4 py-2 text-[15px] font-[550]',
+            'transition-[transform,background-color,color,box-shadow] duration-[--motion-base] ease-[--ease-out]',
+            'active:scale-[0.98]',
             value === o.value
-              ? 'bg-paper text-ink-900 shadow-[0_1px_4px_rgba(0,0,0,0.12)]'
+              ? 'bg-paper text-ink-900 shadow-[--shadow-raised]'
               : 'text-ink-500 hover:text-ink-900',
           )}
         >
@@ -633,11 +642,16 @@ export function Notice({
 }) {
   // Written for a light page: the palette was reversed in the re-skin and these
   // were still carrying pale text meant for a dark one.
+  /*
+    The palette's own roles rather than Tailwind's reds and greens: a notice
+    that stayed the same four colours in every theme would be the one part of
+    the screen that had not been themed.
+  */
   const styles = {
-    error: 'border-red-300 bg-red-50 text-red-900',
-    warning: 'border-amber-300 bg-amber-50 text-amber-900',
+    error: 'border-clay-500/40 bg-clay-50 text-clay-600',
+    warning: 'border-sun-500/50 bg-sun-50 text-sun-600',
     info: 'border-ink-200 bg-ink-100 text-ink-700',
-    ok: 'border-emerald-300 bg-emerald-50 text-emerald-900',
+    ok: 'border-sage-500/40 bg-sage-50 text-sage-600',
   };
   return (
     <div className={cx('rounded-lg border px-3 py-2 text-[13px] leading-relaxed', styles[level])}>

@@ -41,7 +41,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-100/70 p-6"
+      className="veil fixed inset-0 z-50 flex items-center justify-center bg-ink-900/25 p-6"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -53,13 +53,12 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cx(
-          'flex max-h-full w-full flex-col overflow-hidden rounded-xl border border-ink-300',
-          'bg-paper shadow-2xl outline-none',
+          'dialog flex max-h-full w-full flex-col overflow-hidden outline-none',
           width,
         )}
       >
         <header className="flex items-center gap-3 border-b border-ink-200 px-4 py-3">
-          <h2 className="flex-1 text-[13px] font-semibold text-ink-900">{title}</h2>
+          <h2 className="display flex-1 text-[15px] text-ink-900">{title}</h2>
           <button
             type="button"
             onClick={onClose}

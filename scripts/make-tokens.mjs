@@ -65,11 +65,11 @@ function colours(theme) {
   return lines;
 }
 
-/** "#C9452C" as "201, 69, 44", for a shadow that wants an alpha. */
+/** "#C9452C" as "201 69 44" — spaces, so `rgb(… / .55)` is valid CSS. */
 function rgbOf(hex) {
   const n = hex.replace('#', '');
   const to = (at) => parseInt(n.slice(at, at + 2), 16);
-  return `${to(0)}, ${to(2)}, ${to(4)}`;
+  return `${to(0)} ${to(2)} ${to(4)}`;
 }
 
 const indent = (lines, by) => lines.map((line) => (line ? `${' '.repeat(by)}${line}` : '')).join('\n');

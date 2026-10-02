@@ -333,7 +333,7 @@ export function Landing() {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-accent-500 px-4 py-2 text-[14px] font-[600] text-paper shadow-sm transition-colors hover:bg-accent-700"
+          className="btn btn-create ml-auto shrink-0 rounded-full px-4 py-2 text-[14px]"
         >
           <PlusIcon size={17} />
           Create
@@ -389,7 +389,7 @@ export function Landing() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-5xl px-5 py-6">
-            <h1 className="text-[22px] font-semibold tracking-tight">What will you make today?</h1>
+            <h1 className="display text-[22px] tracking-tight">What will you make today?</h1>
 
             {/* The seven things made most often, as one press each. */}
             <ul aria-label="Start something" className="mt-4 flex flex-wrap gap-x-5 gap-y-3">
@@ -423,7 +423,7 @@ export function Landing() {
 
             <section className="mt-7">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                <h2 className="text-[17px] font-semibold tracking-tight">Recent designs</h2>
+                <h2 className="display text-[17px] tracking-tight">Recent designs</h2>
                 {empties.length > 0 && (
                   <button
                     type="button"

@@ -66,7 +66,14 @@ export type Theme = {
     /** Printed sizes. */
     clay: Ramp;
   };
-  /** The colour shadows are mixed from, so depth belongs to the theme. */
+  /**
+   * The colour shadows are mixed from, so depth belongs to the theme.
+   *
+   * Space separated, not comma: `rgb(29, 24, 19 / 0.14)` mixes the old syntax
+   * with the new one, which is invalid, and a browser drops the whole
+   * declaration — which is how every shadow in the app came out as `none` the
+   * first time this was built.
+   */
   shade: string;
   /** The grey behind a board. Deliberately not a cousin of the paper. */
   ground: { pane: string; rail: string; deep: string };
@@ -97,7 +104,7 @@ export const SUNRISE: Theme = {
     denim: { tint: '#E4EDF7', mid: '#36628E', deep: '#274968' },
     clay: { tint: '#F8E7E4', mid: '#9A4F47', deep: '#753A34' },
   },
-  shade: '29, 24, 19',
+  shade: '29 24 19',
   ground: { pane: '#6F6F6F', rail: '#5F5F5F', deep: '#8E8E8E' },
 };
 
@@ -126,7 +133,7 @@ export const LAGOON: Theme = {
     denim: { tint: '#DEEBF6', mid: '#2E6190', deep: '#21486B' },
     clay: { tint: '#F4E6E5', mid: '#8F4F4B', deep: '#6D3B38' },
   },
-  shade: '21, 32, 31',
+  shade: '21 32 31',
   ground: { pane: '#6B7271', rail: '#5C6262', deep: '#8A9090' },
 };
 
@@ -155,7 +162,7 @@ export const CANDY: Theme = {
     denim: { tint: '#E2EAFA', mid: '#3F5CB0', deep: '#2E4486' },
     clay: { tint: '#F9E4EC', mid: '#A2456B', deep: '#7C3251' },
   },
-  shade: '27, 21, 34',
+  shade: '27 21 34',
   ground: { pane: '#716E78', rail: '#615F68', deep: '#8F8C96' },
 };
 
