@@ -129,3 +129,94 @@ predates this run. Stage 6 is the layout audit and this is its first finding.
 #### Added dependencies
 
 None.
+
+### Stage 2 — the sticker pages
+
+#### `43da369` — two dead colour classes, a guard, and (by accident) stage 2's surfaces
+
+This commit was meant to be the class fix alone and its message describes only
+that. The surfaces stage 2 needed — `.peel`, `.fan`, `.drop-in`, `.stamped`,
+`.stagger-in`, `.skeleton` in `app/surfaces.css`, and the peel and fan in
+`Thumb.tsx` — were in the working tree and went in with it. It was pushed before
+I noticed, so it stays as it is rather than being rewritten under anyone who has
+already pulled; `d3f8d06` completes and explains the stage.
+
+What the commit was for: `bg-paper-0` was used in seven places and named a token
+that does not exist, so Tailwind dropped the utility and the hub's sidebar, the
+sticker tab bar, the Studio's start card and every pack card had no background at
+all. Nothing warns about this — an unknown token makes the utility vanish, not the
+build fail. The new guard in `tests/theme.test.mjs` caught a second one straight
+away: `text-accent-700` on the tool strip's chosen tool, from `84b186b`, which
+left the chosen glyph inheriting the rail's near-white on a pale accent tint.
+
+Two sandbox fixes went in with it, both to the contrast sweep:
+
+- It read only `background-color`, so every button painted with a gradient — every
+  primary and Create button — looked transparent, composited down to the white
+  page, and came back as white text on white at 1.00:1. Three findings that were
+  not real. It now reads the stops out of a computed `background-image`, which
+  Chrome has already resolved from `color-mix()` and `var()`, and checks the text
+  against each one.
+- A disabled control is greyed on purpose and WCAG 1.4.3 puts text in an inactive
+  component outside the contrast rule. Raising "Templates — soon" to AA would make
+  something that does not work look like something that does. The sweep now skips
+  genuinely disabled controls and holds everything else to the rule.
+
+After both, the sweep reports every piece of text on all four screens passing AA.
+
+#### `d3f8d06` — the stage, and thirty-three classes that did nothing
+
+The stage: sticker cards curl a corner and catch a band of light; a pack is three
+of its stickers fanned in perspective rather than four in a grid; the sheet rests
+on a soft shadow and arrives with a bounce, with the stickers waiting to be
+pressed onto it dropping in staggered; keeping a sticker stamps KEPT onto the
+picture; searching for free graphics shows blocks the shape of the pictures with
+a light crossing them, and results fade in one after another.
+
+**The real find.** Thirty-three classes of the form `shadow-[--shadow-rest]`,
+`duration-[--motion-base]` and `ease-[--ease-out]` compiled to
+`--tw-shadow: --shadow-rest` and `transition-duration: --motion-base` — the
+bracket's contents verbatim, a literal string rather than a reference. Tailwind 3
+read that shorthand as a variable and Tailwind 4 does not. So **every card shadow
+in the app was missing, and every motion duration and easing fell back to the
+browser's default**: a good deal of commit 2's work had never once run. They are
+`-[var(--…)]` now. The guard test refuses the shorthand outright and checks the
+token named exists, so it cannot come back.
+
+Found by driving it: the sheet's shadow came back as `none` in Chrome, which is
+what led to looking at the compiled stylesheet in the first place.
+
+One thing deliberately not done: the stickers already placed on the sheet are not
+animated onto it one at a time. They are drawn by the same `draw()` the download
+uses — that is the whole point of that file — so a drop-in per sticker would be a
+change to the code that makes the exported PNG, which rule 1 forbids. The sheet
+itself bounces in instead, and the tray beside it staggers.
+
+Checked: 745 tests pass; both PDF digests `e3e2a36e0ac60ce1` and
+`d4eeeb9e99cb1bfe` unchanged; `golden:screen` 0 pixels changed; build clean;
+export still `b9eabef0…212994`. In Chrome at 1280×720 and 800 wide: the curl
+rests at opacity 0 and reaches 1 on hover with `peel-sheen` running; a pack fans
+three cards under a 700 px perspective with real `matrix3d` transforms; the sheet
+carries the two-layer float shadow and `drop-in`, the tray staggered at
+0/45/90/135 ms; the search shows 36 skeleton blocks with offset sweeps; keeping a
+sticker stamps KEPT on the picture, centred, deaf to the pointer, gone by itself.
+
+#### Only checkable in the sandbox
+
+- The live result cards arriving one after another could not be driven: there is
+  no outbound route from this machine to Wikimedia or the Smithsonian, so
+  `/api/graphics/search` answers 502 and no cards are produced. The `.stagger-in`
+  class is checked against the live stylesheet instead — `arrive`, fill both,
+  delays 0/40/80 ms — which proves the rule, not the path through it.
+- Hover had to be driven with `page.hover`. A bare `page.mouse.move` leaves
+  nothing hovered at all in this headless Chromium —
+  `document.querySelectorAll(':hover')` comes back empty, `html` and `body`
+  included — so every hover rule read as not applying. Worth knowing before
+  trusting any hover check in this scratchpad.
+- The peel, the fan and the stamp are measured by computed style and element box.
+  Whether the curl looks like paper and the stamp looks like a stamp is still a
+  thing to see.
+
+#### Added dependencies
+
+None.
