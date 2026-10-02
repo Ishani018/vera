@@ -27,12 +27,22 @@ export function ColourField({
   onChange,
   label,
   compact = false,
+  sampled,
 }: {
   value: string;
   onChange: (hex: string) => void;
   label: string;
   /** In a toolbar: the swatch alone, without the hex beside it. */
   compact?: boolean;
+  /**
+   * Colours read off the picture being worked on.
+   *
+   * Shown as a row that is always there, not only inside the popover, because
+   * these are the colours the next press almost certainly wants: somebody
+   * colouring their own drawing of their own cat is reaching for the cat's
+   * ginger, and matching it by eye in a colour wheel takes four goes.
+   */
+  sampled?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
@@ -62,6 +72,8 @@ export function ColourField({
     if (keep) setRecent(rememberColour(colour));
   };
 
+  const row = sampled?.length ? sampled.slice(0, 7) : null;
+
   return (
     <div ref={box} className="relative">
       <button
@@ -84,8 +96,30 @@ export function ColourField({
         )}
       </button>
 
+      {row && !compact && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <span className="mr-0.5 text-[11px] text-ink-500">In your picture</span>
+          {row.map((hex) => (
+            <Swatch key={`in-${hex}`} hex={hex} name={`${hex}, from your picture`} current={value} onPick={pick} />
+          ))}
+        </div>
+      )}
+
       {open && (
         <div className="absolute left-0 z-40 mt-1.5 w-[248px] rounded-xl border border-ink-200 bg-paper p-3 shadow-xl">
+          {row && (
+            <>
+              <h5 className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-500">
+                In your picture
+              </h5>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {sampled!.map((hex) => (
+                  <Swatch key={`from-${hex}`} hex={hex} name={hex} current={value} onPick={pick} />
+                ))}
+              </div>
+            </>
+          )}
+
           {recent.length > 0 && (
             <>
               <h5 className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-500">
@@ -166,7 +200,7 @@ function Swatch({
       aria-pressed={chosen}
       onClick={() => onPick(hex)}
       className={cx(
-        'h-7 w-7 rounded-md border transition-transform hover:scale-110',
+        'pop-chosen h-7 w-7 rounded-md border transition-transform hover:scale-110',
         chosen ? 'border-ink-900 ring-2 ring-ink-900/20' : 'border-black/15',
       )}
       style={{ background: hex }}

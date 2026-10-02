@@ -44,6 +44,7 @@ import { StudioStart } from './StudioStart';
 import { StickerTabs } from './StickerTabs';
 import { Button, Info, Notice, Spinner, TextInput, Toggle, WhileSliding, cx } from '../ui';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
+import { paletteOfBlob } from '@/lib/stickers/palette';
 import { BatchPanel } from './BatchPanel';
 
 /**
@@ -77,38 +78,60 @@ const SIZES = [
   { px: 2000, label: '2000 px', note: 'Large — 6 inches at 300 DPI' },
 ];
 
-const PICK: { value: Tool; label: string; note: string }[] = [
+/**
+ * A tool, as it appears in the strip beside the picture.
+ *
+ * The glyph is what is shown and the label is what is said: a strip of nine
+ * words down the side of a picture is a strip, not a toolbar, and at the width
+ * a word needs it is the picture that gets smaller. The label is still the
+ * tooltip, the accessible name, and the line under the strip, so nothing is
+ * known only by its picture.
+ */
+type ToolChoice = { value: Tool; label: string; note: string; glyph: string };
+
+const PICK: ToolChoice[] = [
   {
     value: 'dropper',
+    glyph: '⌖',
     label: 'Eyedropper',
     note: 'Point at the picture and that colour becomes the one you are working in.',
   },
   {
     value: 'replace',
+    glyph: '⇄',
     label: 'Swap a colour',
     note: 'Point at a colour and it becomes the one below, everywhere it appears.',
   },
 ];
 
-const TOUCH: { value: Tool; label: string; note: string }[] = [
-  { value: 'restore', label: 'Restore', note: 'Paints back pixels the removal took away.' },
-  { value: 'remove', label: 'Remove', note: 'Takes away more — a shadow, a speck, a stray edge.' },
+const TOUCH: ToolChoice[] = [
+  { value: 'restore', glyph: '✚', label: 'Restore', note: 'Paints back pixels the removal took away.' },
+  { value: 'remove', glyph: '✖', label: 'Remove', note: 'Takes away more — a shadow, a speck, a stray edge.' },
   {
     value: 'automatic',
+    glyph: '↺',
     label: 'Automatic',
     note: 'Rubs out your correction and lets the removal decide again.',
   },
 ];
 
-const TOOLS: { value: Tool; label: string; note: string }[] = [
+const TOOLS: ToolChoice[] = [
   {
     value: 'fill',
+    glyph: '◍',
     label: 'Fill',
     note: 'Click inside a shape and it fills to the lines around it.',
   },
-  { value: 'brush', label: 'Brush', note: 'Paint by hand, for anything a fill cannot reach.' },
-  { value: 'eraser', label: 'Eraser', note: 'Takes colour off again. The drawing underneath is never touched.' },
+  { value: 'brush', glyph: '✎', label: 'Brush', note: 'Paint by hand, for anything a fill cannot reach.' },
+  { value: 'eraser', glyph: '⌫', label: 'Eraser', note: 'Takes colour off again. The drawing underneath is never touched.' },
 ];
+
+const CROP: ToolChoice[] = [
+  { value: 'crop', glyph: '⊞', label: 'Crop', note: 'Drag a box on the picture to keep only that part.' },
+];
+
+/** Every tool, by name, for saying which one is in hand. */
+const EVERY_TOOL: ToolChoice[] = [...TOOLS, ...PICK, ...TOUCH, ...CROP];
 
 /** Big enough to judge by, small enough to answer a slider quickly. */
 const PREVIEW_EDGE = 800;
@@ -194,7 +217,8 @@ export function StickerStudio() {
   const [gapClosing, setGapClosing] = useState(2);
   const [softness, setSoftness] = useState(0.4);
   const [ink, setInk] = useState<InkResult | null>(null);
-  const [leak, setLeak] = useState<number | null>(null);
+  /** A fill that escaped: how much it covered, and where it started. */
+  const [leak, setLeak] = useState<{ share: number; u: number; v: number } | null>(null);
   const surface = useRef<SurfaceHandle>(null);
   const startColour = useRef<Paint | null>(null);
   const startTouch = useRef<Paint | null>(null);
@@ -333,6 +357,46 @@ export function StickerStudio() {
 
   // One surface serves both layers, so it exists as soon as either tool does.
   const painting = colouring || touchUp || recolouring || framing;
+
+  /**
+   * The colours this picture is made of, for the swatch row.
+   *
+   * Read off the file rather than off the preview, because in tracing mode the
+   * preview is black lines on nothing and the colours somebody wants are the
+   * ones in the photograph they started from.
+   */
+  const [sampled, setSampled] = useState<string[]>([]);
+  useEffect(() => {
+    if (!file) {
+      setSampled([]);
+      return;
+    }
+    let alive = true;
+    paletteOfBlob(file)
+      .then((colours) => alive && setSampled(colours))
+      // A picture whose colours cannot be read is not a problem to report; the
+      // palette is still there, and this row simply does not appear.
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [file]);
+
+  /**
+   * The tools in hand, in the order their panels appear in the rail.
+   *
+   * Which tools exist depends on which switches are on, not on which panel is
+   * being looked at: colouring stays on while you go and write on the sticker,
+   * and the brush should still be there when you come back.
+   */
+  const strip: ToolChoice[][] = ink
+    ? [
+        colouring ? TOOLS : [],
+        recolouring ? PICK : [],
+        touchUp ? TOUCH : [],
+        framing ? CROP : [],
+      ].filter((group) => group.length > 0)
+    : [];
 
   // The tool always belongs to a panel that is open, so nobody is left holding
   // a brush that paints on a layer they have just put away.
@@ -1191,33 +1255,6 @@ export function StickerStudio() {
             <p className="mt-3 text-[13px] text-ink-500">Reading the lines…</p>
           ) : (
             <div className="mt-4 flex flex-col gap-5">
-              <div>
-                <span className="mb-2 block font-[570]">Tool</span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {TOOLS.map((choice) => (
-                    <button
-                      key={choice.value}
-                      type="button"
-                      aria-pressed={tool === choice.value}
-                      title={choice.note}
-                      onClick={() => setTool(choice.value)}
-                      className={cx(
-                        'rounded-lg border px-2 py-2 text-[13.5px] font-[560] transition-colors',
-                        tool === choice.value
-                          ? 'border-accent-500 bg-accent-50'
-                          : 'border-ink-200 hover:border-ink-300',
-                      )}
-                    >
-                      {choice.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[13px] leading-snug text-ink-500">
-                  {TOOLS.find((t) => t.value === tool)?.note ??
-                    'Pick one of these to paint colour.'}
-                </p>
-              </div>
-
               {tool !== 'eraser' && !isTouchTool(tool) && (
                 <div>
                   <span className="mb-2 block font-[570]">Colour</span>
@@ -1225,6 +1262,7 @@ export function StickerStudio() {
                     label="Colour"
                     value={brushColour}
                     onChange={setBrushColour}
+                    sampled={sampled}
                   />
                 </div>
               )}
@@ -1274,36 +1312,15 @@ export function StickerStudio() {
           ) : (
             <div className="mt-4 flex flex-col gap-5">
               <div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {PICK.map((choice) => (
-                    <button
-                      key={choice.value}
-                      type="button"
-                      aria-pressed={tool === choice.value}
-                      title={choice.note}
-                      onClick={() => setTool(choice.value)}
-                      className={cx(
-                        'rounded-lg border px-2 py-2 text-[13px] font-[560] transition-colors',
-                        tool === choice.value
-                          ? 'border-accent-500 bg-accent-50'
-                          : 'border-ink-200 hover:border-ink-300',
-                      )}
-                    >
-                      {choice.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[13px] leading-snug text-ink-500">
-                  {PICK.find((t) => t.value === tool)?.note ??
-                    'Pick one of these to point at a colour.'}
-                </p>
-              </div>
-
-              <div>
                 <span className="mb-2 block font-[570]">
                   {tool === 'dropper' ? 'Picked up' : 'Change it to'}
                 </span>
-                <ColourField label="Colour" value={brushColour} onChange={setBrushColour} />
+                <ColourField
+                  label="Colour"
+                  value={brushColour}
+                  onChange={setBrushColour}
+                  sampled={sampled}
+                />
               </div>
 
               {tool === 'replace' && (
@@ -1392,33 +1409,6 @@ export function StickerStudio() {
             <p className="mt-3 text-[13px] text-ink-500">Reading the picture…</p>
           ) : (
             <div className="mt-4 flex flex-col gap-5">
-              <div>
-                <span className="mb-2 block font-[570]">Brush</span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {TOUCH.map((choice) => (
-                    <button
-                      key={choice.value}
-                      type="button"
-                      aria-pressed={tool === choice.value}
-                      title={choice.note}
-                      onClick={() => setTool(choice.value)}
-                      className={cx(
-                        'rounded-lg border px-2 py-2 text-[13px] font-[560] transition-colors',
-                        tool === choice.value
-                          ? 'border-accent-500 bg-accent-50'
-                          : 'border-ink-200 hover:border-ink-300',
-                      )}
-                    >
-                      {choice.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[13px] leading-snug text-ink-500">
-                  {TOUCH.find((t) => t.value === tool)?.note ??
-                    'Pick one of these to paint on the cut-out.'}
-                </p>
-              </div>
-
               {isTouchTool(tool) && (
                 <>
                   <Control
@@ -2063,6 +2053,11 @@ export function StickerStudio() {
         <Rail panels={panels} open={openPanel} onOpen={setOpenPanel} />
 
         <Stage
+          tools={
+            strip.length > 0 ? (
+              <ToolStrip groups={strip} tool={tool} onPick={setTool} />
+            ) : undefined
+          }
           working={showWorking}
           rough={Boolean(preview?.rough) && !showWorking}
           width={preview?.width ?? 0}
@@ -2097,8 +2092,9 @@ export function StickerStudio() {
               )}
               {leak !== null && (
                 <Notice level="warning">
-                  That fill covered {Math.round(leak * 100)}% of the picture, which usually means it
-                  escaped through a gap in the outline rather than filling one shape.
+                  That fill covered {Math.round(leak.share * 100)}% of the picture, which usually
+                  means it escaped through a gap in the outline rather than filling one shape. The
+                  ring on the picture is where it started.
                   <span className="mt-2 flex flex-wrap gap-2">
                     <Button
                       onClick={() => {
@@ -2142,7 +2138,8 @@ export function StickerStudio() {
                   startTouch={startTouch.current}
                   onColourChange={colourChanged}
                   onTouchChange={touchChanged}
-                  onLeak={setLeak}
+                  onLeak={(share, at) => setLeak({ share, ...at })}
+                  leakAt={leak}
                   onPick={pick}
                   onCrop={(box) => setFrameRemembering({ ...frame, crop: box })}
                 />
@@ -2166,6 +2163,65 @@ export function StickerStudio() {
   );
 }
 
+
+/**
+ * The tools, down the side of the picture they work on.
+ *
+ * They were three grids of word-buttons in three different panels, which meant
+ * the brush was somewhere else from the thing it paints, and choosing it cost
+ * two-thirds of a panel. Icons beside the canvas put the tool next to the
+ * picture — where every drawing program has put it for thirty years, and where
+ * the hand already is.
+ *
+ * The name is never only a picture: it is the tooltip, the accessible name, and
+ * written out under the strip for whichever tool is in hand.
+ */
+function ToolStrip({
+  groups,
+  tool,
+  onPick,
+}: {
+  /** Tools by the switch they belong to, so a rule can be drawn between them. */
+  groups: ToolChoice[][];
+  tool: Tool;
+  onPick: (tool: Tool) => void;
+}) {
+  const inHand = EVERY_TOOL.find((t) => t.value === tool);
+  return (
+    <>
+      {groups.map((group, index) => (
+        <div key={group[0].value} className="flex flex-col items-center gap-1">
+          {index > 0 && <span aria-hidden="true" className="my-1 h-px w-5 bg-black/25" />}
+          {group.map((choice) => (
+            <button
+              key={choice.value}
+              type="button"
+              aria-pressed={tool === choice.value}
+              title={`${choice.label} — ${choice.note}`}
+              aria-label={choice.label}
+              onClick={() => onPick(choice.value)}
+              className={cx(
+                'pop-chosen grid size-9 place-items-center rounded-lg border text-[15px] leading-none',
+                'transition-[transform,background-color,border-color,color] duration-[--motion-fast] ease-[--ease-out]',
+                tool === choice.value
+                  ? 'border-accent-500 bg-accent-50 text-accent-700'
+                  : 'border-white/25 text-white/85 hover:border-white/60 hover:text-white',
+              )}
+            >
+              <span aria-hidden="true">{choice.glyph}</span>
+            </button>
+          ))}
+        </div>
+      ))}
+      {inHand && (
+        /* The one tool in hand, in words, under the icons. */
+        <span className="mt-1 max-w-[52px] text-center text-[10px] leading-tight text-white/80">
+          {inHand.label}
+        </span>
+      )}
+    </>
+  );
+}
 
 /**
  * The squares behind a transparent picture.

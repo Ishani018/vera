@@ -86,6 +86,7 @@ export function PaintSurface({
   onLeak,
   onPick,
   onCrop,
+  leakAt,
   interactive = true,
 }: {
   ink: InkResult | null;
@@ -103,7 +104,13 @@ export function PaintSurface({
   startTouch: Paint | null;
   onColourChange: (paint: Paint) => void;
   onTouchChange: (paint: Paint) => void;
-  onLeak: (share: number) => void;
+  /**
+   * A fill that covered far more than one shape, and the point it started from.
+   *
+   * The point matters as much as the share: "half the picture" is a number, and
+   * a ring round the place the colour escaped from is the gap in the outline.
+   */
+  onLeak: (share: number, at: { u: number; v: number }) => void;
   /**
    * Where a picking tool was pointed. `fromLayer` is the colour the colouring
    * has there, or null where it has none — in which case what was pointed at
@@ -112,6 +119,12 @@ export function PaintSurface({
   onPick: (at: { u: number; v: number; fromLayer: string | null }) => void;
   /** A box dragged out with the crop tool, in fractions of the picture. */
   onCrop: (box: { x: number; y: number; width: number; height: number }) => void;
+  /**
+   * Where to ring a leak, while the warning about it is up. Passed down rather
+   * than kept here, so the ring goes away at the same moment as the notice it
+   * belongs to — including when the notice is dismissed from a button in it.
+   */
+  leakAt?: { u: number; v: number } | null;
   /**
    * Whether the pointer reaches this surface at all.
    *
@@ -133,6 +146,41 @@ export function PaintSurface({
   const [depth, setDepth] = useState(0);
 
   const touching = isTouchTool(tool);
+
+  /**
+   * The brush, drawn on the picture at the size it will actually paint.
+   *
+   * "Radius, in pixels of the picture" is the truth and it is useless: 40 is a
+   * quarter of a small sticker and a twentieth of a large one, and the only way
+   * to find out used to be to paint something and undo it. A circle under the
+   * pointer answers it before the first stroke.
+   *
+   * Moved by writing to the node rather than through state, because this runs
+   * on every pointer move and a re-render of two canvases per move would make
+   * the brush itself feel heavy.
+   */
+  const ring = useRef<HTMLSpanElement>(null);
+  const field = useRef<HTMLDivElement>(null);
+  const showsRing = tool === 'brush' || tool === 'eraser' || touching;
+
+  const moveRing = (event: React.PointerEvent) => {
+    const node = ring.current;
+    const area = field.current;
+    const layer = active();
+    if (!node || !area || !layer || !showsRing) return;
+    const box = area.getBoundingClientRect();
+    if (!box.width) return;
+    const size = (brush * 2 * box.width) / layer.width;
+    node.style.width = `${size}px`;
+    node.style.height = `${size}px`;
+    node.style.transform =
+      `translate3d(${event.clientX - box.left - size / 2}px, ${event.clientY - box.top - size / 2}px, 0)`;
+    node.style.opacity = '1';
+  };
+
+  const hideRing = () => {
+    if (ring.current) ring.current.style.opacity = '0';
+  };
 
   /**
    * The thickened lines, worked out once per change of picture or of the
@@ -331,7 +379,9 @@ export function PaintSurface({
         fillAt({ barrier: barrier.current, at: ((point.y | 0) * layer.width + point.x) | 0, gap });
       if (found) {
         stroke.current.apply(found.pixels, parseColour(colour));
-        if (found.leaked) onLeak(found.share);
+        if (found.leaked) {
+          onLeak(found.share, { u: point.x / layer.width, v: point.y / layer.height });
+        }
       }
       finish();
       return;
@@ -343,6 +393,7 @@ export function PaintSurface({
   };
 
   const move = (event: React.PointerEvent) => {
+    moveRing(event);
     const layer = active();
     if (tool === 'crop') {
       const start = bandFrom.current;
@@ -437,25 +488,50 @@ export function PaintSurface({
         onPointerMove={move}
         onPointerUp={finish}
         onPointerCancel={finish}
+        onPointerLeave={hideRing}
       >
-        <canvas
-          ref={touchCanvas}
-          aria-label="The touch-up"
-          className={cx('h-full w-full touch-none', touching ? 'opacity-100' : 'opacity-0')}
-          style={{ cursor: tool === 'fill' || isPicker(tool) || tool === 'crop' ? 'crosshair' : 'cell' }}
-        />
-        {band && (
-          <div
-            aria-label="The crop"
-            className="pointer-events-none absolute border-2 border-dashed border-accent-500 bg-accent-500/10"
-            style={{
-              left: `${band.x * 100}%`,
-              top: `${band.y * 100}%`,
-              width: `${band.width * 100}%`,
-              height: `${band.height * 100}%`,
-            }}
+        {/*
+          A box that is exactly the drawing, inside the margin the outline
+          added. An absolutely positioned child of the padded box above would
+          measure its percentages against the padding, which puts the crop band
+          and the brush a few pixels off the thing they are describing.
+        */}
+        <div ref={field} className="relative h-full w-full">
+          <canvas
+            ref={touchCanvas}
+            aria-label="The touch-up"
+            className={cx('h-full w-full touch-none', touching ? 'opacity-100' : 'opacity-0')}
+            style={{ cursor: tool === 'fill' || isPicker(tool) || tool === 'crop' ? 'crosshair' : 'cell' }}
           />
-        )}
+          {band && (
+            <div
+              aria-label="The crop"
+              className="pointer-events-none absolute border-2 border-dashed border-accent-500 bg-accent-500/10"
+              style={{
+                left: `${band.x * 100}%`,
+                top: `${band.y * 100}%`,
+                width: `${band.width * 100}%`,
+                height: `${band.height * 100}%`,
+              }}
+            />
+          )}
+          {showsRing && (
+            <span
+              ref={ring}
+              aria-hidden="true"
+              className="brush-ring pointer-events-none absolute left-0 top-0"
+            />
+          )}
+          {leakAt && (
+            <span
+              // Where the colour escaped, on the picture. The notice says what
+              // happened; this says where to look for the gap.
+              aria-hidden="true"
+              className="leak-mark pointer-events-none absolute"
+              style={{ left: `${leakAt.u * 100}%`, top: `${leakAt.v * 100}%` }}
+            />
+          )}
+        </div>
       </div>
       <span className="sr-only" aria-live="polite">
         {depth} changes

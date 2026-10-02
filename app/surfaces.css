@@ -818,3 +818,63 @@ input[type='range']:hover::-moz-range-thumb {
 .has-bubble:focus-within .value-bubble {
   opacity: 1;
 }
+
+/*
+  The brush, drawn on the picture at the size it will actually paint.
+
+  Two rings rather than one, light over dark, so it stays visible on a white
+  sticker and on a black one without either being tinted. It is moved by a
+  transform written straight to the node, so nothing here may set `transform`.
+*/
+.brush-ring {
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.9);
+  outline: 1px solid rgb(0 0 0 / 0.55);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+  will-change: transform;
+}
+
+/*
+  Where a fill escaped through a gap in the outline.
+
+  A ring that beats twice and then stays, on the exact pixel the fill started
+  from: the warning says half the picture got coloured, and this says which
+  break in which line let it out. Centred on its own point, so the mark sits on
+  the leak rather than beside it.
+*/
+.leak-mark {
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  margin-top: -17px;
+  border-radius: 9999px;
+  border: 2px solid var(--color-clay-500, #b4552f);
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.85);
+  animation: leak-beat 900ms var(--ease-out) 2;
+}
+
+@keyframes leak-beat {
+  0% {
+    opacity: 0.25;
+    transform: scale(0.55);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brush-ring {
+    transition: none;
+  }
+
+  .leak-mark {
+    animation: none;
+  }
+}
