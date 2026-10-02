@@ -76,6 +76,7 @@ import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
 import { ThumbArt } from './ThumbArt';
 import { Button, TextInput, cx } from './ui';
+import { BookMock } from './BookMock';
 
 /**
  * The way in.
@@ -451,7 +452,8 @@ export function Landing() {
               seven things made most often — so the first screen is an invitation
               rather than an index.
             */}
-            <section className="hero px-6 py-5">
+            <section className="hero flex items-start gap-6 px-6 py-5">
+              <div className="min-w-0 flex-1">
               <h1 className="display text-[26px] tracking-tight">What will you make today?</h1>
               <p className="mt-1 text-[13.5px] text-ink-500">
                 Everything you make is kept on this computer, and never leaves it.
@@ -486,6 +488,15 @@ export function Landing() {
                 );
               })}
               </ul>
+              </div>
+
+              {/*
+                The thing this app makes, on the screen it is made from. Gone
+                below 640px, where the band is already two lines of words and a
+                row of seven buttons and there is nothing left to spend on a
+                flourish.
+              */}
+              <BookMock className="mr-2 mt-1 hidden shrink-0 self-center sm:block" />
             </section>
 
             <section className="mt-7">
