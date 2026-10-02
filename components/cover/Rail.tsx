@@ -102,10 +102,17 @@ export function Rail({
             <span aria-hidden className="nudge text-[19px] leading-none">
               {panel.glyph}
             </span>
-            {/* Centred and allowed to wrap: "Background" does not fit a rail
-                this narrow on one line, and a label cut off mid-word is worse
-                than a label on two. */}
-            <span className="text-center text-[10.5px] font-[570] leading-tight">
+            {/*
+              Centred, and it cannot poke out of the rail.
+
+              "Background" is the longest label and it did: at 10.5px it is about
+              61px wide, the button's inside is about 58px, and a single word has
+              no break opportunity to wrap at — so it simply hung over the edge.
+              A hair smaller fits it, and `anywhere` is the insurance for a label
+              nobody has thought of yet. The rail's 78px may not change: the
+              board's size is worked out from it.
+            */}
+            <span className="text-center text-[10px] font-[570] leading-tight [overflow-wrap:anywhere]">
               {panel.label}
             </span>
           </button>
@@ -121,7 +128,9 @@ export function Rail({
             <span aria-hidden className="text-[19px] leading-none">
               {item.glyph}
             </span>
-            <span className="text-center text-[10.5px] font-[570] leading-tight">{item.label}</span>
+            <span className="text-center text-[10px] font-[570] leading-tight [overflow-wrap:anywhere]">
+              {item.label}
+            </span>
             <span className="text-[9px] uppercase tracking-wide">Soon</span>
           </span>
         ))}
@@ -149,7 +158,21 @@ export function Rail({
               onClick={() => onOpen(null)}
               title="Close this panel"
               aria-label="Close this panel"
-              className="rounded px-1.5 text-[15px] text-ink-500 transition-colors hover:text-ink-900"
+              /*
+                A 24px cross with a 32px target.
+
+                Drawn at 32 it made this header eight pixels taller, and the
+                Picture panel then needed two pixels of scroll at 1280×720 —
+                which the brief says it must not. So it reaches for its target
+                with a pseudo-element instead of growing into it, the same way
+                the switch in `lib/switch.ts` does and for the same reason: the
+                thing you aim at and the thing you see are not the same size.
+              */
+              className={cx(
+                'relative grid size-6 place-items-center rounded text-[15px] text-ink-500',
+                "before:absolute before:-inset-1 before:content-['']",
+                'transition-colors hover:text-ink-900',
+              )}
             >
               ✕
             </button>

@@ -268,7 +268,7 @@ export function PackLibrary() {
                         target="_blank"
                         rel="noreferrer noopener"
                         title={summary.sources[0]}
-                        className="mt-1 block truncate text-[12px] text-accent-500 underline"
+                        className="mt-1 flex min-h-8 items-center truncate text-[12px] text-accent-500 underline"
                       >
                         {hostOf(summary.sources[0])}
                       </a>

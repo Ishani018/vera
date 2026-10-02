@@ -103,7 +103,13 @@ export function DesignEditor({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-3 border-b border-ink-200 bg-paper px-5 py-3">
-        <button type="button" onClick={onBack} className="shrink-0 text-[13px] text-accent-500 underline">
+        {/* The way out of this editor, so it gets a real target rather than
+            the height of its own line of text. */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex min-h-8 shrink-0 items-center text-[13px] text-accent-500 underline"
+        >
           {backLabel}
         </button>
         {showName && (

@@ -252,7 +252,7 @@ function Thumb({
         onClick={() => removePage(page.id)}
         title="Remove this picture"
         aria-label={`Remove ${page.title || 'this picture'}`}
-        className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-ink-900/80 text-paper opacity-0 transition-opacity hover:bg-red-700 group-hover:opacity-100"
+        className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-ink-900/80 text-paper opacity-0 transition-opacity hover:bg-red-700 group-hover:opacity-100"
       >
         ✕
       </button>

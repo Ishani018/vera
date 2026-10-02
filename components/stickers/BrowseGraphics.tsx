@@ -163,7 +163,7 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
               setQuery(category.query);
               void look(category.query, source, 0);
             }}
-            className="rounded-full border border-ink-200 px-3 py-1 text-[12.5px] text-ink-700 transition-colors hover:border-accent-500 hover:text-accent-500"
+            className="inline-flex min-h-8 items-center rounded-full border border-ink-200 px-3 text-[12.5px] text-ink-700 transition-colors hover:border-accent-500 hover:text-accent-500"
           >
             {category.label}
           </button>

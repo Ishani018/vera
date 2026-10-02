@@ -159,7 +159,8 @@ export function Walkthrough({
           type="button"
           onClick={() => update({ ...progress, dismissed: true })}
           aria-label="Dismiss the walkthrough"
-          className="ml-auto rounded px-1.5 text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900"
+          // The one control that dismisses this thing, so it gets a real target.
+          className="ml-auto grid size-8 place-items-center rounded text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900"
         >
           ✕
         </button>

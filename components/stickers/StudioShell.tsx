@@ -209,7 +209,8 @@ export function Stage({
               onClick={() => setZoom('fit')}
               aria-pressed={zoom === 'fit'}
               className={cx(
-                'rounded-full px-2.5 py-1 text-[12px] transition-colors',
+                // min-h-8: a 26px pill in a floating bar is a thing you aim at twice.
+                'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] transition-colors',
                 zoom === 'fit' ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
               )}
             >
@@ -223,7 +224,8 @@ export function Stage({
                 onClick={() => setZoom(step)}
                 aria-pressed={zoom === step}
                 className={cx(
-                  'rounded-full px-2.5 py-1 text-[12px] tabular-nums transition-colors',
+                  'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] tabular-nums',
+                  'transition-colors',
                   zoom === step ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
                 )}
               >

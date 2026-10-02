@@ -86,7 +86,15 @@ export function Workspace() {
 
   return (
     <main className="flex h-dvh flex-col">
-      <header className="flex items-center gap-4 border-b border-ink-200 bg-paper px-5">
+      {/*
+        The same treatment `StudioHeader` already has, and never got here: it
+        scrolls sideways rather than pushing the window wider. Without
+        `min-w-0` and `overflow-x-auto` the right-hand group — undo, redo, the
+        page count, help, Guide, Export PDF — pushed 113px past the viewport at
+        800 wide and took the whole page's horizontal scrollbar with it, which
+        drags the manuscript sideways under the cursor.
+      */}
+      <header className="flex min-w-0 items-center gap-4 overflow-x-auto border-b border-ink-200 bg-paper px-5">
         <Wordmark />
         <span className="truncate rounded-lg px-3 py-2 text-ink-700">{project.meta.title}</span>
 
@@ -100,7 +108,9 @@ export function Workspace() {
           ]}
         />
 
-        <div className="ml-auto flex items-center gap-2">
+        {/* shrink-0, so a narrow window scrolls the bar rather than squashing
+            every control in it into an unreadable column of letters. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button variant="ghost" onClick={undo} disabled={!canUndo} title="Undo" aria-label="Undo">
             ↺
           </Button>

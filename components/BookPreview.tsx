@@ -215,7 +215,7 @@ export function BookPreview() {
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-paper">
-      <div className="flex flex-wrap items-center gap-2 border-b border-ink-200 px-3 py-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-ink-200 px-3 py-2">
         <SegmentedControl
           value={previewMode}
           onChange={setPreviewMode}
@@ -227,12 +227,19 @@ export function BookPreview() {
         />
 
         {previewMode === 'spread' && (
-          <div className="flex items-center gap-1">
+          /*
+            Shrinkable. `min-w-48` was a floor, so at 800 wide this group stayed
+            280px in a 240px space and hung 40px past the bar, taking the page's
+            horizontal scrollbar with it. 192px is what it *wants* — wide enough
+            that the label does not jiggle as you page through — and it gives
+            that up rather than push the window.
+          */
+          <div className="flex min-w-0 items-center gap-1">
             <Button onClick={() => go(-1)} disabled={currentSpread === 0} aria-label="Previous spread">
               ←
             </Button>
-            <span className="min-w-48 px-1 text-center">
-              <span className="block tabular-nums text-ink-700">{visible.folios}</span>
+            <span className="w-48 min-w-0 shrink px-1 text-center">
+              <span className="block truncate tabular-nums text-ink-700">{visible.folios}</span>
               <span className="block truncate text-[11px] text-ink-500" title={visible.captions}>
                 {visible.captions}
               </span>
@@ -250,7 +257,9 @@ export function BookPreview() {
               type="button"
               onClick={() => toggleGuide(key)}
               className={cx(
-                'rounded border px-2 py-1 text-[11px] capitalize transition-colors',
+                // A 26px control is a thing you aim at twice. min-h-8 and nothing else moves.
+                'inline-flex min-h-8 items-center rounded border px-2 text-[11px] capitalize',
+                'transition-colors',
                 guides[key]
                   ? 'border-accent-500/60 bg-accent-500/15 text-accent-600'
                   : 'border-ink-300 text-ink-500 hover:text-ink-900',

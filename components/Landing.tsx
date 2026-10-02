@@ -523,7 +523,10 @@ export function Landing() {
                     aria-pressed={filter === one.id}
                     onClick={() => setFilter(one.id)}
                     className={cx(
-                      'rounded-full border px-3 py-1 text-[12.5px] font-[550] transition-colors',
+                      // min-h-8 rather than more padding: the pill keeps its shape and gains the
+                      // 32px of target the audit asks for.
+                      'inline-flex min-h-8 items-center rounded-full border px-3 text-[12.5px] font-[550]',
+                      'transition-colors',
                       filter === one.id
                         ? 'border-ink-900 bg-ink-900 text-paper'
                         : 'border-ink-200 bg-paper text-ink-700 hover:border-ink-300',
@@ -919,7 +922,7 @@ function IconButton({
       title={label}
       aria-label={label}
       onClick={onClick}
-      className="grid h-7 w-7 place-items-center rounded-lg border border-ink-200 bg-paper/95 text-[13px] text-ink-700 shadow-sm transition-colors hover:border-ink-400 hover:text-ink-900"
+      className="grid size-8 place-items-center rounded-lg border border-ink-200 bg-paper/95 text-[13px] text-ink-700 shadow-sm transition-colors hover:border-ink-400 hover:text-ink-900"
     >
       {children}
     </button>

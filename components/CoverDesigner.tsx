@@ -645,7 +645,16 @@ export function CoverDesigner<T extends CoverableBook>({
     ),
     history: (
       <>
-        <div className="flex items-center gap-1.5">
+        {/*
+          A column in the rail, a row in the bar.
+
+          This lives in the rail's footer, and the rail is 78px wide because the
+          board's size is worked out from it — so it may not be widened. Two
+          buttons and a caption side by side came to 147px and poked 69px out of
+          it. Below `lg` the rail becomes a horizontal bar and a row is right
+          again, which is the one place this needs to know about the breakpoint.
+        */}
+        <div className="flex flex-col items-center gap-1.5 max-lg:flex-row">
           <Button
             onClick={coverHistory.undo}
             disabled={!coverHistory.canUndo}
@@ -1174,7 +1183,18 @@ export function CoverDesigner<T extends CoverableBook>({
     !cover.frontImage && !cover.stickers.length && !cover.textBoxes.length;
 
   return (
-    <div className="flex h-full min-w-0">
+    /*
+      A column below `lg`, a row above it.
+
+      `Rail` has always known how to be a bar along the bottom with its panel as
+      a drawer above it — `max-lg:order-last`, `max-lg:w-full` — and this wrapper
+      never let it. In a row, `w-full` means the whole row, so at 800px the rail
+      and the panel each claimed 800px, the page grew an 800px horizontal
+      scrollbar, and the canvas pane was squeezed to nothing: `scale` never
+      became positive and the board was not drawn at all. The sticker studio has
+      stacked like this all along; the designer was the one that did not.
+    */
+    <div className="flex h-full min-w-0 max-lg:flex-col">
       {rail && (
         <Rail
           panels={[
@@ -1755,7 +1775,7 @@ export function CoverDesigner<T extends CoverableBook>({
               onClick={() => setGuidesOn((on) => !on)}
               aria-pressed={guidesOn}
               className={cx(
-                'rounded-full px-2.5 py-1 text-[12px] transition-colors',
+                'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] transition-colors',
                 guidesOn ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
               )}
             >
@@ -1768,7 +1788,7 @@ export function CoverDesigner<T extends CoverableBook>({
               onClick={() => setZoom('fit')}
               aria-pressed={zoom === 'fit'}
               className={cx(
-                'rounded-full px-2.5 py-1 text-[12px] transition-colors',
+                'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] transition-colors',
                 zoom === 'fit' ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
               )}
             >
@@ -1782,7 +1802,8 @@ export function CoverDesigner<T extends CoverableBook>({
                 onClick={() => setZoom(step)}
                 aria-pressed={zoom === step}
                 className={cx(
-                  'rounded-full px-2.5 py-1 text-[12px] tabular-nums transition-colors',
+                  'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] tabular-nums',
+                  'transition-colors',
                   zoom === step ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
                 )}
               >
