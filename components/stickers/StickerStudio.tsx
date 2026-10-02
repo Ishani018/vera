@@ -42,7 +42,9 @@ import { Rail } from '../cover/Rail';
 import { Advanced, Field, Stage, useAfter } from './StudioShell';
 import { StudioStart } from './StudioStart';
 import { StickerTabs } from './StickerTabs';
-import { Button, Info, Notice, Spinner, TextInput, Toggle, WhileSliding, cx } from '../ui';
+import { Button, Info, Notice, ProgressRing, TextInput, Toggle, WhileSliding, cx } from '../ui';
+import { useSay } from '../Toasts';
+import { WellDone } from '../WellDone';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 import { paletteOfBlob } from '@/lib/stickers/palette';
 import { BatchPanel } from './BatchPanel';
@@ -215,6 +217,17 @@ export function StickerStudio() {
    * React replace the element, which is what restarts the animation.
    */
   const [stamp, setStamp] = useState(0);
+
+  const say = useSay();
+
+  /**
+   * The counter the one-per-session well done watches.
+   *
+   * A counter rather than a flag, because two exports in a row must not leave it
+   * stuck on, and `WellDone` is the thing that decides whether this session has
+   * already had its moment.
+   */
+  const [finished, setFinished] = useState(0);
   useEffect(() => {
     if (!stamp) return;
     const clear = setTimeout(() => setStamp(0), 1400);
@@ -877,7 +890,9 @@ export function StickerStudio() {
       const result = await makeAtSize();
       if (!result) return;
       save(result.blob, `${slug(name)}-${result.width}x${result.height}.png`);
-      setSaid(`Saved a ${result.width} × ${result.height} PNG to your downloads.`);
+      setSaid(null);
+      say(`Saved a ${result.width} × ${result.height} PNG to your downloads.`);
+      setFinished((n) => n + 1);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be exported.');
     } finally {
@@ -902,8 +917,10 @@ export function StickerStudio() {
         height: result.height,
         tags: parseTags(tags),
       });
-      setSaid('Kept in My stickers — it is in every book and every design now.');
+      setSaid(null);
+      say('Kept in My stickers — it is in every book and every design now.');
       setStamp((n) => n + 1);
+      setFinished((n) => n + 1);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be saved.');
     } finally {
@@ -2103,18 +2120,19 @@ export function StickerStudio() {
             <>
               {showWork && work && (
                 <Notice level="info">
-                  <span className="flex items-center gap-2">
-                    <Spinner size={13} />
-                    {progressLine(work.what, work.done, work.total)}
-                  </span>
-                  {progressFraction(work.done, work.total) !== null && (
-                    <span className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-ink-200">
-                      <span
-                        className="block h-full rounded-full bg-accent-500 transition-[width] duration-200"
-                        style={{ width: `${(progressFraction(work.done, work.total) ?? 0) * 100}%` }}
+                  {/* The ring says how far along, or spins when the total is not
+                      known yet, which is the honest picture of "happening, and
+                      nobody knows how much is left". */}
+                  <span className="flex items-center gap-2.5">
+                    <span className="text-accent-500">
+                      <ProgressRing
+                        fraction={progressFraction(work.done, work.total)}
+                        size={26}
+                        label={work.what}
                       />
                     </span>
-                  )}
+                    {progressLine(work.what, work.done, work.total)}
+                  </span>
                 </Notice>
               )}
               {leak !== null && (
@@ -2207,6 +2225,8 @@ export function StickerStudio() {
         </Stage>
       </div>
       </WhileSliding>
+      {/* Once a session, when something is finished. Renders nothing otherwise. */}
+      <WellDone at={finished} />
     </main>
   );
 }

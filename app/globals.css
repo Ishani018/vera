@@ -250,3 +250,58 @@ input[type='color']::-webkit-color-swatch {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------- page to page */
+
+/*
+  A cross-fade between pages, for the browsers that can do it themselves.
+
+  `navigation: auto` covers a full page load — a bookmark, a refresh, a link
+  from outside — where the browser has both documents and needs no help. Inside
+  the app, navigation is client-side and this does not fire; `components/Flow.tsx`
+  says what happens there and why.
+
+  Opacity only, and both halves held at the same place: a slide between two
+  whole pages is a lot of movement for something that happens on every click.
+*/
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-base);
+  animation-timing-function: var(--ease-out);
+}
+
+@keyframes route-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+  The fade on a client navigation.
+
+  On `body` rather than on a wrapper element, because a wrapper would be a box in
+  every page's layout and the editors measure their own panes against their
+  parents — they would measure the wrapper instead. `components/Flow.tsx` sets
+  the flag for the length of the fade and takes it off again.
+*/
+:root[data-arriving] body {
+  animation: route-fade var(--motion-base) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+
+  :root[data-arriving] body {
+    animation: none;
+  }
+}

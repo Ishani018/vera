@@ -1182,3 +1182,89 @@ input[type='range']:hover::-moz-range-thumb {
     display: none;
   }
 }
+
+/* -------------------------------------------------------------- the toasts */
+
+/*
+  A message that arrives, is read, and leaves.
+
+  It slides up from the bottom and fades, both on one transform, and several of
+  them stack: the newest at the bottom, the older ones pushed up above it, which
+  is the order somebody reads them in. Stacked rather than replacing each other,
+  because "saved" and "added four" are two things that happened and showing only
+  the second loses the first.
+*/
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.98);
+  }
+}
+
+.toast {
+  animation: toast-in var(--motion-slow) var(--ease-spring) both;
+  box-shadow: var(--shadow-float);
+}
+
+.toast[data-leaving='yes'] {
+  animation: toast-out var(--motion-base) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast[data-leaving='yes'] {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------- a small well done */
+
+/*
+  A few shapes floating up, once, the first time something is finished.
+
+  The first export of a session is the moment the whole app was for, and it used
+  to be a line of grey text. Six shapes, under a second, and never again in the
+  same session — a celebration that happens every time is not a celebration, it
+  is a delay. Transform and opacity only, over the top of everything, and deaf to
+  the pointer so it cannot get in the way of the next thing.
+*/
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.5);
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(var(--drift, 0px), -120px, 0) scale(1) rotate(var(--spin, 90deg));
+  }
+}
+
+.rise {
+  animation: rise 900ms var(--ease-out) both;
+  animation-delay: calc(var(--n, 0) * 70ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+    display: none;
+  }
+}

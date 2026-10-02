@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { UnsupportedImageError, putAsset } from '@/lib/assets';
 import { parseTags, saveToLibrary } from '@/lib/cover/library';
-import { Button, Info, Notice, Spinner, TextInput, cx } from '../ui';
+import { Button, Info, Notice, ProgressRing, TextInput, cx } from '../ui';
 import { progressFraction, progressLine } from '@/lib/busy';
 
 /**
@@ -186,18 +186,20 @@ export function BatchPanel({
               how far along it is: sixty pictures is minutes, and a row of
               thumbnails filling in one at a time is not a progress bar. */}
           {running ? (
-            <div className="mt-3">
-              <p className="flex items-center gap-2 text-[12.5px] text-ink-700">
-                <Spinner size={12} />
+            <div className="mt-3 flex items-center gap-2.5">
+              {/* A ring rather than a bar: it carries the number inside itself,
+                  so it needs no width of its own and sits next to the words
+                  instead of under them. */}
+              <span className="text-accent-500">
+                <ProgressRing
+                  fraction={progressFraction(done, items.length)}
+                  label="How far through the batch"
+                />
+              </span>
+              <p className="text-[12.5px] text-ink-700">
                 {progressLine('Working through them', done, items.length)}
                 {failedCount > 0 && ` · ${failedCount} could not be read`}
               </p>
-              <span className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-ink-200">
-                <span
-                  className="block h-full rounded-full bg-accent-500 transition-[width] duration-200"
-                  style={{ width: `${(progressFraction(done, items.length) ?? 0) * 100}%` }}
-                />
-              </span>
             </div>
           ) : (
             <p className="mt-3 text-[12.5px] text-ink-500">

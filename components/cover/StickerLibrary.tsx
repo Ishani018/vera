@@ -40,9 +40,23 @@ export function StickerLibrary({
   const [tag, setTag] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Whether the library has been read yet.
+   *
+   * Without this, an empty list and a list that has not arrived look identical,
+   * and "Nothing saved yet. Anything you put here is kept across every book…"
+   * flashed up every time this panel opened, on libraries with forty stickers
+   * in them. Nine grey squares say the right thing in both directions: the
+   * pictures are coming, and nothing has moved when they land.
+   */
+  const [ready, setReady] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const reload = () => void listStickers().then(setStickers);
+  const reload = () =>
+    void listStickers().then((rows) => {
+      setStickers(rows);
+      setReady(true);
+    });
   useEffect(reload, [reloadKey]);
 
   const tags = allTags(stickers);
@@ -89,7 +103,17 @@ export function StickerLibrary({
         }}
       />
 
-      {stickers.length === 0 ? (
+      {!ready ? (
+        <div aria-hidden="true" className="mt-2 grid grid-cols-3 gap-2">
+          {Array.from({ length: 9 }, (_, n) => (
+            <span
+              key={n}
+              className="skeleton aspect-square w-full rounded border border-ink-200"
+              style={{ '--n': n % 3 } as React.CSSProperties}
+            />
+          ))}
+        </div>
+      ) : stickers.length === 0 ? (
         <p className="mt-2 text-[12px] leading-snug text-ink-500">
           Nothing saved yet. Anything you put here is kept across every book — upload one, or use
           “Save to My stickers” on a sticker already on the cover.

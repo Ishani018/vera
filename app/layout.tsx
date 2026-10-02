@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import { Flow } from '@/components/Flow';
+import { Toasts } from '@/components/Toasts';
 import { DEFAULT_THEME, THEMES, THEME_KEY } from '@/lib/theme';
 import './globals.css';
 
@@ -67,7 +69,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         reported. It buys quiet about the one case we cannot fix and gives up
         no warning we would want.
       */}
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {/* Renders nothing; fades the page when the route changes. */}
+        <Flow />
+        {/*
+          Around everything, so anything in the app can say something in the
+          corner without being wired to the screen it happens to be on. It adds
+          no box of its own: the stack is fixed and the children pass straight
+          through.
+        */}
+        <Toasts>{children}</Toasts>
+      </body>
     </html>
   );
 }

@@ -252,6 +252,90 @@ export function Spinner({ size = 14 }: { size?: number }) {
   );
 }
 
+/**
+ * How far along something is, as a ring.
+ *
+ * A bar needs a width to live in and so it goes where there is room rather than
+ * where the work is. A ring is the same size whatever it says, which means it can
+ * sit in a header, beside a button, or on top of a picture — next to the thing it
+ * is about.
+ *
+ * Two circles and a dash offset, drawn in SVG rather than animated in CSS,
+ * because the number is the point: a ring that eases towards the truth is a ring
+ * that is lying for 200ms. The *stroke* is transitioned, which is a paint and not
+ * a layout, so it still moves smoothly between two real numbers.
+ *
+ * Without a fraction it spins instead, which is the honest picture of "this is
+ * happening and nobody knows how much of it is left".
+ */
+export function ProgressRing({
+  fraction,
+  size = 30,
+  label,
+}: {
+  /** 0 to 1, or null when the total is not known. */
+  fraction: number | null;
+  size?: number;
+  /** What it is about, for anybody who cannot see it. */
+  label: string;
+}) {
+  const stroke = Math.max(2, Math.round(size / 10));
+  const radius = (size - stroke) / 2;
+  const round = 2 * Math.PI * radius;
+  const along = fraction === null ? null : Math.max(0, Math.min(1, fraction));
+
+  return (
+    <span
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={along === null ? undefined : Math.round(along * 100)}
+      aria-valuetext={along === null ? 'working' : `${Math.round(along * 100)} per cent`}
+      className="relative inline-grid shrink-0 place-items-center"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        aria-hidden="true"
+        // Zero is at the top rather than at three o'clock, because a clock is
+        // the thing everybody already reads this shape as.
+        className={cx('-rotate-90', along === null && 'animate-spin')}
+        style={along === null ? { animationDuration: '1100ms' } : undefined}
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity={0.2}
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={round}
+          strokeDashoffset={round * (1 - (along ?? 0.28))}
+          className="transition-[stroke-dashoffset] duration-[var(--motion-base)] ease-[var(--ease-out)]"
+        />
+      </svg>
+      {along !== null && size >= 28 && (
+        <span className="absolute text-[9px] font-[600] tabular-nums leading-none">
+          {Math.round(along * 100)}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function Slider({
   value,
   onChange,
