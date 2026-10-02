@@ -445,3 +445,209 @@ After the revert: 745 tests pass; both PDF digests `e3e2a36e0ac60ce1` and
 `d4eeeb9e99cb1bfe` unchanged; the fixed-picture export is
 `cat-1026x1026.png  25236 bytes  sha256 b9eabef0…212994` again, byte for byte;
 build clean. Nothing was re-recorded.
+
+### Stage 6 — the layout audit — `2e9bac7`
+
+A browser test visits all nine pages at 1280×720 and 800 wide in all three
+themes — 54 combinations — and measures five things:
+
+1. nothing pokes outside its parent, unless the parent scrolls on purpose;
+2. no page scrolls sideways;
+3. no text sits on top of other text;
+4. every button has at least 32 px of target;
+5. every picture and drawing is inside its box.
+
+All 54 report clean. They did not at the start.
+
+#### The two that mattered
+
+**The designer had no narrow layout at all.** `Rail` has always known how to be a
+bar along the bottom with its panel as a drawer above it (`max-lg:order-last`,
+`max-lg:w-full`), and `CoverDesigner`'s wrapper was a plain flex row that never
+let it. In a row, `w-full` means the whole row — so at 800 px the rail and the
+panel each claimed 800 px, the page grew an 800 px horizontal scrollbar, and the
+canvas pane was squeezed to nothing: `scale` never became positive and the board
+was not drawn. This is the fault stages 1 and 3 found from two directions and
+carried here. One class: `max-lg:flex-col`.
+
+**The poetry header pushed the window 113 px wider.** `StudioHeader` scrolls
+sideways rather than growing and says in a comment why — a bar that makes the
+whole page scroll sideways takes the thing being worked on with it. The poetry
+workspace has its own header and never got that treatment.
+
+#### The rest
+
+- The spread nav's page label had `min-w-48` as a floor, so at 800 the group
+  stayed 280 px in a 240 px space and hung 40 px out. 192 px is what it wants,
+  not what it must have.
+- The undo footer sits in the 78 px rail, which may not be widened because the
+  board's size is worked out from it; two buttons and a caption in a row came to
+  147 px. It is a column in the rail and a row in the bottom bar.
+- "Background" is the longest rail label, and a single word has no break
+  opportunity, so at 10.5 px it hung over the edge. 10 px fits, with
+  `[overflow-wrap:anywhere]` as insurance for a label nobody has thought of yet.
+- Eleven kinds of control were under 32 px of target: the home filter pills and
+  sticker category chips (28.8), the poetry guide toggles (26.5), the board's
+  Guides and zoom pills (26), the walkthrough's dismiss (24), the panel close
+  (22.5), "← Everything" (19.5), a pack's source link (18), and the card corner
+  buttons on the hub and the colouring grid (28).
+
+#### Two refinements to the audit, because it was wrong twice
+
+- A switch's visible track is 30 px and its hit area is 44 — `lib/switch.ts` says
+  so, and a `::before` with a negative top and bottom does it, precisely so the
+  switch can be hit without being drawn as a slab. The audit measures the target
+  now, not the paint.
+- A `-mx-2` bleed exists so a list row's hover background reaches the panel's
+  edges, by reaching into the padding of an ancestor further up. A child with a
+  negative margin that is still inside its *grandparent* landed where it was
+  aimed; anything escaping the grandparent too is still a fault.
+
+The panel close button then needed the switch's trick rather than a bigger box:
+drawn at 32 px it made the panel header eight pixels taller and the Picture panel
+needed two pixels of scroll at 1280×720, which stage 1 forbids. 24 px cross,
+32 px target, panel back to 0 px over.
+
+#### The gallery
+
+`docs/aesthetic-shots/` — 54 shots, **1.31 MB in all**, biggest 56 KB, with a
+README on reading them. WebP, because 54 full-colour PNGs of this app come to
+about thirty megabytes, there is no image compressor on this machine and rule 5
+does not allow installing one, so Chrome — which took the screenshots — encoded
+them too, at quality 72. Flat colour and type; it barely shows.
+
+---
+
+## Stage 7 — the numbers, and how to look at all of it
+
+### Every commit, in order
+
+`pre-aesthetic-4` → `ec96f7d` is the rollback point. Everything below is on
+`main` and pushed.
+
+| hash | what |
+| --- | --- |
+| `1366f6e` | Start the overnight log |
+| `fc56ec9` | **Commit 4a** — moving chrome in the editors, and a text diet |
+| `84b186b` | **Commit 4b** — the tools beside the picture, and the picture's own colours |
+| `330e6e3` | **Commit 4c** — three effects you can see, and a toolbar that floats |
+| `3b2e970` | log: stage 1 |
+| `43da369` | Two colour classes that compiled to nothing, and a guard — and, by accident, stage 2's surfaces |
+| `d3f8d06` | **Commit 5** — the sticker pages, and thirty-three classes that did nothing |
+| `fac5fae` | log: stage 2 |
+| `0bc3e36` | **Commit 6** — feedback and flow |
+| `798656b` | log: stage 3 |
+| `dd93d24` | **Commit 7** — a book on the first screen |
+| `09b5298` | log: stage 4 |
+| `884d5c8` | log: **stage 5, written and reverted** — read this one |
+| `2e9bac7` | **Commit 8** — the layout audit, and the eleven things it found |
+
+Stage 5 produced no code commit, deliberately. `884d5c8` explains why.
+
+### Frame times
+
+From a Chrome performance trace against the production build, `requestAnimationFrame`
+deltas, with the book turning on the front page throughout:
+
+| what | frames | median | p95 | worst | over 20 ms |
+| --- | --- | --- | --- | --- | --- |
+| hover and tilt a card | 39 | 16.7 ms | 16.7 ms | 16.8 ms | 0 |
+| open the Create menu | 108 | 16.7 ms | 16.8 ms | 16.8 ms | 0 |
+| change page | 149 | 16.7 ms | 16.7 ms | 16.8 ms | 0 |
+| idle, with the dropzone marching | 190 | 16.7 ms | 16.8 ms | 16.8 ms | 0 |
+
+A flat 60 fps with nothing to report, which is what animating only `transform`
+and `opacity` buys.
+
+### Asset sizes, before and after
+
+Both measured the same way: every response on a first load of `/` against a
+production build, `pre-aesthetic-4` on one port and `main` on the other.
+
+| | before (`ec96f7d`) | after (`2e9bac7`) | change |
+| --- | --- | --- | --- |
+| CSS | 74.5 KB | 87.8 KB | **+13.3 KB** |
+| JavaScript | 537.4 KB | 542.7 KB | **+5.3 KB** |
+| Fonts | 0 KB | 0 KB | — |
+| Images | 0.3 KB | 0.3 KB | — |
+| Other | 19.8 KB | 21.2 KB | +1.4 KB |
+| **Total** | **632.0 KB** | **652.0 KB** | **+20.0 KB** |
+| Requests | 12 | 14 | +2 |
+
+**+20.0 KB against a 150 KB budget**, and none of it a font or an image: the whole
+run added no asset of any kind. The book on the front page, the peel, the fan, the
+toasts, the skeletons and the celebration are all markup and stylesheet rules.
+
+Fonts read as 0 KB because the check blocks Google Fonts; the two stylesheet
+links in `app/layout.tsx` are the same two that were there before this run, so
+they are unchanged either way.
+
+Per-route first-load JS, before → after: `/` 167 → 169 KB, `/coloring` 244 → 244,
+`/design` 232 → 233, `/poetry` 256 → 256, `/stickers` 185 → 189,
+`/stickers/library` 159 → 161, `/stickers/packs` 157 → 158.
+
+### Dependencies added
+
+**None.** Not in any stage. Where one would have helped, it was done without:
+React 19.2 stable has no `<ViewTransition>` and Next's flag for it needs a React
+experimental build, so client navigations fade (stage 3); and there is no image
+compressor on the machine, so Chrome encoded the gallery itself (stage 6).
+
+### What was reverted
+
+**Stage 5, in full** — the transparent-PNG fix. Written, tested, proven, and taken
+out because it moves the fixed-picture export digest, which the brief forbids. The
+bug is still in the app. Read the stage 5 entry above before anything else; the
+code is in `scratchpad/stage5-pipeline.ts.rejected` and
+`scratchpad/stage5-lineart.test.mjs.rejected`, which are **in the sandbox, not in
+this repository** — if that sandbox is gone, the diagnosis in the log is enough to
+write it again in an hour.
+
+Nothing else was reverted, and no golden or digest was re-recorded at any point in
+this run.
+
+### Reviewing it on a Mac
+
+```bash
+git fetch origin && git checkout main && git pull
+npm ci
+
+# The four checks, in the order they are cheapest to run.
+npm test                 # 745 unit tests
+npm run build            # must be clean
+npm run golden           # PDF digests e3e2a36e0ac60ce1 and d4eeeb9e99cb1bfe
+npm run golden:screen    # must say 0 pixels changed (needs the build above)
+
+# Then look at it.
+npm run build && npm start      # http://localhost:3000
+open http://localhost:3000/?theme=sunrise
+open http://localhost:3000/?theme=lagoon
+open http://localhost:3000/?theme=candy
+
+# The gallery of what it looked like when this was written.
+open docs/aesthetic-shots
+qlmanage -p docs/aesthetic-shots/*-sunrise-1280.webp
+
+# To see the whole run as a diff, or to go back.
+git diff pre-aesthetic-4..main --stat
+git log --oneline pre-aesthetic-4..main
+git reset --hard origin/pre-aesthetic-4    # on a branch you do not mind losing
+```
+
+To check the reduced-motion path without changing your system settings: in Chrome,
+open DevTools, press ⌘⇧P, type "Emulate CSS prefers-reduced-motion: reduce". The
+book should stop turning and sit at an angle; the sticker cards should not peel;
+nothing should float up when you export.
+
+### What to look at first, now that it is done
+
+1. **The stage 5 entry above.** It is the only thing in this log that is still
+   broken on purpose, and the only one that needs a decision.
+2. **`/design` at 800 px wide.** It had no narrow layout at all until stage 6, so
+   it is the screen most changed by this run and the one least likely to have been
+   seen before.
+3. **The Sticker Studio with a picture open**, at 1280×720. The tool strip, the
+   eight panels and the colours read off your own picture are the biggest change
+   to how the app is used, rather than to how it looks.
+4. **The three themes on the front page.** Sunrise is the default; the other two
+   are one query parameter away and are remembered once asked for.

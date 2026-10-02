@@ -867,3 +867,67 @@ everywhere. Hair, glass, a soft shadow touching its own object — these are not
 bugs to be fixed but cases the method cannot decide. The honest answer is a
 brush that lets a person correct it, and a screen that says plainly what it
 cannot do. That pairing is worth more than any further tuning.
+
+## 19. What the plan never budgeted: the look
+
+The plan had no line for the aesthetic. Not an underestimate — an absence. It
+costed the pipeline, the editors, the export path, the packs and the sheet, and
+said nothing about what any of it would look like, on the quiet assumption that
+a well-built screen looks fine by the time it works.
+
+It does not. The screens worked and read as a tool somebody had assembled rather
+than one anybody had designed: four greys doing six jobs, every control its own
+height, prose under every slider, and no two editors agreeing on where anything
+went.
+
+Nine commits fixed that — tokens and three themes, shared surfaces, the hub and
+the hero, the editors' chrome and a text diet, the sticker pages, feedback and
+flow, a CSS book on the front page, and a layout audit. `docs/aesthetic-log.md`
+is the record.
+
+### What that work actually turned out to be
+
+Not decoration. Four of the nine commits spent most of their effort on things
+that were plainly broken and that nothing had caught:
+
+- **Thirty-three classes that compiled to nothing.** `shadow-[--shadow-rest]`
+  and `duration-[--motion-base]` are Tailwind 3 shorthand that Tailwind 4 emits
+  verbatim, so every card shadow in the app was missing and every motion
+  duration fell back to the browser's default. Found by a shadow reading as
+  `none` in a browser check, not by anything in the build.
+- **`bg-paper-0`**, used seven times, naming a token that does not exist: the
+  hub's sidebar, the sticker tab bar and every pack card had no background.
+- **The designer had no narrow layout at all.** At 800px wide the rail and its
+  panel each claimed the full width, the page grew an 800px horizontal
+  scrollbar, and the canvas was squeezed until the board was not drawn. The
+  sticker studio had stacked correctly all along.
+- **The poetry header pushed the window 113px wider**, dragging the manuscript
+  sideways under the cursor.
+- **Eleven kinds of control were under a 32px target**, including the one
+  button that dismisses the walkthrough and the one that leaves the designer.
+
+**The lesson.** None of these are aesthetic faults. They are ordinary bugs that
+only a pass over the *look* would ever find, because every one of them is
+invisible to a unit test, invisible to a golden fingerprint that compares one
+region of one board, and invisible to anybody reading the source — the classes
+are spelled right, the layout is written, the tokens are named. They were found
+by driving every page in a real browser at two widths in three themes and
+measuring, which is a kind of test the plan never mentioned either.
+
+Budget a look pass as engineering, not as polish. And budget it *with* a browser
+harness, because that harness is what turns it from taste into measurement.
+
+### The one thing in that run that could not be finished
+
+A PNG with a transparent background was traced as a drawing on black paper, and
+still is. The fix is written, tested and proven, and it is not applied: the
+export-digest test pins a fixed picture that is itself 94% transparent, so the
+fix necessarily changes that digest, and the instruction for that run was to
+revert rather than re-record. `docs/aesthetic-log.md` has the measurement and the
+two ways forward; the code is kept unapplied in the sandbox.
+
+**The lesson about fixtures.** A regression fixture that is itself an instance of
+a bug will defend the bug, and it will do it convincingly, because the test is
+doing exactly what it was built to do. Pin two pictures when a code path has two
+kinds of input — here, one opaque and one transparent — so that fixing one cannot
+look like breaking the other.

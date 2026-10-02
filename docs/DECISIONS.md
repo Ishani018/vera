@@ -501,3 +501,79 @@ in, which is a sticker cut to the wrong shape rather than one cut a hair off.
 
 **Reversible?** Yes. It is one function over an alpha channel and nothing depends
 on how it got there.
+
+---
+
+## 17. The look is tokens, and anything that must not move with a theme is a data default
+
+*2 October 2026 — decided across the aesthetic run*
+
+Three themes — Sunrise, Lagoon, Candy — generated from `lib/theme.ts` into
+`app/tokens.css` by `scripts/make-tokens.mjs`, with a test that fails if the
+generated file drifts. Every colour in the chrome comes from a token and nothing
+else does.
+
+**The distinction that makes it safe.** A colour is either *chrome* or a *data
+default*. Chrome moves with the theme: buttons, panels, the hero band, the tile
+that shows what a drop shadow does. A data default never moves, because it ends
+up in a file somebody keeps or sells: the ink a sticker is traced in, the white a
+die-cut outline is drawn in, the page colour a book is laid out on. A sticker
+whose ink changed colour because the app happened to be in Candy would be a
+sticker nobody asked to change.
+
+That is enforced rather than remembered: a test walks every `.tsx` under
+`components/` and `app/` and fails on any hard-coded hex that is not on a short
+allow-list, and the allow-list has its own test asking whether each entry really
+does end up in an export.
+
+**Two things this caught that nothing else would have.** `bg-paper-0` was used in
+seven places and named a token that does not exist, so Tailwind dropped the
+utility and those elements had no background at all — an unknown token makes a
+utility vanish, not a build fail. And thirty-three classes of the form
+`shadow-[--shadow-rest]` and `duration-[--motion-base]` compiled to the bracket's
+contents *verbatim* — a literal string, not a reference — because Tailwind 3 read
+that shorthand as a variable and Tailwind 4 does not. Every card shadow in the
+app was missing and every motion duration fell back to the browser's default.
+Both are now guarded by tests in `tests/theme.test.mjs`.
+
+**The rule this gives.** A token name must not collide with one of Tailwind's own
+(a role called `sky` quietly resolved to Tailwind's sky and moved a golden by 427
+pixels; it is called `denim`). An arbitrary value that means a token must say
+`var()` out loud. And if a colour would end up in somebody's file, it is not
+chrome and it does not belong in `lib/theme.ts`.
+
+**Reversible?** The themes, yes — they are data. The distinction, no, and it
+should not be: it is the thing that lets the look change without the output
+changing.
+
+---
+
+## 18. Motion is transform and opacity, and it stops when asked
+
+*2 October 2026 — decided across the aesthetic run*
+
+Everything that moves — the rail's sliding pill, the panel that fades in, the
+curling corner on a sticker card, the fanned pack, the book turning on the front
+page, the toasts, the shapes that float up the first time something is exported —
+animates `transform` and `opacity` and nothing else. No layout property is ever
+animated, so nothing the app does costs a reflow. Measured: a hover, a menu open
+and a page change are all 16.7 ms median with nothing over 20.
+
+**Reduced motion is not "the same thing, faster".** The global rule collapses
+durations, which is right for a fade and wrong for everything else: a corner that
+snaps up the instant the pointer arrives is still a thing that moved, and
+somebody whose reason for asking is that movement makes them ill is not helped by
+it happening quickly. So each moving thing also has an explicit
+`prefers-reduced-motion` rule that turns it *off* — the book becomes a still
+frame, still turned 18° so it reads as a book; the peel does not peel; the shapes
+do not appear at all.
+
+**Two traps worth writing down.** A CSS animation that sets `transform` replaces
+the *whole* transform, so anything that was positioning the element — a
+`translate(-50%)`, a tilt, a rotation — is thrown away for the animation's
+duration. Either put the positioning on a wrapper, or fold it into the same
+transform. And an element that is `pointer-events: none` can never match
+`:hover`, so a pause-on-hover rule written on a decorative element is a rule that
+compiles and never fires.
+
+**Reversible?** Yes, one rule at a time. Nothing else depends on any of it.
