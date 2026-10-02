@@ -47,16 +47,30 @@ export type Tile = {
 /**
  * A soft tint per category, behind each tile's drawing.
  *
- * Enough to group the tiles at a glance and not enough to shout: every one of
- * them carries ink-900 at better than fourteen to one, and sits within a fifth
- * of a stop of the card it is on.
+ * Enough to group the tiles at a glance and not enough to shout. They are the
+ * palette's own role tints rather than five hexes of their own — books are the
+ * sunny one, covers the brand teal, social the dusty blue, print the clay and
+ * stickers the lilac — so a theme carries the categories with it and the
+ * contrast sweep checks them as a side effect of checking the palette.
  */
 export const CATEGORY_TINT: Record<TileCategory, string> = {
-  books: '#F3EDE1',
-  covers: '#E6F0EE',
-  social: '#E8EEF4',
-  print: '#F4EAE4',
-  stickers: '#EDE7F2',
+  books: 'var(--color-sun-50)',
+  covers: 'var(--color-accent-50)',
+  social: 'var(--color-denim-50)',
+  print: 'var(--color-clay-50)',
+  stickers: 'var(--color-lilac-50)',
+};
+
+/**
+ * The same five, as the mid tone — for a dot, a badge or an icon that has to
+ * carry the category rather than merely be tinted by it.
+ */
+export const CATEGORY_INK: Record<TileCategory, string> = {
+  books: 'var(--color-sun-600)',
+  covers: 'var(--color-accent-600)',
+  social: 'var(--color-denim-600)',
+  print: 'var(--color-clay-600)',
+  stickers: 'var(--color-lilac-600)',
 };
 
 export const CATEGORIES: Array<{ id: TileCategory | 'all'; label: string }> = [

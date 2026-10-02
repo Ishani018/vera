@@ -1214,7 +1214,7 @@ export function CoverDesigner<T extends CoverableBook>({
           ref={stageRef}
           // A calm neutral grey: the board is the only thing on this screen
           // with a colour of its own, and a warm canvas argues with a warm cover.
-          className="flex h-full overflow-auto bg-[#6f6f6f] px-3 pb-12 pt-3"
+          className="flex h-full overflow-auto bg-ground px-3 pb-12 pt-3"
           // Safe centring: centred while it fits, and pinned to the top-left
           // rather than cut off at both ends once it does not.
           style={{ alignItems: 'safe center', justifyContent: 'safe center' }}

@@ -59,7 +59,7 @@ export function ThumbArt({ thumb }: { thumb: Thumb }) {
               width={item.width}
               height={item.height}
               rx={item.radius || undefined}
-              fill="#b5ada1"
+              fill="var(--color-ink-400)"
               opacity={0.35}
               transform={spin}
             />
@@ -100,7 +100,7 @@ export function ThumbArt({ thumb }: { thumb: Thumb }) {
         width={thumb.width}
         height={thumb.height}
         fill="none"
-        stroke="#d2ccc2"
+        stroke="var(--color-ink-300)"
         strokeWidth={hairline}
       />
     </svg>

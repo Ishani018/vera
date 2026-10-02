@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { DEFAULT_THEME, THEMES, THEME_KEY } from '@/lib/theme';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0b0b0d',
+  // The browser's own chrome, matched to the default theme's page.
+  themeColor: '#F5EFE5',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -28,6 +30,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap"
+        />
+        {/*
+          The display face for headings. One family, two weights, the optical
+          size axis left to the browser — the whole latin subset of a variable
+          face, which is one file and one request. Body text keeps the system
+          sans, which costs nothing and is already on the machine.
+        */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap"
+        />
+        {/*
+          The theme, chosen before anything is painted.
+
+          Inline and synchronous on purpose: a theme applied after the first
+          paint is a flash of the wrong colours on every page load, and no
+          amount of care further down can take that back. It is eight lines, it
+          touches one attribute, and it cannot throw — a browser with storage
+          blocked gets the default rather than an error.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=new URLSearchParams(location.search).get('theme');var k='${THEME_KEY}';var s=localStorage.getItem(k);var ok=${JSON.stringify(THEMES.map((one) => one.id))};var pick=ok.indexOf(t)>=0?t:(ok.indexOf(s)>=0?s:'${DEFAULT_THEME}');document.documentElement.dataset.theme=pick;if(t&&ok.indexOf(t)>=0)localStorage.setItem(k,t);}catch(e){document.documentElement.dataset.theme='${DEFAULT_THEME}';}})();`,
+          }}
         />
       </head>
       {/*

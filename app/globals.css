@@ -1,54 +1,78 @@
 @import 'tailwindcss';
-
-/*
-  The chrome is light and warm, and the neutrals carry a little of the accent's
-  hue so the greys read as chosen rather than defaulted. The one place that
-  stays a flat, cold grey is the ground the pages sit on: the paper has to read
-  as paper, and it can only do that against something that is not competing
-  with it.
-
-  The scale runs the conventional way — low numbers are light surfaces, high
-  numbers are ink.
-*/
-@theme {
-  --color-paper: #ffffff;
-  --color-ink-50: #faf9f7;
-  --color-ink-100: #f5f3f0;
-  --color-ink-200: #e5e1da;
-  --color-ink-300: #d2ccc2;
-  --color-ink-400: #b5ada1;
-  /*
-    Darkened from #7a7266, which was 4.28:1 against the page's own beige —
-    under AA for anything below eighteen point. This is the colour of every
-    muted line in the app, so it was failing in a great many places at once.
-    At #756d61 it is 4.61:1 on the beige and 5.10:1 on paper.
-  */
-  --color-ink-500: #756d61;
-  --color-ink-600: #5e564b;
-  --color-ink-700: #4a443c;
-  --color-ink-900: #1b1815;
-
-  /*
-    The accent is a deep teal, and it is the one colour here that is not a
-    cousin of the paper. That is the job: a selected rail item, a primary
-    button and a focus ring have to be unmistakable against a warm page, and
-    a warm accent on a warm page is a shade rather than a signal.
-
-    Measured against what the browser paints: white on accent-500 is 6.46:1,
-    accent-500 on paper is 6.46:1 and on the page's beige 5.83:1, and
-    accent-600 on accent-50 is 6.45:1. All well past AA's 4.5.
-  */
-  --color-accent-50: #e6f0ee;
-  --color-accent-200: #9cc7c1;
-  --color-accent-500: #0b6a62;
-  --color-accent-600: #08554f;
-
-  /* The ground behind the book. Neutral on purpose. */
-  --color-ground: #8e8e8e;
-}
+@import './tokens.css';
 
 :root {
   color-scheme: light;
+
+  /* The body face, and the display face for headings. */
+  --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+
+  /*
+    Large surfaces get a gradient rather than a fill. Two stops, three or four
+    per cent apart: enough that a wall of colour has a direction, not enough to
+    read as a gradient.
+  */
+  --surface-page: linear-gradient(
+    168deg,
+    color-mix(in srgb, var(--color-paper) 55%, var(--color-ink-100)) 0%,
+    var(--color-ink-100) 46%,
+    color-mix(in srgb, var(--color-accent-50) 32%, var(--color-ink-100)) 100%
+  );
+  --surface-card: linear-gradient(
+    180deg,
+    var(--color-paper) 0%,
+    color-mix(in srgb, var(--color-ink-50) 70%, var(--color-paper)) 100%
+  );
+  --surface-raised: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-paper) 85%, var(--color-ink-50)) 0%,
+    var(--color-ink-50) 100%
+  );
+
+  /*
+    Paper grain. One tile of fractal noise, inline, under a kilobyte, repeated
+    by the browser. No request, no image, no layout.
+  */
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.035'/%3E%3C/svg%3E");
+
+  /*
+    The chequerboard behind anything see-through.
+
+    Both squares off-white rather than one of them white: the commonest die-cut
+    outline there is, is white, and on a board with a white square in it a white
+    outline is invisible — which is the one thing the board exists to show. It
+    is a fixed pair rather than a theme colour for that reason: it has a job to
+    do and a tinted version of it would stop doing it.
+  */
+  --chequer-light: #efece6;
+  --chequer-dark: #cdc7bd;
+
+  /* Floating panels, where the browser can blur what is behind them. */
+  --glass-bg: color-mix(in srgb, var(--color-paper) 72%, transparent);
+  --glass-edge: color-mix(in srgb, var(--color-paper) 55%, var(--color-ink-300));
+  --glass-blur: 14px;
+}
+
+/*
+  Glass, with a fallback that is simply a solid panel.
+
+  `backdrop-filter` is the one thing here a browser may not have, and a
+  translucent panel with nothing blurred behind it is unreadable — so the
+  translucency is only turned on where the blur is.
+*/
+.glass {
+  background: var(--color-paper);
+  border: 1px solid var(--color-ink-200);
+}
+
+@supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+  .glass {
+    background: var(--glass-bg);
+    border-color: var(--glass-edge);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  }
 }
 
 html,
@@ -56,10 +80,21 @@ body {
   height: 100%;
 }
 
+/*
+  The page itself: a very slight warm gradient rather than one flat fill, and a
+  grain over it.
+
+  The grain is forty bytes of SVG turbulence repeated, not a picture: a tiled
+  image of noise would be the largest thing this app downloads, and this is a
+  string in the stylesheet. At 3.5% it is invisible as a texture and visible as
+  an absence of flatness, which is the whole point — a large area of one exact
+  colour is the thing that reads as cheap.
+*/
 body {
-  background: var(--color-ink-100);
+  background-color: var(--color-ink-100);
+  background-image: var(--texture-grain), var(--surface-page);
   color: var(--color-ink-900);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
   overflow: hidden;
 }
@@ -131,18 +166,54 @@ input[type='color']::-webkit-color-swatch {
   border-radius: 5px;
 }
 
+/*
+  The focus ring: two rings, not one.
+
+  A single outline disappears against whatever colour it happens to land on —
+  a teal ring on a teal button is a teal button. The paper-coloured inner ring
+  separates it from the thing it is round, so it is visible on every surface
+  in every theme.
+*/
 :focus-visible {
   outline: 2px solid var(--color-accent-500);
-  outline-offset: 1px;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--color-paper);
 }
 
+/*
+  Motion, turned down.
+
+  Not "faster": movement removed. A transform that still happens in 0.01ms is
+  still a thing that moved, and for somebody whose reason for asking is that
+  movement makes them ill, "very quickly" is not an answer. Opacity is left
+  alone — a fade carries no motion — and durations are collapsed so a fade is
+  immediate rather than absent, because something appearing with no change at
+  all is harder to follow than something appearing quickly.
+
+  `[data-motion='off']` says the same thing by hand, which is what the golden
+  harness sets so a screenshot is never taken mid-animation.
+*/
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+  *:not(.keep-transform),
+  *::before,
+  *::after {
+    transition-property: opacity, color, background-color, border-color !important;
+  }
+}
+
+:root[data-motion='off'] *,
+:root[data-motion='off'] *::before,
+:root[data-motion='off'] *::after {
+  animation: none !important;
+  transition: none !important;
 }
 
 /* ------------------------------------------------------------------ waiting */

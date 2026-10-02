@@ -126,13 +126,13 @@ export function Stage({
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1">
         {tools && (
-          <div className="flex shrink-0 flex-col items-center gap-1 border-r border-black/20 bg-[#5f5f5f] px-1.5 py-2">
+          <div className="flex shrink-0 flex-col items-center gap-1 border-r border-black/20 bg-ground-rail px-1.5 py-2">
             {tools}
           </div>
         )}
         <div
           ref={pane}
-          className="min-w-0 flex-1 overflow-auto bg-[#6f6f6f] p-4"
+          className="min-w-0 flex-1 overflow-auto bg-ground p-4"
           // Safe centring: centred while it fits, pinned to the corner rather
           // than cut off at both ends once it does not.
           style={{ display: 'flex', alignItems: 'safe center', justifyContent: 'safe center' }}
@@ -148,12 +148,12 @@ export function Stage({
                 // commonest die-cut outline there is, is white, and on a board
                 // with a white square a white outline is invisible — which is
                 // the one thing this is here to show.
-                backgroundColor: '#efece6',
+                backgroundColor: 'var(--chequer-light)',
                 backgroundImage:
-                  'linear-gradient(45deg, #cdc7bd 25%, transparent 25%), ' +
-                  'linear-gradient(-45deg, #cdc7bd 25%, transparent 25%), ' +
-                  'linear-gradient(45deg, transparent 75%, #cdc7bd 75%), ' +
-                  'linear-gradient(-45deg, transparent 75%, #cdc7bd 75%)',
+                  'linear-gradient(45deg, var(--chequer-dark) 25%, transparent 25%), ' +
+                  'linear-gradient(-45deg, var(--chequer-dark) 25%, transparent 25%), ' +
+                  'linear-gradient(45deg, transparent 75%, var(--chequer-dark) 75%), ' +
+                  'linear-gradient(-45deg, transparent 75%, var(--chequer-dark) 75%)',
                 backgroundSize: '16px 16px',
                 backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
               }}

@@ -799,6 +799,20 @@ try {
     const context = await browser.createBrowserContext();
     const page = await context.newPage();
     await page.setViewport({ ...VIEWPORT, deviceScaleFactor: 1 });
+    /*
+      Motion off, two ways over.
+
+      `prefers-reduced-motion: reduce` is what a person would set, and the app
+      honours it; `data-motion="off"` is the belt to that braces, and kills
+      every animation and transition outright rather than shortening it. A
+      screenshot taken while anything is moving is a screenshot of a frame, and
+      the next run would photograph a different one — which is a golden that
+      fails for a reason that has nothing to do with the code.
+    */
+    await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+    await page.evaluateOnNewDocument(() => {
+      document.documentElement.dataset.motion = 'off';
+    });
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       // Blocked on purpose: which faces the machine could reach is not a fact

@@ -78,8 +78,9 @@ export function TilePreview({
  * fix, and `tests/preview.test.mjs` reads this file and fails if one does.
  */
 export function TileDrawing({ art }: { art: TileArt }) {
-  const stroke = '#b5ada1';
-  const paper = '#fff';
+  // From the tokens, so a drawing belongs to the theme it is drawn in.
+  const stroke = 'var(--color-ink-400)';
+  const paper = 'var(--color-paper)';
   const fits = { ...DRAWING_FITS, viewBox: `0 0 120 80` } as const;
   switch (art) {
     case 'interior':
@@ -99,9 +100,9 @@ export function TileDrawing({ art }: { art: TileArt }) {
       return (
         <svg {...fits} role="img" aria-label="A wrap cover">
           <rect x="6" y="12" width="48" height="56" fill={paper} stroke={stroke} />
-          <rect x="54" y="12" width="12" height="56" fill="#e7e1d6" stroke={stroke} />
+          <rect x="54" y="12" width="12" height="56" fill="var(--color-ink-200)" stroke={stroke} />
           <rect x="66" y="12" width="48" height="56" fill={paper} stroke={stroke} />
-          <rect x="76" y="26" width="28" height="4" fill="#8a7d66" />
+          <rect x="76" y="26" width="28" height="4" fill="var(--color-ink-500)" />
           <rect x="76" y="34" width="18" height="3" fill={stroke} />
         </svg>
       );
@@ -109,8 +110,8 @@ export function TileDrawing({ art }: { art: TileArt }) {
       return (
         <svg {...fits} role="img" aria-label="A square post">
           <rect x="32" y="4" width="56" height="56" fill={paper} stroke={stroke} />
-          <circle cx="60" cy="26" r="11" fill="#e7e1d6" />
-          <rect x="42" y="44" width="36" height="4" fill="#8a7d66" />
+          <circle cx="60" cy="26" r="11" fill="var(--color-ink-200)" />
+          <rect x="42" y="44" width="36" height="4" fill="var(--color-ink-500)" />
           <rect x="48" y="52" width="24" height="3" fill={stroke} />
         </svg>
       );
@@ -118,8 +119,8 @@ export function TileDrawing({ art }: { art: TileArt }) {
       return (
         <svg {...fits} role="img" aria-label="A tall pin">
           <rect x="42" y="2" width="36" height="72" fill={paper} stroke={stroke} />
-          <rect x="48" y="10" width="24" height="26" fill="#e7e1d6" />
-          <rect x="48" y="44" width="24" height="4" fill="#8a7d66" />
+          <rect x="48" y="10" width="24" height="26" fill="var(--color-ink-200)" />
+          <rect x="48" y="44" width="24" height="4" fill="var(--color-ink-500)" />
           <rect x="48" y="52" width="16" height="3" fill={stroke} />
         </svg>
       );
@@ -127,8 +128,8 @@ export function TileDrawing({ art }: { art: TileArt }) {
       return (
         <svg {...fits} role="img" aria-label="A postcard">
           <rect x="34" y="6" width="52" height="68" fill={paper} stroke={stroke} />
-          <rect x="40" y="12" width="40" height="30" fill="#e7e1d6" />
-          <rect x="40" y="50" width="32" height="3.5" fill="#8a7d66" />
+          <rect x="40" y="12" width="40" height="30" fill="var(--color-ink-200)" />
+          <rect x="40" y="50" width="32" height="3.5" fill="var(--color-ink-500)" />
           <rect x="40" y="58" width="22" height="3" fill={stroke} />
         </svg>
       );
@@ -136,9 +137,9 @@ export function TileDrawing({ art }: { art: TileArt }) {
       return (
         <svg {...fits} role="img" aria-label="A bookmark">
           <rect x="52" y="2" width="16" height="72" fill={paper} stroke={stroke} />
-          <rect x="56" y="10" width="8" height="8" fill="#e7e1d6" />
+          <rect x="56" y="10" width="8" height="8" fill="var(--color-ink-200)" />
           <rect x="56" y="24" width="8" height="26" fill={stroke} opacity="0.5" />
-          <path d="M52 74 L60 66 L68 74 Z" fill="#e7e1d6" stroke={stroke} />
+          <path d="M52 74 L60 66 L68 74 Z" fill="var(--color-ink-200)" stroke={stroke} />
         </svg>
       );
     case 'sticker':
@@ -154,7 +155,7 @@ export function TileDrawing({ art }: { art: TileArt }) {
           />
           <path
             d="M46 22 Q60 16 72 24 Q82 34 76 48 Q66 60 54 56 Q40 50 42 36 Q43 27 46 22 Z"
-            fill="#e7e1d6"
+            fill="var(--color-ink-200)"
             stroke={stroke}
           />
           <circle cx="54" cy="36" r="3" fill={stroke} />

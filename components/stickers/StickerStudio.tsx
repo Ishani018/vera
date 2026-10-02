@@ -2121,12 +2121,12 @@ function Checkerboard({ children }: { children: React.ReactNode }) {
         // commonest die-cut outline there is, is white, and on a checkerboard
         // with a white square in it a white outline is invisible — which would
         // hide the one thing this preview exists to show.
-        backgroundColor: '#efece6',
+        backgroundColor: 'var(--chequer-light)',
         backgroundImage:
-          'linear-gradient(45deg, #cdc7bd 25%, transparent 25%), ' +
-          'linear-gradient(-45deg, #cdc7bd 25%, transparent 25%), ' +
-          'linear-gradient(45deg, transparent 75%, #cdc7bd 75%), ' +
-          'linear-gradient(-45deg, transparent 75%, #cdc7bd 75%)',
+          'linear-gradient(45deg, var(--chequer-dark) 25%, transparent 25%), ' +
+          'linear-gradient(-45deg, var(--chequer-dark) 25%, transparent 25%), ' +
+          'linear-gradient(45deg, transparent 75%, var(--chequer-dark) 75%), ' +
+          'linear-gradient(-45deg, transparent 75%, var(--chequer-dark) 75%)',
         backgroundSize: '16px 16px',
         backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
       }}

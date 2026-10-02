@@ -17,12 +17,12 @@ import { cx } from '../ui';
  */
 
 export const CHEQUER = {
-  backgroundColor: '#efece6',
+  backgroundColor: 'var(--chequer-light)',
   backgroundImage:
-    'linear-gradient(45deg, #cdc7bd 25%, transparent 25%), ' +
-    'linear-gradient(-45deg, #cdc7bd 25%, transparent 25%), ' +
-    'linear-gradient(45deg, transparent 75%, #cdc7bd 75%), ' +
-    'linear-gradient(-45deg, transparent 75%, #cdc7bd 75%)',
+    'linear-gradient(45deg, var(--chequer-dark) 25%, transparent 25%), ' +
+    'linear-gradient(-45deg, var(--chequer-dark) 25%, transparent 25%), ' +
+    'linear-gradient(45deg, transparent 75%, var(--chequer-dark) 75%), ' +
+    'linear-gradient(-45deg, transparent 75%, var(--chequer-dark) 75%)',
   backgroundSize: '14px 14px',
   backgroundPosition: '0 0, 0 7px, 7px -7px, -7px 0px',
 } as const;

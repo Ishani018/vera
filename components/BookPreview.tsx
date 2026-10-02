@@ -262,7 +262,7 @@ export function BookPreview() {
         </div>
       </div>
 
-      <div ref={shellRef} className="relative min-h-0 flex-1 overflow-hidden bg-[#8b8b8b]">
+      <div ref={shellRef} className="relative min-h-0 flex-1 overflow-hidden bg-[var(--color-ground-deep)]">
         {srcDoc ? (
           <iframe
             ref={iframeRef}
