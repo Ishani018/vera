@@ -2,9 +2,10 @@
  * The classic engine: XDoG, and flow-based XDoG.
  *
  * Deterministic, pure TypeScript, and it uses no model and touches no network.
- * That is the point of it. Everything in the Lab that involves a neural network
- * is an extra you have to ask for by name; this is the path that always works,
- * on any machine, offline, with the same input giving the same bytes out.
+ * Nothing in the Lab does: every look is our own code implementing published
+ * mathematics, so there are no weights to fetch, nothing to disclose, and the
+ * same input gives the same bytes out on any machine, offline, forever.
+ * `docs/ALGORITHMS.md` says whose mathematics, and for which stage.
  *
  * ## What XDoG is
  *

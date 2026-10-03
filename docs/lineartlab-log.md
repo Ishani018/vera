@@ -1,20 +1,45 @@
 # Line Art Lab + Logo Mode — working log
 
 Rollback point: branch **`pre-lineartlab`** at `ecdb47f` (and `pre-video` at
-the same commit, for the other brief). To go back:
+the same commit, for the Reel Maker brief). To go back:
 
 ```sh
 git fetch origin && git reset --hard origin/pre-lineartlab
 ```
 
+## Change of direction, recorded
+
+The brief originally allowed pretrained models (Informative Drawings, in ONNX,
+behind a licence check). It no longer does: **no models, no weights, no
+downloads, no AI**. Everything is our own code implementing published
+algorithms, so there is no third-party licence in the picture at all.
+
+Nothing had to be torn out. The neural work was Stage 2 and had not been
+started, so there was never an `onnxruntime-web` dependency, a model registry, a
+`models:fetch` script, a stand-in model or an "AI-styled" card in the tree —
+only a plan and a page of research. What changed:
+
+- `docs/MODELS.md` is gone, replaced by `docs/ALGORITHMS.md`, which lists each
+  algorithm with its published reference and states that all code is original
+  and no third-party model or weight is included.
+- The licence investigation that gated the old Stage 2 is no longer load
+  bearing. It is kept below only because it is a useful record.
+- The one line in `lib/lineart/xdog.ts` that referred to neural looks as an
+  extra is rewritten. The classic engine itself is unchanged and stays.
+- In the interface the line is *"Made with algorithms, no AI model."* and
+  nothing more; no claims are made about anybody's disclosure rules.
+
+The old research, for the record: Informative Drawings, Anime2Sketch and VTracer
+are all MIT as *code* (sha256 of each LICENSE file was recorded), Potrace is
+GPL-2.0 and was never going to be used, and the Informative Drawings *weights*
+had no stated licence I could find or verify — which is the finding that makes
+this change of direction the easy call rather than a sacrifice.
+
 ## What to look at first
 
-1. `docs/MODELS.md` — the licence finding. The neural looks are **off by
-   default behind a "check licence" flag**, because the Informative Drawings
-   weights have no licence I could verify. That is a decision you may want to
-   revisit with the paper in front of you.
-2. The classic engine is the real deliverable: pure TypeScript, deterministic,
-   no model, no network.
+1. `lib/lineart/xdog.ts` and `tests/xdog.test.mjs` — the classic engine, and the
+   four real faults that measuring it turned up.
+2. `docs/ALGORITHMS.md` — who each algorithm is after.
 
 ## Sandbox limits, recorded up front
 
@@ -22,16 +47,15 @@ git fetch origin && git reset --hard origin/pre-lineartlab
 | --- | --- |
 | `github.com`, `raw.githubusercontent.com` | reachable |
 | `registry.npmjs.org` | reachable |
-| `huggingface.co` | **403 at CONNECT — organisation egress policy** |
-| `arxiv.org` | **403 at CONNECT** |
-| `ns.inria.fr`, `www.cs.cmu.edu` (dataset pages) | **403 at CONNECT** |
+| `huggingface.co`, `arxiv.org`, dataset pages | **403 at CONNECT — organisation egress policy** |
 
-So the real weights could not be downloaded, sized or hashed here. Per hard
-rule 4 the neural work is built and tested against a **tiny generated ONNX
-stand-in**, and `npm run models:fetch` is left for you to run on your Mac.
+No longer load bearing for the work itself, since nothing is downloaded any
+more, but it does mean the citations in `docs/ALGORITHMS.md` are given from
+knowledge rather than fetched and are worth a second's checking before they go
+anywhere public.
 
-Two further limits carried over from the Press Proof work, both of which
-change what a screenshot here is worth:
+Two limits carried over from the Press Proof work, both of which change what a
+screenshot here is worth:
 
 - **Webfonts do not load in this sandbox's browser** (`ERR_CERT_AUTHORITY_INVALID`:
   the image's NSS store predates this session's proxy CA and there is no
@@ -42,16 +66,9 @@ change what a screenshot here is worth:
   re-applies the app's own rules with that gate removed in order to see hover
   states at all.
 
-## Research basis — verified
+## Dependencies added
 
-See `docs/MODELS.md` for the table, the sha256 of each LICENSE file, and the
-gap. Summary: Informative Drawings, Anime2Sketch and VTracer are all MIT as
-*code*; the Informative Drawings *weights* have no stated licence. Potrace is
-GPL-2.0 and is not used.
-
-Vectorizer chosen: **`@visioncortex/vtracer` 1.0.0-alpha.4**, MIT OR
-Apache-2.0, 692,673 B unpacked, no dependencies — VTracer's own WebAssembly
-build, which is what the brief asked for.
+None, in any stage so far.
 
 ---
 
