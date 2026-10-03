@@ -1116,3 +1116,59 @@ input[type='range']:hover::-moz-range-thumb {
   padding: 3px 8px;
   text-transform: uppercase;
 }
+
+/* ------------------------------------------------------- proofs on a shelf */
+
+/*
+  A plate: the pointer answers it with an outline, and the keyboard with the
+  same outline.
+
+  Written here rather than with Tailwind's `group-hover:` utilities for one
+  reason — the keyboard. The outline has to appear when something inside the
+  plate takes focus as well as when the pointer is over it, and that is two
+  variants and a transition repeated on every tile and every card. One rule
+  says it once.
+
+  The hover half keeps Tailwind's `(hover: hover)` guard, which exists so a
+  touch screen does not leave a plate stuck looking hovered after a tap. The
+  focus half is deliberately outside it: a keyboard is a keyboard whatever the
+  pointer situation is.
+
+  The outline is what does the work. The two-pixel lift is only there so the
+  pointer has something to answer, and there is no blur, so nothing reads as a
+  glow.
+*/
+.plate {
+  border: 1px solid transparent;
+  transition:
+    transform var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out);
+}
+.proof:focus-within .plate {
+  border-color: var(--color-ink-900);
+}
+.proof-lift:focus-within .plate {
+  transform: translateY(-2px);
+}
+@media (hover: hover) {
+  .proof:hover .plate {
+    border-color: var(--color-ink-900);
+  }
+  .proof-lift:hover .plate {
+    transform: translateY(-2px);
+  }
+}
+
+/* The rename and duplicate buttons, which only exist once you are looking. */
+.proof-tools {
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+.proof:focus-within .proof-tools {
+  opacity: 1;
+}
+@media (hover: hover) {
+  .proof:hover .proof-tools {
+    opacity: 1;
+  }
+}

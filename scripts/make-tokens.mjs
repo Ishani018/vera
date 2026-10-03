@@ -1,6 +1,7 @@
 import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  colourAt,
   EASING,
   FONTS,
   textOn,
@@ -70,15 +71,24 @@ function colours(p) {
     `--color-outline: ${p.outline};`,
     '',
     '/* what the palette decided, for the components that have to ask */',
-    `--text-on-accenta: ${p.textOnAccentA === 'ink' ? p.outline : p.sheet};`,
+    /*
+      Asked of `colourAt`, never worked out again here.
+
+      These started as a second copy of the same rules, and the copy drifted:
+      a dark sidebar was given `paper50` for its text, which is near-white in
+      five palettes and near-BLACK in Night, so Night's nav rows came out
+      near-black on near-black. The contrast sweep did not catch it because the
+      sweep reads `colourAt` and the browser read this. One of them had to go.
+    */
+    `--text-on-accenta: ${colourAt(p, 'textOnA')};`,
     // Worked out rather than declared: Riso's pink needs ink on it and Riso's
     // deep magenta needs white, so the hover state cannot inherit the rest one.
-    `--text-on-accenta-700: ${textOn(p, p.accentA700)};`,
-    `--sidebar-fill: ${p.sidebarStyle === 'dark' ? (p.isDark ? p.outline : p.ink900) : p.paper200};`,
-    `--sidebar-text: ${p.sidebarStyle === 'dark' ? p.paper50 : p.ink900};`,
-    `--sidebar-muted: ${p.sidebarStyle === 'dark' ? p.ink300 : p.ink500};`,
-    `--sidebar-active-fill: ${p.sidebarStyle === 'dark' ? p.paper50 : p.sheet};`,
-    `--sidebar-active-text: ${p.ink900};`,
+    `--text-on-accenta-700: ${colourAt(p, 'textOnA700')};`,
+    `--sidebar-fill: ${colourAt(p, 'sidebarFill')};`,
+    `--sidebar-text: ${colourAt(p, 'sidebarText')};`,
+    `--sidebar-muted: ${colourAt(p, 'sidebarMuted')};`,
+    `--sidebar-active-fill: ${colourAt(p, 'sidebarActiveFill')};`,
+    `--sidebar-active-text: ${colourAt(p, 'sidebarActiveText')};`,
     '',
     '/* aliases — the names the app was written in, pointing at the roles above */',
     `--color-paper: ${p.sheet};`,

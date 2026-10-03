@@ -476,10 +476,10 @@
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #0C0A08;
   --sidebar-fill: #0C0A08;
-  --sidebar-text: #14110E;
-  --sidebar-muted: #6F6759;
-  --sidebar-active-fill: #14110E;
-  --sidebar-active-text: #F4EEE1;
+  --sidebar-text: #F4EEE1;
+  --sidebar-muted: #A39A8A;
+  --sidebar-active-fill: #F4EEE1;
+  --sidebar-active-text: #0C0A08;
 
   /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;

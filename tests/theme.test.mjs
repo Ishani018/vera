@@ -457,3 +457,72 @@ test('an arbitrary utility value that means a token says var() and names a real 
   assert.deepEqual(shorthand, []);
   assert.deepEqual(missing, []);
 });
+
+/**
+ * The CSS the browser reads says what the model says.
+ *
+ * `app/tokens.css` is generated, so in principle it cannot disagree with
+ * `lib/theme.ts` — but the generator used to work the sidebar colours out a
+ * second time, by hand, and the second copy was wrong for Night: it gave a
+ * near-black sidebar `paper50` for its text, which is near-white in five
+ * palettes and near-BLACK in the dark one. Nothing caught it, because the
+ * contrast sweep reads `colourAt` and only the browser read the CSS.
+ *
+ * This reads the generated file and checks the derived colours against
+ * `colourAt` directly, so the two can never drift apart again in silence.
+ */
+test('the sidebar colours in tokens.css are the ones colourAt decides', () => {
+  const css = readFileSync(join(ROOT, 'app', 'tokens.css'), 'utf8');
+  const derived = [
+    ['--text-on-accenta', 'textOnA'],
+    ['--text-on-accenta-700', 'textOnA700'],
+    ['--sidebar-fill', 'sidebarFill'],
+    ['--sidebar-text', 'sidebarText'],
+    ['--sidebar-muted', 'sidebarMuted'],
+    ['--sidebar-active-fill', 'sidebarActiveFill'],
+    ['--sidebar-active-text', 'sidebarActiveText'],
+  ];
+
+  const wrong = [];
+  for (const palette of PALETTES) {
+    // The block this palette writes, up to the end of it. The default palette
+    // has no selector of its own: it is the one `@theme static` declares.
+    const at = css.indexOf(`:root[data-theme='${palette.id}']`);
+    const start = at === -1 ? css.indexOf('@theme static {') : at;
+    assert.notEqual(start, -1, `no block for ${palette.id}`);
+    const block = css.slice(start, css.indexOf('\n}', start));
+    for (const [token, path] of derived) {
+      const found = block.match(new RegExp(`${token}:\\s*(#[0-9A-Fa-f]{6})`))?.[1];
+      const want = colourAt(palette, path);
+      if (found?.toUpperCase() !== want.toUpperCase()) {
+        wrong.push(`${palette.id} ${token}: css says ${found}, colourAt says ${want}`);
+      }
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+/**
+ * Every sidebar row is legible, not just the two the sweep named.
+ *
+ * The sweep covered `sidebarText` and `sidebarMuted` on `sidebarFill`, and
+ * both passed while Night's nav was unreadable, because what the browser drew
+ * came from the generator rather than from these roles. Belt and braces: the
+ * same pairs again, asserted against the palette data itself.
+ */
+test('every sidebar pair passes AA in every palette', () => {
+  const bad = [];
+  for (const palette of PALETTES) {
+    const fill = colourAt(palette, 'sidebarFill');
+    for (const path of ['sidebarText', 'sidebarMuted']) {
+      const ratio = contrastRatio(colourAt(palette, path), fill);
+      if (ratio < CONTRAST_MIN) bad.push(`${palette.id} ${path} on the sidebar: ${ratio.toFixed(2)}`);
+    }
+    const active = contrastRatio(
+      colourAt(palette, 'sidebarActiveText'),
+      colourAt(palette, 'sidebarActiveFill'),
+    );
+    if (active < CONTRAST_MIN) bad.push(`${palette.id} the active nav row: ${active.toFixed(2)}`);
+  }
+  assert.deepEqual(bad, []);
+});

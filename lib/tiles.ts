@@ -96,7 +96,7 @@ export const TILES: Tile[] = [
     id: 'book-cover',
     label: 'Book cover',
     category: 'covers',
-    size: 'KDP wrap: back, spine and front',
+    size: 'Back, spine, front',
     status: 'ready',
     destination: { kind: 'cover' },
     art: 'wrap',

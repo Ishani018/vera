@@ -270,3 +270,129 @@ fixed-picture export identical under both palettes (all four assertions);
 text on all four screens passing AA. Driven at 1280×720 and 800 wide in Press
 proof and Night across all nine pages: 36 combinations, all clean. The palette
 picker's own 17 checks still pass.
+
+## Stage 4 — the home screen
+
+The reference is 1440×1000. Sidebar 248 wide; a 480-max search box with a
+shortcut badge that really focuses it; a hero carrying the real date and the
+real count of unnamed drafts; two numbered section rules; seven format tiles at
+144×150 drawn as silhouettes at their real proportions with crop marks; filter
+chips; project cards 259 wide with real thumbnails, type tags and Fraunces
+titles; and a designed empty state with the cat rather than a grey slab.
+
+### Nothing is called "Untitled"
+
+`lib/home/naming.ts` decides what to call a design nobody named, in order: the
+name somebody gave it, the first words actually on the board, what it is made
+of, then the date. Pure and out of the component so the awkward cases can be
+tested rather than eyeballed — a board holding one em dash is not a name, a
+forty-word heading is cut at a word boundary at 32 characters. 11 tests in
+`tests/naming.test.mjs`, one of which is called *never, under any
+circumstances, "Untitled"*.
+
+Seeded with four real designs the cards read: **Small hours** (the words on the
+board), **Garden notes** (the name given), **Thank you for the tea** (the words
+on the board), **2 stickers** (a bookmark with no words on it).
+
+### Previews are drawn at the design's own proportions
+
+A row of identical landscape boxes with the real thing letterboxed inside says
+a bookmark and a postcard are the same shape, which is the opposite of the
+point. `previewBox()` fits the box to the design instead, inside 199×136, so
+the art fills it and the crop marks sit on the corners of the sheet rather than
+on the corners of a container. The proportions are the board's — trim plus
+bleed on all four sides — which is what a proof shows: 1.00 for the square
+post, 0.67 for the pin, 0.72 for the postcard, 0.36 for the bookmark.
+
+### Two bugs found, both by things that could not be seen before
+
+**Night's sidebar was near-black on near-black.** `scripts/make-tokens.mjs`
+worked the sidebar colours out a second time, by hand, instead of asking
+`colourAt()`. The hand copy gave a dark sidebar `paper50` for its text — which
+is near-white in five palettes and near-BLACK in the dark one. The contrast
+sweep never caught it because the sweep reads `colourAt` and only the browser
+read the generated CSS. The generator now asks `colourAt` for all seven derived
+colours; the diff is exactly four lines, all in Night.
+
+Two guards added so it cannot come back quietly: one reads `app/tokens.css` and
+checks every derived colour against `colourAt` directly, the other asserts
+every sidebar pair passes AA from the palette data. Proved by reintroducing the
+old derivation — the guard fails with `night --sidebar-text: css says #14110E,
+colourAt says #F4EEE1`.
+
+**Great Vibes and Fraunces Italic hung out of their lines.** With real fonts
+loading for the first time (see below) the wordmark's inline box is 57px inside
+a 46px line and the italic word's is 74px inside a 61px one. Leading raised to
+1.26 and 1.24, which are the faces' own metric boxes.
+
+### What could only be checked in the sandbox, and what could not
+
+**Webfonts do not load in this sandbox's browser.** Every request to
+`fonts.googleapis.com` dies with `ERR_CERT_AUTHORITY_INVALID`: the browser's
+NSS store was baked into the image in September with a different CA from this
+session's agent proxy, and there is no `certutil` to re-import one. `curl`
+trusts the CA fine, so the +20.7 KB measurement in Stage 1 stands — but it
+means **every screenshot and every measurement before this stage was of a
+fallback stack**, and the typography was never what was photographed. Rather
+than turn TLS verification off, the stylesheet and all 23 woff2 files were
+fetched with `curl` into a cache and are served to the browser from disk. All
+23 faces now report `loaded`. Nothing about how the app loads fonts changed.
+
+**Hover states could not be seen at all.** This headless Chromium reports
+`(hover: none)` *and* `(pointer: none)` — it believes there is no mouse — and
+Tailwind wraps every `hover:` and `group-hover:` utility in `@media (hover:
+hover)`. So every hover in the app was inert under every check run so far, and
+a screenshot of a hovered thing was a screenshot of a resting thing. The build
+ignores both `--blink-settings=primaryHoverType=2,…` and CDP's
+`Emulation.setEmulatedMedia` features, so the harness instead reads the app's
+own stylesheet back, unwraps the `@media (hover: hover)` blocks and injects the
+declarations unchanged — same selectors, same declarations, only the condition
+a real desktop already satisfies removed. 4,072 bytes of rules.
+
+I misread this at first and rewrote the home screen's hovers believing
+`group-hover:` was broken in the app. It is not: it is fine on real hardware.
+The rewrite is kept because it earns its place for a different reason — the
+plate has to take its outline when something inside it takes **focus** as well
+as on hover, and that is two variants and a transition repeated on every tile
+and every card. `.plate` / `.proof` / `.proof-lift` / `.proof-tools` in
+`surfaces.css` say it once, keep Tailwind's `(hover: hover)` guard on the hover
+half so a tap does not leave a plate stuck looking hovered, and deliberately
+leave the focus half outside that guard, because a keyboard is a keyboard
+whatever the pointer situation is.
+
+Measured with the gate removed: the plate goes `rgba(0,0,0,0)` → `rgb(27,24,21)`
+at 1px, the card lifts exactly −2px, the rename and duplicate buttons go to
+opacity 1, and focusing inside a card with the pointer parked at 0,0 outlines it
+the same way.
+
+`.chip:hover` and `.card-lift:hover` in `surfaces.css` are still unguarded from
+Stage 3, and three sticker components still use `group-hover:border-accent-500`.
+Both are correct on a desktop; the touch question belongs to Stage 8 and the
+Stage 10 audit, not here.
+
+### Smaller things
+
+- The seven tiles did not fit across: 7×144 = 1008 inside 1096, but `gap-x-4`
+  added 96px and pushed them to 1104. `justify-between` alone spaces them.
+  They still wrap at 1280, where only 936px is available — which is what a
+  wrapping list is for.
+- The date reads `Saturday 3 October`, not `Saturday, October 3` (`en-GB`).
+- Tiles say what they are: Book interior, Book cover, Instagram post, Pinterest
+  pin, Postcard, Bookmark, Stickers. "IG post" and "Pin" were jargon.
+- The book cover's size line was `KDP wrap: back, spine and front`, which
+  truncated at 144px. Now `Back, spine, front` — the tile is already called
+  Book cover, so "KDP wrap" was saying it twice.
+
+### Checked
+
+772 tests pass (11 naming, 2 new theme guards). PDF digests
+`e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe` unchanged. `golden:screen`: **0
+pixels changed on both boards**, so no golden was re-recorded. Build clean.
+The fixed-picture export is still 98,320 bytes /
+`6e2ca05ed20a7e74aa44fb3f07a1d93a1ac93b8965331fcc6599f6022418db30` under both
+Press proof and Night, all five assertions. The browser contrast sweep reports
+every piece of text on all four screens passing AA. Driven at 1280×720 and 800
+wide in Press proof and Night across all nine pages: 36 combinations, no
+element outside its parent, no sideways scroll, no overlapping text, and no
+font request the cache could not answer. The palette picker's 17 checks still
+pass. Six hover and focus assertions pass with the hover gate removed.
