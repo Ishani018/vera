@@ -526,3 +526,46 @@ test('every sidebar pair passes AA in every palette', () => {
   }
   assert.deepEqual(bad, []);
 });
+
+/**
+ * Nothing hands `background-image` a token that holds a colour.
+ *
+ * `.dialog` and `.panel` said `background-image: var(--surface-raised)` from
+ * when that token was a gradient. Stage 3 flattened it to one colour, because
+ * Press Proof has no gradients — and `background-image: #F5EEDF` is not a
+ * value, so the browser dropped the declaration and every dialog and panel
+ * lost its fill. Nothing warned: an invalid declaration is skipped in silence,
+ * and the only sign was a modal you could read the page through.
+ *
+ * So: find what each token actually holds, and fail if a colour is being used
+ * where an image belongs.
+ */
+test('background-image is never given a token that holds a colour', () => {
+  const css = ['tokens.css', 'globals.css', 'surfaces.css']
+    .map((name) => readFileSync(join(ROOT, 'app', name), 'utf8'))
+    .join('\n');
+
+  /** What a token is declared as, following one level of indirection. */
+  const valueOf = (name, seen = new Set()) => {
+    if (seen.has(name)) return '';
+    seen.add(name);
+    const declared = css.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1]?.trim() ?? '';
+    const indirect = declared.match(/^var\(--([a-z0-9-]+)\)$/)?.[1];
+    return indirect ? valueOf(indirect, seen) : declared;
+  };
+
+  const wrong = [];
+  for (const [, token] of css.matchAll(/background-image:\s*var\(--([a-z0-9-]+)\)/g)) {
+    const value = valueOf(token);
+    if (!value) {
+      wrong.push(`--${token} is used as a background-image but is never declared`);
+      continue;
+    }
+    // An image is a url() or a gradient. Anything else here is a colour, and
+    // a colour in background-image makes the whole declaration invalid.
+    if (!/^(url\(|[a-z-]*gradient\()/.test(value)) {
+      wrong.push(`background-image: var(--${token}) — that token holds "${value.slice(0, 40)}"`);
+    }
+  }
+  assert.deepEqual(wrong, []);
+});

@@ -154,17 +154,35 @@ input[type='color']::-webkit-color-swatch {
 }
 
 /*
-  The focus ring: two rings, not one.
+  The focus ring: one ring, in ink, with a paper gap around it.
 
-  A single outline disappears against whatever colour it happens to land on —
-  a teal ring on a teal button is a teal button. The paper-coloured inner ring
-  separates it from the thing it is round, so it is visible on every surface
-  in every theme.
+  One ring, because Press Proof has one. It was teal here and ink in
+  `surfaces.css`, so a button and everything else disagreed — and the teal one
+  is the thing that goes wrong: a teal ring on a teal button is a teal button.
+  Ink is the one colour every palette keeps furthest from its accents.
+
+  The gap around it stays, and it is the PAGE colour rather than the white
+  sheet. White is right in five palettes and wrong in the dark one, where it
+  would draw a white band round every focused control; the page colour
+  disappears into the page in all six and leaves the ring doing the work.
 */
 :focus-visible {
-  outline: 2px solid var(--color-accent-500);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
-  box-shadow: 0 0 0 2px var(--color-paper);
+  box-shadow: 0 0 0 2px var(--color-paper-50);
+}
+
+/*
+  A dialog is not a control.
+
+  It is given focus on open so Escape and Tab behave, and that is housekeeping,
+  not a thing somebody tabbed to — a ring around the entire panel says the
+  panel is selected, which it is not. The controls inside it keep theirs.
+*/
+.dialog:focus,
+.dialog:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-float);
 }
 
 /*

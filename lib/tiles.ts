@@ -47,18 +47,24 @@ export type Tile = {
 /**
  * A soft tint per category, behind each tile's drawing.
  *
- * Enough to group the tiles at a glance and not enough to shout. They are the
- * palette's own role tints rather than five hexes of their own — books are the
- * sunny one, covers the brand teal, social the dusty blue, print the clay and
- * stickers the lilac — so a theme carries the categories with it and the
- * contrast sweep checks them as a side effect of checking the palette.
+ * Enough to group the tiles at a glance and not enough to shout.
+ *
+ * Three accents and the paper, not five hues of their own: Press Proof has
+ * three inks on a sheet, so a category is one of those three or it is the
+ * paper. Books and stickers share the third ink and covers and print share the
+ * first, which is the same pairing the home screen's chips and tags make — a
+ * cover and a postcard are both something that comes off a press, and a book
+ * and a sheet of stickers are both something you make a lot of at once.
+ *
+ * Role tokens rather than hexes, so a palette carries the categories with it
+ * and the contrast sweep checks them as a side effect of checking the palette.
  */
 export const CATEGORY_TINT: Record<TileCategory, string> = {
-  books: 'var(--color-sun-50)',
-  covers: 'var(--color-accent-50)',
-  social: 'var(--color-denim-50)',
-  print: 'var(--color-clay-50)',
-  stickers: 'var(--color-lilac-50)',
+  books: 'var(--color-accentc-100)',
+  covers: 'var(--color-accenta-100)',
+  social: 'var(--color-accentb-100)',
+  print: 'var(--color-paper-200)',
+  stickers: 'var(--color-accentc-100)',
 };
 
 /**
@@ -66,11 +72,11 @@ export const CATEGORY_TINT: Record<TileCategory, string> = {
  * carry the category rather than merely be tinted by it.
  */
 export const CATEGORY_INK: Record<TileCategory, string> = {
-  books: 'var(--color-sun-600)',
-  covers: 'var(--color-accent-600)',
-  social: 'var(--color-denim-600)',
-  print: 'var(--color-clay-600)',
-  stickers: 'var(--color-lilac-600)',
+  books: 'var(--color-accentc-400)',
+  covers: 'var(--color-accenta-500)',
+  social: 'var(--color-accentb-500)',
+  print: 'var(--color-ink-500)',
+  stickers: 'var(--color-accentc-400)',
 };
 
 export const CATEGORIES: Array<{ id: TileCategory | 'all'; label: string }> = [

@@ -36,7 +36,9 @@ export function PreviewBox({
     <span
       className={cx(
         'grid shrink-0 place-items-center overflow-hidden',
-        round ? 'rounded-full' : 'rounded-lg',
+        // 6, like every other plate and button. Press Proof has one soft
+        // corner and this is not it.
+        round ? 'rounded-full' : 'rounded-[6px]',
         className,
       )}
       style={{
@@ -44,6 +46,9 @@ export function PreviewBox({
         height: size,
         padding: PREVIEW_INSET,
         background: CATEGORY_TINT[category],
+        // A hairline rather than a shadow: the box is a flat tint with an
+        // edge, not a card hovering over the row.
+        border: '1px solid var(--color-ink-300)',
       }}
     >
       {children}

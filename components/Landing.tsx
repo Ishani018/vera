@@ -24,8 +24,6 @@ import {
 } from '@/lib/projects';
 import {
   CATEGORIES,
-  CATEGORY_INK,
-  CATEGORY_TINT,
   INTERIORS,
   TILES,
   tileSize,
@@ -69,7 +67,8 @@ import {
   TrashIcon,
 } from './icons';
 import { PackIcon } from './stickers/icons';
-import { TilePreview, PreviewBox } from './TilePreview';
+import { TilePreview } from './TilePreview';
+import { PREVIEW_BOX, PREVIEW_INSET } from '@/lib/preview';
 import { Modal } from './Modal';
 import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
@@ -635,7 +634,10 @@ export function Landing() {
                     onClick={() => void open(entry)}
                     className="flex w-full items-center gap-2.5 rounded-[6px] px-2 py-1.5 text-left transition-colors hover:bg-paper-100"
                   >
-                    <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[3px] border border-ink-300 bg-sheet">
+                    <span
+                      className="grid shrink-0 place-items-center overflow-hidden rounded-[6px] border border-ink-300 bg-sheet"
+                      style={{ width: PREVIEW_BOX, height: PREVIEW_BOX, padding: PREVIEW_INSET }}
+                    >
                       <ThumbArt thumb={entry.thumb} />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -660,7 +662,10 @@ export function Landing() {
                     onClick={() => router.push('/stickers')}
                     className="flex w-full items-center gap-2.5 rounded-[6px] px-2 py-1.5 text-left transition-colors hover:bg-paper-100"
                   >
-                    <Chequerboard className="size-10 shrink-0 rounded-[3px] border border-ink-300">
+                    <Chequerboard
+                      className="shrink-0 rounded-[6px] border border-ink-300"
+                      style={{ width: PREVIEW_BOX, height: PREVIEW_BOX }}
+                    >
                       {stickerUrls[sticker.id] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -922,17 +927,18 @@ export function Landing() {
       {creating && (
         <Modal title="What would you like to make?" onClose={() => setCreating(false)} width="max-w-2xl">
           <div className="max-h-[70vh] overflow-y-auto p-5">
-            {CATEGORIES.filter((one) => one.id !== 'all').map((group) => {
+            {CATEGORIES.filter((one) => one.id !== 'all').map((group, index) => {
               const inGroup = TILES.filter((tile) => tile.category === group.id);
               if (!inGroup.length) return null;
               return (
-                <div
-                  key={group.id}
-                  className="arrive-quick mb-6 last:mb-0"
-                  style={{ '--n': CATEGORIES.findIndex((one) => one.id === group.id) } as React.CSSProperties}
-                >
-                  <h3 className="text-[12px] uppercase tracking-wide text-ink-500">{group.label}</h3>
-                  <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div key={group.id} className="mb-6 last:mb-0">
+                  {/* Numbered and ruled, the way the home screen's sections
+                      are: the menu is the same shop, not a different one. */}
+                  <SectionLabel
+                    number={String(index + 1).padStart(2, '0')}
+                    title={group.label}
+                  />
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {inGroup.map((tile) => (
                       <button
                         key={tile.id}
@@ -943,27 +949,39 @@ export function Landing() {
                           void onTile(tile);
                         }}
                         className={cx(
-                          'bob-hover flex items-center gap-3 rounded-xl border p-3 text-left',
-                          'transition-[transform,background-color,border-color,box-shadow] duration-[var(--motion-base)] ease-[var(--ease-out)]',
-                          tile.status === 'ready'
-                            ? 'border-ink-200 hover:-translate-y-0.5 hover:border-accent-500 hover:bg-accent-50/40 hover:shadow-[var(--shadow-raised)] active:scale-[0.99]'
-                            : 'cursor-not-allowed border-dashed border-ink-200 opacity-50',
+                          'proof flex items-center gap-3 rounded-[6px] p-2.5 text-left',
+                          tile.status !== 'ready' && 'cursor-not-allowed opacity-50',
                         )}
                       >
-                        <TilePreview art={tile.art} category={tile.category} className="bob" />
-                        {/* Beside the box and vertically centred by the row, so
-                            a two-line size never slides under the drawing. */}
-                        <span className="min-w-0">
-                          <span className="flex items-baseline gap-1.5">
-                            <span className="truncate text-[14.5px] font-[570]">{tile.label}</span>
-                            {tile.status !== 'ready' && (
-                              <span className="shrink-0 text-[10.5px] uppercase tracking-wide text-ink-500">
-                                soon
+                        {/* The plate is what takes the outline, so the row
+                            answers the pointer and the keyboard the same way
+                            a format tile and a project card do. */}
+                        <span className="plate flex min-w-0 flex-1 items-center gap-3 rounded-[6px] p-1.5">
+                          <TilePreview art={tile.art} category={tile.category} />
+                          {/* Beside the box and vertically centred by the row,
+                              so a two-line size never slides under it. */}
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-baseline gap-1.5">
+                              <span
+                                className="truncate"
+                                style={{
+                                  fontFamily: 'var(--font-display)',
+                                  fontWeight: 600,
+                                  fontSize: 15,
+                                }}
+                              >
+                                {tile.label}
                               </span>
-                            )}
-                          </span>
-                          <span className="mt-0.5 block text-[12px] leading-snug text-ink-500">
-                            {tileSize(tile)}
+                              {tile.status !== 'ready' && (
+                                <span className="tag shrink-0">Soon</span>
+                              )}
+                            </span>
+                            <span
+                              className="mono-label mt-1 block truncate text-ink-500"
+                              style={{ fontSize: 10 }}
+                            >
+                              {tileSize(tile)}
+                            </span>
                           </span>
                         </span>
                       </button>
@@ -983,7 +1001,7 @@ export function Landing() {
             <ul className="mt-3 max-h-56 overflow-y-auto text-[13.5px] text-ink-700">
               {empties.map((entry) => (
                 <li key={entry.key} className="flex items-baseline gap-2 py-0.5">
-                  <span className="truncate font-[560]">{entry.name || 'Untitled'}</span>
+                  <span className="truncate font-[560]">{nameFor(entry)}</span>
                   <span className="shrink-0 text-[12px] text-ink-500">{entry.type}</span>
                 </li>
               ))}
@@ -1057,12 +1075,19 @@ export function Landing() {
                   setPending(null);
                   void go(book.projectId!, book.bookKind!, pending.destination);
                 }}
-                className="rounded-xl border border-ink-200 p-3.5 text-left transition-colors hover:border-accent-500"
+                className="proof rounded-[6px] text-left"
               >
-                <span className="block truncate text-[16px] font-[560]">
-                  {book.name || 'Untitled'}
+                <span className="plate block rounded-[6px] bg-paper-100 p-3.5">
+                  <span
+                    className="block truncate"
+                    style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16 }}
+                  >
+                    {nameFor(book)}
+                  </span>
+                  <span className="mono-label mt-1 block truncate text-ink-500" style={{ fontSize: 10 }}>
+                    {book.type}
+                  </span>
                 </span>
-                <span className="mt-0.5 block text-[13px] text-ink-500">{book.type}</span>
               </button>
             ))}
             <div className="mt-1 flex flex-wrap gap-2">
@@ -1103,7 +1128,7 @@ export function Landing() {
         <Modal title="Delete this?" onClose={() => setDeleting(null)} width="max-w-md">
           <div className="p-5">
             <p className="text-[15px] leading-relaxed">
-              <strong className="font-[570]">{deleting.name || 'Untitled'}</strong> goes to the
+              <strong className="font-[570]">{nameFor(deleting)}</strong> goes to the
               trash.{' '}
               {deleting.kind !== 'design'
                 ? 'Everything in it goes with it, including its launch kit.'
@@ -1171,7 +1196,7 @@ function CardName({ entry, onDone }: { entry: LibraryEntry; onDone: () => void }
     <span className="relative z-10 mt-3 block">
       <TextInput
         autoFocus
-        aria-label={`Rename ${entry.name || 'Untitled'}`}
+        aria-label={`Rename ${nameFor(entry)}`}
         value={name}
         onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => setName(e.target.value)}

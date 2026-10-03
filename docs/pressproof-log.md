@@ -396,3 +396,77 @@ wide in Press proof and Night across all nine pages: 36 combinations, no
 element outside its parent, no sideways scroll, no overlapping text, and no
 font request the cache could not answer. The palette picker's 17 checks still
 pass. Six hover and focus assertions pass with the hover gate removed.
+
+## Stage 5 — the Create menu and search
+
+The menu's rows are plates now: a flat `paper100`, a hairline that goes to
+`ink900` on hover and on focus, radius 6, a Fraunces name and the size in DM
+Mono underneath. Its groups are numbered and ruled the way the home screen's
+sections are — `01 Books`, `02 Covers`, `03 Social`, `04 Print`, `05 Stickers`
+— because the menu is the same shop, not a different one. Gone with it: the
+bob on hover, the lift, the raised shadow, the accent-tinted hover fill and
+`rounded-xl`.
+
+`PREVIEW_BOX` was already 56, so the shared box only needed restyling: radius
+6 instead of `rounded-lg`, and a hairline rather than a shadow, so it reads as
+a flat tint with an edge instead of a card hovering in the row. The search
+results now use that same 56 square — a result and a format are the same kind
+of object and should not be two different sizes.
+
+`CATEGORY_TINT` and `CATEGORY_INK` moved off the legacy aliases
+(`--color-sun-50`, `--color-denim-50`, `--color-clay-50`, `--color-lilac-50`)
+and onto the palette's three accents plus the paper. Books and stickers share
+the third ink; covers and print share the first. That is the same pairing the
+home screen's chips and tags already make, and it is what having three accents
+means — a fourth and fifth would be two more colours nobody can name.
+
+### Three bugs found
+
+**Every dialog and every panel had lost its background.** `.dialog` and
+`.panel` said `background-image: var(--surface-raised)`, from when that token
+was a gradient. Stage 3 flattened it to one colour — Press Proof has no
+gradients — and `background-image: #F5EEDF` is not a value, so the browser
+dropped the declaration in silence. The Create menu was a transparent box with
+the home screen legible straight through it. Nothing warned, and no check
+opened a modal, which is why it survived two stages.
+
+A guard now reads the three stylesheets, follows each token one level of
+indirection to what it actually holds, and fails if `background-image` is given
+anything that is not a `url()` or a gradient. Proved by putting the old
+declaration back: `background-image: var(--surface-raised) — that token holds
+"#F5EEDF"`.
+
+**There were two focus rings, and they disagreed.** `globals.css` drew a teal
+one on `:focus-visible` for everything, `surfaces.css` drew an ink one on
+`.btn`, `.field` and `.chip`. Stage 3 said one ring. It is now declared once,
+in ink — the one colour every palette keeps furthest from its accents, so it
+never lands teal-on-teal — and the duplicate block is gone. The gap around it
+changed from the white sheet to the page colour: white is right in five
+palettes and draws a white band round every focused control in the dark one.
+
+**The dialog wore that ring around its whole self.** It is given focus on open
+so Escape and Tab behave, which is housekeeping, not something somebody tabbed
+to, and `outline-none` on the element lost to the unlayered `:focus-visible`
+rule. A ring round the entire panel says the panel is selected. The controls
+inside it keep theirs.
+
+### And the last four "Untitled"s
+
+Stage 4 removed the word from the cards; it was still in four other places on
+this screen — the clean-up list, the book picker, the delete confirmation and
+the rename field's label — all of which have a `LibraryEntry` and can simply
+ask `nameFor`. `components/Landing.tsx` no longer contains the string.
+
+It remains in the editors (a poem, a colouring page, a plate), where a thing
+genuinely has a title field somebody left blank. That is a different question
+from what to call a design in a list, and those files are Stage 7's, where the
+brief allows colour only.
+
+### Checked
+
+773 tests pass (one new guard). PDF digests `e3e2a36e0ac60ce1` and
+`d4eeeb9e99cb1bfe` unchanged. `golden:screen`: **0 pixels changed on both
+boards**. Build clean. The fixed-picture export byte-identical under both
+palettes. The contrast sweep passes on all four screens with the new focus
+ring. 36 page/palette/width combinations clean at 1280×720 and 800 wide in
+Press proof and Night. The palette picker's 17 checks still pass.
