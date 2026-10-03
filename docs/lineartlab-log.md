@@ -243,3 +243,72 @@ still 103 kB — nothing here reaches a page yet. No dependencies added.
 in Node and looking at them, and the timings, which are single-threaded Node on
 this machine rather than a browser worker on yours. There is still no browser
 path to the engine, so there is nothing to drive at 1280 and 800 until Stage 5.
+
+## Stage 3 — colouring page mode
+
+`lib/lineart/colouring.ts`. A different question from the pen looks: not "where
+is this darker than its surroundings" but "what are the areas". Colours reduced
+by k-means in Lab, the picture cut into connected regions, slivers absorbed, and
+the outline is whatever separates one region from the next. Three controls:
+**Complexity** (4 to 24 colours), **Minimum region size**, **Line thickness**.
+
+### Closed outlines, by construction rather than by care
+
+This is the thing the mode rests on: one gap and a tap of the fill tool turns
+the whole sheet pink. It is not approached by drawing carefully. A pixel is
+outline when the pixel to its right or the pixel below it has a different region
+label, and that definition alone forces the guarantee — along any four-connected
+path of non-outline pixels the label cannot change, because each of the four
+ways a neighbour can sit is a case where one of the two pixels would have been
+marked. The proof is four lines and it is written at the top of the file.
+
+The right and bottom edges of the picture are marked too. Without them a fill in
+a region touching the edge escapes round the outside of the page and into
+everything else that touches it.
+
+The test does not take the proof's word for it: it fills every white area of a
+finished page exactly the way a bucket tool would, four-connected and knowing
+nothing about regions, and asserts each area lies inside a single region. Run at
+three complexities and at four line thicknesses, because thickening is a
+minimum filter and could in principle have been the thing that broke it.
+
+### Decisions worth knowing
+
+- **Lab, not RGB.** The question being asked is "are these the same colour to a
+  person", which is what Lab is for and what RGB is not.
+- **Deterministic seeding.** k-means++ picks its starting centres with a
+  weighted draw, which is the part that makes it good and the part that makes it
+  unrepeatable. The weighting is kept and the draw comes from a fixed xorshift,
+  so the centres are still spread across the picture and the answer is still the
+  same on every machine.
+- **Fitted on a sample, applied to every pixel.** A dozen rounds over 1.5
+  million points is slow and the centres a 20,000-point sample finds are
+  indistinguishable. The sample is a fixed stride, so it is repeatable too.
+- **Merging repeats until nothing moves.** One pass leaves a tide line: a sliver
+  whose only neighbours are also slivers has nowhere to go until they become
+  something. There is a test built from a row of ever-smaller slivers that fails
+  on a single-pass implementation.
+- **Ties go to the bigger neighbour.** Otherwise a sliver sitting between two
+  equally-close colours joins whichever one a `Set` happened to iterate first,
+  and the output stops being deterministic in a way nothing would catch.
+- **The three Lab planes are smoothed separately.** They are three independent
+  pictures to an edge-preserving filter; one that mixed them would move colours
+  rather than clean them. Each goes in and out on its own scale, since lightness
+  runs 0 to 100 and the colour axes run either side of zero.
+
+### Timings and output
+
+640×480 photograph, all three complexities: **679, 691, 685 ms**. Ink on the
+page 7.1%, 9.4%, 13.4% as complexity rises from 15 to 80. Noticeably cheaper
+than the pen looks, because there is no flow field and no per-pixel sampling
+along it.
+
+### Checked
+
+827 tests pass (15 new). PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe`
+unchanged. `golden:screen` **0 pixels changed on both boards**. Build clean,
+first-load JS still 103 kB. No dependencies added.
+
+**What could only be checked in the sandbox:** the pages themselves, rendered to
+PNG in Node. The hand-off into the existing colouring tools is Stage 7 and is
+not wired up yet, so there is still nothing to drive in a browser.
