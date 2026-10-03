@@ -312,3 +312,86 @@ first-load JS still 103 kB. No dependencies added.
 **What could only be checked in the sandbox:** the pages themselves, rendered to
 PNG in Node. The hand-off into the existing colouring tools is Stage 7 and is
 not wired up yet, so there is still nothing to drive in a browser.
+
+## Stage 4 — hand-inked mode
+
+`lib/lineart/inked.ts`. The first look that stops thinking in pixels: the mask
+is thinned to a one-pixel skeleton, the skeleton is followed into paths, the
+paths are tidied, and only then is anything drawn — as strokes with a width that
+varies along them and tapers at the ends. Four controls: **Thickness**,
+**Taper**, **Wobble**, **Detail**.
+
+Two things follow from working in paths rather than pixels. The SVG is **native
+vector output**, not a trace of a raster: the same list of points and widths
+feeds both the canvas and the SVG, so there is no second implementation to
+drift. And the wobble is a wobble rather than noise — a smooth drift along each
+stroke, from a fixed sequence seeded by the stroke's own index, so a picture
+redrawn tomorrow wobbles identically.
+
+### The bug that took the stage
+
+The first working version drew a smooth circle as **four arcs with gaps between
+them**. Measured, it had been cut into pieces of 95, 92, 82 and 75 pixels where
+there should have been one of 420, with short fragments between them dropped for
+being short.
+
+The first guess was wrong. Thinning does leave little barbs, and barbs do create
+junctions, and tracing does cut at junctions — so spur pruning moved from the
+traced paths to the skeleton itself, before anything is traced. That was a real
+improvement and it fixed nothing: it removed four pixels out of 4193. The
+skeleton had only 40 loose ends but 978 junctions.
+
+What the junctions actually were: thinning a line a pixel or two too thick
+leaves little loops, and every loop is a junction. The arcs either side of one
+meet **at** it — the gap between them is zero. And `joinGaps` began with
+`if (gap > maxGap || gap === 0) continue;`, written to stop a path joining
+itself, which meant it could not fix the one thing it most needed to fix. It
+also tried only one of the four ways two paths can meet, and a path traced
+outwards from a junction may run either way round.
+
+With zero-length gaps allowed and all four pairings tried, the circle came back
+as one stroke of 697 pixels and the picture went from 111 strokes to 57. There
+is a test for each half of that, named after the thing it prevents.
+
+A second, smaller one: rubbing out a barb leaves the pixel it hung from with
+three neighbours arranged in a way that is no longer a junction, and only the
+thinning rules know that. Without another thinning pass a three-pixel barb came
+back as a one-pixel stub — a bump on the line instead of a hair beside it. Each
+pruning round now ends with one.
+
+### Things the tests had to be corrected about
+
+Three tests were measuring the wrong thing and were fixed rather than the code:
+
+- A blunt-ended bar thins with its **ends pulled in by about half its original
+  thickness** — a bar from 4 to 35 thins to 6 to 32. That is what thinning a
+  blunt end does, not a fault. The test now asserts one pixel of thickness
+  everywhere, no holes, and most of the length.
+- A one-pixel cross traced eight-connectedly gives **four arms and some
+  two-pixel offcuts**, not four paths: the pixel above the centre touches the
+  centre and both of its horizontal neighbours, so there is a cluster of
+  high-degree pixels rather than one junction. The offcuts are shorter than any
+  length filter keeps.
+- The "no random numbers" check read the file's own prose explaining that it
+  uses no random numbers, and failed on it. Comments are stripped first now, in
+  this test and in the Stage 1 one.
+
+### Timings and sizes
+
+640×480 photograph: skeletonise 102 ms, trace 19 ms, and 263 to 404 ms for the
+strokes and the drawing. The SVG of that picture is **569 KB for 57 paths** —
+large because each stroke is written as its own outline, which is the price of a
+width that varies along the stroke. Simplification is Stage 6's business and
+will bring it down.
+
+### Checked
+
+850 tests pass (23 new). PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe`
+unchanged. `golden:screen` **0 pixels changed on both boards**. Build clean,
+first-load JS still 103 kB. No dependencies added.
+
+**What could only be checked in the sandbox:** the drawings, as PNGs in Node.
+The SVG is checked structurally — one path per stroke, every path closed, two
+cap arcs each, no coordinate outside the strokes' own bounds — but **nothing has
+rendered it**, because there is no SVG renderer here. It wants a look in a
+browser on your Mac.

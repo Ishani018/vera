@@ -329,7 +329,12 @@ test('nothing in the engine reads a clock or a random number', () => {
 });
 
 function readEngineSource() {
-  return readFileSync(new URL('../lib/lineart/xdog.ts', import.meta.url), 'utf8');
+  // Comments stripped: the file explains at length that it uses no random
+  // number, and a check that reads prose cannot tell the explanation from the
+  // thing it is warning about.
+  return readFileSync(new URL('../lib/lineart/xdog.ts', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*/g, '');
 }
 
 /* -------------------------------------------------------------- fixtures */

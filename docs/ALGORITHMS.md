@@ -43,7 +43,8 @@ anywhere public.
 | 3 | Labelling regions and merging the small ones | Rosenfeld and Pfaltz, *Sequential Operations in Digital Picture Processing*, JACM 1966 |
 | 4 | Thinning a mask to a one-pixel skeleton | Zhang and Suen, *A Fast Parallel Algorithm for Thinning Digital Patterns*, CACM 27(3), 1984 |
 | 4, 6 | Following a boundary into an ordered path | Suzuki and Abe, *Topological Structural Analysis of Digitized Binary Images by Border Following*, CVGIP 30(1), 1985 |
-| 4 | Smoothing a polyline into a drawn stroke | Chaikin, *An Algorithm for High Speed Curve Generation*, 1974; Catmull and Rom, *A Class of Local Interpolating Splines*, 1974 |
+| 4 | Smoothing a polyline into a drawn stroke | Chaikin, *An Algorithm for High Speed Curve Generation*, 1974. Chaikin rather than Catmull-Rom: corner cutting keeps the line inside the shape it came from, where an interpolating spline overshoots at a sharp turn |
+| 4 | Spur pruning and gap joining | No single paper; standard skeleton tidying, implemented from the definitions |
 | 6 | Dropping points a curve does not need | Douglas and Peucker, *Algorithms for the Reduction of the Number of Points Required to Represent a Digitized Line or its Caricature*, Cartographica 10(2), 1973 |
 | 6 | Fitting Bézier curves to a path | Schneider, *An Algorithm for Automatically Fitting Digitized Curves*, Graphics Gems I, 1990 |
 
