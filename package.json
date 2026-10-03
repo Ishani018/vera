@@ -21,7 +21,8 @@
     "starter:build": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/starter-build.mjs",
     "starter:fetch": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/starter-fetch.mjs",
     "starter:fetch-all": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/starter-fetch-all.mjs",
-    "trim-compare": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/trim-compare.mjs"
+    "trim-compare": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/trim-compare.mjs",
+    "lab:bench": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/ts-resolver.mjs scripts/lab-bench.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -577,3 +577,51 @@ transform. And an element that is `pointer-events: none` can never match
 compiles and never fires.
 
 **Reversible?** Yes, one rule at a time. Nothing else depends on any of it.
+
+## The Line Art Lab runs on algorithms, and says so
+
+**Decision.** Every look in the Lab is our own code implementing a published
+algorithm. No pretrained model, no weights, no download, no inference runtime.
+The interface says *"Made with algorithms, no AI model"* and makes no claim
+about anybody's disclosure rules.
+
+**Why.** It began the other way round — the plan allowed an ONNX port of
+Informative Drawings behind a licence check — and the research is what changed
+it. The repository's MIT licence covers its *code*; the pre-trained weights are
+not in the repository, are linked from a file-sharing service, and carry no
+model card and no licence statement anywhere I could find. An unstated licence
+reads as "not granted".
+
+Dropping the models cost less than it looked like it would and bought three
+things outright: the Lab works the first time, offline, with nothing to fetch;
+the same picture gives the same bytes forever, which pixel-hash fixtures hold us
+to; and there is no third-party licence to explain to anybody.
+
+`docs/ALGORITHMS.md` lists each algorithm with its published reference and
+states that no code was copied from any reference implementation.
+
+**Reversible?** Easily — nothing depends on the absence of a model. But the
+licence question would have to be answered first, and it has not been.
+
+## Measure the engine, do not look at it
+
+**Decision.** Every parameter range in `lib/lineart/` was set by measuring the
+engine's response — ink coverage, midtone share, stroke counts, runtimes — and
+the numbers are written into the comments beside the constants.
+
+**Why.** Four faults in Stage 1 alone were invisible to the eye and obvious in a
+table. Scaling the parameters to the picture clamped `sigma` to its floor, so on
+a 700-pixel picture **all four looks were identical**. A difference of Gaussians
+with `tau` below 1 answers `v(1 - tau)` on flat ground, so the level meaning
+"paper" tracked brightness: the same settings put 2.91% of a test card in ink and
+0.63% of a photograph. The morphology from the colouring pipeline is binary and
+tested `=== INK`, so it flattened every half-tone to paper and erased the
+softness slider — all four looks measured exactly zero midtones.
+
+None of those would have been found by looking at thumbnails, and two of them
+produce pictures that look plausible.
+
+`npm run lab:bench <folder>` is the same discipline for anybody else: a contact
+sheet per picture and a table of what was measured.
+
+**Reversible?** The numbers are, one at a time. The habit should not be.

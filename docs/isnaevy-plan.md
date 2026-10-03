@@ -931,3 +931,28 @@ a bug will defend the bug, and it will do it convincingly, because the test is
 doing exactly what it was built to do. Pin two pictures when a code path has two
 kinds of input — here, one opaque and one transparent — so that fixing one cannot
 look like breaking the other.
+
+## The Line Art Lab
+
+Seven ways to turn a picture into line art, at `/lab`, with a tile on the home
+screen and a link on the Stickers hub. Ink pen, Fine, Bold and Sketch are
+difference-of-Gaussians looks; Hand-inked redraws the line mask as tapered
+strokes and exports real curves; Colouring page cuts the picture into areas with
+outlines that are closed by construction; Logo reduces it to a few flat colours
+and fits Béziers.
+
+**No model anywhere in it.** See `docs/DECISIONS.md` for why that changed, and
+`docs/ALGORITHMS.md` for whose mathematics each look implements.
+
+**What is done.** The engine, all seven looks, the page, and the hand-offs into
+My stickers, the Sticker Studio and an open colouring book — all through flows
+that already existed, with no schema change and no new storage key.
+
+**What is not.** The looks have **not been tuned on real photographs**:
+`docs/lab-inputs/` arrived empty and the stand-ins are synthetic. The SVG output
+is verified by its structure and by two independent rasterisations agreeing, but
+**no SVG viewer has opened one**. Both want a machine that is not this one.
+
+**Where to look first.** `docs/lineart-shots/` has a contact sheet per input
+picture, viewable on GitHub without running anything. `docs/lineartlab-log.md`
+has every hash, every timing, and every bug worth remembering.

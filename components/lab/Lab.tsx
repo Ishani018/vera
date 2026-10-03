@@ -54,6 +54,14 @@ export function Lab() {
   const [compare, setCompare] = useState(0.5);
   const [holding, setHolding] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  /*
+    Asked once, the first time a picture is opened, and not stored anywhere —
+    so it is asked again next session, which for a question about rights is the
+    right way round. It is also why this needs no storage key.
+  */
+  const [agreed, setAgreed] = useState(false);
 
   /** Every object URL this page has made, so none of them leaks. */
   const urls = useRef<string[]>([]);
@@ -66,6 +74,7 @@ export function Lab() {
 
   const take = useCallback((chosen: File) => {
     setProblem(null);
+    setSaid(null);
     setCards({});
     setResult(null);
     const url = URL.createObjectURL(chosen);
@@ -159,7 +168,9 @@ export function Lab() {
     <main data-lab className="flex h-dvh flex-col bg-paper-50">
       <Bar name={file?.name ?? null} onPick={take} />
 
-      {!file ? (
+      {!agreed ? (
+        <Rights onAgree={() => setAgreed(true)} />
+      ) : !file ? (
         <Dropzone onPick={take} />
       ) : (
         <div className="flex min-h-0 flex-1 gap-4 px-5 pb-5">
@@ -354,6 +365,56 @@ export function Lab() {
                   {` · ${result.stats.millis} ms`}
                 </p>
               )}
+              {said && (
+                <p className="mb-2 text-[12px] leading-snug text-ink-700">{said}</p>
+              )}
+              <div className="relative mb-2">
+                <Button
+                  disabled={!result}
+                  aria-expanded={sendOpen}
+                  onClick={() => setSendOpen((was) => !was)}
+                >
+                  Send to
+                </Button>
+                {sendOpen && result && file && (
+                  <div className="dialog absolute bottom-full left-0 z-20 mb-2 w-[232px] p-1.5">
+                    <Hand
+                      what="Save to My stickers"
+                      note={`Tagged lab and ${look}`}
+                      onPick={async () => {
+                        const { saveToMyStickers } = await handoff();
+                        await saveToMyStickers(await blobOf(result.url), baseName(file.name), look);
+                        setSaid('Saved to My stickers.');
+                        setSendOpen(false);
+                      }}
+                    />
+                    <Hand
+                      what="Send to Sticker Studio"
+                      note="Arrives as an ordinary sticker"
+                      onPick={async () => {
+                        const { sendToStickerStudio } = await handoff();
+                        await sendToStickerStudio(await blobOf(result.url), baseName(file.name), look);
+                        setSaid('In your library. Open Stickers to use it.');
+                        setSendOpen(false);
+                      }}
+                    />
+                    <Hand
+                      what="Add to colouring book"
+                      note="The book you have open"
+                      onPick={async () => {
+                        const { addToColouringBook } = await handoff();
+                        const done = await addToColouringBook(await blobOf(result.url), baseName(file.name));
+                        setSaid(
+                          done
+                            ? 'Added as a page.'
+                            : 'No colouring book is open. Open one first, then come back.',
+                        );
+                        setSendOpen(false);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
               <div className="relative">
                 <Button
                   variant="primary"
@@ -431,6 +492,53 @@ function Bar({ name, onPick }: { name: string | null; onPick: (file: File) => vo
       />
       <Button onClick={() => input.current?.click()}>{name ? 'Change picture' : 'Open a picture'}</Button>
     </header>
+  );
+}
+
+/**
+ * The one question worth asking before anything else.
+ *
+ * Short, once a session, and not stored: a promise about rights that was made
+ * in March does not cover a picture opened in June, and keeping a flag would
+ * imply it did. It costs one press and it is the only thing standing between
+ * this tool and somebody tracing a photograph they found.
+ */
+function Rights({ onAgree }: { onAgree: () => void }) {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center p-5">
+      <div className="max-w-[46ch] text-center">
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 22 }}>
+          Before you start
+        </h2>
+        <p className="mt-2 text-[14px] leading-relaxed text-ink-700">
+          Use pictures you took or drew, or that you are allowed to use. The Lab works on this
+          computer and never uploads anything, which means nobody but you is checking.
+        </p>
+        <div className="mt-4">
+          <Button variant="primary" onClick={onAgree}>
+            I have the right to use my pictures
+          </Button>
+        </div>
+        <p className="mono-label mt-4 text-ink-500" style={{ fontSize: 10 }}>
+          Made with algorithms, no AI model
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Hand({ what, note, onPick }: { what: string; note: string; onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="block w-full rounded-[6px] px-2 py-2 text-left transition-colors hover:bg-paper-100"
+    >
+      <span className="block text-[13px] font-[560]">{what}</span>
+      <span className="mono-label block text-ink-500" style={{ fontSize: 10 }}>
+        {note}
+      </span>
+    </button>
   );
 }
 
@@ -694,6 +802,17 @@ function setFrom(
 function classicOf(defaults: ReturnType<typeof defaultsFor>): ClassicSettings {
   return 'classic' in defaults ? defaults.classic : (defaultsFor('ink-pen') as { classic: ClassicSettings }).classic;
 }
+
+/**
+ * The hand-offs, fetched on the press rather than on the page.
+ *
+ * They reach into the sticker library and the colouring editor's store, which
+ * between them pull in the database layer: importing them at the top cost this
+ * route 46 kB that nobody who only wants a PNG ever uses.
+ */
+const handoff = () => import('@/lib/lab/handoff');
+
+const blobOf = async (url: string) => (await fetch(url)).blob();
 
 function baseName(name: string): string {
   return name.replace(/\.[^.]+$/, '') || 'drawing';

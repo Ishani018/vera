@@ -543,3 +543,75 @@ with my own even-odd scanline fill in Node and looking at the result, and by the
 worker's `Path2D` in the browser. **No SVG viewer has opened one of these
 files.** The two independent rasterisations agreeing is good evidence and is not
 the same thing.
+
+## Stage 7 — connect and finish
+
+### The hand-offs
+
+`lib/lab/handoff.ts`, three ways out, all through flows that already exist and
+**none of them touching a schema, a table or a storage key**:
+
+- **Save to My stickers** — `saveFileToLibrary(file, ['lab', look])`. Tags
+  rather than a column, because the stickers table already has tags and already
+  searches them.
+- **Send to Sticker Studio** — by way of the library, which is how the studio
+  already receives things, so a drawing arrives as an ordinary sticker rather
+  than as a special case.
+- **Add to colouring book** — the colouring editor's own `addFiles`, working on
+  whichever book that editor has open, which it reads from the key it already
+  uses. The same call its own drop zone makes. It says so plainly when no book
+  is open, rather than succeeding quietly into nothing.
+
+They are loaded **on the press, not on the page**: importing them at the top
+reached into the database layer and cost the route 46 kB (118 kB to 164 kB) that
+nobody who only wants a PNG ever uses. Dynamic import puts it back to 119 kB.
+
+### The rights notice
+
+Shown once, before the first picture, and **deliberately not stored** — which is
+also why it needs no storage key. A promise about rights made in March does not
+cover a picture opened in June, and keeping a flag would imply it did.
+
+### The bench
+
+```sh
+npm run lab:bench docs/lab-inputs          # writes out/lab-bench/
+LAB_BENCH_OUT=docs/lineart-shots npm run lab:bench docs/lab-inputs
+```
+
+A contact sheet per picture — the original beside all seven looks, each labelled
+— and a table of ink coverage, midtone share, curve counts and milliseconds. The
+labels are drawn with a five-by-seven bitmap alphabet in the script, so a sheet
+needs no font to be readable.
+
+`docs/lineart-shots/` holds the committed sheets: **476 KB** for five pictures,
+against the 3 MB budget. Viewable on GitHub without running anything.
+
+### Measured, on every input
+
+| picture | ink pen | fine | bold | sketch | hand-inked | colouring | logo |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| test card | 17.6% | 14.1% | 15.4% | 13.2% | 2.9% | 9.1% | 989 curves |
+| synthetic photo | 11.2% | 8.4% | 16.6% | 7.4% | 4.3% | 9.4% | 48 curves |
+| drawing (cat) | 9.0% | 7.2% | 10.8% | 7.1% | 2.6% | 6.1% | 181 curves |
+| drawing (flower) | 10.8% | 8.8% | 12.8% | 8.6% | 3.1% | 6.6% | 198 curves |
+| textured mark | 3.8% | 2.7% | 5.2% | 2.7% | 1.3% | 10.9% | 56 curves |
+
+Runtimes in Node, per look, are 100 to 850 ms at these sizes; in the browser's
+worker a full-size run is 1.3 to 1.4 s.
+
+The test card's 989 curves in Logo is the mode being right about itself: a card
+of fine checks is not a mark, and the Lab says so past forty.
+
+### Still true, and still worth repeating
+
+**`docs/lab-inputs/` arrived empty.** I pulled `origin/main` and checked. The
+five pictures now in it are stand-ins I generated or adapted from what the repo
+already had, and the folder's README says so. **The looks have not been tuned on
+real photographs**, and nothing in this log should be read as saying they have.
+
+### Checked
+
+881 tests pass. PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe` unchanged.
+`golden:screen` **0 pixels changed on both boards**. Build clean, first-load JS
+still 103 kB, `/lab` 119 kB. No dependencies added, in any stage.
