@@ -7,71 +7,104 @@
 */
 
 /*
-  The default theme, and the shape of all of them.
+  The default palette, and the shape of all of them.
 
-  Tailwind reads these through @theme, so `bg-accent-500` comes out as
-  `var(--color-accent-500)` — which means a theme can change what that utility
-  paints by redefining the variable, without a single class changing anywhere.
+  Tailwind reads these through @theme, so `bg-accenta-500` comes out as
+  `var(--color-accenta-500)` — which means a palette can change what that
+  utility paints by redefining the variable, without a single class changing
+  anywhere.
 
-  `static` because the themes below are plain CSS that Tailwind does not read:
-  without it Tailwind drops any token no utility happens to mention, and a theme
-  would then override a variable the default never defined — which is exactly
-  what happened to the coral the first time this was built.
+  `static` because the palettes below are plain CSS that Tailwind does not
+  read: without it Tailwind drops any token no utility happens to mention, and a
+  palette would then override a variable the default never defined — which is
+  exactly what happened to the coral the first time this was built.
 */
 @theme static {
+  /* roles */
+  --color-ink-900: #1B1815;
+  --color-ink-700: #3A332B;
+  --color-ink-500: #6B6256;
+  --color-ink-300: #A79E90;
+
+  --color-paper-50: #FBF7EE;
+  --color-paper-100: #F5EEDF;
+  --color-paper-200: #EBE2CE;
+  --color-paper-300: #DDD1B8;
+  --color-sheet: #FFFFFF;
+
+  --color-accenta-500: #D1432A;
+  --color-accenta-700: #A8321D;
+  --color-accenta-100: #F6D9D1;
+  --color-accentb-500: #0B6A62;
+  --color-accentb-700: #084F49;
+  --color-accentb-100: #D3E8E4;
+  --color-accentc-400: #F3C84B;
+  --color-accentc-100: #FBEFC6;
+  --color-outline: #1B1815;
+
+  /* what the palette decided, for the components that have to ask */
+  --text-on-accenta: #FFFFFF;
+  --sidebar-fill: #1B1815;
+  --sidebar-text: #FBF7EE;
+  --sidebar-muted: #A79E90;
+  --sidebar-active-fill: #FBF7EE;
+  --sidebar-active-text: #1B1815;
+
+  /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;
-  --color-ink-50: #FCF9F4;
-  --color-ink-100: #F5EFE5;
-  --color-ink-200: #E7DECE;
-  --color-ink-300: #D4C8B3;
-  --color-ink-400: #AC9D84;
-  --color-ink-500: #6E6354;
-  --color-ink-600: #584E42;
-  --color-ink-700: #443C33;
-  --color-ink-900: #1D1813;
+  --color-ink-50: #FBF7EE;
+  --color-ink-100: #F5EEDF;
+  --color-ink-200: #EBE2CE;
+  --color-ink-400: #A79E90;
+  --color-ink-600: #3A332B;
 
-  --color-accent-50: #E3F0EE;
-  --color-accent-200: #9AC7C0;
+  --color-accent-50: #D3E8E4;
+  --color-accent-200: #D3E8E4;
   --color-accent-500: #0B6A62;
-  --color-accent-600: #08544E;
+  --color-accent-600: #084F49;
 
-  --color-coral-50: #FDE7DF;
-  --color-coral-500: #C9452C;
-  --color-coral-600: #9A3220;
-  --color-sun-50: #FDF0CC;
-  --color-sun-500: #F0B429;
-  --color-sun-600: #7D5806;
-  --color-lilac-50: #EFE9FB;
-  --color-lilac-500: #6B4BB8;
-  --color-lilac-600: #513690;
-  --color-sage-50: #E3F1E4;
-  --color-sage-500: #3A7F4C;
-  --color-sage-600: #2A5F39;
-  --color-denim-50: #E4EDF7;
-  --color-denim-500: #36628E;
-  --color-denim-600: #274968;
-  --color-clay-50: #F8E7E4;
-  --color-clay-500: #9A4F47;
-  --color-clay-600: #753A34;
+  --color-coral-50: #F6D9D1;
+  --color-coral-500: #D1432A;
+  --color-coral-600: #A8321D;
+  --color-sun-50: #FBEFC6;
+  --color-sun-500: #F3C84B;
+  --color-sun-600: #1B1815;
+  --color-lilac-50: #D3E8E4;
+  --color-lilac-500: #0B6A62;
+  --color-lilac-600: #084F49;
+  --color-sage-50: #D3E8E4;
+  --color-sage-500: #0B6A62;
+  --color-sage-600: #084F49;
+  --color-denim-50: #D3E8E4;
+  --color-denim-500: #0B6A62;
+  --color-denim-600: #084F49;
+  --color-clay-50: #F6D9D1;
+  --color-clay-500: #D1432A;
+  --color-clay-600: #A8321D;
 
-  --color-ground: #6F6F6F;
-  --color-ground-rail: #5F5F5F;
-  --color-ground-deep: #8E8E8E;
+  --color-ground: #EBE2CE;
+  --color-ground-rail: #DDD1B8;
+  --color-ground-deep: #DDD1B8;
 
-  --shade: 29 24 19;
-  --glow: 201 69 44;
+  --shade: 27 24 21;
+  --glow: 209 67 42;
 
+  /* the chequerboard behind a transparent picture */
+  --chequer-light: #FBF7EE;
+  --chequer-dark: #EBE2CE;
+
+  --radius-tag: 3px;
   --radius-xs: 6px;
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 18px;
   --radius-pill: 999px;
 
-  --shadow-rest: 0 1px 2px rgb(var(--shade) / 0.06), 0 1px 1px rgb(var(--shade) / 0.04);
-  --shadow-raised: 0 6px 16px -4px rgb(var(--shade) / 0.14), 0 2px 6px -2px rgb(var(--shade) / 0.08);
-  --shadow-float: 0 18px 40px -12px rgb(var(--shade) / 0.24), 0 6px 14px -6px rgb(var(--shade) / 0.12);
-  --shadow-glow: 0 8px 24px -8px rgb(var(--glow) / 0.55);
+  --shadow-rest: none;
+  --shadow-raised: none;
+  --shadow-float: 0 2px 0 rgb(var(--shade) / 0.10), 0 8px 18px -10px rgb(var(--shade) / 0.30);
+  --shadow-glow: none;
 
   --motion-fast: 120ms;
   --motion-base: 200ms;
@@ -99,94 +132,389 @@
   --space-6: 24px;
   --space-8: 32px;
   --space-10: 40px;
+
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Inter', ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-script: 'Great Vibes', 'Snell Roundhand', cursive;
 }
 
-/* Lagoon — Cool — sea glass, teal and lavender. */
-:root[data-theme='lagoon'] {
+/* Sherbet — Soft plum and peach. */
+:root[data-theme='sherbet'] {
+  /* roles */
+  --color-ink-900: #3B2433;
+  --color-ink-700: #5C4155;
+  --color-ink-500: #755B6D;
+  --color-ink-300: #B9A2B2;
+
+  --color-paper-50: #FFF8F3;
+  --color-paper-100: #FDEBE2;
+  --color-paper-200: #F8D9CB;
+  --color-paper-300: #EBC4B3;
+  --color-sheet: #FFFFFF;
+
+  --color-accenta-500: #BE4D63;
+  --color-accenta-700: #8E3247;
+  --color-accenta-100: #FAD5DC;
+  --color-accentb-500: #3F7F8A;
+  --color-accentb-700: #2C5C65;
+  --color-accentb-100: #D6ECEF;
+  --color-accentc-400: #F7C48B;
+  --color-accentc-100: #FDEBD3;
+  --color-outline: #3B2433;
+
+  /* what the palette decided, for the components that have to ask */
+  --text-on-accenta: #FFFFFF;
+  --sidebar-fill: #F8D9CB;
+  --sidebar-text: #3B2433;
+  --sidebar-muted: #755B6D;
+  --sidebar-active-fill: #FFFFFF;
+  --sidebar-active-text: #3B2433;
+
+  /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;
-  --color-ink-50: #F7FAFA;
-  --color-ink-100: #EAF1F0;
-  --color-ink-200: #D5E2E0;
-  --color-ink-300: #B9CBC8;
-  --color-ink-400: #8EA5A2;
-  --color-ink-500: #5F6E6C;
-  --color-ink-600: #4B5856;
-  --color-ink-700: #3A4544;
-  --color-ink-900: #15201F;
+  --color-ink-50: #FFF8F3;
+  --color-ink-100: #FDEBE2;
+  --color-ink-200: #F8D9CB;
+  --color-ink-400: #B9A2B2;
+  --color-ink-600: #5C4155;
 
-  --color-accent-50: #DCEEEB;
-  --color-accent-200: #8FC2BB;
-  --color-accent-500: #0B6A62;
-  --color-accent-600: #08544E;
+  --color-accent-50: #D6ECEF;
+  --color-accent-200: #D6ECEF;
+  --color-accent-500: #3F7F8A;
+  --color-accent-600: #2C5C65;
 
-  --color-coral-50: #FBE6E0;
-  --color-coral-500: #BF4A34;
-  --color-coral-600: #933626;
-  --color-sun-50: #FAEFD2;
-  --color-sun-500: #E8AE33;
-  --color-sun-600: #75540A;
-  --color-lilac-50: #E9E8FA;
-  --color-lilac-500: #5B4FB5;
-  --color-lilac-600: #443A8D;
-  --color-sage-50: #DFF0E6;
-  --color-sage-500: #2F7D55;
-  --color-sage-600: #225E3F;
-  --color-denim-50: #DEEBF6;
-  --color-denim-500: #2E6190;
-  --color-denim-600: #21486B;
-  --color-clay-50: #F4E6E5;
-  --color-clay-500: #8F4F4B;
-  --color-clay-600: #6D3B38;
+  --color-coral-50: #FAD5DC;
+  --color-coral-500: #BE4D63;
+  --color-coral-600: #8E3247;
+  --color-sun-50: #FDEBD3;
+  --color-sun-500: #F7C48B;
+  --color-sun-600: #3B2433;
+  --color-lilac-50: #D6ECEF;
+  --color-lilac-500: #3F7F8A;
+  --color-lilac-600: #2C5C65;
+  --color-sage-50: #D6ECEF;
+  --color-sage-500: #3F7F8A;
+  --color-sage-600: #2C5C65;
+  --color-denim-50: #D6ECEF;
+  --color-denim-500: #3F7F8A;
+  --color-denim-600: #2C5C65;
+  --color-clay-50: #FAD5DC;
+  --color-clay-500: #BE4D63;
+  --color-clay-600: #8E3247;
 
-  --color-ground: #6B7271;
-  --color-ground-rail: #5C6262;
-  --color-ground-deep: #8A9090;
+  --color-ground: #F8D9CB;
+  --color-ground-rail: #EBC4B3;
+  --color-ground-deep: #EBC4B3;
 
-  --shade: 21 32 31;
-  --glow: 191 74 52;
+  --shade: 59 36 51;
+  --glow: 190 77 99;
+
+  /* the chequerboard behind a transparent picture */
+  --chequer-light: #FFF8F3;
+  --chequer-dark: #F8D9CB;
 }
 
-/* Candy — Playful — lilac, pink and mint. */
-:root[data-theme='candy'] {
+/* Mint cloud — Cool green paper, warm red marks. */
+:root[data-theme='mint-cloud'] {
+  /* roles */
+  --color-ink-900: #1F3A33;
+  --color-ink-700: #3C5A51;
+  --color-ink-500: #536961;
+  --color-ink-300: #9DB4AA;
+
+  --color-paper-50: #F5FBF7;
+  --color-paper-100: #E6F4EC;
+  --color-paper-200: #D2E8DA;
+  --color-paper-300: #B8D6C4;
+  --color-sheet: #FFFFFF;
+
+  --color-accenta-500: #BF4F37;
+  --color-accenta-700: #8F3724;
+  --color-accenta-100: #F8D8CE;
+  --color-accentb-500: #3E78A8;
+  --color-accentb-700: #2A5578;
+  --color-accentb-100: #D8E8F5;
+  --color-accentc-400: #F3D77B;
+  --color-accentc-100: #FBF1CC;
+  --color-outline: #1F3A33;
+
+  /* what the palette decided, for the components that have to ask */
+  --text-on-accenta: #FFFFFF;
+  --sidebar-fill: #D2E8DA;
+  --sidebar-text: #1F3A33;
+  --sidebar-muted: #536961;
+  --sidebar-active-fill: #FFFFFF;
+  --sidebar-active-text: #1F3A33;
+
+  /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;
-  --color-ink-50: #FBF8FD;
-  --color-ink-100: #F2ECF8;
-  --color-ink-200: #E2D9EE;
-  --color-ink-300: #CBBEDD;
-  --color-ink-400: #A294BA;
-  --color-ink-500: #675C79;
-  --color-ink-600: #534962;
-  --color-ink-700: #40384C;
-  --color-ink-900: #1B1522;
+  --color-ink-50: #F5FBF7;
+  --color-ink-100: #E6F4EC;
+  --color-ink-200: #D2E8DA;
+  --color-ink-400: #9DB4AA;
+  --color-ink-600: #3C5A51;
 
-  --color-accent-50: #E0EFEC;
-  --color-accent-200: #93C5BE;
-  --color-accent-500: #0B6A62;
-  --color-accent-600: #08544E;
+  --color-accent-50: #D8E8F5;
+  --color-accent-200: #D8E8F5;
+  --color-accent-500: #3E78A8;
+  --color-accent-600: #2A5578;
 
-  --color-coral-50: #FCE3EC;
-  --color-coral-500: #C03568;
-  --color-coral-600: #95254E;
-  --color-sun-50: #FDEFC9;
-  --color-sun-500: #F4B52B;
-  --color-sun-600: #7A5606;
-  --color-lilac-50: #EDE4FB;
-  --color-lilac-500: #7342C4;
-  --color-lilac-600: #57309A;
-  --color-sage-50: #DDF3E9;
-  --color-sage-500: #1F7E5C;
-  --color-sage-600: #166046;
-  --color-denim-50: #E2EAFA;
-  --color-denim-500: #3F5CB0;
-  --color-denim-600: #2E4486;
-  --color-clay-50: #F9E4EC;
-  --color-clay-500: #A2456B;
-  --color-clay-600: #7C3251;
+  --color-coral-50: #F8D8CE;
+  --color-coral-500: #BF4F37;
+  --color-coral-600: #8F3724;
+  --color-sun-50: #FBF1CC;
+  --color-sun-500: #F3D77B;
+  --color-sun-600: #1F3A33;
+  --color-lilac-50: #D8E8F5;
+  --color-lilac-500: #3E78A8;
+  --color-lilac-600: #2A5578;
+  --color-sage-50: #D8E8F5;
+  --color-sage-500: #3E78A8;
+  --color-sage-600: #2A5578;
+  --color-denim-50: #D8E8F5;
+  --color-denim-500: #3E78A8;
+  --color-denim-600: #2A5578;
+  --color-clay-50: #F8D8CE;
+  --color-clay-500: #BF4F37;
+  --color-clay-600: #8F3724;
 
-  --color-ground: #716E78;
-  --color-ground-rail: #615F68;
-  --color-ground-deep: #8F8C96;
+  --color-ground: #D2E8DA;
+  --color-ground-rail: #B8D6C4;
+  --color-ground-deep: #B8D6C4;
 
-  --shade: 27 21 34;
-  --glow: 192 53 104;
+  --shade: 31 58 51;
+  --glow: 191 79 55;
+
+  /* the chequerboard behind a transparent picture */
+  --chequer-light: #F5FBF7;
+  --chequer-dark: #D2E8DA;
+}
+
+/* Lilac haze — Violet paper, magenta and indigo. */
+:root[data-theme='lilac-haze'] {
+  /* roles */
+  --color-ink-900: #2A2145;
+  --color-ink-700: #473C69;
+  --color-ink-500: #665D84;
+  --color-ink-300: #A79FC4;
+
+  --color-paper-50: #FAF7FF;
+  --color-paper-100: #F0EAFB;
+  --color-paper-200: #E3DAF6;
+  --color-paper-300: #CDBFEA;
+  --color-sheet: #FFFFFF;
+
+  --color-accenta-500: #C2417D;
+  --color-accenta-700: #922F5E;
+  --color-accenta-100: #F9D4E6;
+  --color-accentb-500: #4B5BC4;
+  --color-accentb-700: #343F92;
+  --color-accentb-100: #DADFF8;
+  --color-accentc-400: #F5D77A;
+  --color-accentc-100: #FCF1CA;
+  --color-outline: #2A2145;
+
+  /* what the palette decided, for the components that have to ask */
+  --text-on-accenta: #FFFFFF;
+  --sidebar-fill: #E3DAF6;
+  --sidebar-text: #2A2145;
+  --sidebar-muted: #665D84;
+  --sidebar-active-fill: #FFFFFF;
+  --sidebar-active-text: #2A2145;
+
+  /* aliases — the names the app was written in, pointing at the roles above */
+  --color-paper: #FFFFFF;
+  --color-ink-50: #FAF7FF;
+  --color-ink-100: #F0EAFB;
+  --color-ink-200: #E3DAF6;
+  --color-ink-400: #A79FC4;
+  --color-ink-600: #473C69;
+
+  --color-accent-50: #DADFF8;
+  --color-accent-200: #DADFF8;
+  --color-accent-500: #4B5BC4;
+  --color-accent-600: #343F92;
+
+  --color-coral-50: #F9D4E6;
+  --color-coral-500: #C2417D;
+  --color-coral-600: #922F5E;
+  --color-sun-50: #FCF1CA;
+  --color-sun-500: #F5D77A;
+  --color-sun-600: #2A2145;
+  --color-lilac-50: #DADFF8;
+  --color-lilac-500: #4B5BC4;
+  --color-lilac-600: #343F92;
+  --color-sage-50: #DADFF8;
+  --color-sage-500: #4B5BC4;
+  --color-sage-600: #343F92;
+  --color-denim-50: #DADFF8;
+  --color-denim-500: #4B5BC4;
+  --color-denim-600: #343F92;
+  --color-clay-50: #F9D4E6;
+  --color-clay-500: #C2417D;
+  --color-clay-600: #922F5E;
+
+  --color-ground: #E3DAF6;
+  --color-ground-rail: #CDBFEA;
+  --color-ground-deep: #CDBFEA;
+
+  --shade: 42 33 69;
+  --glow: 194 65 125;
+
+  /* the chequerboard behind a transparent picture */
+  --chequer-light: #FAF7FF;
+  --chequer-dark: #E3DAF6;
+}
+
+/* Riso — Fluorescent pink and blue on newsprint. */
+:root[data-theme='riso'] {
+  /* roles */
+  --color-ink-900: #111A6B;
+  --color-ink-700: #2A3490;
+  --color-ink-500: #4F58A8;
+  --color-ink-300: #9AA0D4;
+
+  --color-paper-50: #F6F2E7;
+  --color-paper-100: #ECE6D3;
+  --color-paper-200: #DFD7BE;
+  --color-paper-300: #C9BFA2;
+  --color-sheet: #FFFEFA;
+
+  --color-accenta-500: #FF4FA3;
+  --color-accenta-700: #B81D72;
+  --color-accenta-100: #FFD3E8;
+  --color-accentb-500: #0078BF;
+  --color-accentb-700: #00568A;
+  --color-accentb-100: #CFE6F5;
+  --color-accentc-400: #FFE14A;
+  --color-accentc-100: #FFF5B8;
+  --color-outline: #111A6B;
+
+  /* what the palette decided, for the components that have to ask */
+  --text-on-accenta: #111A6B;
+  --sidebar-fill: #111A6B;
+  --sidebar-text: #F6F2E7;
+  --sidebar-muted: #9AA0D4;
+  --sidebar-active-fill: #F6F2E7;
+  --sidebar-active-text: #111A6B;
+
+  /* aliases — the names the app was written in, pointing at the roles above */
+  --color-paper: #FFFEFA;
+  --color-ink-50: #F6F2E7;
+  --color-ink-100: #ECE6D3;
+  --color-ink-200: #DFD7BE;
+  --color-ink-400: #9AA0D4;
+  --color-ink-600: #2A3490;
+
+  --color-accent-50: #CFE6F5;
+  --color-accent-200: #CFE6F5;
+  --color-accent-500: #0078BF;
+  --color-accent-600: #00568A;
+
+  --color-coral-50: #FFD3E8;
+  --color-coral-500: #FF4FA3;
+  --color-coral-600: #B81D72;
+  --color-sun-50: #FFF5B8;
+  --color-sun-500: #FFE14A;
+  --color-sun-600: #111A6B;
+  --color-lilac-50: #CFE6F5;
+  --color-lilac-500: #0078BF;
+  --color-lilac-600: #00568A;
+  --color-sage-50: #CFE6F5;
+  --color-sage-500: #0078BF;
+  --color-sage-600: #00568A;
+  --color-denim-50: #CFE6F5;
+  --color-denim-500: #0078BF;
+  --color-denim-600: #00568A;
+  --color-clay-50: #FFD3E8;
+  --color-clay-500: #FF4FA3;
+  --color-clay-600: #B81D72;
+
+  --color-ground: #DFD7BE;
+  --color-ground-rail: #C9BFA2;
+  --color-ground-deep: #C9BFA2;
+
+  --shade: 17 26 107;
+  --glow: 255 79 163;
+
+  /* the chequerboard behind a transparent picture */
+  --chequer-light: #F6F2E7;
+  --chequer-dark: #DFD7BE;
+}
+
+/* Night — Dark room, same red and teal. */
+:root[data-theme='night'] {
+  /* roles */
+  --color-ink-900: #F4EEE1;
+  --color-ink-700: #D8CFBE;
+  --color-ink-500: #A39A8A;
+  --color-ink-300: #6F6759;
+
+  --color-paper-50: #14110E;
+  --color-paper-100: #1F1B16;
+  --color-paper-200: #2B261F;
+  --color-paper-300: #453E33;
+  --color-sheet: #FFFFFF;
+
+  --color-accenta-500: #D1432A;
+  --color-accenta-700: #FF8A6E;
+  --color-accenta-100: #3A1B14;
+  --color-accentb-500: #0E8277;
+  --color-accentb-700: #4FC3B6;
+  --color-accentb-100: #12302D;
+  --color-accentc-400: #F3C84B;
+  --color-accentc-100: #2E2A18;
+  --color-outline: #0C0A08;
+
+  /* what the palette decided, for the components that have to ask */
+  --text-on-accenta: #FFFFFF;
+  --sidebar-fill: #0C0A08;
+  --sidebar-text: #14110E;
+  --sidebar-muted: #6F6759;
+  --sidebar-active-fill: #14110E;
+  --sidebar-active-text: #F4EEE1;
+
+  /* aliases — the names the app was written in, pointing at the roles above */
+  --color-paper: #FFFFFF;
+  --color-ink-50: #14110E;
+  --color-ink-100: #1F1B16;
+  --color-ink-200: #2B261F;
+  --color-ink-400: #6F6759;
+  --color-ink-600: #D8CFBE;
+
+  --color-accent-50: #12302D;
+  --color-accent-200: #12302D;
+  --color-accent-500: #0E8277;
+  --color-accent-600: #4FC3B6;
+
+  --color-coral-50: #3A1B14;
+  --color-coral-500: #D1432A;
+  --color-coral-600: #FF8A6E;
+  --color-sun-50: #2E2A18;
+  --color-sun-500: #F3C84B;
+  --color-sun-600: #F4EEE1;
+  --color-lilac-50: #12302D;
+  --color-lilac-500: #0E8277;
+  --color-lilac-600: #4FC3B6;
+  --color-sage-50: #12302D;
+  --color-sage-500: #0E8277;
+  --color-sage-600: #4FC3B6;
+  --color-denim-50: #12302D;
+  --color-denim-500: #0E8277;
+  --color-denim-600: #4FC3B6;
+  --color-clay-50: #3A1B14;
+  --color-clay-500: #D1432A;
+  --color-clay-600: #FF8A6E;
+
+  --color-ground: #2B261F;
+  --color-ground-rail: #453E33;
+  --color-ground-deep: #453E33;
+
+  --shade: 0 0 0;
+  --glow: 209 67 42;
+
+  /* the chequerboard behind a transparent picture */
+  --chequer-light: #14110E;
+  --chequer-dark: #2B261F;
 }

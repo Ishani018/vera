@@ -22,26 +22,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         {/*
-          The wordmark's face. Loaded the same way every other Google face in
-          this app is — a stylesheet link at runtime — rather than baked in at
-          build time, so building has never needed the network and still
-          doesn't. If it cannot be reached the wordmark falls back to whichever
-          script the machine ships.
+          The four faces, in one request.
+
+          Fraunces SemiBold and its italic for headings, Inter for body and
+          buttons, DM Mono for the small uppercase labels a proof sheet is
+          annotated with, and Great Vibes for the wordmark and nothing else.
+
+          Loaded the same way the two faces before them were — a stylesheet link
+          at runtime rather than baked in at build time, so building has never
+          needed the network and still doesn't. `display=swap` so the page is
+          readable in the fallback stack while they arrive, and every stack in
+          `lib/theme.ts` ends in something the machine already has.
+
+          Inter is asked for as a variable face (`wght@400..600`) rather than as
+          three static weights: one file of 48 KB instead of three totalling 96.
+          Latin only, which is what Google serves by default and what the
+          unicode-range on each block limits it to.
         */}
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap"
-        />
-        {/*
-          The display face for headings. One family, two weights, the optical
-          size axis left to the browser — the whole latin subset of a variable
-          face, which is one file and one request. Body text keeps the system
-          sans, which costs nothing and is already on the machine.
-        */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap"
+          href={
+            'https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500' +
+            '&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600' +
+            '&family=Great+Vibes' +
+            '&family=Inter:wght@400..600' +
+            '&display=swap'
+          }
         />
         {/*
           The theme, chosen before anything is painted.

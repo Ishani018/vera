@@ -5,9 +5,12 @@
 :root {
   color-scheme: light;
 
-  /* The body face, and the display face for headings. */
-  --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  /*
+    The faces live in `lib/theme.ts` and arrive through `tokens.css`, so the one
+    place that decides what a label is set in is the place that decides what
+    colour it is. Nothing here redefines them: a `:root` rule after that import
+    would win over it, which is how the display face used to be declared twice.
+  */
 
   /*
     Large surfaces get a gradient rather than a fill. Two stops, three or four

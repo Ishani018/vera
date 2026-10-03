@@ -5,20 +5,23 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
-  CANDY,
+  CUSTOM_KEY,
   DEFAULT_THEME,
   EASING,
-  LAGOON,
+  FONTS,
   MOTION,
   MUST_READ,
+  PALETTES,
+  PRESS_PROOF,
   RADII,
   SHADOWS,
-  SUNRISE,
   THEMES,
   THEME_KEY,
   TYPE,
   chooseTheme,
   colourAt,
+  inkOnSheet,
+  textOn,
   themeById,
 } from '../lib/theme.ts';
 import { CONTRAST_MIN, contrastRatio } from '../lib/legibility.ts';
@@ -36,7 +39,7 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
 /* ------------------------------------------------------- the contrast sweep */
 
-test('every readable pair passes AA, in every theme', () => {
+test('every readable pair passes AA, in every palette', () => {
   const failures = [];
   for (const theme of THEMES) {
     for (const pair of MUST_READ) {
@@ -52,86 +55,177 @@ test('every readable pair passes AA, in every theme', () => {
   assert.deepEqual(failures, []);
 });
 
-test('the sweep covers every colour the palette has', () => {
-  // A colour nothing checks is a colour nobody has looked at. Each role's mid
-  // and deep must appear somewhere in the list.
+test('the sweep covers every colour role the palette has', () => {
+  // A colour nothing checks is a colour nobody has looked at. Every role must
+  // appear somewhere in the list, as text or as a surface.
   const named = new Set(MUST_READ.flatMap((pair) => [pair.text, pair.on]));
-  for (const role of ['coral', 'sun', 'lilac', 'sage', 'denim', 'clay']) {
-    for (const step of ['tint', 'mid', 'deep']) {
-      assert.ok(named.has(`roles.${role}.${step}`), `roles.${role}.${step} is unchecked`);
+  const resolved = new Set([
+    'textOnA',
+    'textOnA700',
+    'inkOnSheet',
+    'mutedOnSheet',
+    'sidebarFill',
+    'sidebarText',
+    'sidebarMuted',
+    'sidebarActiveFill',
+    'sidebarActiveText',
+  ]);
+  const roles = [
+    'ink900', 'ink700', 'ink500', 'ink300',
+    'paper50', 'paper100', 'paper200', 'paper300', 'sheet',
+    'accentA500', 'accentA700', 'accentA100',
+    'accentB500', 'accentB700', 'accentB100',
+    'accentC400', 'accentC100', 'outline',
+  ];
+  // Every name used in the sweep is either a role or one of the resolved
+  // decisions — a typo in a pair name would otherwise read as `undefined` and
+  // quietly pass.
+  for (const name of named) {
+    assert.ok(roles.includes(name) || resolved.has(name), `${name} is neither a role nor a decision`);
+  }
+  // And every role that a reader ever sees is covered, directly or through a
+  // decision that resolves to it.
+  const touched = new Set();
+  for (const palette of PALETTES) {
+    for (const name of named) {
+      const value = colourAt(palette, name);
+      for (const role of roles) if (palette[role] === value) touched.add(role);
     }
   }
-  for (const step of ['tint', 'mid', 'deep']) {
-    assert.ok(named.has(`accent.${step}`), `accent.${step} is unchecked`);
+  for (const role of roles) {
+    // paper300 is a rule and a track, never a text background; it is checked by
+    // the layout audit instead, where a 1px line is a thing you can measure.
+    if (role === 'paper300') continue;
+    assert.ok(touched.has(role), `${role} is unchecked`);
   }
 });
 
-test('the three themes are three themes, not one with three names', () => {
-  assert.equal(THEMES.length, 3);
-  const pages = THEMES.map((theme) => theme.neutrals.ink100);
-  assert.equal(new Set(pages).size, 3, pages.join(', '));
-  const corals = THEMES.map((theme) => theme.roles.coral.mid);
-  assert.equal(new Set(corals).size, 3, corals.join(', '));
+test('six palettes, and each is genuinely its own', () => {
+  assert.equal(PALETTES.length, 6);
+  const pages = PALETTES.map((p) => p.paper50);
+  assert.equal(new Set(pages).size, 6, pages.join(', '));
+  const ids = PALETTES.map((p) => p.id);
+  assert.deepEqual(ids, ['press-proof', 'sherbet', 'mint-cloud', 'lilac-haze', 'riso', 'night']);
 });
 
-test('the teal is the brand colour in all three', () => {
-  for (const theme of THEMES) assert.equal(theme.accent.mid, '#0B6A62', theme.id);
-});
-
-test('Sunrise is the default, and each theme is complete', () => {
-  assert.equal(DEFAULT_THEME, SUNRISE.id);
-  for (const theme of [SUNRISE, LAGOON, CANDY]) {
-    assert.equal(Object.keys(theme.neutrals).length, 10, theme.id);
-    assert.equal(Object.keys(theme.roles).length, 6, theme.id);
-    for (const ramp of Object.values(theme.roles)) {
-      for (const step of ['tint', 'mid', 'deep']) {
-        assert.match(ramp[step], /^#[0-9A-F]{6}$/, `${theme.id} ${step}: ${ramp[step]}`);
-      }
+test('press-proof is the default, and every palette is complete', () => {
+  assert.equal(DEFAULT_THEME, PRESS_PROOF.id);
+  const roles = [
+    'ink900', 'ink700', 'ink500', 'ink300',
+    'paper50', 'paper100', 'paper200', 'paper300', 'sheet',
+    'accentA500', 'accentA700', 'accentA100',
+    'accentB500', 'accentB700', 'accentB100',
+    'accentC400', 'accentC100', 'outline',
+  ];
+  for (const palette of PALETTES) {
+    for (const role of roles) {
+      assert.match(palette[role], /^#[0-9A-F]{6}$/, `${palette.id} ${role}: ${palette[role]}`);
     }
+    assert.ok(['dark', 'tinted'].includes(palette.sidebarStyle), palette.id);
+    assert.ok(['sheet', 'ink'].includes(palette.textOnAccentA), palette.id);
+    assert.equal(typeof palette.isDark, 'boolean', palette.id);
   }
 });
 
-test('a tint is lighter than its mid, and a deep is darker', () => {
+test('the ink ramp runs one way and the paper ramp the other', () => {
   const light = (hex) => contrastRatio(hex, '#000000');
-  for (const theme of THEMES) {
-    for (const [role, ramp] of Object.entries(theme.roles)) {
-      assert.ok(light(ramp.tint) > light(ramp.mid), `${theme.id} ${role}: tint is not lighter`);
-      assert.ok(light(ramp.mid) > light(ramp.deep), `${theme.id} ${role}: deep is not darker`);
+  for (const palette of PALETTES) {
+    // ink900 is the strongest ink, whichever end of the scale that is.
+    assert.ok(light(palette.ink900) < light(palette.ink300) === !palette.isDark,
+      `${palette.id}: the ink ramp does not run the way the palette says`);
+    assert.ok(light(palette.paper50) > light(palette.paper300) === !palette.isDark,
+      `${palette.id}: the paper ramp does not run the way the palette says`);
+  }
+});
+
+test('one palette is dark, and it is the one that says so', () => {
+  const dark = PALETTES.filter((p) => p.isDark);
+  assert.equal(dark.length, 1);
+  assert.equal(dark[0].id, 'night');
+  // In a dark palette the page is darker than the ink, which is the whole test
+  // of whether `isDark` was set honestly.
+  assert.ok(contrastRatio(dark[0].paper50, '#000000') < contrastRatio(dark[0].ink900, '#000000'));
+});
+
+test('outline is a near-black everywhere, including the dark palette', () => {
+  for (const palette of PALETTES) {
+    // It is what dark text on a white silhouette is drawn in, so it has to work
+    // against `sheet` in every palette, dark one included.
+    assert.ok(contrastRatio(palette.outline, palette.sheet) >= 4.5, palette.id);
+  }
+});
+
+test('text on a fill is chosen by contrast, not by hope', () => {
+  for (const palette of PALETTES) {
+    for (const fill of [palette.accentA500, palette.accentA700, palette.accentB500]) {
+      assert.ok(contrastRatio(textOn(palette, fill), fill) >= 4.5, `${palette.id}: ${fill}`);
     }
+  }
+  // Riso is the palette this exists for: white on its pink is unreadable.
+  const riso = PALETTES.find((p) => p.id === 'riso');
+  assert.equal(textOn(riso, riso.accentA500), riso.outline);
+  assert.equal(riso.textOnAccentA, 'ink');
+});
+
+test('a white page silhouette is lettered in something you can read', () => {
+  for (const palette of PALETTES) {
+    assert.ok(contrastRatio(inkOnSheet(palette), palette.sheet) >= 4.5, palette.id);
+  }
+});
+
+test('four faces, each with one job', () => {
+  assert.deepEqual(Object.keys(FONTS), ['display', 'body', 'mono', 'script']);
+  assert.match(FONTS.display, /Fraunces/);
+  assert.match(FONTS.body, /Inter/);
+  assert.match(FONTS.mono, /DM Mono/);
+  assert.match(FONTS.script, /Great Vibes/);
+  // Every stack ends in something the machine already has.
+  for (const [name, stack] of Object.entries(FONTS)) {
+    assert.match(stack, /(serif|sans-serif|monospace|cursive|system-ui)\s*$/, name);
   }
 });
 
 /* -------------------------------------------------------------- the choosing */
 
 test('the address wins, then what was remembered, then the default', () => {
-  assert.equal(chooseTheme('?theme=lagoon', 'candy'), 'lagoon');
-  assert.equal(chooseTheme('', 'candy'), 'candy');
-  assert.equal(chooseTheme('', null), 'sunrise');
-  assert.equal(chooseTheme('?theme=nonsense', 'candy'), 'candy', 'a name that is not a theme is ignored');
-  assert.equal(chooseTheme('?theme=nonsense', 'also-nonsense'), 'sunrise');
-  assert.equal(chooseTheme('?other=1', null), 'sunrise');
+  assert.equal(chooseTheme('?theme=riso', 'night'), 'riso');
+  assert.equal(chooseTheme('', 'night'), 'night');
+  assert.equal(chooseTheme('', null), 'press-proof');
+  assert.equal(chooseTheme('?theme=nonsense', 'night'), 'night', 'a name that is not a palette is ignored');
+  assert.equal(chooseTheme('?theme=nonsense', 'also-nonsense'), 'press-proof');
+  assert.equal(chooseTheme('?other=1', null), 'press-proof');
+  // A palette somebody mixed themselves answers to its own id.
+  assert.equal(chooseTheme('?theme=custom', null), 'custom');
+  assert.equal(chooseTheme('', 'custom'), 'custom');
 });
 
-test('the theme is remembered under a key of its own', () => {
-  // Not a key anything else uses: losing it loses a preference, not a book.
+test('the palette is remembered under keys of its own', () => {
+  // Not keys anything else uses: losing one loses a preference, not a book.
   assert.equal(THEME_KEY, 'isnaevy:theme');
-  assert.ok(!THEME_KEY.includes('versecraft'), 'that name belongs to the database');
+  assert.equal(CUSTOM_KEY, 'isnaevy:palette-custom');
+  for (const key of [THEME_KEY, CUSTOM_KEY]) {
+    assert.ok(!key.includes('versecraft'), 'that name belongs to the database');
+  }
 });
 
 test('an unknown id reads as the default rather than as nothing', () => {
-  assert.equal(themeById('nope').id, 'sunrise');
-  assert.equal(themeById(null).id, 'sunrise');
-  assert.equal(themeById('candy').id, 'candy');
+  assert.equal(themeById('nope').id, 'press-proof');
+  assert.equal(themeById(null).id, 'press-proof');
+  assert.equal(themeById('night').id, 'night');
 });
 
 /* ---------------------------------------------------------------- the scales */
 
-test('three steps of depth, and a halo', () => {
+test('a proof sheet has no drop shadows on it', () => {
   assert.deepEqual(Object.keys(SHADOWS), ['rest', 'raised', 'float', 'glow']);
-  // Each is mixed from the theme's own ink rather than from black.
-  for (const [name, value] of Object.entries(SHADOWS)) {
-    assert.match(value, /var\(--(shade|glow)\)/, name);
+  // Depth comes from outlines, flat tints and crop marks. The only exception is
+  // the one step for things that genuinely float over the page, and even that
+  // is a hairline and a short offset rather than a glow.
+  for (const name of ['rest', 'raised', 'glow']) {
+    assert.equal(SHADOWS[name], 'none', `${name} should be none`);
   }
+  assert.match(SHADOWS.float, /var\(--shade\)/);
+  assert.ok(!/\b\d\dpx \d\dpx/.test(SHADOWS.float), 'float should not be a big soft blur');
 });
 
 test('the durations are the four asked for, and none is slow', () => {
@@ -153,8 +247,10 @@ test('the scales are ramps, not piles', () => {
   const px = (value) => Number(value.replace('px', ''));
   const sizes = Object.values(TYPE).map(px);
   assert.deepEqual([...sizes].sort((a, b) => a - b), sizes, 'the type scale is out of order');
+  // The radii are a set of four values with names, not a ramp: 3 on a tag, 6 on
+  // anything you press or type into, 8 on a rail item, 18 on a pill.
   const radii = Object.values(RADII).filter((one) => one !== '999px').map(px);
-  assert.deepEqual([...radii].sort((a, b) => a - b), radii, 'the radius scale is out of order');
+  assert.deepEqual([...new Set(radii)].sort((a, b) => a - b), [3, 6, 8, 18]);
 });
 
 /* --------------------------------------------- the CSS is made, not written */
@@ -178,14 +274,19 @@ test('app/tokens.css is what the generator writes', () => {
   assert.equal(before, after, 'run `npm run tokens` — the stylesheet is out of date');
 });
 
-test('every theme is in the stylesheet, and every colour with it', () => {
+test('every palette is in the stylesheet, and every colour with it', () => {
   const css = readFileSync(join(ROOT, 'app', 'tokens.css'), 'utf8');
-  for (const theme of THEMES) {
-    if (theme.id !== DEFAULT_THEME) assert.match(css, new RegExp(`data-theme='${theme.id}'`));
-    for (const ramp of Object.values(theme.roles)) {
-      for (const step of ['tint', 'mid', 'deep']) {
-        assert.ok(css.includes(ramp[step]), `${theme.id}: ${ramp[step]} is not in the stylesheet`);
-      }
+  const roles = [
+    'ink900', 'ink700', 'ink500', 'ink300',
+    'paper50', 'paper100', 'paper200', 'paper300', 'sheet',
+    'accentA500', 'accentA700', 'accentA100',
+    'accentB500', 'accentB700', 'accentB100',
+    'accentC400', 'accentC100', 'outline',
+  ];
+  for (const palette of PALETTES) {
+    if (palette.id !== DEFAULT_THEME) assert.match(css, new RegExp(`data-theme='${palette.id}'`));
+    for (const role of roles) {
+      assert.ok(css.includes(palette[role]), `${palette.id}: ${role} ${palette[role]} is not in the stylesheet`);
     }
   }
 });

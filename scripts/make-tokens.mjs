@@ -2,12 +2,13 @@ import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   EASING,
+  FONTS,
   MOTION,
+  PALETTES,
+  PRESS_PROOF,
   RADII,
   SHADOWS,
   SPACE,
-  SUNRISE,
-  THEMES,
   TYPE,
 } from '../lib/theme.ts';
 
@@ -24,52 +25,101 @@ import {
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
-/** Every colour of one theme, as `--token: value` lines. */
-function colours(theme) {
-  const lines = [];
-  const n = theme.neutrals;
-  lines.push(
-    `--color-paper: ${n.paper};`,
-    `--color-ink-50: ${n.ink50};`,
-    `--color-ink-100: ${n.ink100};`,
-    `--color-ink-200: ${n.ink200};`,
-    `--color-ink-300: ${n.ink300};`,
-    `--color-ink-400: ${n.ink400};`,
-    `--color-ink-500: ${n.ink500};`,
-    `--color-ink-600: ${n.ink600};`,
-    `--color-ink-700: ${n.ink700};`,
-    `--color-ink-900: ${n.ink900};`,
-    '',
-    `--color-accent-50: ${theme.accent.tint};`,
-    `--color-accent-200: ${theme.accent.soft};`,
-    `--color-accent-500: ${theme.accent.mid};`,
-    `--color-accent-600: ${theme.accent.deep};`,
-    '',
-  );
-  for (const [role, ramp] of Object.entries(theme.roles)) {
-    lines.push(
-      `--color-${role}-50: ${ramp.tint};`,
-      `--color-${role}-500: ${ramp.mid};`,
-      `--color-${role}-600: ${ramp.deep};`,
-    );
-  }
-  lines.push(
-    '',
-    `--color-ground: ${theme.ground.pane};`,
-    `--color-ground-rail: ${theme.ground.rail};`,
-    `--color-ground-deep: ${theme.ground.deep};`,
-    '',
-    `--shade: ${theme.shade};`,
-    `--glow: ${rgbOf(theme.roles.coral.mid)};`,
-  );
-  return lines;
-}
-
 /** "#C9452C" as "201 69 44" — spaces, so `rgb(… / .55)` is valid CSS. */
 function rgbOf(hex) {
   const n = hex.replace('#', '');
   const to = (at) => parseInt(n.slice(at, at + 2), 16);
   return `${to(0)} ${to(2)} ${to(4)}`;
+}
+
+/**
+ * Every colour of one palette, as `--token: value` lines.
+ *
+ * Two sets of names are emitted, and the second set is the point of this
+ * comment. The **roles** are the vocabulary of the design language: ink, paper,
+ * sheet, accentA/B/C. The **aliases** underneath are the names the app was
+ * already written in — `ink-100`, `accent-500`, `coral-500` and the rest — kept
+ * pointing at the nearest role so that changing the palette does not require
+ * changing every component on the same commit. They are a bridge, not a second
+ * system: nothing new should use one, and each is a line that can be deleted
+ * once the last component that reads it has moved over.
+ */
+function colours(p) {
+  const lines = [
+    '/* roles */',
+    `--color-ink-900: ${p.ink900};`,
+    `--color-ink-700: ${p.ink700};`,
+    `--color-ink-500: ${p.ink500};`,
+    `--color-ink-300: ${p.ink300};`,
+    '',
+    `--color-paper-50: ${p.paper50};`,
+    `--color-paper-100: ${p.paper100};`,
+    `--color-paper-200: ${p.paper200};`,
+    `--color-paper-300: ${p.paper300};`,
+    `--color-sheet: ${p.sheet};`,
+    '',
+    `--color-accenta-500: ${p.accentA500};`,
+    `--color-accenta-700: ${p.accentA700};`,
+    `--color-accenta-100: ${p.accentA100};`,
+    `--color-accentb-500: ${p.accentB500};`,
+    `--color-accentb-700: ${p.accentB700};`,
+    `--color-accentb-100: ${p.accentB100};`,
+    `--color-accentc-400: ${p.accentC400};`,
+    `--color-accentc-100: ${p.accentC100};`,
+    `--color-outline: ${p.outline};`,
+    '',
+    '/* what the palette decided, for the components that have to ask */',
+    `--text-on-accenta: ${p.textOnAccentA === 'ink' ? p.ink900 : p.sheet};`,
+    `--sidebar-fill: ${p.sidebarStyle === 'dark' ? (p.isDark ? p.outline : p.ink900) : p.paper200};`,
+    `--sidebar-text: ${p.sidebarStyle === 'dark' ? p.paper50 : p.ink900};`,
+    `--sidebar-muted: ${p.sidebarStyle === 'dark' ? p.ink300 : p.ink500};`,
+    `--sidebar-active-fill: ${p.sidebarStyle === 'dark' ? p.paper50 : p.sheet};`,
+    `--sidebar-active-text: ${p.ink900};`,
+    '',
+    '/* aliases — the names the app was written in, pointing at the roles above */',
+    `--color-paper: ${p.sheet};`,
+    `--color-ink-50: ${p.paper50};`,
+    `--color-ink-100: ${p.paper100};`,
+    `--color-ink-200: ${p.paper200};`,
+    `--color-ink-400: ${p.ink300};`,
+    `--color-ink-600: ${p.ink700};`,
+    '',
+    `--color-accent-50: ${p.accentB100};`,
+    `--color-accent-200: ${p.accentB100};`,
+    `--color-accent-500: ${p.accentB500};`,
+    `--color-accent-600: ${p.accentB700};`,
+    '',
+    `--color-coral-50: ${p.accentA100};`,
+    `--color-coral-500: ${p.accentA500};`,
+    `--color-coral-600: ${p.accentA700};`,
+    `--color-sun-50: ${p.accentC100};`,
+    `--color-sun-500: ${p.accentC400};`,
+    `--color-sun-600: ${p.ink900};`,
+    `--color-lilac-50: ${p.accentB100};`,
+    `--color-lilac-500: ${p.accentB500};`,
+    `--color-lilac-600: ${p.accentB700};`,
+    `--color-sage-50: ${p.accentB100};`,
+    `--color-sage-500: ${p.accentB500};`,
+    `--color-sage-600: ${p.accentB700};`,
+    `--color-denim-50: ${p.accentB100};`,
+    `--color-denim-500: ${p.accentB500};`,
+    `--color-denim-600: ${p.accentB700};`,
+    `--color-clay-50: ${p.accentA100};`,
+    `--color-clay-500: ${p.accentA500};`,
+    `--color-clay-600: ${p.accentA700};`,
+    '',
+    `--color-ground: ${p.paper200};`,
+    `--color-ground-rail: ${p.paper300};`,
+    `--color-ground-deep: ${p.paper300};`,
+    '',
+    `--shade: ${rgbOf(p.isDark ? '#000000' : p.ink900)};`,
+    `--glow: ${rgbOf(p.accentA500)};`,
+    '',
+    '/* the chequerboard behind a transparent picture */',
+    `--chequer-light: ${p.paper50};`,
+    `--chequer-dark: ${p.paper200};`,
+  ];
+  return lines;
 }
 
 const indent = (lines, by) => lines.map((line) => (line ? `${' '.repeat(by)}${line}` : '')).join('\n');
@@ -88,19 +138,20 @@ const head = `/*
 const body = `${head}
 
 /*
-  The default theme, and the shape of all of them.
+  The default palette, and the shape of all of them.
 
-  Tailwind reads these through @theme, so \`bg-accent-500\` comes out as
-  \`var(--color-accent-500)\` — which means a theme can change what that utility
-  paints by redefining the variable, without a single class changing anywhere.
+  Tailwind reads these through @theme, so \`bg-accenta-500\` comes out as
+  \`var(--color-accenta-500)\` — which means a palette can change what that
+  utility paints by redefining the variable, without a single class changing
+  anywhere.
 
-  \`static\` because the themes below are plain CSS that Tailwind does not read:
-  without it Tailwind drops any token no utility happens to mention, and a theme
-  would then override a variable the default never defined — which is exactly
-  what happened to the coral the first time this was built.
+  \`static\` because the palettes below are plain CSS that Tailwind does not
+  read: without it Tailwind drops any token no utility happens to mention, and a
+  palette would then override a variable the default never defined — which is
+  exactly what happened to the coral the first time this was built.
 */
 @theme static {
-${indent(colours(SUNRISE), 2)}
+${indent(colours(PRESS_PROOF), 2)}
 
 ${indent(scale('radius', RADII), 2)}
 
@@ -113,13 +164,18 @@ ${indent(scale('ease', EASING), 2)}
 ${indent(scale('text', TYPE), 2)}
 
 ${indent(scale('space', SPACE), 2)}
+
+  --font-display: ${FONTS.display};
+  --font-body: ${FONTS.body};
+  --font-mono: ${FONTS.mono};
+  --font-script: ${FONTS.script};
 }
 
-${THEMES.filter((theme) => theme.id !== SUNRISE.id)
+${PALETTES.filter((p) => p.id !== PRESS_PROOF.id)
   .map(
-    (theme) => `/* ${theme.name} — ${theme.note}. */
-:root[data-theme='${theme.id}'] {
-${indent(colours(theme), 2)}
+    (p) => `/* ${p.name} — ${p.note}. */
+:root[data-theme='${p.id}'] {
+${indent(colours(p), 2)}
 }`,
   )
   .join('\n\n')}

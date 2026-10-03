@@ -10,5 +10,11 @@
     "name": "cat-opaque-1026x1026.png",
     "bytes": 98320,
     "sha256": "6e2ca05ed20a7e74aa44fb3f07a1d93a1ac93b8965331fcc6599f6022418db30"
+  },
+  "transparent-night": {
+    "note": "the same picture, exported with the Night palette on",
+    "name": "cat-1026x1026.png",
+    "bytes": 98320,
+    "sha256": "6e2ca05ed20a7e74aa44fb3f07a1d93a1ac93b8965331fcc6599f6022418db30"
   }
 }
