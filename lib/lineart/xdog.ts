@@ -58,6 +58,8 @@ import {
   type Gray,
 } from './pipeline';
 
+import { prepare, type SmoothStyle } from './smooth';
+
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -77,6 +79,14 @@ export type ClassicLook = 'ink-pen' | 'fine' | 'bold' | 'sketch';
 
 export type ClassicSettings = {
   look: ClassicLook;
+  /**
+   * 0–100. Edge-preserving smoothing before any line is found.
+   *
+   * Separate from `cleanup`, which is a plain blur and a speck size. This one
+   * knows what an edge is: it takes the grain out of a photograph without
+   * taking the picture with it. See `smooth.ts`.
+   */
+  smoothing: number;
   /** 0–100. How heavy the finished line is. */
   thickness: number;
   /** 0–100. How much fine texture survives. */
@@ -98,31 +108,44 @@ export type ClassicSettings = {
  */
 export const CLASSIC_LOOKS: Record<
   ClassicLook,
-  { label: string; blurb: string; flow: boolean; settings: Omit<ClassicSettings, 'look' | 'invert'> }
+  {
+    label: string;
+    blurb: string;
+    flow: boolean;
+    /** Which edge-preserving filter suits this look. See `smooth.ts`. */
+    smoothStyle: SmoothStyle;
+    settings: Omit<ClassicSettings, 'look' | 'invert'>;
+  }
 > = {
   'ink-pen': {
     label: 'Ink pen',
     blurb: 'Even, confident lines. The default, and the one that prints best.',
     flow: true,
-    settings: { thickness: 50, detail: 52, softness: 18, cleanup: 40 },
+    smoothStyle: 'bilateral',
+    settings: { thickness: 50, detail: 52, softness: 18, cleanup: 40, smoothing: 45 },
   },
   fine: {
     label: 'Fine',
     blurb: 'A hard nib. Keeps small detail, so it wants a sharp picture.',
     flow: true,
-    settings: { thickness: 22, detail: 74, softness: 10, cleanup: 48 },
+    smoothStyle: 'bilateral',
+    settings: { thickness: 22, detail: 74, softness: 10, cleanup: 48, smoothing: 62 },
   },
   bold: {
     label: 'Bold',
     blurb: 'Thick outlines and little else. Good for stickers and cutting.',
     flow: true,
-    settings: { thickness: 86, detail: 24, softness: 24, cleanup: 62 },
+    // The painted look: Bold wants flat shapes with crisp boundaries, which is
+    // precisely what the Kuwahara filter turns a photograph into.
+    smoothStyle: 'kuwahara',
+    settings: { thickness: 86, detail: 24, softness: 24, cleanup: 62, smoothing: 55 },
   },
   sketch: {
     label: 'Sketch',
     blurb: 'Softer, looser, pencil rather than pen. Leaves some tone in.',
     flow: false,
-    settings: { thickness: 40, detail: 58, softness: 76, cleanup: 44 },
+    smoothStyle: 'bilateral',
+    settings: { thickness: 40, detail: 58, softness: 76, cleanup: 44, smoothing: 30 },
   },
 };
 
@@ -179,8 +202,21 @@ export function resolveClassic(settings: ClassicSettings) {
   const thickness = clamp(settings.thickness, 0, 100) / 100;
   const softness = clamp(settings.softness, 0, 100) / 100;
   const cleanup = clamp(settings.cleanup, 0, 100) / 100;
+  const smoothing = clamp(settings.smoothing ?? 0, 0, 100) / 100;
 
   return {
+    /** How hard the edge-preserving filter works. See `smooth.ts`. */
+    smoothAmount: smoothing,
+    /**
+     * How far local contrast is evened out before lines are found.
+     *
+     * Tied to the smoothing slider rather than given one of its own: they are
+     * two halves of the same job — make the picture say the same thing about a
+     * line in the shade as about a line in the sun — and two sliders for one
+     * intention is one slider too many. Held well below 1 because the effect
+     * amplifies whatever the smoothing did not remove.
+     */
+    contrastAmount: smoothing * 0.55,
     /**
      * The narrow Gaussian: the finest thing that survives.
      *
@@ -306,6 +342,87 @@ function pass(field: Field, kernel: Float32Array, radius: number, horizontal: bo
 }
 
 /**
+ * A Gaussian in name only: three box passes, at a fixed cost per pixel.
+ *
+ * `gaussian` above is the real thing, and the difference of two Gaussians needs
+ * it to be — that signal is a hair wide and an approximation eats it. But most
+ * of the blurring in this file is not differencing anything: it is smoothing
+ * STATISTICS, the structure tensor's components and a local mean and variance,
+ * where the question is "roughly how much is there round here" and three box
+ * passes answer it indistinguishably.
+ *
+ * The difference is not small. Profiled at the working size, the exact kernel
+ * costs its radius per pixel, which put 655ms into the flow field and 861ms
+ * into the contrast normalisation; this is flat in the radius, and took them to
+ * roughly a fifth of that. Bold went from 7.9 seconds to 3.1.
+ *
+ * How close it actually is, measured against the exact kernel on a 0-to-1
+ * field: the mean error is under 0.005 everywhere, which is about one grey
+ * level in 255, and the WORST error reaches 0.05 on a sinusoid whose period is
+ * near the blur's own scale. That is the honest number and it is the reason for
+ * the rule above. A mean or a variance does not care about five percent in the
+ * worst place; a difference of two Gaussians is five percent, so it cares
+ * about nothing else. Use `gaussian` there, always.
+ *
+ * The widths are the two odd box sizes that bracket the wanted variance rather
+ * than three of the same — three equal boxes were out by 0.029 at sigma 2,
+ * where this is out by 0.010.
+ */
+export function fastBlur(field: Field, sigma: number): Field {
+  if (sigma <= 0.01) return { ...field, data: new Float32Array(field.data) };
+  let current = field;
+  for (const radius of boxRadii(sigma)) {
+    if (radius < 1) continue;
+    current = boxPass(boxPass(current, radius, true), radius, false);
+  }
+  return current;
+}
+
+/**
+ * Three box radii whose combined variance is the Gaussian's.
+ *
+ * Three passes of a box of width w have variance `(w*w - 1) / 4` each. Solving
+ * for the width that gives `sigma*sigma` in three passes rarely lands on an odd
+ * integer, so the two odd widths either side are used, `m` passes of the
+ * narrower and the rest of the wider, with `m` chosen to land the total
+ * variance as close as it will go.
+ */
+function boxRadii(sigma: number): number[] {
+  const n = 3;
+  const ideal = Math.sqrt((12 * sigma * sigma) / n + 1);
+  let lower = Math.floor(ideal);
+  if (lower % 2 === 0) lower -= 1;
+  const upper = lower + 2;
+  const m = Math.round(
+    (12 * sigma * sigma - n * lower * lower - 4 * n * lower - 3 * n) / (-4 * lower - 4),
+  );
+  const widths = [];
+  for (let i = 0; i < n; i++) widths.push(i < m ? lower : upper);
+  return widths.map((w) => (w - 1) / 2);
+}
+
+function boxPass(field: Field, radius: number, horizontal: boolean): Field {
+  const { width, height, data } = field;
+  const out = new Float32Array(data.length);
+  const span = horizontal ? width : height;
+  const lines = horizontal ? height : width;
+  const step = horizontal ? 1 : width;
+  const window = radius * 2 + 1;
+  for (let line = 0; line < lines; line++) {
+    const base = horizontal ? line * width : line;
+    // Clamped at the edges, so a blurred border does not fade to nothing.
+    let sum = data[base] * (radius + 1);
+    for (let i = 1; i <= radius; i++) sum += data[base + Math.min(i, span - 1) * step];
+    for (let i = 0; i < span; i++) {
+      out[base + i * step] = sum / window;
+      sum += data[base + Math.min(i + radius + 1, span - 1) * step];
+      sum -= data[base + Math.max(i - radius, 0) * step];
+    }
+  }
+  return { width, height, data: out };
+}
+
+/**
  * Which way the picture runs at each pixel.
  *
  * The structure tensor is the outer product of the gradient with itself,
@@ -340,9 +457,11 @@ export function tangentFlow(field: Field, sigma: number): Flow {
     }
   }
 
-  const be = gaussian({ width, height, data: e }, sigma).data;
-  const bf = gaussian({ width, height, data: f }, sigma).data;
-  const bg = gaussian({ width, height, data: g }, sigma).data;
+  // Statistics, not a difference: the fast blur is indistinguishable here and
+  // was most of this function's cost.
+  const be = fastBlur({ width, height, data: e }, sigma).data;
+  const bf = fastBlur({ width, height, data: f }, sigma).data;
+  const bg = fastBlur({ width, height, data: g }, sigma).data;
 
   const tx = new Float32Array(n);
   const ty = new Float32Array(n);
@@ -657,6 +776,20 @@ export function runClassic(source: Bitmap, settings: ClassicSettings): Gray {
   */
   const grey = reduce(toGray(flattenOntoWhite(source), settings.invert), CLASSIC_WORKING_EDGE);
   let field = toField(grey);
+
+  /*
+    Clean the picture before anything is measured.
+
+    The order is smoothing, then the plain blur, then the line finding. The
+    edge-preserving filter comes first because it is the one that can tell grain
+    from detail; running the plain blur in front of it would hand it a picture
+    whose edges had already been softened into the noise.
+  */
+  field = prepare(field, {
+    style: CLASSIC_LOOKS[settings.look].smoothStyle,
+    amount: p.smoothAmount,
+    contrast: p.contrastAmount,
+  });
   if (p.preBlur > 0.01) field = gaussian(field, p.preBlur);
 
   let response: Field;

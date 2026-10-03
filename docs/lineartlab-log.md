@@ -156,3 +156,90 @@ fixed-picture export is byte-identical under both palettes.
 **What could only be checked in the sandbox:** the drawings themselves, by
 rendering PNGs in Node and looking at them. There is no browser path to the
 engine yet, so there is nothing to drive at 1280 and 800 until Stage 3.
+
+## Stage 2 — cleaner input
+
+`lib/lineart/smooth.ts`. Edge-preserving smoothing in front of every look, with
+one **Smoothing** slider, and local contrast normalisation tied to the same
+slider because they are two halves of one intention: make the picture say the
+same thing about a line in the shade as about a line in the sun.
+
+Two filters, because they fail differently and the looks want different things.
+**Bilateral** for Ink pen, Fine and Sketch — it averages a neighbourhood but
+weights each neighbour by how similar it is as well as how close, so flat areas
+go smooth and edges stay put. **Anisotropic Kuwahara** for Bold — it takes each
+pixel's answer from the most uniform sector of an ellipse oriented along the
+local tangent, which does not merely preserve detail but pushes the picture
+towards flat shapes with crisp boundaries. That is the input a heavy pen wants,
+and it is visible in the result: Bold's sphere was a broken crescent before this
+stage and is a complete circle after it.
+
+Both are original implementations written from the published mathematics.
+
+### What it does, measured
+
+On the grainy test photograph, with everything else held still, smoothing at
+the preset level takes the ground from dense stipple to a sparse scatter and
+removes the noise from the sky entirely. End to end the test asserts the
+narrower claim: a grainy picture puts less than three quarters as much ink on
+the page with smoothing on.
+
+### Honesty about the approximations
+
+Two things here are approximations, and both say so in the code rather than
+being passed off:
+
+- The **bilateral filter is separable here**, which it is not in truth: its
+  weights depend on the centre pixel, so a horizontal pass then a vertical one
+  is not the same operation. It is a well-behaved approximation that turns a
+  cost growing with the square of the radius into one growing linearly, which
+  is the difference between a filter that can sit behind a live slider and one
+  that cannot.
+- The **fast blur is three box passes**, used only for statistics — the
+  structure tensor's components, and a local mean and variance. Measured
+  against the exact kernel its mean error is under 0.005 on a 0-to-1 field,
+  about one grey level in 255, and its worst error reaches 0.05 on a sinusoid
+  near the blur's own scale. That is immaterial for a mean and fatal for a
+  difference of two Gaussians, which is a few percent all told — so `gaussian`
+  is still used there, and there is a test that reads the source and fails if
+  anybody swaps it.
+
+### Performance, because it nearly sank the stage
+
+The first working version took **7.9 seconds** for Bold at the working size,
+which is not a thing you can put behind a slider. Profiling rather than guessing
+found the cost was spread, not concentrated, and two changes fixed it:
+
+| | before | after |
+| --- | --- | --- |
+| Ink pen, full working size | 3632 ms | 2056 ms |
+| Fine | 3309 ms | 2079 ms |
+| Bold | 7898 ms | 3150 ms |
+| Sketch | 2180 ms | 830 ms |
+
+The first change: the eight sectors of the Kuwahara filter are eight equal
+sectors of a turn, which **are** the octants, so an `atan2` per sample — 119
+million of them at the working size — becomes a sign test and a magnitude test.
+There is a test that checks the two agree, because "identical" is a claim.
+
+The second, and much the larger: `gaussian` is exact and costs its radius per
+pixel, which put 655 ms into the flow field and 861 ms into the contrast
+normalisation. Neither of those is differencing anything, so both moved to the
+box approximation above and fell to roughly a fifth.
+
+A first attempt at tuning — reducing the Kuwahara radius — moved the total by
+84 ms and was the wrong tree entirely. It is recorded because the profile is
+the point: three guesses would not have found this.
+
+### Checked
+
+812 tests pass (15 new, and 24 XDoG fixtures re-recorded **on purpose**, once,
+because this stage puts smoothing in front of every look; the reason is written
+beside them). PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe` unchanged.
+`golden:screen` **0 pixels changed on both boards**. Build clean, first-load JS
+still 103 kB — nothing here reaches a page yet. No dependencies added.
+
+**What could only be checked in the sandbox:** the drawings, by rendering PNGs
+in Node and looking at them, and the timings, which are single-threaded Node on
+this machine rather than a browser worker on yours. There is still no browser
+path to the engine, so there is nothing to drive at 1280 and 800 until Stage 5.

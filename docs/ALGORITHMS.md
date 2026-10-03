@@ -35,9 +35,10 @@ anywhere public.
 | 1 | The difference-of-Gaussians response and its soft threshold | Winnemöller, Olsen and Gooch, *Real-Time Video Abstraction*, SIGGRAPH 2006; Winnemöller, *XDoG: Advanced Image Stylization with eXtended Difference-of-Gaussians*, NPAR 2011; Winnemöller, Kyprianidis and Olsen, *XDoG: An eXtended difference-of-Gaussians compendium*, Computers & Graphics 36(6), 2012 |
 | 1 | Taking the difference across the picture's own direction and smoothing along it | Kang, Lee and Chui, *Coherent Line Drawing*, NPAR 2007 |
 | 1 | The direction field itself, from the smoothed structure tensor | Standard structure-tensor analysis; the minor eigenvector as local tangent. (Kang's iterative refinement is deliberately **not** used — a closed form is faster and exactly reproducible.) |
-| 2 | Edge-preserving smoothing | Tomasi and Manduchi, *Bilateral Filtering for Gray and Color Images*, ICCV 1998 |
+| 2 | Edge-preserving smoothing | Tomasi and Manduchi, *Bilateral Filtering for Gray and Color Images*, ICCV 1998. Implemented as the separable two-pass approximation, which is an approximation and says so in the code; see Pham and van Vliet, *Separable Bilateral Filtering for Fast Video Preprocessing*, ICME 2005 |
 | 2 | Edge-preserving smoothing that follows the picture's direction | Kuwahara et al., 1976; Kyprianidis, Kang and Döllner, *Image and Video Abstraction by Anisotropic Kuwahara Filtering*, Computer Graphics Forum 28(7), 2009 |
 | 2 | Local contrast normalisation | Standard local mean and standard deviation normalisation |
+| 2 | Approximating a Gaussian with three box passes, for statistics only | Wells, *Efficient Synthesis of Gaussian Filters by Cascaded Uniform Filters*, IEEE PAMI 1986. The two bracketing odd widths rather than three equal ones |
 | 3 | Colour quantisation in a perceptual space | Lloyd, *Least Squares Quantization in PCM*, IEEE Trans. Information Theory 28(2), 1982; Arthur and Vassilvitskii, *k-means++*, SODA 2007 (seeding, made deterministic here); CIE L\*a\*b\*, CIE 1976 |
 | 3 | Labelling regions and merging the small ones | Rosenfeld and Pfaltz, *Sequential Operations in Digital Picture Processing*, JACM 1966 |
 | 4 | Thinning a mask to a one-pixel skeleton | Zhang and Suen, *A Fast Parallel Algorithm for Thinning Digital Patterns*, CACM 27(3), 1984 |

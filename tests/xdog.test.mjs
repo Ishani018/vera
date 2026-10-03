@@ -344,10 +344,10 @@ function readEngineSource() {
  * meant it, and only then write the new number down.
  */
 const FIXTURES = {
-  'ink-pen': 'a1f45fff643163f4',
-  fine: 'db2fa2a704bca619',
-  bold: '4f09808a84d084b5',
-  sketch: '89bb4b24fdf7ac9d',
+  'ink-pen': 'eb3e8ca0bf181772',
+  fine: '9eff8b64ba40a259',
+  bold: '0e9cb9cb394a4446',
+  sketch: 'fc9f2a07c23ef967',
 };
 
 test('the fixtures still hold', () => {
