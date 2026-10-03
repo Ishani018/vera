@@ -149,3 +149,54 @@ Two tests, because the promise has two halves:
 ### Added dependencies
 
 None.
+
+---
+
+## Stage 2 — the palette picker
+
+`components/PalettePicker.tsx`: a button carrying a split dot in the palette's
+own primary and secondary, opening a popover of six cards. Each card is a small
+picture of the three things that actually differ — a strip of sidebar, a page
+with two lines of text, and the accent row — because a name and a swatch do not
+tell you what Riso is going to feel like and a 54px picture does.
+
+It is in the home top bar next to Create, and in both of the studio's bars (the
+start screen and the studio proper). Clicking applies instantly: `data-theme` on
+the root is all it takes, because every colour in the app is a variable that
+attribute redefines. No reload, no round trip.
+
+**The cross fade is one opacity on the root**, not a colour transition on every
+element — a hundred interpolations firing at once is a hundred things for the
+compositor to do. It is skipped entirely under `prefers-reduced-motion` and
+under the harness's `data-motion="off"`, where an instant swap is the honest
+behaviour.
+
+**The pre-paint script now also restores a mixed palette** (stage 9's output):
+seventeen values from a second key, written onto the root as inline custom
+properties before the first frame, so a palette somebody made is right on load
+rather than a flash of the default. `custom` is accepted as an id only when that
+key actually parses, so a half-written key cannot leave the app unpainted.
+
+### Found by the guard test
+
+`bg-accenta-500` was reported as naming a token that does not exist. The guard's
+family list is an ordered alternation, and `accent` listed before `accenta`
+matched the first seven letters and reported the token `accent`. Longest first,
+plus a `(?![a-z0-9])` boundary. Worth knowing because every new role added to
+that list from now on has the same trap.
+
+### Checked
+
+- `npm test` — 759 pass. `npm run golden` — both digests unchanged.
+  `golden:screen` — 0 pixels changed. `npm run build` clean.
+  `npm run check:topbar` — the bar still fits at 1280/800/1440 with the new
+  button in it.
+- The fixed-picture export, three ways — transparent, opaque, and transparent
+  under Night — all `98,320 bytes, 6e2ca05e…18db30`.
+- Driven in Chrome at 1280×720 and 800 wide: default is press-proof before
+  anything is clicked; the popover opens with six cards and stays inside the
+  window at both widths; clicking applies and remembers; after a reload the
+  palette is on the root *before the page has finished loading*; Enter opens and
+  Escape closes and returns focus to the button; the button shows a 2px focus
+  ring. Under reduced motion the swap happens with no fade flag at all.
+- The nine-page sweep again in press-proof and riso: 36 combinations, all clean.

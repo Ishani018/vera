@@ -356,9 +356,20 @@ test('the allow-list is only the colours that go into somebody’s files', () =>
  * built on one of them must name a token that `app/tokens.css` actually defines.
  */
 const OUR_FAMILIES = [
-  'paper',
-  'ink',
+  /*
+    Longest first: alternation is ordered, so `accent` listed before `accenta`
+    would match the first seven letters of `bg-accenta-500` and then report the
+    token `accent`, which does not exist. That is exactly what happened the
+    first time the new roles were used.
+  */
+  'accenta',
+  'accentb',
+  'accentc',
   'accent',
+  'outline',
+  'paper',
+  'sheet',
+  'ink',
   'coral',
   'sun',
   'lilac',
@@ -382,7 +393,8 @@ test('every colour utility built on our own tokens names one that exists', () =>
   const families = OUR_FAMILIES.join('|');
   // The utilities that take a colour, with an optional opacity suffix.
   const pattern = new RegExp(
-    `\\b(?:bg|text|border|outline|ring|decoration|fill|stroke|from|via|to|shadow|caret|accent)-(?:(${families})(?:-[a-z0-9]+)*)`,
+    `\\b(?:bg|text|border|outline|ring|decoration|fill|stroke|from|via|to|shadow|caret|accent)` +
+      `-(?:(${families})(?:-[a-z0-9]+)*)(?![a-z0-9])`,
     'g',
   );
 

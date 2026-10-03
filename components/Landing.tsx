@@ -77,6 +77,7 @@ import { StudioHeader } from './StudioHeader';
 import { ThumbArt } from './ThumbArt';
 import { Button, TextInput, cx } from './ui';
 import { BookMock } from './BookMock';
+import { PalettePicker } from './PalettePicker';
 
 /**
  * The way in.
@@ -376,10 +377,15 @@ export function Landing() {
           )}
         </div>
 
+        {/* The palette, next to Create: the two controls in this bar that are
+            about the whole app rather than about one design. */}
+        <span className="ml-auto shrink-0">
+          <PalettePicker />
+        </span>
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="btn btn-create shimmer ml-auto shrink-0 rounded-full px-4 py-2 text-[14px]"
+          className="btn btn-create shimmer shrink-0 rounded-full px-4 py-2 text-[14px]"
         >
           <PlusIcon size={17} />
           Create
