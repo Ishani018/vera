@@ -272,21 +272,20 @@ export function StickerSheet() {
             */}
             <div className="relative min-h-0 flex-1">
               {/*
-                A soft shadow under it, because it is a sheet of paper resting
-                on a surface and `shadow-sm` is a border pretending to be one.
+                A hard 1px outline, because it is a sheet of paper and a proof
+                sheet is drawn with a line rather than lifted with a blur.
 
-                The stickers on it are not animated onto it one by one, and
-                deliberately: they are drawn by the same `draw()` the download
-                uses — that is the whole point of this file — so a drop-in per
-                sticker would be a change to the code that makes the exported
-                PNG. The sheet itself arrives with the bounce instead.
+                Nothing is animated onto it: the stickers on this canvas are
+                drawn by the same `draw()` the download uses — that is the whole
+                point of this file — so any motion here would be a change to the
+                code that makes the exported PNG.
               */}
               <canvas
                 ref={canvas}
                 aria-label="The sheet"
                 className={cx(
-                  'drop-in absolute inset-0 m-auto max-h-full max-w-full bg-paper object-contain',
-                  'shadow-[var(--shadow-float)]',
+                  'absolute inset-0 m-auto max-h-full max-w-full bg-sheet object-contain',
+                  'border border-ink-900',
                 )}
               />
             </div>
@@ -394,15 +393,11 @@ export function StickerSheet() {
                   <span className="ml-2 font-normal text-ink-500">press to add one</span>
                 </span>
                 <div className="mt-2.5 grid grid-cols-3 gap-2.5">
-                  {stickers.map((sticker, n) => {
+                  {stickers.map((sticker) => {
                     const count = counts[sticker.id] ?? 0;
                     return (
                       <Thumb
                         key={sticker.id}
-                        // Staggered, and the stagger stops at ten: a tray of
-                        // sixty should not take three seconds to fill.
-                        className={cx('drop-in')}
-                        style={{ '--n': Math.min(n, 10) } as React.CSSProperties}
                         url={urls[sticker.id]}
                         name={sticker.name}
                         title={`${sticker.name} — press to add one${count ? `, ${count} on the sheet` : ''}`}

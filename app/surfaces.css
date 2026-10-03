@@ -28,28 +28,35 @@
 
 /* --------------------------------------------------------------- buttons */
 
+/*
+  Press Proof has no gradients and no drop shadows.
+
+  Depth on a proof sheet comes from outlines, flat tints and crop marks, so a
+  button is a flat fill or a hairline outline and nothing else. The press is a
+  2% scale — small enough to feel rather than to watch — and it is the only
+  thing that moves.
+*/
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  border-radius: var(--radius-md);
-  font-weight: 550;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-body);
+  font-weight: 500;
   white-space: nowrap;
   /*
-    Transform and the shadow only. A button that changed its padding on press
-    would move the three buttons beside it.
+    Transform and colour only. A button that changed its padding on press would
+    move the three buttons beside it.
   */
   transition:
     transform var(--motion-fast) var(--ease-out),
-    box-shadow var(--motion-base) var(--ease-out),
     background-color var(--motion-base) var(--ease-out),
     border-color var(--motion-base) var(--ease-out),
     color var(--motion-base) var(--ease-out);
 }
 
 .btn:active:not(:disabled) {
-  /* The press. Small enough to feel rather than to watch. */
   transform: scale(0.98);
 }
 
@@ -58,68 +65,48 @@
   opacity: 0.4;
 }
 
+/*
+  One ring for every control, drawn in `ink900` rather than in an accent: a
+  focus ring has to be visible on an accent-filled button too, and an accent
+  ring on an accent fill is not a ring.
+*/
+.btn:focus-visible,
+.field:focus-visible,
+.chip:focus-visible {
+  outline: 2px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+/* The secondary: a sheet fill and a hairline. */
 .btn-default {
-  background-image: var(--surface-card);
+  background: var(--color-sheet);
   border: 1px solid var(--color-ink-300);
-  box-shadow: var(--shadow-rest);
+  color: var(--color-ink-900);
 }
 .btn-default:hover:not(:disabled) {
-  border-color: var(--color-ink-400);
-  box-shadow: var(--shadow-raised);
-  transform: translateY(-1px);
-}
-.btn-default:active:not(:disabled) {
-  transform: scale(0.98);
-  box-shadow: var(--shadow-rest);
+  border-color: var(--color-ink-900);
 }
 
 /*
-  The one button on a screen that is the thing to press.
+  The primary, and the one that makes things. Both are the same flat accent
+  fill; `btn-create` exists because Create is the primary on a screen that also
+  has other primaries, and it is the red one.
 
-  A gradient rather than a fill, two stops of the same hue, and a halo mixed
-  from the theme's own coral. The lift on hover is a translate, so nothing
-  round it moves.
+  The text colour is whatever the palette worked out — white in five palettes,
+  ink in Riso, where white on that pink is unreadable.
 */
-.btn-primary {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-accent-500) 92%, white) 0%,
-    var(--color-accent-500) 55%,
-    var(--color-accent-600) 100%
-  );
-  border: 1px solid var(--color-accent-600);
-  color: var(--color-paper);
-  font-weight: 600;
-  box-shadow: var(--shadow-raised);
-}
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-float);
-}
-.btn-primary:active:not(:disabled) {
-  transform: scale(0.98);
-  box-shadow: var(--shadow-rest);
-}
-
+.btn-primary,
 .btn-create {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-coral-500) 88%, white) 0%,
-    var(--color-coral-500) 55%,
-    var(--color-coral-600) 100%
-  );
-  border: 1px solid var(--color-coral-600);
-  color: var(--color-paper);
+  background: var(--color-accenta-500);
+  border: 1px solid var(--color-accenta-500);
+  color: var(--text-on-accenta);
   font-weight: 600;
-  box-shadow: var(--shadow-raised), var(--shadow-glow);
 }
+.btn-primary:hover:not(:disabled),
 .btn-create:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-float), var(--shadow-glow);
-}
-.btn-create:active:not(:disabled) {
-  transform: scale(0.98);
-  box-shadow: var(--shadow-rest);
+  background: var(--color-accenta-700);
+  border-color: var(--color-accenta-700);
+  color: var(--text-on-accenta-700);
 }
 
 .btn-ghost {
@@ -128,86 +115,91 @@
   color: var(--color-ink-500);
 }
 .btn-ghost:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-ink-200) 55%, transparent);
+  background: var(--color-paper-100);
   color: var(--color-ink-900);
 }
 
 .btn-danger {
-  background: var(--color-paper);
-  border: 1px solid color-mix(in srgb, var(--color-clay-500) 40%, var(--color-paper));
-  color: var(--color-clay-600);
-  box-shadow: var(--shadow-rest);
+  background: var(--color-sheet);
+  border: 1px solid var(--color-accenta-500);
+  color: var(--color-accenta-700);
 }
 .btn-danger:hover:not(:disabled) {
-  background: var(--color-clay-50);
-  border-color: var(--color-clay-500);
+  background: var(--color-accenta-100);
 }
 
 /* ---------------------------------------------------------------- fields */
 
 .field {
-  background: var(--color-paper);
+  background: var(--color-sheet);
   border: 1px solid var(--color-ink-300);
-  border-radius: var(--radius-sm);
-  box-shadow: inset 0 1px 2px rgb(var(--shade) / 0.05);
+  border-radius: var(--radius-xs);
+  color: var(--color-ink-900);
   transition:
     border-color var(--motion-base) var(--ease-out),
     box-shadow var(--motion-base) var(--ease-out);
 }
 .field:hover:not(:disabled) {
-  border-color: var(--color-ink-400);
+  border-color: var(--color-ink-500);
 }
 .field:focus {
-  border-color: var(--color-accent-500);
-  box-shadow:
-    inset 0 1px 2px rgb(var(--shade) / 0.04),
-    0 0 0 3px color-mix(in srgb, var(--color-accent-500) 18%, transparent);
+  border-color: var(--color-ink-900);
+  box-shadow: inset 0 0 0 1px var(--color-ink-900);
   outline: none;
 }
 
 /* ----------------------------------------------------------------- chips */
 
+/*
+  A filter chip: mono small caps in a hairline box, and `ink900` filled when it
+  is the one that is on. The radius is 4 rather than 6 because a chip is closer
+  to a tag than to a button.
+*/
 .chip {
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-ink-200);
-  background-image: var(--surface-card);
+  border-radius: 4px;
+  border: 1px solid var(--color-ink-300);
+  background: transparent;
+  color: var(--color-ink-700);
+  font-family: var(--font-mono);
   transition:
     transform var(--motion-fast) var(--ease-out),
     background-color var(--motion-base) var(--ease-out),
     border-color var(--motion-base) var(--ease-out),
-    box-shadow var(--motion-base) var(--ease-out);
+    color var(--motion-base) var(--ease-out);
 }
 .chip:hover:not(:disabled) {
-  border-color: var(--color-ink-400);
-  box-shadow: var(--shadow-rest);
+  border-color: var(--color-ink-900);
+  color: var(--color-ink-900);
 }
 .chip:active:not(:disabled) {
   transform: scale(0.98);
 }
 .chip[aria-pressed='true'] {
-  background-image: none;
   background-color: var(--color-ink-900);
   border-color: var(--color-ink-900);
-  color: var(--color-paper);
-  box-shadow: var(--shadow-raised);
+  color: var(--color-paper-50);
 }
 
 /* ----------------------------------------------------------------- cards */
 
+/*
+  A plate: a flat tint with a hairline, not a card floating over the page.
+
+  The lift on hover is two pixels and an `ink900` outline — the outline is what
+  does the work, and the lift is only there so the pointer has something to
+  answer it. No blur, so nothing reads as a glow.
+*/
 .card {
-  background-image: var(--surface-card);
-  border: 1px solid var(--color-ink-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-rest);
+  background: var(--color-paper-100);
+  border: 1px solid var(--color-ink-300);
+  border-radius: var(--radius-xs);
   transition:
     transform var(--motion-base) var(--ease-out),
-    box-shadow var(--motion-base) var(--ease-out),
     border-color var(--motion-base) var(--ease-out);
 }
 .card-lift:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-float);
-  border-color: color-mix(in srgb, var(--color-accent-500) 35%, var(--color-ink-200));
+  transform: translateY(-2px);
+  border-color: var(--color-ink-900);
 }
 
 /* --------------------------------------------------------------- dialogs */
@@ -336,20 +328,14 @@ input[type='range']::-moz-range-track {
 }
 
 input[type='range']::-webkit-slider-thumb {
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
   width: 18px;
   height: 18px;
-  margin-top: -6px;
+  margin-top: -7px;
   border-radius: var(--radius-pill);
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-accent-500) 85%, white),
-    var(--color-accent-500) 60%,
-    var(--color-accent-600)
-  );
-  border: 1px solid var(--color-accent-600);
-  box-shadow: var(--shadow-raised);
+  background: var(--color-sheet);
+  border: 2px solid var(--color-ink-900);
   transition: transform var(--motion-fast) var(--ease-out);
 }
 
@@ -357,9 +343,8 @@ input[type='range']::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: var(--radius-pill);
-  background: var(--color-accent-500);
-  border: 1px solid var(--color-accent-600);
-  box-shadow: var(--shadow-raised);
+  background: var(--color-sheet);
+  border: 2px solid var(--color-ink-900);
   transition: transform var(--motion-fast) var(--ease-out);
 }
 
@@ -391,177 +376,6 @@ input[type='range']:hover::-moz-range-thumb {
     width var(--motion-slow) var(--ease-out),
     background-color var(--motion-base) var(--ease-out);
   pointer-events: none;
-}
-
-/* ------------------------------------------------------------------ hero */
-
-/*
-  The band across the top of the front page.
-
-  A gradient of the theme's own warm end, with one soft radial bloom behind the
-  words so it is not a flat wash. Nothing in it moves except the shimmer below,
-  and nothing in it is an image.
-*/
-.hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius-xl);
-  border: 1px solid color-mix(in srgb, var(--color-coral-500) 16%, var(--color-ink-200));
-  background-image:
-    radial-gradient(
-      120% 140% at 12% -20%,
-      color-mix(in srgb, var(--color-sun-50) 85%, transparent) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      90% 120% at 100% 0%,
-      color-mix(in srgb, var(--color-coral-50) 80%, transparent) 0%,
-      transparent 55%
-    ),
-    linear-gradient(
-      140deg,
-      color-mix(in srgb, var(--color-paper) 70%, var(--color-ink-50)) 0%,
-      var(--color-ink-50) 100%
-    );
-  box-shadow: var(--shadow-rest);
-}
-
-/*
-  A shimmer that crosses the Create button every few seconds and stops when the
-  pointer is on it — at that point the button has the person's attention and the
-  shimmer is just something moving under their cursor.
-*/
-@keyframes create-shimmer {
-  0% {
-    transform: translateX(-140%);
-  }
-  55%,
-  100% {
-    transform: translateX(240%);
-  }
-}
-
-.shimmer {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-.shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 42%;
-  background: linear-gradient(
-    100deg,
-    transparent 0%,
-    color-mix(in srgb, white 42%, transparent) 50%,
-    transparent 100%
-  );
-  animation: create-shimmer 4.5s var(--ease-in-out) infinite;
-  pointer-events: none;
-  z-index: 1;
-}
-.shimmer:hover::after,
-.shimmer:focus-visible::after {
-  animation-play-state: paused;
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .shimmer::after {
-    display: none;
-  }
-}
-
-/* ------------------------------------------------------------- shortcuts */
-
-/*
-  A round shortcut, with a little height to it.
-
-  The 3D is two things and no more: an inner highlight at the top and an inner
-  shade at the bottom, which is how a dome is drawn; and a tilt on hover of
-  five degrees, which is enough to read as a tip and not enough to look like a
-  mistake. Both are transforms and inset shadows — no layout, no repaint of
-  anything round it.
-*/
-.pop {
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 70%, transparent),
-    inset 0 -2px 4px rgb(var(--shade) / 0.08),
-    var(--shadow-rest);
-  transition:
-    transform var(--motion-base) var(--ease-spring),
-    box-shadow var(--motion-base) var(--ease-out);
-  will-change: transform;
-}
-
-.pop-hover:hover .pop,
-.pop-hover:focus-visible .pop {
-  transform: translateY(-3px) rotate(-5deg) scale(1.06);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 80%, transparent),
-    inset 0 -2px 4px rgb(var(--shade) / 0.1),
-    var(--shadow-float);
-}
-
-.pop-hover:active .pop {
-  transform: translateY(-1px) scale(0.98);
-}
-
-/* The icon inside nudges a touch further than the chip it sits in. */
-.nudge {
-  transition: transform var(--motion-base) var(--ease-spring);
-}
-.nudge-hover:hover .nudge,
-.nudge-hover:focus-visible .nudge {
-  transform: translateX(2px) scale(1.08);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pop-hover:hover .pop,
-  .pop-hover:focus-visible .pop,
-  .nudge-hover:hover .nudge,
-  .pop-hover:active .pop {
-    transform: none;
-  }
-}
-
-/* ------------------------------------------------------------------ tilt */
-
-/*
-  A card that leans towards the pointer.
-
-  The angles arrive as two custom properties set by a pointermove handler, and
-  nothing else changes — one composited transform per frame. Six degrees is the
-  ceiling: past that a card reads as broken rather than as responsive.
-*/
-.tilt {
-  transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))
-    translateY(var(--tilt-lift, 0px));
-  transform-style: preserve-3d;
-  transition:
-    transform var(--motion-base) var(--ease-out),
-    box-shadow var(--motion-base) var(--ease-out);
-  will-change: transform;
-}
-
-/*
-  The lift and the shadow belong to the tilt, not to `.card-lift`.
-
-  A hover rule that sets `transform: translateY(-3px)` would replace the whole
-  transform — rotations and all — because a transform is one property and not
-  three. So the rise travels as `--tilt-lift` inside the same transform, and
-  only the shadow and the edge change on hover.
-*/
-.tilt-lift:hover {
-  box-shadow: var(--shadow-float);
-  border-color: color-mix(in srgb, var(--color-accent-500) 35%, var(--color-ink-200));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tilt {
-    transform: none;
-  }
 }
 
 /* --------------------------------------------------------------- arrival */
@@ -1017,78 +831,6 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 /*
-  A pack, as three of its stickers held like cards.
-
-  A pack has no picture of its own, and its name in a list is not something
-  anybody recognises — "the autumn ones" is recognised by seeing two leaves and
-  an acorn. Three fanned in perspective says "a stack of these" in a way a
-  2×2 grid of four does not: a grid reads as four separate things, and what a
-  pack is, is one thing with several inside it.
-
-  The fan spreads a little further when the card is hovered, which is the same
-  gesture as thumbing a stack to see what is in it.
-*/
-.fan {
-  position: relative;
-  perspective: 700px;
-}
-
-.fan-card {
-  position: absolute;
-  inset: 10%;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-ink-200);
-  box-shadow: var(--shadow-rest);
-  transform: rotate(var(--turn, 0deg)) translateX(var(--shift, 0%)) rotateY(var(--lean, 0deg));
-  transition: transform var(--motion-slow) var(--ease-out);
-  overflow: hidden;
-}
-
-.group:hover .fan-card,
-.group:focus-within .fan-card {
-  transform: rotate(calc(var(--turn, 0deg) * 1.7)) translateX(calc(var(--shift, 0%) * 1.5))
-    rotateY(var(--lean, 0deg));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .group:hover .fan-card,
-  .group:focus-within .fan-card {
-    transform: rotate(var(--turn, 0deg)) translateX(var(--shift, 0%)) rotateY(var(--lean, 0deg));
-  }
-}
-
-/*
-  Stickers landing on the sheet.
-
-  The sheet is a page that stickers get placed on, and placing something is a
-  movement with a small overshoot at the end of it. `--n` staggers them, so a
-  sheet of twelve arrives as twelve placings rather than as one block appearing.
-  Capped in the component at a tenth of a second's worth of stagger, because a
-  sheet of sixty should not take four seconds to show up.
-*/
-@keyframes drop-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, -14px, 0) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.drop-in {
-  animation: drop-in var(--motion-slower) var(--ease-spring) both;
-  animation-delay: calc(var(--n, 0) * 45ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .drop-in {
-    animation: none;
-  }
-}
-
-/*
   A sticker that has just been saved, stamped onto the library.
 
   Pressed down rather than faded in: the word for what just happened is "saved
@@ -1116,24 +858,6 @@ input[type='range']:hover::-moz-range-thumb {
 
 @media (prefers-reduced-motion: reduce) {
   .stamped {
-    animation: none;
-  }
-}
-
-/*
-  Results arriving one after another rather than all at once.
-
-  A search that returns twenty pictures in one frame reads as a page reloading.
-  A 40 ms stagger reads as a list filling up, which is what happened. `--n` is
-  the position in the list, set by the component and capped there.
-*/
-.stagger-in {
-  animation: arrive var(--motion-slow) var(--ease-out) both;
-  animation-delay: calc(var(--n, 0) * 40ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stagger-in {
     animation: none;
   }
 }
@@ -1232,213 +956,6 @@ input[type='range']:hover::-moz-range-thumb {
   }
 }
 
-/* ------------------------------------------------------- a small well done */
-
-/*
-  A few shapes floating up, once, the first time something is finished.
-
-  The first export of a session is the moment the whole app was for, and it used
-  to be a line of grey text. Six shapes, under a second, and never again in the
-  same session — a celebration that happens every time is not a celebration, it
-  is a delay. Transform and opacity only, over the top of everything, and deaf to
-  the pointer so it cannot get in the way of the next thing.
-*/
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0.5);
-  }
-  25% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    transform: translate3d(var(--drift, 0px), -120px, 0) scale(1) rotate(var(--spin, 90deg));
-  }
-}
-
-.rise {
-  animation: rise 900ms var(--ease-out) both;
-  animation-delay: calc(var(--n, 0) * 70ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rise {
-    animation: none;
-    display: none;
-  }
-}
-
-/* ------------------------------------------------------------- the book */
-
-/*
-  A book, turning slowly, built out of six boxes and a perspective.
-
-  This is what the app makes, so the first screen shows one. No canvas, no WebGL
-  and no image: five faces, a transform each, and one rotation on the parent. It
-  costs nothing to load, it is crisp at any size, and it takes its colours from
-  whichever theme is on — which an illustration could not do.
-
-  The composite is the whole trick. `rotateY` on one wrapper and a `translateY`
-  float on another means the browser animates two transforms on two layers and
-  touches no layout at all. It pauses when the pointer is on it, because a thing
-  that keeps moving while you are looking at it is a thing you cannot look at.
-*/
-.book {
-  /* The page edge, which is the only part with a colour of its own. */
-  --leaf: color-mix(in srgb, var(--color-paper) 88%, var(--color-ink-100));
-  --board: var(--color-coral-500);
-  --board-dark: var(--color-coral-600);
-  --board-light: color-mix(in srgb, var(--color-coral-500) 80%, white);
-  perspective: 900px;
-  perspective-origin: 50% 45%;
-}
-
-.book-float {
-  animation: book-float 6s var(--ease-in-out) infinite;
-  transform-style: preserve-3d;
-}
-
-.book-turn {
-  position: relative;
-  transform-style: preserve-3d;
-  animation: book-turn 18s linear infinite;
-}
-
-.book:hover .book-turn,
-.book:hover .book-float,
-.book:focus-within .book-turn,
-.book:focus-within .book-float {
-  animation-play-state: paused;
-}
-
-.book-face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-}
-
-/* The front and back boards, half the spine's depth out on either side. */
-.book-front {
-  background:
-    linear-gradient(118deg, var(--board-light) 0%, var(--board) 52%, var(--board-dark) 100%);
-  border-radius: 2px 5px 5px 2px;
-  transform: translateZ(calc(var(--depth) / 2));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
-}
-
-.book-back {
-  background: linear-gradient(118deg, var(--board-dark) 0%, var(--board) 100%);
-  border-radius: 5px 2px 2px 5px;
-  transform: translateZ(calc(var(--depth) / -2)) rotateY(180deg);
-}
-
-/* The spine, stood on its edge along the left-hand side. */
-.book-spine {
-  width: var(--depth);
-  left: 0;
-  right: auto;
-  background: linear-gradient(90deg, var(--board-dark) 0%, var(--board) 55%, var(--board-dark) 100%);
-  transform: translateX(calc(var(--depth) / -2)) rotateY(-90deg);
-  transform-origin: 100% 50%;
-}
-
-/* The page block: the fore edge, and the top of the stack. */
-.book-leaves {
-  width: calc(var(--depth) - 3px);
-  left: auto;
-  right: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--leaf) 0 2px,
-    color-mix(in srgb, var(--color-ink-200) 60%, var(--leaf)) 2px 3px
-  );
-  transform: translateX(calc((var(--depth) - 3px) / 2)) rotateY(90deg);
-  transform-origin: 0% 50%;
-}
-
-.book-top {
-  height: calc(var(--depth) - 3px);
-  bottom: auto;
-  top: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    var(--leaf) 0 2px,
-    color-mix(in srgb, var(--color-ink-200) 45%, var(--leaf)) 2px 3px
-  );
-  transform: translateY(calc((var(--depth) - 3px) / -2)) rotateX(90deg);
-  transform-origin: 50% 100%;
-}
-
-/* The shadow it rests on, which breathes with the float. */
-.book-shadow {
-  position: absolute;
-  left: 12%;
-  right: 12%;
-  bottom: -14px;
-  height: 12px;
-  border-radius: 50%;
-  background: radial-gradient(50% 50%, rgb(var(--shade) / 0.3) 0%, transparent 72%);
-  animation: book-shadow 6s var(--ease-in-out) infinite;
-}
-
-@keyframes book-turn {
-  from {
-    transform: rotateY(-26deg);
-  }
-  50% {
-    transform: rotateY(26deg);
-  }
-  to {
-    transform: rotateY(-26deg);
-  }
-}
-
-@keyframes book-float {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(0, -7px, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes book-shadow {
-  from {
-    opacity: 0.85;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(0.88);
-  }
-  to {
-    opacity: 0.85;
-    transform: scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /*
-    A still frame, turned far enough to read as a book rather than a rectangle.
-    Not "the same animation, faster": somebody who asked for less movement is
-    asking for none, and a book that snaps between two angles is worse than a
-    book that sits still.
-  */
-  .book-turn {
-    animation: none;
-    transform: rotateY(-18deg);
-  }
-
-  .book-float,
-  .book-shadow {
-    animation: none;
-  }
-}
-
 /* ------------------------------------------------------ changing palette */
 
 /*
@@ -1469,4 +986,133 @@ input[type='range']:hover::-moz-range-thumb {
   :root[data-repainting] body {
     animation: none;
   }
+}
+
+/* ------------------------------------------------------------ the collage */
+
+/*
+  The first few stickers of a pack, as one square.
+
+  Four flat tiles in a grid with a hairline between them. It replaced a 3D fan
+  that spread on hover: a pack is a thing you open, not a hand of cards you
+  riffle, and the fan was motion for its own sake.
+*/
+.collage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  background: var(--color-ink-300);
+  overflow: hidden;
+}
+
+.collage-card {
+  background: var(--color-sheet);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- crop marks */
+
+/*
+  The four corner marks a printer puts outside the trim.
+
+  1px lines in `ink500`, 9px long, sitting 5px outside each corner of whatever
+  they are on — so a preview reads as a thing that will be printed and cut,
+  rather than as a thumbnail. Drawn as four gradients on one pseudo-element
+  rather than as eight elements: it is decoration, and decoration should not add
+  eight nodes to every card on the page.
+
+  The parent needs `position: relative` and enough room outside its own box; the
+  mark sits in the padding, which every plate that uses this has.
+*/
+.crop-marks {
+  position: relative;
+}
+
+.crop-marks::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  background-image:
+    /* top-left: one across, one down */
+    linear-gradient(to right, var(--color-ink-500) 9px, transparent 9px),
+    linear-gradient(to bottom, var(--color-ink-500) 9px, transparent 9px),
+    /* top-right */
+    linear-gradient(to left, var(--color-ink-500) 9px, transparent 9px),
+    linear-gradient(to bottom, var(--color-ink-500) 9px, transparent 9px),
+    /* bottom-left */
+    linear-gradient(to right, var(--color-ink-500) 9px, transparent 9px),
+    linear-gradient(to top, var(--color-ink-500) 9px, transparent 9px),
+    /* bottom-right */
+    linear-gradient(to left, var(--color-ink-500) 9px, transparent 9px),
+    linear-gradient(to top, var(--color-ink-500) 9px, transparent 9px);
+  background-size:
+    9px 1px, 1px 9px,
+    9px 1px, 1px 9px,
+    9px 1px, 1px 9px,
+    9px 1px, 1px 9px;
+  background-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+  background-repeat: no-repeat;
+}
+
+/* ---------------------------------------------------------- the checker */
+
+/*
+  The two cover colours, alternating. The sidebar footer and nowhere else.
+
+  Two rows of eight 25px squares, drawn with two repeating gradients and an
+  offset on the second row, so the whole motif is one element.
+*/
+.checker {
+  --checker-square: 25px;
+  width: calc(var(--checker-square) * 8);
+  height: calc(var(--checker-square) * 2);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      var(--color-accenta-500) 0 var(--checker-square),
+      var(--color-accentb-500) var(--checker-square) calc(var(--checker-square) * 2)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--color-accentb-500) 0 var(--checker-square),
+      var(--color-accenta-500) var(--checker-square) calc(var(--checker-square) * 2)
+    );
+  background-size: 100% var(--checker-square);
+  background-position: 0 0, 0 var(--checker-square);
+  background-repeat: no-repeat;
+}
+
+/* --------------------------------------------------------- mono labels */
+
+/*
+  The small uppercase annotations a proof sheet is covered in: sizes, tags,
+  section numbers, the count on a badge. One class so the tracking and the case
+  are decided once.
+*/
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* A tag or badge: radius 3, mono, tight. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-tag);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding: 3px 8px;
+  text-transform: uppercase;
 }

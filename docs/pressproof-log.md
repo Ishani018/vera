@@ -200,3 +200,73 @@ that list from now on has the same trap.
   Escape closes and returns focus to the button; the button shows a 2px focus
   ring. Under reduced motion the swap happens with no fade flag at all.
 - The nine-page sweep again in press-proof and riso: 36 combinations, all clean.
+
+---
+
+## Stage 3 — shared surfaces, and the animation clean-up
+
+### The surfaces
+
+Buttons, fields, chips and cards rebuilt from the tokens. Flat fills, 1px
+hairlines, radius 6 on anything you press or type into, 4 on a chip, 3 on a tag.
+**No gradient anywhere and no blurred shadow anywhere.** The press is `scale(0.98)`
+and it is the only thing that moves.
+
+- **Primary and Create** are the same flat `accentA500` fill. The text on them is
+  `--text-on-accenta`, which the palette worked out — white in five palettes, ink
+  in Riso. The hover state darkens to `accentA700` and takes
+  `--text-on-accenta-700` with it, which is computed separately: Riso's pink
+  needs ink on it and Riso's deep magenta needs white, so the hover state cannot
+  inherit the resting one.
+- **One focus ring for every control**, 2px `ink900` offset 2px. Drawn in ink
+  rather than in an accent because a ring has to be visible on an accent-filled
+  button too, and an accent ring on an accent fill is not a ring.
+- **The page is flat.** `--surface-page`, `--surface-card` and `--surface-raised`
+  were two-stop gradients; each is now one token. The 3.5% grain stays — it is
+  not a gradient, and a large area of one exact colour is the thing that reads as
+  cheap.
+- **The chequerboard follows the palette** now (`paper50` and `paper200`) instead
+  of being a fixed off-white pair. The property that mattered is kept: neither
+  square is pure white, so a white die-cut outline stays visible on it.
+
+### Three new pieces of the language
+
+- **`.crop-marks`** — 1px `ink500` lines, 9px long, 5px outside each corner.
+  Four corners as eight gradients on one pseudo-element rather than eight nodes,
+  because it is decoration and decoration should not add eight elements to every
+  card on a page.
+- **`.checker`** — two rows of eight 25px squares alternating `accentA500` and
+  `accentB500`, as two repeating gradients on one element. The sidebar footer and
+  nowhere else, as the brief says.
+- **`.mono-label` and `.tag`** — the small uppercase annotations, so the tracking
+  and the case are decided once.
+
+### Removed
+
+| gone | was |
+| --- | --- |
+| `components/BookMock.tsx` + `.book*` | the 3D book on the hero |
+| the `.hero` band | a gradient wash with a radial bloom |
+| `.shimmer` + `@keyframes create-shimmer` | the light crossing the Create button |
+| `components/Tilt.tsx` + `.tilt`, `.tilt-lift` | cards leaning towards the pointer |
+| `.pop`, `.pop-hover` | the icon chips bouncing |
+| `components/WellDone.tsx` + `.rise` | the once-a-session celebration |
+| `.fan`, `.fan-card` | the 3D spread on pack cards |
+| `.drop-in` | the sheet tray bouncing in |
+| `.stagger-in` | search results arriving one by one |
+
+Kept, as the brief says: the sticker peel, the save stamp, toasts, the progress
+ring, the loading shimmer, the panel fade and the sliding rail pill.
+
+The pack card's fan became `.collage` — four flat tiles with a hairline between
+them. A pack is a thing you open, not a hand of cards you riffle.
+
+### Checked
+
+759 tests pass; PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe` unchanged;
+`golden:screen` **0 pixels changed on both boards**; build clean; the
+fixed-picture export identical under both palettes (all four assertions);
+`npm run check:topbar` passing; the browser contrast sweep reports every piece of
+text on all four screens passing AA. Driven at 1280×720 and 800 wide in Press
+proof and Night across all nine pages: 36 combinations, all clean. The palette
+picker's own 17 checks still pass.

@@ -44,7 +44,6 @@ import { StudioStart } from './StudioStart';
 import { StickerTabs } from './StickerTabs';
 import { Button, Info, Notice, ProgressRing, TextInput, Toggle, WhileSliding, cx } from '../ui';
 import { useSay } from '../Toasts';
-import { WellDone } from '../WellDone';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 import { paletteOfBlob } from '@/lib/stickers/palette';
 import { PalettePicker } from '../PalettePicker';
@@ -221,14 +220,6 @@ export function StickerStudio() {
 
   const say = useSay();
 
-  /**
-   * The counter the one-per-session well done watches.
-   *
-   * A counter rather than a flag, because two exports in a row must not leave it
-   * stuck on, and `WellDone` is the thing that decides whether this session has
-   * already had its moment.
-   */
-  const [finished, setFinished] = useState(0);
   useEffect(() => {
     if (!stamp) return;
     const clear = setTimeout(() => setStamp(0), 1400);
@@ -893,7 +884,6 @@ export function StickerStudio() {
       save(result.blob, `${slug(name)}-${result.width}x${result.height}.png`);
       setSaid(null);
       say(`Saved a ${result.width} × ${result.height} PNG to your downloads.`);
-      setFinished((n) => n + 1);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be exported.');
     } finally {
@@ -921,7 +911,6 @@ export function StickerStudio() {
       setSaid(null);
       say('Kept in My stickers — it is in every book and every design now.');
       setStamp((n) => n + 1);
-      setFinished((n) => n + 1);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That could not be saved.');
     } finally {
@@ -2230,8 +2219,6 @@ export function StickerStudio() {
         </Stage>
       </div>
       </WhileSliding>
-      {/* Once a session, when something is finished. Renders nothing otherwise. */}
-      <WellDone at={finished} />
     </main>
   );
 }

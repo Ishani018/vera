@@ -70,13 +70,11 @@ import {
 } from './icons';
 import { PackIcon } from './stickers/icons';
 import { TilePreview, PreviewBox } from './TilePreview';
-import { Tilt } from './Tilt';
 import { Modal } from './Modal';
 import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
 import { ThumbArt } from './ThumbArt';
 import { Button, TextInput, cx } from './ui';
-import { BookMock } from './BookMock';
 import { PalettePicker } from './PalettePicker';
 
 /**
@@ -385,7 +383,7 @@ export function Landing() {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="btn btn-create shimmer shrink-0 rounded-full px-4 py-2 text-[14px]"
+          className="btn btn-create shrink-0 rounded-full px-4 py-2 text-[14px]"
         >
           <PlusIcon size={17} />
           Create
@@ -454,11 +452,11 @@ export function Landing() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-5xl px-5 py-6">
             {/*
-              The band. A warm wash, one line that sounds like a person, and the
-              seven things made most often — so the first screen is an invitation
-              rather than an index.
+              The opening. One line that sounds like a person and the things
+              made most often, on the page itself rather than in a tinted band —
+              a proof sheet has no banner across the top of it.
             */}
-            <section className="hero flex items-start gap-6 px-6 py-5">
+            <section className="flex items-start gap-6">
               <div className="min-w-0 flex-1">
               <h1 className="display text-[26px] tracking-tight">What will you make today?</h1>
               <p className="mt-1 text-[13.5px] text-ink-500">
@@ -476,13 +474,13 @@ export function Landing() {
                       type="button"
                       title={tileSize(tile)}
                       onClick={() => void onTile(tile)}
-                      className="pop-hover group flex w-16 flex-col items-center gap-1.5"
+                      className="group flex w-16 flex-col items-center gap-1.5"
                     >
                       <PreviewBox
                         category={tile.category}
                         size={PREVIEW_ROUND}
                         round
-                        className="pop text-ink-700 group-hover:text-accent-500"
+                        className="text-ink-700 group-hover:text-accent-500"
                       >
                         <shortcut.Icon size={22} />
                       </PreviewBox>
@@ -496,13 +494,6 @@ export function Landing() {
               </ul>
               </div>
 
-              {/*
-                The thing this app makes, on the screen it is made from. Gone
-                below 640px, where the band is already two lines of words and a
-                row of seven buttons and there is nothing left to spend on a
-                flourish.
-              */}
-              <BookMock className="mr-2 mt-1 hidden shrink-0 self-center sm:block" />
             </section>
 
             <section className="mt-7">
@@ -562,7 +553,7 @@ export function Landing() {
                       className={cx('group relative', fresh && 'arrive')}
                       style={{ '--n': n } as React.CSSProperties}
                     >
-                      <Tilt className="card tilt-lift relative p-2.5">
+                      <div className="card card-lift relative p-2.5">
                         <span className="grid h-32 place-items-center overflow-hidden rounded-xl bg-ink-100 p-2">
                           <ThumbArt thumb={entry.thumb} />
                         </span>
@@ -608,7 +599,7 @@ export function Landing() {
                             className="absolute inset-0 rounded-2xl"
                           />
                         )}
-                      </Tilt>
+                      </div>
 
                       <span
                         className={cx(

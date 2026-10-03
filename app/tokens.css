@@ -44,6 +44,7 @@
 
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
+  --text-on-accenta-700: #FFFFFF;
   --sidebar-fill: #1B1815;
   --sidebar-text: #FBF7EE;
   --sidebar-muted: #A79E90;
@@ -165,6 +166,7 @@
 
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
+  --text-on-accenta-700: #FFFFFF;
   --sidebar-fill: #F8D9CB;
   --sidebar-text: #3B2433;
   --sidebar-muted: #755B6D;
@@ -241,6 +243,7 @@
 
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
+  --text-on-accenta-700: #FFFFFF;
   --sidebar-fill: #D2E8DA;
   --sidebar-text: #1F3A33;
   --sidebar-muted: #536961;
@@ -317,6 +320,7 @@
 
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
+  --text-on-accenta-700: #FFFFFF;
   --sidebar-fill: #E3DAF6;
   --sidebar-text: #2A2145;
   --sidebar-muted: #665D84;
@@ -393,6 +397,7 @@
 
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #111A6B;
+  --text-on-accenta-700: #FFFEFA;
   --sidebar-fill: #111A6B;
   --sidebar-text: #F6F2E7;
   --sidebar-muted: #9AA0D4;
@@ -469,6 +474,7 @@
 
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
+  --text-on-accenta-700: #0C0A08;
   --sidebar-fill: #0C0A08;
   --sidebar-text: #14110E;
   --sidebar-muted: #6F6759;

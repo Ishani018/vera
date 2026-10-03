@@ -251,14 +251,10 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-6">
-            {items.map((item, n) => (
+            {items.map((item) => (
               <div
                 key={`${item.id}-${item.fileUrl}`}
-                // One after another rather than all in one frame, which reads as
-                // a page reloading. The stagger stops at twelve so a long result
-                // does not take a second to finish arriving.
-                className="stagger-in group relative min-w-0"
-                style={{ '--n': Math.min(n, 12) } as React.CSSProperties}
+                className="group relative min-w-0"
               >
                 <Chequerboard className="aspect-square w-full rounded-lg border border-ink-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}

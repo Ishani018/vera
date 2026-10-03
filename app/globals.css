@@ -13,44 +13,27 @@
   */
 
   /*
-    Large surfaces get a gradient rather than a fill. Two stops, three or four
-    per cent apart: enough that a wall of colour has a direction, not enough to
-    read as a gradient.
-  */
-  --surface-page: linear-gradient(
-    168deg,
-    color-mix(in srgb, var(--color-paper) 55%, var(--color-ink-100)) 0%,
-    var(--color-ink-100) 46%,
-    color-mix(in srgb, var(--color-accent-50) 32%, var(--color-ink-100)) 100%
-  );
-  --surface-card: linear-gradient(
-    180deg,
-    var(--color-paper) 0%,
-    color-mix(in srgb, var(--color-ink-50) 70%, var(--color-paper)) 100%
-  );
-  --surface-raised: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-paper) 85%, var(--color-ink-50)) 0%,
-    var(--color-ink-50) 100%
-  );
+    Flat, now.
 
-  /*
-    Paper grain. One tile of fractal noise, inline, under a kilobyte, repeated
-    by the browser. No request, no image, no layout.
+    Press Proof has no gradients: depth comes from outlines, flat tints and crop
+    marks. These three names stay because a dozen rules reference them, but each
+    is one token rather than two stops — which also means a palette changes them
+    by changing one value rather than by re-mixing a gradient.
   */
+  --surface-page: var(--color-paper-50);
+  --surface-card: var(--color-sheet);
+  --surface-raised: var(--color-paper-100);
+
   --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.035'/%3E%3C/svg%3E");
 
   /*
-    The chequerboard behind anything see-through.
-
-    Both squares off-white rather than one of them white: the commonest die-cut
-    outline there is, is white, and on a board with a white square in it a white
-    outline is invisible — which is the one thing the board exists to show. It
-    is a fixed pair rather than a theme colour for that reason: it has a job to
-    do and a tinted version of it would stop doing it.
+    The chequerboard behind anything see-through now comes from the palette —
+    `paper50` and `paper200` — rather than being a fixed pair. The property that
+    mattered about the fixed pair is kept: neither square is pure white, so the
+    commonest die-cut outline there is, which is white, stays visible on it.
+    `tokens.css` sets both.
   */
-  --chequer-light: #efece6;
-  --chequer-dark: #cdc7bd;
+
 
   /* Floating panels, where the browser can blur what is behind them. */
   --glass-bg: color-mix(in srgb, var(--color-paper) 72%, transparent);
@@ -95,8 +78,8 @@ body {
   colour is the thing that reads as cheap.
 */
 body {
-  background-color: var(--color-ink-100);
-  background-image: var(--texture-grain), var(--surface-page);
+  background-image: var(--texture-grain);
+  background-color: var(--color-paper-50);
   color: var(--color-ink-900);
   font-family: var(--font-body);
   font-size: 16px;

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
   EASING,
   FONTS,
+  textOn,
   MOTION,
   PALETTES,
   PRESS_PROOF,
@@ -69,7 +70,10 @@ function colours(p) {
     `--color-outline: ${p.outline};`,
     '',
     '/* what the palette decided, for the components that have to ask */',
-    `--text-on-accenta: ${p.textOnAccentA === 'ink' ? p.ink900 : p.sheet};`,
+    `--text-on-accenta: ${p.textOnAccentA === 'ink' ? p.outline : p.sheet};`,
+    // Worked out rather than declared: Riso's pink needs ink on it and Riso's
+    // deep magenta needs white, so the hover state cannot inherit the rest one.
+    `--text-on-accenta-700: ${textOn(p, p.accentA700)};`,
     `--sidebar-fill: ${p.sidebarStyle === 'dark' ? (p.isDark ? p.outline : p.ink900) : p.paper200};`,
     `--sidebar-text: ${p.sidebarStyle === 'dark' ? p.paper50 : p.ink900};`,
     `--sidebar-muted: ${p.sidebarStyle === 'dark' ? p.ink300 : p.ink500};`,

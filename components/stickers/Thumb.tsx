@@ -146,15 +146,15 @@ export function Thumb({
 }
 
 /**
- * A pack, as three of its stickers held like a hand of cards.
+ * A pack, as the first four of its stickers in one square.
  *
  * A pack has no picture of its own, and its name in a list is not something
  * anybody recognises — "the autumn ones" is recognised by seeing two leaves and
- * an acorn. Three fanned in perspective says "a stack of these"; a grid of four
- * says "four separate things", which is the one thing a pack is not.
+ * an acorn. Four tiles with a hairline between them, flat, in the order they
+ * were installed.
  *
- * Fewer than three simply fans fewer. None leaves the square empty and says so,
- * rather than stretching one picture across the card.
+ * It replaced a 3D fan that spread on hover. A pack is a thing you open, not a
+ * hand of cards you riffle, and the fan was motion for its own sake.
  */
 export function Fan({
   urls,
@@ -165,41 +165,25 @@ export function Fan({
   name: string;
   className?: string;
 }) {
-  const three = urls.slice(0, 3);
-
-  /** Back, middle, front. The front one is the least turned, as a held hand is. */
-  const laid = [
-    { turn: '-9deg', shift: '-11%', lean: '14deg' },
-    { turn: '0deg', shift: '0%', lean: '0deg' },
-    { turn: '9deg', shift: '11%', lean: '-14deg' },
-  ].slice(3 - three.length);
+  const four = urls.slice(0, 4);
 
   return (
     <Chequerboard
       // One label for the square, not one per picture: the card beside it
-      // already carries the name, and three alt texts would read it four times.
-      aria-label={`${name}, ${three.length} of them`}
-      className={cx('fan aspect-square w-full rounded-lg border border-ink-200', className)}
+      // already carries the name, and four alt texts would read it five times.
+      aria-label={`${name}, ${four.length} of them`}
+      className={cx('collage aspect-square w-full rounded-[6px] border border-ink-300', className)}
     >
-      {three.length === 0 ? (
-        <span className="text-[11px] text-ink-500">empty</span>
+      {four.length === 0 ? (
+        <span className="col-span-2 row-span-2 grid place-items-center bg-sheet text-[11px] text-ink-500">
+          empty
+        </span>
       ) : (
-        three.map((url, n) => (
-          <span
-            key={n}
-            className="fan-card grid place-items-center bg-paper"
-            style={
-              {
-                '--turn': laid[n].turn,
-                '--shift': laid[n].shift,
-                '--lean': laid[n].lean,
-                zIndex: n + 1,
-              } as React.CSSProperties
-            }
-          >
-            {url ? (
+        Array.from({ length: 4 }, (_, n) => (
+          <span key={n} className="collage-card grid place-items-center">
+            {four[n] ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={url} alt="" className="max-h-[82%] max-w-[82%] object-contain" />
+              <img src={four[n] as string} alt="" className="max-h-[78%] max-w-[78%] object-contain" />
             ) : null}
           </span>
         ))
