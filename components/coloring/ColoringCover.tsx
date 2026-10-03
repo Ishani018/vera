@@ -7,6 +7,7 @@ import { MIN_COVER_DPI, effectiveDpi, getTrim } from '@/lib/kdp';
 import type { ColoringPage } from '@/lib/types';
 import { CoverDesigner } from '../CoverDesigner';
 import { cx } from '../ui';
+import { pageName } from '@/lib/home/naming';
 
 /**
  * The cover of a coloring book.
@@ -115,7 +116,7 @@ function CoverChoice({
     <button
       type="button"
       onClick={onChoose}
-      title={`${page.title || 'Untitled'} · ${Math.round(dpi)} dpi on the front`}
+      title={`${pageName(page, 0)} · ${Math.round(dpi)} dpi on the front`}
       className={cx(
         'shrink-0 overflow-hidden rounded-lg border-2 transition-colors',
         selected ? 'border-accent-500' : 'border-ink-200 hover:border-ink-300',

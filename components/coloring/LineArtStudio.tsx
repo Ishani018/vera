@@ -8,6 +8,7 @@ import { useColoring } from '@/lib/coloring/store';
 import type { ColoringBook, ColoringPage, LineArtSettings, SourceKind } from '@/lib/types';
 import { Button, Toggle, cx } from '../ui';
 import { Control } from './LineArtControls';
+import { pageName } from '@/lib/home/naming';
 
 /**
  * One picture, before and after, with the controls that decide what happens
@@ -74,7 +75,7 @@ export function LineArtStudio() {
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="sticky top-0 z-10 -mx-2 bg-ink-100 px-2 pb-4 pt-1">
         <div className="flex items-baseline gap-3">
-          <h3 className="flex-1 truncate text-[18px] font-semibold">{page.title || 'Untitled'}</h3>
+          <h3 className="flex-1 truncate text-[18px] font-semibold">{pageName(page, 0)}</h3>
           {busy.has(page.id) && <span className="text-[14px] text-ink-500">converting…</span>}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">

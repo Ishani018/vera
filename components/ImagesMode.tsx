@@ -8,6 +8,7 @@ import { MIN_COVER_DPI, effectiveDpi, getTrim } from '@/lib/kdp';
 import { useStore } from '@/lib/store';
 import type { Illustration } from '@/lib/types';
 import { Button, Notice, cx } from './ui';
+import { plateName } from '@/lib/home/naming';
 
 /**
  * The pictures the book uses.
@@ -183,7 +184,7 @@ function PlateTile({
       </span>
       <span className="block px-3 py-2.5">
         <span className="block truncate text-[14px] font-[550]">
-          {plate.title.trim() || plate.caption.trim() || 'Untitled plate'}
+          {plateName(plate, 0)}
         </span>
         <span
           className={cx(

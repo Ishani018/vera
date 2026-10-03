@@ -189,7 +189,7 @@ export function splitIntoPoems(text: string, options: ImportOptions): ParsedPoem
       if (options.firstLineIsTitle && chunk.length > 1) {
         return { title: chunk[0].trim(), body: trimBlankEdges(chunk.slice(1)).join('\n') };
       }
-      return { title: `Untitled ${index + 1}`, body: chunk.join('\n') };
+      return { title: '', body: chunk.join('\n') };
     })
     .filter((poem) => poem.body.trim().length > 0 || poem.title.length > 0);
 }

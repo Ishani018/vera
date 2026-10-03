@@ -8,6 +8,7 @@ import {
 import { matterArtwork } from '../render/coloringLayout';
 import { EXTREME_UPSCALE, pageQuality } from './quality';
 import type { ColoringBook } from '../types';
+import { pageName } from '../home/naming';
 
 /**
  * Everything wrong with a coloring book, said plainly.
@@ -109,7 +110,7 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
 
 /** Up to three names, then a count, so a warning stays one line. */
 function names(titles: string[]): string {
-  const shown = titles.slice(0, 3).map((t) => t || 'Untitled');
+  const shown = titles.slice(0, 3).map((t, i) => pageName({ title: t }, i));
   const rest = titles.length - shown.length;
   return rest > 0 ? `${shown.join(', ')} and ${rest} more` : shown.join(', ');
 }

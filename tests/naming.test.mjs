@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync, readdirSync } from 'node:fs';
 
-import { firstWords, nameFor } from '../lib/home/naming.ts';
+import {
+  bookName,
+  firstWords,
+  isPlaceholder,
+  nameFor,
+  newCollectionTitle,
+  newColouringBookTitle,
+  pageName,
+  plateName,
+  poemName,
+} from '../lib/home/naming.ts';
 
 /**
  * A list of your own work should never say "Untitled" four times.
@@ -103,4 +114,99 @@ test('never, under any circumstances, "Untitled"', () => {
     assert.ok(got && got.trim().length > 0, JSON.stringify(one));
     assert.ok(!/untitled/i.test(got), got);
   }
+});
+
+/* ------------------------------------------- books, collections and items */
+
+test('a poem names itself by its first line', () => {
+  assert.equal(poemName({ body: 'The sea is a quiet thing\nat four in the morning' }, 0), 'The sea is a quiet thing');
+  // Its own title wins over its first line.
+  assert.equal(poemName({ title: 'Low tide', body: 'The sea is quiet' }, 0), 'Low tide');
+  // Only the FIRST line: running two together reads as a mistake, not a quote.
+  assert.ok(!poemName({ body: 'Short\nsecond line here' }, 0).includes('second'));
+});
+
+test('a poem with nothing in it is called by its place in the book', () => {
+  assert.equal(poemName({}, 0), 'Poem 1');
+  assert.equal(poemName({ title: '   ', body: '\n\n' }, 6), 'Poem 7');
+});
+
+test('a picture and a plate have their own fallbacks', () => {
+  assert.equal(pageName({}, 2), 'Picture 3');
+  assert.equal(pageName({ title: 'The harbour' }, 2), 'The harbour');
+  assert.equal(plateName({ caption: 'A boat at the quayside' }, 0), 'A boat at the quayside');
+  assert.equal(plateName({}, 4), 'Plate 5');
+});
+
+test('a book takes its name from what is in it', () => {
+  const book = {
+    kind: 'poetry',
+    contents: [{ kind: 'poem', title: 'Low tide', body: '' }, { kind: 'poem', title: '', body: '' }],
+  };
+  assert.equal(bookName(book), 'Low tide');
+  // The collection's title beats the first poem.
+  assert.equal(bookName({ ...book, meta: { title: 'Salt' } }), 'Salt');
+  // And the name on the book beats everything.
+  assert.equal(bookName({ ...book, name: 'For Mum', meta: { title: 'Salt' } }), 'For Mum');
+});
+
+test('a book of untitled poems says how many there are', () => {
+  const book = { kind: 'poetry', contents: [{ kind: 'poem' }, { kind: 'poem' }, { kind: 'poem' }] };
+  assert.equal(bookName(book), '3 poems');
+  assert.equal(bookName({ kind: 'coloring', pages: [{}] }), '1 picture');
+});
+
+test('an empty book is called by its kind and the date', () => {
+  const at = new Date('2026-10-03T09:00:00Z').getTime();
+  assert.match(bookName({ kind: 'poetry', contents: [] }, at), /^Poetry book, /);
+  assert.match(bookName({ kind: 'coloring', pages: [] }, at), /^Colouring book, /);
+});
+
+test('the placeholders this app used to write are not treated as names', () => {
+  // Files saved before this change have "Untitled" written into them as though
+  // somebody had chosen it. Showing it back is the bug, not a record.
+  for (const old of ['Untitled', 'untitled collection', 'Untitled Coloring Book', ' UNTITLED ']) {
+    assert.ok(isPlaceholder(old), `${old} should be a placeholder`);
+  }
+  assert.ok(!isPlaceholder('Untitled Symphony'), 'a real title was swallowed');
+  assert.equal(bookName({ name: 'Untitled', kind: 'poetry', contents: [{ kind: 'poem', title: 'Low tide' }] }), 'Low tide');
+  assert.equal(nameFor({ name: 'Untitled', stickers: 2, at: Date.now(), thumb: { items: [] } }), '2 stickers');
+});
+
+test('a new collection and a new colouring book are given dates, not placeholders', () => {
+  const at = new Date('2026-10-03T09:00:00Z').getTime();
+  assert.match(newCollectionTitle(at), /^Collection, /);
+  assert.match(newColouringBookTitle(at), /^Colouring book, /);
+  assert.ok(!isPlaceholder(newCollectionTitle(at)));
+});
+
+test('the app never stores or prints a placeholder as if it were a name', () => {
+  // Looks for the placeholder as a VALUE — a quoted string that is one — not
+  // for the word in prose. "An untitled poem gets no heading" is a sentence
+  // about the idea; `name: 'Untitled'` is the bug.
+  const root = new URL('../', import.meta.url);
+  const walk = (dir) =>
+    readdirSync(new URL(dir, root), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(`${dir}${e.name}/`) : /\.(ts|tsx)$/.test(e.name) ? [`${dir}${e.name}`] : [],
+    );
+  // The renderer is the one place this is still allowed, because the hard
+  // rules for this work forbid changing it. Nothing now stores an empty title
+  // and then relies on it, so it should never fire — but it is still there.
+  const allowed = new Set(['lib/render/runtime.ts']);
+  const offenders = [];
+  for (const file of [...walk('lib/'), ...walk('components/'), ...walk('app/')]) {
+    if (file.endsWith('home/naming.ts') || allowed.has(file)) continue;
+    // Comments stripped, so a note explaining Google's placeholder is not
+    // mistaken for using it; and only name-shaped strings count, so the line
+    // of advice that begins "Untitled poems still typeset..." is a sentence
+    // about untitled poems rather than something being called one.
+    const source = readFileSync(new URL(file, root), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*/g, '');
+    for (const [, quoted] of source.matchAll(/['"`](Untitled[^'"`]*)['"`]/g)) {
+      if (quoted.length > 30) continue;
+      offenders.push(`${file}: ${quoted}`);
+    }
+  }
+  assert.deepEqual(offenders, []);
 });

@@ -28,6 +28,7 @@ import { useStore } from '@/lib/store';
 import type { ContentItem, Illustration, Poem, Section } from '@/lib/types';
 import { ImportDialog } from './ImportDialog';
 import { Button, TextInput, cx } from './ui';
+import { plateName, poemName } from '@/lib/home/naming';
 
 /**
  * The list is the book's contents, shown as they are stored: one flat sortable
@@ -108,7 +109,10 @@ export function PoemList() {
       draft.contents.push({
         kind: 'poem',
         id: newId,
-        title: 'Untitled',
+        // Empty, not a made-up name. The stored title is what the book
+        // prints, and the renderer gives an untitled poem no heading at all;
+        // the list labels it "Poem 3" without writing that into the document.
+        title: '',
         body: '',
         epigraph: '',
         dedication: '',
@@ -253,11 +257,12 @@ export function PoemList() {
             )}
           </p>
         ) : needle ? (
-          rows.map((item) =>
+          rows.map((item, index) =>
             isSection(item) ? null : (
               <ItemRow
                 key={item.id}
                 item={item}
+                index={index}
                 warnings={warnings.get(item.id) ?? 0}
                 selected={item.id === selectedPoemId}
                 onSelect={() => select(item.id)}
@@ -273,13 +278,14 @@ export function PoemList() {
             onDragEnd={onDragEnd}
           >
             <SortableContext items={rows.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-              {rows.map((item) =>
+              {rows.map((item, index) =>
                 isSection(item) ? (
                   <SectionRow key={item.id} section={item} />
                 ) : (
                   <ItemRow
                     key={item.id}
                     item={item}
+                    index={index}
                     warnings={warnings.get(item.id) ?? 0}
                     selected={item.id === selectedPoemId}
                     onSelect={() => select(item.id)}
@@ -368,12 +374,15 @@ function KindMark({ item }: { item: Poem | Illustration }) {
 
 function ItemRow({
   item,
+  index,
   selected,
   warnings,
   onSelect,
   draggable = true,
 }: {
   item: Poem | Illustration;
+  /** Where it sits in the book, so an untitled one can be called by it. */
+  index: number;
   selected: boolean;
   warnings: number;
   onSelect: () => void;
@@ -411,9 +420,10 @@ function ItemRow({
         <span className="flex items-center gap-3">
           <KindMark item={item} />
           <span className="min-w-0 flex-1 truncate text-[16px] font-[550]">
-            {item.title || (
-              <em className="text-ink-500">{plate ? 'Untitled plate' : 'Untitled'}</em>
-            )}
+            {item.title ||
+              (plate
+                ? plateName(item as { title?: string; caption?: string }, index)
+                : poemName(item as { title?: string; body?: string }, index))}
           </span>
           {warnings > 0 && (
             <span

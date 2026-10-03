@@ -7,6 +7,7 @@ import { frontMatterPages } from '@/lib/render/coloringLayout';
 import type { PaperType } from '@/lib/types';
 import { MatterPage } from './MatterPage';
 import { Field, Notice, Select, TextInput, Toggle } from '../ui';
+import { newColouringBookTitle } from '@/lib/home/naming';
 
 /**
  * How the book is put together: what size it prints at, what goes in the front,
@@ -37,7 +38,7 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
               onChange={(e) =>
                 update((draft) => {
                   draft.meta.title = e.target.value;
-                  draft.name = e.target.value || 'Untitled Coloring Book';
+                  draft.name = e.target.value || newColouringBookTitle();
                 })
               }
             />

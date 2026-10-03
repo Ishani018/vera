@@ -12,6 +12,7 @@ import { migrateProject } from './projects';
 import { migrateDesign } from './designs';
 import { migrateDraft } from './stickers/drafts';
 import type { CoverTemplate, Design, LibrarySticker } from './types';
+import { bookName, firstWords, isPlaceholder } from './home/naming';
 
 /**
  * The trash itself: what is in it, putting things in, taking them out again,
@@ -51,6 +52,26 @@ export type TrashEntry = {
  * that share a photograph frees nothing, and saying otherwise would be a
  * number that never comes true.
  */
+/**
+ * What to call a deleted design.
+ *
+ * The library's `nameFor` reads the words on the board through the thumbnail
+ * it has already built; nothing here has built one, and building one to label
+ * a row in the trash would be a lot of work for a line of text. So: the name,
+ * the first words of the first text box on it, then what it is made of.
+ */
+function designName(design: { name?: string; cover?: { textBoxes?: Array<{ text?: string }>; stickers?: unknown[] } }): string {
+  const given = design.name?.trim();
+  if (given && !isPlaceholder(given)) return given;
+  for (const box of design.cover?.textBoxes ?? []) {
+    const words = firstWords(box.text ?? '');
+    if (words) return words;
+  }
+  const stickers = design.cover?.stickers?.length ?? 0;
+  if (stickers > 0) return stickers === 1 ? 'One sticker' : `${stickers} stickers`;
+  return 'Design';
+}
+
 export async function listTrash(): Promise<TrashEntry[]> {
   const db = getDb();
   if (!db) return [];
@@ -98,7 +119,7 @@ export async function listTrash(): Promise<TrashEntry[]> {
         key: project.id,
         kind: 'book',
         id: project.id,
-        name: project.name || 'Untitled',
+        name: bookName(project),
         what: project.kind === 'coloring' ? 'Colouring book' : 'Poetry book',
         deletedAt: project.deletedAt!,
         daysLeft: daysLeft(project, now),
@@ -116,8 +137,8 @@ export async function listTrash(): Promise<TrashEntry[]> {
         kind: 'design',
         id: design.id,
         projectId: project.id,
-        name: design.name || 'Untitled',
-        what: `Design in ${project.name || 'Untitled'}`,
+        name: designName(design),
+        what: `Design in ${bookName(project)}`,
         deletedAt: design.deletedAt!,
         daysLeft: daysLeft(design, now),
         bytes: soleBytes(designAssets(design)),
@@ -131,7 +152,7 @@ export async function listTrash(): Promise<TrashEntry[]> {
       key: design.id,
       kind: 'design',
       id: design.id,
-      name: design.name || 'Untitled',
+      name: designName(design),
       what: 'Design',
       deletedAt: design.deletedAt!,
       daysLeft: daysLeft(design, now),
@@ -159,7 +180,7 @@ export async function listTrash(): Promise<TrashEntry[]> {
       key: draft.id,
       kind: 'draft',
       id: draft.id,
-      name: draft.name || 'Untitled sticker',
+      name: draft.name?.trim() || 'Unfinished sticker',
       what: 'Unfinished sticker',
       deletedAt: draft.deletedAt!,
       daysLeft: daysLeft(draft, now),

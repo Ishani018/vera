@@ -23,6 +23,7 @@ import { useColoring } from '@/lib/coloring/store';
 import { pageQuality } from '@/lib/coloring/quality';
 import type { ColoringBook, ColoringPage } from '@/lib/types';
 import { cx } from '../ui';
+import { pageName } from '@/lib/home/naming';
 
 const ACCEPT = 'image/png,image/jpeg,image/webp';
 
@@ -202,7 +203,7 @@ function Thumb({
           </span>
         </span>
         <span className="block px-3 py-2.5">
-          <span className="block truncate text-[14px] font-[550]">{page.title || 'Untitled'}</span>
+          <span className="block truncate text-[14px] font-[550]">{pageName(page, 0)}</span>
           <span
             className={cx(
               'mt-1.5 inline-block rounded-full px-2.5 py-1 text-[12px] font-semibold',

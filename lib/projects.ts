@@ -7,6 +7,7 @@ import { DEFAULT_COLORING_TRIM, getTrim, inchesToPt } from './kdp';
 import { boardFor, presetById } from './presets';
 import { coverLayout } from './render/coverLayout';
 import { SCHEMA } from './schema';
+import { bookName, newColouringBookTitle } from './home/naming';
 import type {
   AnyProject,
   ColoringBook,
@@ -169,7 +170,7 @@ export function needsRewrite(raw: unknown): boolean {
   );
 }
 
-export function createColoringBook(name = 'Untitled Coloring Book'): ColoringBook {
+export function createColoringBook(name = newColouringBookTitle()): ColoringBook {
   // Built from the poetry defaults so the shared half — cover, matter pages,
   // margins — comes from one place and cannot drift between the two kinds.
   //
@@ -241,7 +242,7 @@ function summarise(project: AnyProject): ProjectSummary {
   return {
     id: project.id,
     kind: project.kind,
-    name: project.name || project.meta.title || 'Untitled',
+    name: bookName(project),
     updatedAt: project.updatedAt,
     items: isColoring(project)
       ? project.pages.length

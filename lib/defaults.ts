@@ -1,5 +1,6 @@
 import { DEFAULT_TRIM_ID } from './kdp';
 import { SCHEMA } from './schema';
+import { newCollectionTitle } from './home/naming';
 import type {
   ColoringTypography,
   Design,
@@ -195,7 +196,7 @@ export function createDesign(presetId: string, name: string): Design {
 export function createProject(overrides: Partial<Project> = {}): Project {
   const now = Date.now();
   const meta = {
-    title: 'Untitled Collection',
+    title: newCollectionTitle(),
     subtitle: '',
     author: 'Anonymous',
     publisher: '',

@@ -9,6 +9,7 @@ import type { Align, Poem } from '@/lib/types';
 import { Modal } from './Modal';
 import { RepairView } from './RepairView';
 import { Button, Field, Select, TextArea, TextInput, cx } from './ui';
+import { poemName } from '@/lib/home/naming';
 
 type Tab = 'text' | 'repair';
 
@@ -108,7 +109,7 @@ export function PoemEditor() {
 
   return (
     <Modal
-      title={poem.title.trim() || 'Untitled poem'}
+      title={poemName(poem, 0)}
       onClose={() => select(null)}
       width="max-w-3xl"
       footer={
