@@ -470,3 +470,76 @@ still 103 kB. No dependencies added.
 Chromium with the fonts served from a local cache and the hover gate removed
 (see the limits at the top of this log). The SVG download is checked by its
 contents and its filename; **nothing has opened one in a viewer.**
+
+## Stage 6 — logo mode
+
+`lib/lineart/contour.ts` (border following, Douglas-Peucker, Schneider) and
+`lib/lab/logo.ts`. A seventh look: the picture reduced to one, two or three
+colours, the regions traced into closed rings, the rings simplified, and cubic
+Béziers fitted to what is left. The output is an SVG of filled paths with **no
+raster anywhere in it** — there is a test that greps for one.
+
+Previewed on chequer, light and dark grounds, and at 48, 24 and 16 pixels,
+because a mark has to survive being a favicon.
+
+### Honest about what it is for
+
+A logo is a handful of shapes that survive being printed a centimetre across.
+A photograph of a face is thousands of shapes, and reducing it to three colours
+does not make it fewer shapes, it makes it three colours of noise. So the
+engine counts its own curves and says so: past forty, the panel says what it
+got was probably not a logo and names what does work. There is a test that
+feeds it noise and checks it admits it.
+
+### Decisions
+
+- **Crack following, not pixel walking.** Boundaries are traced along the
+  lattice BETWEEN pixels. Every lattice point an edge arrives at has exactly
+  one edge leaving it, so loops close by construction and a diagonal touch
+  raises no question about which way to go.
+- **Holes are kept at a tenth of the threshold outlines get.** They are not the
+  same question: a shape smaller than a speck is noise and should go, but a
+  HOLE smaller than a speck is usually an eye — and dropping it does not remove
+  a small thing, it FILLS one, which is far more visible. Measured before the
+  change: the cat's ears and the flower's petal junctions came out as solid
+  black blobs.
+- **The palest fill is dropped.** A two-colour mark is almost always a shape
+  and the paper behind it, and painting the paper gives you a logo with a white
+  rectangle stuck to it that nobody notices until it is on a dark background.
+
+### The bug worth recording
+
+The canvas showed a line drawing of a cat as a **solid black cat**. The SVG was
+right and the raster was wrong, and the reason is the oldest one there is: two
+implementations. The worker filled each ring on its own with `Path2D`, and
+filling rings one at a time fills the holes; the SVG put all of a shape's rings
+in one path with `fill-rule="evenodd"`, where a counter stays a counter.
+
+Fixed by removing the second implementation rather than by correcting it:
+`pathDataFor(shape)` is exported and the canvas fills the very string the SVG
+carries. There is a test that asserts the SVG contains exactly that string, and
+that it has one move command per ring.
+
+### And one guard that did its job
+
+`tests/theme.test.mjs` failed on `#ffffff` in `Lab.tsx`: no chrome may carry a
+colour of its own. It was right to, and the answer was not to add an exception
+but to notice that the light and dark grounds are **not palette colours at
+all** — if the white followed the palette it would be cream in Press proof and
+near-black in Night, and the question the preview exists to answer would go
+unanswered. They live in `lib/lab/looks.ts` now as `LOGO_GROUNDS`, with the
+reasoning beside them; the chequer, which shows transparency rather than
+standing in for paper, still follows the palette.
+
+### Checked
+
+881 tests pass (22 new). PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe`
+unchanged. `golden:screen` **0 pixels changed on both boards**. Build clean,
+first-load JS still 103 kB, `/lab` 7.05 kB. No dependencies added. Seven
+browser checks for logo mode at 1280 by 720.
+
+**What could only be checked in the sandbox:** the curves, by rasterising them
+with my own even-odd scanline fill in Node and looking at the result, and by the
+worker's `Path2D` in the browser. **No SVG viewer has opened one of these
+files.** The two independent rasterisations agreeing is good evidence and is not
+the same thing.

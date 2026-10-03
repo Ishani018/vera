@@ -18,6 +18,7 @@ import { runColouring, type ColouringSettings } from '../lineart/colouring';
 import { runInked, runInkedSvg, type InkedSettings } from '../lineart/inked';
 import { SOLID, backgroundMask } from '../lineart/mask';
 import { INK, type Bitmap, type Gray } from '../lineart/pipeline';
+import { pathDataFor, runLogo, type LogoSettings } from './logo';
 import type { LookId } from './looks';
 
 export type LabRequest = {
@@ -27,6 +28,7 @@ export type LabRequest = {
   classic: ClassicSettings;
   inked: InkedSettings;
   colouring: ColouringSettings;
+  logo: LogoSettings;
   /** The long edge to work at. Small for a look card, full for the canvas. */
   longEdge: number;
   /** Lift the background off first, using the app's existing mask. */
@@ -44,7 +46,7 @@ export type LabResponse =
       height: number;
       svg?: string;
       /** For the Lab's own readouts, and for the bench to tabulate. */
-      stats: { ink: number; midtone: number; strokes?: number; millis: number };
+      stats: { ink: number; midtone: number; strokes?: number; busy?: boolean; millis: number };
     }
   | { id: number; ok: false; error: string };
 
@@ -101,6 +103,40 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
     let lines: Gray;
     let strokes: number | undefined;
     let svg: string | undefined;
+    let busy: boolean | undefined;
+    if (look === 'logo') {
+      /*
+        Drawn from the very path data the SVG carries, through Path2D, rather
+        than rasterised by a second code path. The canvas and the download are
+        then the same picture by construction, which is the only way to keep a
+        promise that what you see is what exports.
+      */
+      const logo = runLogo(input, event.data.logo);
+      svg = logo.svg;
+      strokes = logo.verdict.curves;
+      busy = logo.verdict.busy;
+      const out = new OffscreenCanvas(logo.width, logo.height);
+      const paint = out.getContext('2d');
+      if (!paint) throw new Error('This browser cannot draw the result.');
+      for (const shape of logo.shapes) {
+        paint.fillStyle = shape.fill;
+        // One path for all of the shape's rings, filled once, even-odd — the
+        // very string the SVG carries. Filling ring by ring fills the holes.
+        paint.fill(new Path2D(pathDataFor(shape)), 'evenodd');
+      }
+      const encoded = await out.convertToBlob({ type: 'image/png' });
+      const answer: LabResponse = {
+        id,
+        ok: true,
+        blob: encoded,
+        width: logo.width,
+        height: logo.height,
+        svg,
+        stats: { ink: 0, midtone: 0, strokes, busy, millis: Math.round(performance.now() - started) },
+      };
+      self.postMessage(answer);
+      return;
+    }
     if (look === 'colouring') {
       lines = runColouring(input, event.data.colouring);
     } else if (look === 'hand-inked') {

@@ -3,6 +3,7 @@
 import type { ClassicSettings } from '../lineart/xdog';
 import type { ColouringSettings } from '../lineart/colouring';
 import type { InkedSettings } from '../lineart/inked';
+import type { LogoSettings } from './logo';
 import type { LookId } from './looks';
 import type { LabRequest, LabResponse } from './worker';
 
@@ -57,6 +58,7 @@ export type LabJob = {
   classic: ClassicSettings;
   inked: InkedSettings;
   colouring: ColouringSettings;
+  logo: LogoSettings;
   longEdge: number;
   removeBackground: boolean;
   wantSvg?: boolean;
