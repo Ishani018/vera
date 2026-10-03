@@ -9,9 +9,11 @@ import { when } from '@/lib/when';
 import type { LibrarySticker, StickerDraft } from '@/lib/types';
 import { Button, Notice } from '../ui';
 import { DropZone } from './StudioShell';
+import { Chequerboard } from './Thumb';
 import { StickerTabs } from './StickerTabs';
 import { Thumb } from './Thumb';
 import { TickIcon } from './icons';
+import Link from 'next/link';
 
 /**
  * The way in to the sticker side of the app.
@@ -110,6 +112,31 @@ export function StudioStart({
           <div className="mt-4">
             <DropZone busy={busy} onFiles={onFiles} />
           </div>
+
+          {/*
+            The Lab, offered where somebody is already holding a picture and
+            wondering what to do with it. A link rather than another drop zone:
+            two places to drop the same file on one screen is a choice nobody
+            asked for.
+          */}
+          <Link href="/lab" className="proof mt-3 block max-w-xl">
+            <span className="plate flex items-center gap-3 rounded-[6px] bg-paper-100 p-3">
+              <Chequerboard className="size-[52px] shrink-0 rounded-[3px]">
+                <svg width="40" height="26" viewBox="0 0 112 68" fill="none" aria-hidden="true">
+                  <rect x="2" y="2" width="54" height="64" rx="2" fill="var(--color-paper-200)" />
+                  <circle cx="29" cy="34" r="16" fill="var(--color-ink-300)" />
+                  <circle cx="83" cy="34" r="16" stroke="var(--color-ink-900)" strokeWidth="3" />
+                  <line x1="56" y1="2" x2="56" y2="66" stroke="var(--color-ink-900)" strokeWidth="2" />
+                </svg>
+              </Chequerboard>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-[560]">Turn a picture into line art</span>
+                <span className="mono-label block truncate text-ink-500" style={{ fontSize: 10 }}>
+                  Line Art Lab · six ways · no AI model
+                </span>
+              </span>
+            </span>
+          </Link>
 
           {problem && (
             <div className="mt-4 max-w-xl">

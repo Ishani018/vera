@@ -395,3 +395,78 @@ The SVG is checked structurally — one path per stroke, every path closed, two
 cap arcs each, no coordinate outside the strokes' own bounds — but **nothing has
 rendered it**, because there is no SVG renderer here. It wants a look in a
 browser on your Mac.
+
+## Stage 5 — the Lab page
+
+`/lab`, with a tile in a new **02 Tools** section on the home screen and a link
+on the Stickers hub. Its own worker (`lib/lab/worker.ts`) rather than a job
+added to the line-art one, so the colouring book and the sticker studio do not
+download six looks' worth of engine they never use. First-load JS is unchanged
+at **103 kB**; `/lab` itself is 6.36 kB.
+
+Drop a picture, see it in all six looks at once, pick one, drag the sliders,
+download a transparent PNG or (for Hand-inked) an SVG. The page says *"Made with
+algorithms, no AI model"* and claims nothing else.
+
+### Two layout bugs, one of them instructive
+
+**The canvas was stuck at 200 pixels wide.** I had used the `.checker` class as
+a transparency backdrop. It is the Press Proof sidebar-footer motif, and its
+definition is `width: calc(var(--checker-square) * 8)` — a fixed 200 by 50. So
+it was wrong twice over: the red and teal squares shouted over every drawing,
+and the fixed width held the canvas to a quarter of the space it had. Replaced
+with the app's existing `Chequerboard`, which is the neutral palette-driven
+transparency chequer and stretches. The motif is back to the sidebar only.
+
+**The "after" half was showing the drawing composited onto the photograph.** The
+obvious stacking — photograph underneath, drawing clipped on top — looks right
+until you remember the drawing is a transparent PNG: everywhere it is not ink
+the photograph shows through. Reversed, so the drawing sits on the chequer and
+the photograph is clipped over it. `Hold to compare` shows the original whole.
+
+### What the brief asked for afterwards, and where each is confirmed
+
+| asked | done | seen in |
+| --- | --- | --- |
+| neutral transparency chequer, never the red and teal motif | `Chequerboard` on thumbnails and canvas | `lab-1280.png` |
+| canvas fills the space, fitted, centred, no scrolling | `flex-1 min-w-0`, `object-contain` | `lab-1280.png` |
+| cards about 120 by 90, name below, Original first | 118 by 90 in two columns, seven cards | `lab-1280.png` |
+| labels at most four words, help in (i), rare controls under a closed Advanced | longest label is one word; Advanced closed | `lab-1280.png` |
+
+Driven at 1280 by 720 and 800 wide, thirteen checks: all seven cards drawn from
+the real picture, nothing scrolls at 1280 (page, look column and control panel
+all measured), the compare slider really wipes, switching look shows the
+Updating chip, Hand-inked offers both PNG and SVG, and nothing writes to the
+console.
+
+### Timings, in a browser for the first time
+
+A full-size run at `CLASSIC_WORKING_EDGE` takes **1.3 to 1.4 seconds** in
+Chromium in the worker — faster than the 2.0 s the same work takes in Node here,
+and the first number measured anywhere but Node. The six look cards run at 300
+pixels and all finish inside a few seconds.
+
+### Tuning inputs: **there are none**
+
+`docs/lab-inputs/` **does not exist**. I pulled `origin/main` and checked; the
+folder is not in the repository. The repo's only photograph-like pictures are
+synthetic too — `docs/background-removal/*-source.png` are drawings on textured
+grounds, not photographs.
+
+So, plainly: **the looks have not been tuned on real photographs.** Every number
+in this log comes from the synthetic test card and the synthetic grainy
+photograph described in Stage 1, and from the starter line art. They exercise
+shading, hard edges, fine texture and film grain deliberately, and they are
+still not somebody's holiday snap. Drop pictures into `docs/lab-inputs/` and the
+bench in Stage 7 will run over them.
+
+### Checked
+
+859 tests pass. PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe` unchanged.
+`golden:screen` **0 pixels changed on both boards**. Build clean, first-load JS
+still 103 kB. No dependencies added.
+
+**What could only be checked in the sandbox:** everything visual, in headless
+Chromium with the fonts served from a local cache and the hover gate removed
+(see the limits at the top of this log). The SVG download is checked by its
+contents and its filename; **nothing has opened one in a viewer.**
