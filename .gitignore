@@ -25,3 +25,13 @@ starter/dist/
 /starter/*/
 !/starter/sample/
 !/starter/lines/
+
+# logo prototype: local only
+tools/logo-proto/.venv/
+tools/logo-proto/models/
+tools/logo-proto/photos/
+tools/logo-proto/results/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
