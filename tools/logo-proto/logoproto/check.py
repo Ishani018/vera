@@ -86,3 +86,97 @@ def check(svg: str, shapes: int, nodes: int, mask: np.ndarray, p: CheckParams | 
     if nodes > p.max_nodes:
         reasons.append(f"{nodes} nodes is over the ceiling of {p.max_nodes}")
     return CheckResult(not reasons, score, shapes, nodes, float((alpha > 127).mean()), reasons)
+
+
+# --------------------------------------------------------------- size tests
+
+
+@dataclass
+class SizeTest:
+    size: int           # long edge in px
+    iou: float          # silhouette of the tiny render vs the cutout shrunk to the same size
+    thinnest_px: float  # the thinnest stroke weight at this size; under ~1 px it is a grey haze, not a line
+    ink_alpha: float    # mean alpha of the ink pixels: 1.0 is crisp black, low is a faint smudge
+    passed: bool
+    png: bytes = b""
+
+    def as_dict(self) -> dict:
+        return {"size": self.size, "iou": round(self.iou, 3), "thinnest_px": round(self.thinnest_px, 2),
+                "ink_alpha": round(self.ink_alpha, 2), "passed": self.passed}
+
+
+def size_tests(svg: str, mask: np.ndarray, weights_px: list[float], sizes=(64, 32), min_iou: float = 0.75,
+               alpha_floor: float = 0.1) -> list[SizeTest]:
+    """Does the mark survive being small? Rendered by resvg at 64 and 32 px on the long edge.
+
+    Measures silhouette survival: a closed outline still encloses the subject at
+    this size, so the filled shape still matches the cutout. It does NOT measure
+    whether inner detail is legible, and fine interior lines will not be. The
+    thinnest-stroke and ink-alpha columns say how much of the drawing has faded.
+    """
+    h, w = mask.shape
+    out = []
+    for size in sizes:
+        s = size / max(h, w)
+        tw, th = max(1, round(w * s)), max(1, round(h * s))
+        png = bytes(resvg_py.svg_to_bytes(svg_string=svg, width=tw, height=th))
+        alpha = np.array(Image.open(io.BytesIO(png)).convert("RGBA"))[:, :, 3].astype(float) / 255.0
+        # resvg rounds its own height, so the mask is sized to the render, not to my arithmetic
+        small_mask = np.array(Image.fromarray((mask > 127).astype(np.uint8) * 255)
+                              .resize((alpha.shape[1], alpha.shape[0]), Image.BOX)) > 127
+        sil = ndi.binary_fill_holes(ndi.binary_closing(alpha > alpha_floor, iterations=1))
+        score = iou(sil, small_mask)
+        inked = alpha > alpha_floor
+        out.append(SizeTest(
+            size, score, min(weights_px or [0.0]) * s, float(alpha[inked].mean()) if inked.any() else 0.0,
+            score >= min_iou, png,
+        ))
+    return out
+
+
+# ----------------------------------------------------------------- fidelity
+
+
+def fidelity(svg: str, raw_ink: np.ndarray, tol_px: int = 3) -> dict:
+    """How faithful is the final SVG to the raw redraw, on skeletons so thickness cannot skew it.
+
+    on_redraw: share of the final SVG's line length that lies on a line the model drew
+               (low means the clean-up invented lines).
+    kept:      share of the redraw's line length that survived (low means a lot was
+               dropped, which is intended for minimal but should be seen).
+    """
+    from .strokes import thin
+
+    h, w = raw_ink.shape
+    final = rasterise(svg, w, h) > 127
+    a, b = thin(final), thin(raw_ink)
+    near_raw = ndi.distance_transform_edt(~raw_ink) <= tol_px
+    near_final = ndi.distance_transform_edt(~final) <= tol_px
+    return {
+        "on_redraw": float((a & near_raw).sum() / max(1, a.sum())),
+        "kept": float((b & near_final).sum() / max(1, b.sum())),
+    }
+
+
+def compare_overlay(svg: str, raw_ink: np.ndarray, tol_px: int = 3) -> Image.Image:
+    """Where the final SVG's lines run vs where the redraw's did, drawn on centrelines.
+
+    Strokes are deliberately made thicker than the redraw's hairlines, so comparing
+    raw pixels would paint everything blue and make a faithful result look invented.
+    Centrelines are compared instead: dark where both have a line (within tol_px),
+    red where only the redraw has one (dropped), blue where only the SVG has one.
+    """
+    from .strokes import thin
+
+    h, w = raw_ink.shape
+    final = rasterise(svg, w, h) > 127
+    a, b = thin(raw_ink), thin(final)
+    near_final = ndi.distance_transform_edt(~final) <= tol_px
+    near_raw = ndi.distance_transform_edt(~raw_ink) <= tol_px
+    img = np.full((h, w, 3), 255, np.uint8)
+    raw_only, svg_only, both = a & ~near_final, b & ~near_raw, (a & near_final) | (b & near_raw)
+    grow = lambda m: ndi.binary_dilation(m, iterations=1)
+    img[grow(both)] = (40, 40, 40)
+    img[grow(raw_only)] = (214, 69, 48)
+    img[grow(svg_only)] = (40, 90, 200)
+    return Image.fromarray(img, "RGB")

@@ -19,9 +19,8 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-from logoproto import cleanup as cu
-from logoproto import vectorize
-from logoproto.check import CheckParams, check
+from logoproto.check import CheckParams
+from logoproto.pipeline import vectorise
 from logoproto.profile import Profile
 from logoproto.report import write_report
 from logoproto.styles import get_style, STYLES, ALIASES
@@ -160,40 +159,43 @@ def main() -> int:
 
         def attempt(n: int, seed: int, tag: str):
             with prof.stage(f"{name}: redraw #{n}{tag}", note=f"seed {seed}") as r_redraw:
-                raw = redrawer.run(refs, prompt, seed, size, args.steps, args.strength)
-            t0 = time.perf_counter()
-            with prof.stage(f"{name}: trace #{n}{tag}"):
-                svg_raw = vectorize.trace(raw, filter_speckle=style.speckle, corner_threshold=style.corner)
-            with prof.stage(f"{name}: cleanup #{n}{tag}") as r_clean:
-                doc = parse_svg(svg_raw)
-                doc, st = cu.cleanup(doc, style.cleanup)
-                svg = write_svg(doc, smooth=True)
-                r_clean.note = (f"{st.start_shapes}->{st.end_shapes} shapes, {st.start_nodes}->{st.end_nodes} nodes, "
-                                f"dropped {st.dropped_small}, merged {st.merged_duplicates}, weights {st.weights_px}")
-            with prof.stage(f"{name}: check #{n}{tag}") as r_check:
-                res = check(svg, st.end_shapes, st.end_nodes, mask_np, params)
-                r_check.note = "PASS" if res.passed else "FAIL: " + "; ".join(res.reasons)
-            vec_s = time.perf_counter() - t0
-            return raw, svg, res, st, r_redraw.seconds, vec_s
+                raw = redrawer.run(str(guide_path), prompt, seed, size, args.steps)
+            with prof.stage(f"{name}: vectorise #{n}{tag}") as r_vec:
+                v = vectorise(raw, style, mask_np, params)
+                r_vec.note = (f"{v.cleanup.start_shapes}->{v.cleanup.end_shapes} shapes, "
+                              f"{v.cleanup.start_nodes}->{v.cleanup.end_nodes} nodes, weights {v.strokes.weights_px}, "
+                              + ("PASS" if v.result.passed else "FAIL: " + "; ".join(v.result.reasons)))
+            return raw, v, r_redraw.seconds, r_vec.seconds
 
         for n in range(1, args.variations + 1):
             seed = args.seed + n
-            raw, svg, res, st, rs, vs = attempt(n, seed, "")
+            raw, v, rs, vs = attempt(n, seed, "")
             first = None
-            if not res.passed:
-                log(f"{name} #{n}: FAIL ({'; '.join(res.reasons)}). Retrying once with another seed")
+            if not v.result.passed:
+                log(f"{name} #{n}: FAIL ({'; '.join(v.result.reasons)}). Retrying once with another seed")
                 raw.save(d / f"raw-{n}-attempt1.png")
-                (d / f"{style.name}-{n}-attempt1.svg").write_text(svg)
-                first = {"seed": seed, "check": res.as_dict()}
+                (d / f"{style.name}-{n}-attempt1.svg").write_text(v.svg)
+                first = {"seed": seed, "check": v.result.as_dict()}
                 seed += 1000
-                raw, svg, res, st, rs, vs = attempt(n, seed, " (retry)")
+                raw, v, rs, vs = attempt(n, seed, " (retry)")
+            stem = f"{style.name}-{n}"
             raw.save(d / f"raw-{n}.png")
-            (d / f"{style.name}-{n}.svg").write_text(svg)
+            (d / f"{stem}.svg").write_text(v.svg)
+            v.overlay.save(d / f"compare-{n}.png")
+            sizes = []
+            for sz in v.sizes:
+                (d / f"{stem}-{sz.size}.png").write_bytes(sz.png)
+                sizes.append({**sz.as_dict(), "png": f"{stem}-{sz.size}.png"})
+            res = v.result
             log(f"{name} #{n}: {'PASS' if res.passed else 'FAIL'} IoU {res.iou:.3f}, {res.shapes} shapes, "
-                f"{res.nodes} nodes, redraw {rs:.1f}s")
+                f"{res.nodes} nodes, 32px {'ok' if v.sizes[-1].passed else 'FAIL'}, redraw {rs:.1f}s")
             variants.append({
                 "n": n, "seed": seed, "original": "original.jpg", "cutout": "cutout.png",
-                "raw": f"raw-{n}.png", "svg": f"{style.name}-{n}.svg", "check": res.as_dict(),
+                "raw": f"raw-{n}.png", "compare": f"compare-{n}.png", "svg": f"{stem}.svg",
+                "check": res.as_dict(), "sizes": sizes, "fidelity": v.fidelity,
+                "stats": {"weights": v.strokes.weights_px, "eps": v.cleanup.simplify_eps_used,
+                          "over_budget": v.cleanup.over_budget, "rungs": v.rungs,
+                          "budget": style.cleanup.node_budget},
                 "redraw_s": rs, "vector_s": vs, "attempt1": first,
             })
         summary.append((name, variants))

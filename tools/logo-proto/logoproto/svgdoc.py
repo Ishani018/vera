@@ -19,9 +19,14 @@ _TOKEN = re.compile(r"([MmLlCcHhVvZz])|(-?\d*\.?\d+(?:[eE][-+]?\d+)?)")
 class Shape:
     rings: list[np.ndarray]  # each (n, 2) float, implicitly closed
     fill: str = "#000000"
+    #: Fitted cubic segments per ring, set by the curve-fitting step. When present
+    #: they are what gets written, and a node is one segment.
+    curves: list[list] | None = None
 
     @property
     def nodes(self) -> int:
+        if self.curves is not None:
+            return int(sum(len(c) for c in self.curves))
         return int(sum(len(r) for r in self.rings))
 
 
@@ -189,6 +194,14 @@ def ring_to_d(ring: np.ndarray, smooth: bool, corner_deg: float = 55.0) -> str:
     return " ".join(parts) + " Z"
 
 
+def curves_to_d(segs) -> str:
+    p0 = segs[0][0]
+    parts = [f"M{_fmt(p0[0])},{_fmt(p0[1])}"]
+    for _, c1, c2, p3 in segs:
+        parts.append(f"C{_fmt(c1[0])},{_fmt(c1[1])} {_fmt(c2[0])},{_fmt(c2[1])} {_fmt(p3[0])},{_fmt(p3[1])}")
+    return " ".join(parts) + " Z"
+
+
 def write_svg(doc: Doc, smooth: bool = True) -> str:
     """Ink on a transparent background: no <rect>, no white fills."""
     out = [
@@ -196,7 +209,10 @@ def write_svg(doc: Doc, smooth: bool = True) -> str:
         f'width="{_fmt(doc.width)}" height="{_fmt(doc.height)}" viewBox="0 0 {_fmt(doc.width)} {_fmt(doc.height)}">'
     ]
     for s in doc.shapes:
-        d = " ".join(ring_to_d(r, smooth) for r in s.rings)
+        if s.curves is not None:
+            d = " ".join(curves_to_d(c) for c in s.curves if c)
+        else:
+            d = " ".join(ring_to_d(r, smooth) for r in s.rings)
         out.append(f'<path d="{d}" fill="{s.fill}" fill-rule="evenodd"/>')
     out.append("</svg>")
     return "\n".join(out)

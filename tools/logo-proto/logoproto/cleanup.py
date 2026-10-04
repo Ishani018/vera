@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .fit import fit_ring
 from .svgdoc import Doc, Shape
 
 
@@ -30,6 +31,14 @@ class CleanupParams:
     dup_iou: float = 0.9
     dup_centroid_px: float = 2.0
     dup_area_ratio: float = 0.08
+    # Per-shape snapping only means something when shapes are separate strokes. A
+    # redraw is usually one connected shape, so the pipeline snaps on the raster
+    # instead (strokes.py) and leaves this off. Kept, and tested, for isolated shapes.
+    snap_vector: bool = True
+    node_budget: int | None = None  # fit looser, as far as simplify_eps_max, until under this
+    simplify_eps_max: float = 2.0   # px. Never beyond roughly half a thin stroke: past that a ribbon collapses
+    fit_curves: bool = True         # Schneider-fit Beziers; nodes are then curve segments, not polyline vertices
+    presimplify_eps: float = 0.35   # light thinning of the flattened curve before fitting, just to drop redundancy
 
 
 @dataclass
@@ -39,6 +48,8 @@ class CleanupStats:
     dropped_small: int = 0
     merged_duplicates: int = 0
     nodes_after_simplify: int = 0
+    simplify_eps_used: float = 0.0
+    over_budget: bool = False
     weights_px: list[float] = field(default_factory=list)
     snapped: int = 0
     end_shapes: int = 0
@@ -245,14 +256,60 @@ def snap_weights(doc: Doc, p: CleanupParams, stats: CleanupStats) -> None:
         stats.snapped += int(moved)
 
 
+def simplify_to_budget(doc: Doc, p: CleanupParams) -> tuple[float, bool]:
+    """Smallest tolerance that brings the node count under p.node_budget, never past simplify_eps_max.
+
+    Bisection over the tolerance, always working from the original rings so the
+    result does not depend on the search path. If even the maximum is not enough
+    it STOPS THERE and says so: a budget must not be met by wrecking the drawing,
+    and an earlier version that let the tolerance run to 12 px did exactly that.
+    Returns (tolerance used, whether the budget was still not met).
+    """
+    original = [[r.copy() for r in s.rings] for s in doc.shapes]
+
+    def apply(eps: float) -> int:
+        for s, rings in zip(doc.shapes, original):
+            if p.fit_curves:
+                pre = [simplify_ring(r, p.presimplify_eps) for r in rings]
+                s.rings = pre
+                s.curves = [fit_ring(r, eps) for r in pre]
+            else:
+                s.rings = [simplify_ring(r, eps) for r in rings]
+        return doc.nodes
+
+    if apply(p.simplify_eps) <= p.node_budget:
+        return p.simplify_eps, False
+    lo, hi = p.simplify_eps, p.simplify_eps_max
+    if apply(hi) > p.node_budget:
+        return hi, True
+    for _ in range(14):
+        mid = (lo + hi) / 2
+        if apply(mid) <= p.node_budget:
+            hi = mid
+        else:
+            lo = mid
+    apply(hi)
+    return hi, False
+
+
 def cleanup(doc: Doc, params: CleanupParams | None = None) -> tuple[Doc, CleanupStats]:
     p = params or CleanupParams()
     st = CleanupStats(start_shapes=len(doc.shapes), start_nodes=doc.nodes)
     st.dropped_small = drop_small(doc, p)
     st.merged_duplicates = merge_duplicates(doc, p)
-    simplify(doc, p)
+    if p.node_budget:
+        st.simplify_eps_used, st.over_budget = simplify_to_budget(doc, p)
+    elif p.fit_curves:
+        for s in doc.shapes:
+            s.rings = [simplify_ring(r, p.presimplify_eps) for r in s.rings]
+            s.curves = [fit_ring(r, p.simplify_eps) for r in s.rings]
+        st.simplify_eps_used = p.simplify_eps
+    else:
+        simplify(doc, p)
+        st.simplify_eps_used = p.simplify_eps
     st.nodes_after_simplify = doc.nodes
-    snap_weights(doc, p, st)
+    if p.snap_vector:
+        snap_weights(doc, p, st)
     st.end_shapes = len(doc.shapes)
     st.end_nodes = doc.nodes
     return doc, st
