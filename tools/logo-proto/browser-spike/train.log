@@ -1,0 +1,45 @@
+s: c=18 params=2.46 M fp16=4.9 MB device=mps
+s step    0 loss 1.5699 bce 0.7618 dice 0.808 7s
+s step   25 loss 1.4568 bce 0.6428 dice 0.814 35s
+s step   50 loss 1.3010 bce 0.4860 dice 0.815 63s
+s step   75 loss 1.2354 bce 0.4360 dice 0.799 92s
+s step  100 loss 1.1527 bce 0.3877 dice 0.765 120s
+s step  125 loss 1.1871 bce 0.4212 dice 0.766 148s
+s step  150 loss 1.1448 bce 0.3471 dice 0.798 176s
+s step  175 loss 1.0632 bce 0.3358 dice 0.727 205s
+s step  200 loss 1.1787 bce 0.3625 dice 0.816 233s
+s step  225 loss 1.1422 bce 0.3462 dice 0.796 261s
+s step  250 loss 1.0907 bce 0.3421 dice 0.749 289s
+s step  275 loss 1.1618 bce 0.3565 dice 0.805 317s
+s step  299 loss 0.9975 bce 0.3027 dice 0.695 344s
+s final dice-loss on the 22 pairs (train set): 0.709
+m: c=36 params=9.82 M fp16=19.6 MB device=mps
+m step    0 loss 1.5083 bce 0.6931 dice 0.815 2s
+m step   25 loss 1.3421 bce 0.5214 dice 0.821 44s
+m step   50 loss 1.2341 bce 0.4215 dice 0.813 89s
+m step   75 loss 1.1966 bce 0.3720 dice 0.825 131s
+m step  100 loss 1.1655 bce 0.3413 dice 0.824 173s
+m step  125 loss 1.0673 bce 0.3194 dice 0.748 213s
+m step  150 loss 1.0356 bce 0.3193 dice 0.716 253s
+m step  175 loss 1.1380 bce 0.3416 dice 0.796 292s
+m step  200 loss 1.1428 bce 0.3325 dice 0.810 333s
+m step  225 loss 1.0809 bce 0.3758 dice 0.705 374s
+m step  250 loss 1.0519 bce 0.3283 dice 0.724 417s
+m step  275 loss 0.9244 bce 0.2786 dice 0.646 458s
+m step  299 loss 1.0053 bce 0.3304 dice 0.675 499s
+m final dice-loss on the 22 pairs (train set): 0.697
+l: c=58 params=25.49 M fp16=51.0 MB device=mps
+l step    0 loss 1.6008 bce 0.7785 dice 0.822 3s
+l step   25 loss 1.3021 bce 0.4862 dice 0.816 77s
+l step   50 loss 1.2041 bce 0.4038 dice 0.800 155s
+l step   75 loss 1.1786 bce 0.3755 dice 0.803 233s
+l step  100 loss 1.1423 bce 0.3598 dice 0.782 306s
+l step  125 loss 1.2115 bce 0.3856 dice 0.826 379s
+l step  150 loss 1.1468 bce 0.3676 dice 0.779 449s
+l step  175 loss 1.1359 bce 0.3760 dice 0.760 522s
+l step  200 loss 1.0168 bce 0.3411 dice 0.676 590s
+l step  225 loss 1.0199 bce 0.3112 dice 0.709 658s
+l step  250 loss 1.1016 bce 0.3596 dice 0.742 727s
+l step  275 loss 1.0636 bce 0.3640 dice 0.700 799s
+l step  299 loss 1.0018 bce 0.3335 dice 0.668 869s
+l final dice-loss on the 22 pairs (train set): 0.705

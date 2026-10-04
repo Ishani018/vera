@@ -1,0 +1,122 @@
+[
+ {
+  "model": "/models/s-fp32.onnx",
+  "ep": "webgpu",
+  "size": 512,
+  "threads": 0,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/s-fp16.onnx",
+  "ep": "webgpu",
+  "size": 512,
+  "threads": 0,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/s-fp32.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 1,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/s-fp32.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 4,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/s-int8.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 4,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/m-fp32.onnx",
+  "ep": "webgpu",
+  "size": 512,
+  "threads": 0,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/m-fp16.onnx",
+  "ep": "webgpu",
+  "size": 512,
+  "threads": 0,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/m-fp32.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 1,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/m-fp32.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 4,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/m-int8.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 4,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/l-fp32.onnx",
+  "ep": "webgpu",
+  "size": 512,
+  "threads": 0,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/l-fp16.onnx",
+  "ep": "webgpu",
+  "size": 512,
+  "threads": 0,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/l-fp32.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 1,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/l-fp32.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 4,
+  "runs": 3,
+  "timeoutMs": 300000
+ },
+ {
+  "model": "/models/l-int8.onnx",
+  "ep": "wasm",
+  "size": 512,
+  "threads": 4,
+  "runs": 3,
+  "timeoutMs": 300000
+ }
+]

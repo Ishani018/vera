@@ -20,6 +20,19 @@ Notes:
 - **Not checked at all:** the licences of the datasets these models were trained on. A model licence does not answer that question, and for a logo tool it is the one a client may ask.
 - No model here was trained or fine-tuned by this project. All three are used as published.
 
+## Browser-spike cutout candidates (2026-10-04)
+
+Measured in `browser-spike/` for speed and size only. "READ" means the card text in `cards/` was read on 2026-10-04. Not legal advice.
+
+| Model | Repo | Size | Licence stated | Status | Notes |
+|---|---|---|---|---|---|
+| U2-Netp | `BritishWerewolf/U-2-Netp` (card: `cards/u2netp-card.md`) | 4.6 MB | Apache 2.0 | READ, thin | Card front matter and a "Licence" section say Apache 2.0 "to match the original U-2-Net model", and credit the original repo (xuebinqin/U-2-Net) and `rembg`. This is a third-party ONNX conversion; the original repo's licence and the training-data licence were **not** read. |
+| MODNet | `Xenova/modnet` (card: `cards/modnet-card.md`) | 6.6 / 13 / 25.9 MB | Apache 2.0 | READ, thin | Front matter only; the card links the official MODNet repo, which was **not** read, so the licence of the original weights is UNVERIFIED. Portrait matting only. |
+| Silueta | `jellybox/silueta` (card: `cards/silueta-card.md`) | 44.2 MB | Apache 2.0 | READ, thin | The card is only front matter (`license: apache-2.0`, tag "Jellybox"). It says nothing about where the weights came from. Treat as UNVERIFIED provenance. |
+| RMBG-1.4 (quantised) | `briaai/RMBG-1.4` (card: `cards/rmbg14-card.md`) | 44.4 MB | Bria RMBG-1.4 licence ("other") | READ: **NON-COMMERCIAL** | Card: "source-available model for non-commercial use"; commercial use needs a purchased licence. Do not ship. |
+
+Not downloaded (over the size cap): IS-Net general use (about 170 MB), BiRefNet family.
+
 ## Libraries (from installed package metadata)
 
 | Package | Licence |

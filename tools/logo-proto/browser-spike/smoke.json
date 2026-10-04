@@ -1,0 +1,2 @@
+[{"model":"/models/cutout/u2netp.onnx","ep":"wasm","size":320,"threads":4,"runs":2},
+ {"model":"/models/cutout/u2netp.onnx","ep":"webgpu","size":320,"runs":2}]

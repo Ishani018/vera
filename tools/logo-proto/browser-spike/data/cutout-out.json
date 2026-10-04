@@ -1,0 +1,332 @@
+[
+  {
+    "model": "/models/cutout/u2netp.onnx",
+    "ep": "webgpu",
+    "size": 320,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 13.309999942779541,
+    "createMs": 473,
+    "error": "ceil_mode output-shape is computed, but ceil_mode kernel execution (padding) is not yet implemented in the WebGPU MaxPool kernel",
+    "baselineRssMB": 848.671875,
+    "peakRssMB": 1342.140625,
+    "addedRssMB": 493.46875,
+    "fileMB": 4.574861,
+    "gzipMB": 4.238118,
+    "brotliMB": 4.162158
+  },
+  {
+    "model": "/models/cutout/u2netp.onnx",
+    "ep": "wasm",
+    "size": 320,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 11.605000019073486,
+    "createMs": 408.06999999284744,
+    "outputDims": [
+      1,
+      1,
+      320,
+      320
+    ],
+    "firstRunMs": 395.3600000143051,
+    "steady": {
+      "min": 325.77000004053116,
+      "median": 325.8899999856949,
+      "max": 326.0049999952316
+    },
+    "jsHeapMB": 21.849958,
+    "baselineRssMB": 849.453125,
+    "peakRssMB": 1593.921875,
+    "addedRssMB": 744.46875,
+    "fileMB": 4.574861,
+    "gzipMB": 4.238118,
+    "brotliMB": 4.162158
+  },
+  {
+    "model": "/models/cutout/modnet-fp32.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 20.339999973773956,
+    "createMs": 475.6700000166893,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 1025.300000011921,
+    "steady": {
+      "min": 44.02999997138977,
+      "median": 44.719999969005585,
+      "max": 45.035000026226044
+    },
+    "jsHeapMB": 38.479598,
+    "baselineRssMB": 848.34375,
+    "peakRssMB": 1405.734375,
+    "addedRssMB": 557.390625,
+    "fileMB": 25.88864,
+    "gzipMB": 23.957537,
+    "brotliMB": 23.655501
+  },
+  {
+    "model": "/models/cutout/modnet-fp32.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 18.435000002384186,
+    "createMs": 420.9150000214577,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 375.0300000309944,
+    "steady": {
+      "min": 340.0450000166893,
+      "median": 346.61500000953674,
+      "max": 352.44999998807907
+    },
+    "jsHeapMB": 40.116829,
+    "baselineRssMB": 848.984375,
+    "peakRssMB": 1426,
+    "addedRssMB": 577.015625,
+    "fileMB": 25.88864,
+    "gzipMB": 23.957537,
+    "brotliMB": 23.655501
+  },
+  {
+    "model": "/models/cutout/modnet-fp16.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 21.665000021457672,
+    "createMs": 490.56999999284744,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 927.1650000214577,
+    "steady": {
+      "min": 36.875,
+      "median": 39.875,
+      "max": 55
+    },
+    "jsHeapMB": 24.077639,
+    "baselineRssMB": 849.125,
+    "peakRssMB": 1516.03125,
+    "addedRssMB": 666.90625,
+    "fileMB": 12.984781,
+    "gzipMB": 11.904601,
+    "brotliMB": 11.304746
+  },
+  {
+    "model": "/models/cutout/modnet-fp16.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 19.00499999523163,
+    "createMs": 490.85499995946884,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 391.10499995946884,
+    "steady": {
+      "min": 308.7350000143051,
+      "median": 309.8349999785423,
+      "max": 310.97500002384186
+    },
+    "jsHeapMB": 27.109182,
+    "baselineRssMB": 852.0625,
+    "peakRssMB": 1753.875,
+    "addedRssMB": 901.8125,
+    "fileMB": 12.984781,
+    "gzipMB": 11.904601,
+    "brotliMB": 11.304746
+  },
+  {
+    "model": "/models/cutout/modnet-uint8.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 14.370000004768372,
+    "createMs": 608.0600000023842,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 1546.8849999904633,
+    "steady": {
+      "min": 1255.550000011921,
+      "median": 1266.1100000143051,
+      "max": 1266.7300000190735
+    },
+    "jsHeapMB": 21.470323,
+    "baselineRssMB": 852.65625,
+    "peakRssMB": 1798.296875,
+    "addedRssMB": 945.640625,
+    "fileMB": 6.632188,
+    "gzipMB": 5.228333,
+    "brotliMB": 5.138855
+  },
+  {
+    "model": "/models/cutout/modnet-uint8.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 11.955000042915344,
+    "createMs": 562.6700000166893,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 504.89000004529953,
+    "steady": {
+      "min": 419.74000000953674,
+      "median": 430.8149999976158,
+      "max": 430.9749999642372
+    },
+    "jsHeapMB": 19.259855,
+    "baselineRssMB": 850.484375,
+    "peakRssMB": 1515,
+    "addedRssMB": 664.515625,
+    "fileMB": 6.632188,
+    "gzipMB": 5.228333,
+    "brotliMB": 5.138855
+  },
+  {
+    "model": "/models/cutout/silueta.onnx",
+    "ep": "webgpu",
+    "size": 320,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 36.669999957084656,
+    "createMs": 569.8049999475479,
+    "error": "ceil_mode output-shape is computed, but ceil_mode kernel execution (padding) is not yet implemented in the WebGPU MaxPool kernel",
+    "baselineRssMB": 850.109375,
+    "peakRssMB": 1642.078125,
+    "addedRssMB": 791.96875,
+    "fileMB": 44.173029,
+    "gzipMB": 26.966332,
+    "brotliMB": 25.563063
+  },
+  {
+    "model": "/models/cutout/silueta.onnx",
+    "ep": "wasm",
+    "size": 320,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 27.55000001192093,
+    "createMs": 488.335000038147,
+    "outputDims": [
+      1,
+      1,
+      320,
+      320
+    ],
+    "firstRunMs": 1135.3650000095367,
+    "steady": {
+      "min": 1039.214999973774,
+      "median": 1045.699999988079,
+      "max": 1052.535000026226
+    },
+    "jsHeapMB": 61.449371,
+    "baselineRssMB": 848.546875,
+    "peakRssMB": 1931.34375,
+    "addedRssMB": 1082.796875,
+    "fileMB": 44.173029,
+    "gzipMB": 26.966332,
+    "brotliMB": 25.563063
+  },
+  {
+    "model": "/models/cutout/rmbg14-q.onnx",
+    "ep": "webgpu",
+    "size": 1024,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 32.035000026226044,
+    "createMs": 712.3899999856949,
+    "outputDims": [
+      1,
+      1,
+      1024,
+      1024
+    ],
+    "firstRunMs": 10779.814999997616,
+    "steady": {
+      "min": 10104.689999997616,
+      "median": 10132.819999992847,
+      "max": 10321.149999976158
+    },
+    "jsHeapMB": 76.242368,
+    "baselineRssMB": 847.90625,
+    "peakRssMB": 2765.453125,
+    "addedRssMB": 1917.546875,
+    "fileMB": 44.403226,
+    "gzipMB": 30.834627,
+    "brotliMB": 28.918479
+  },
+  {
+    "model": "/models/cutout/rmbg14-q.onnx",
+    "ep": "wasm",
+    "size": 1024,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 40.4099999666214,
+    "createMs": 599.3650000095367,
+    "outputDims": [
+      1,
+      1,
+      1024,
+      1024
+    ],
+    "firstRunMs": 2925.660000026226,
+    "steady": {
+      "min": 2824.199999988079,
+      "median": 2881.625,
+      "max": 2890.2599999904633
+    },
+    "jsHeapMB": 79.06469,
+    "baselineRssMB": 848.796875,
+    "peakRssMB": 2166.65625,
+    "addedRssMB": 1317.859375,
+    "fileMB": 44.403226,
+    "gzipMB": 30.834627,
+    "brotliMB": 28.918479
+  }
+]

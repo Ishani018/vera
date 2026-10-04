@@ -1,0 +1,443 @@
+[
+  {
+    "model": "/models/s-fp32.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 17.5349999666214,
+    "createMs": 382.7150000333786,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 539.7300000190735,
+    "steady": {
+      "min": 35.785000026226044,
+      "median": 38.730000019073486,
+      "max": 57.855000019073486
+    },
+    "jsHeapMB": 23.109353,
+    "baselineRssMB": 854.5625,
+    "peakRssMB": 1280.078125,
+    "addedRssMB": 425.515625,
+    "fileMB": 9.834889,
+    "gzipMB": 9.120151,
+    "brotliMB": 8.99773
+  },
+  {
+    "model": "/models/s-fp16.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 11.639999985694885,
+    "createMs": 348.19499999284744,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 713.9450000524521,
+    "steady": {
+      "min": 38.064999997615814,
+      "median": 40.59500002861023,
+      "max": 49.49499994516373
+    },
+    "jsHeapMB": 17.390855,
+    "baselineRssMB": 850.15625,
+    "peakRssMB": 1303.46875,
+    "addedRssMB": 453.3125,
+    "fileMB": 4.925185,
+    "gzipMB": 4.538468,
+    "brotliMB": 4.297574
+  },
+  {
+    "model": "/models/s-fp32.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 1,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 21.8299999833107,
+    "createMs": 324.0250000357628,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 975.0500000119209,
+    "steady": {
+      "min": 936.5,
+      "median": 943.2300000190735,
+      "max": 944.3549999594688
+    },
+    "jsHeapMB": 22.344815,
+    "baselineRssMB": 849.03125,
+    "peakRssMB": 1320.546875,
+    "addedRssMB": 471.515625,
+    "fileMB": 9.834889,
+    "gzipMB": 9.120151,
+    "brotliMB": 8.99773
+  },
+  {
+    "model": "/models/s-fp32.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 21.160000026226044,
+    "createMs": 331.35000002384186,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 285.4099999666214,
+    "steady": {
+      "min": 243.30500000715256,
+      "median": 243.89000004529953,
+      "max": 245.29999995231628
+    },
+    "jsHeapMB": 22.366187,
+    "baselineRssMB": 848.890625,
+    "peakRssMB": 1356.84375,
+    "addedRssMB": 507.953125,
+    "fileMB": 9.834889,
+    "gzipMB": 9.120151,
+    "brotliMB": 8.99773
+  },
+  {
+    "model": "/models/s-int8.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 7.004999995231628,
+    "createMs": 369.5199999809265,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 362.0199999809265,
+    "steady": {
+      "min": 300.2950000166893,
+      "median": 300.47500002384186,
+      "max": 328.94999998807907
+    },
+    "jsHeapMB": 15.071241,
+    "baselineRssMB": 850.484375,
+    "peakRssMB": 1387.796875,
+    "addedRssMB": 537.3125,
+    "fileMB": 2.502771,
+    "gzipMB": 1.82032,
+    "brotliMB": 1.690414
+  },
+  {
+    "model": "/models/m-fp32.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 38.62999999523163,
+    "createMs": 407.6599999666214,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 138.36500000953674,
+    "steady": {
+      "min": 85.50499999523163,
+      "median": 88.6350000500679,
+      "max": 94.76499998569489
+    },
+    "jsHeapMB": 54.028287,
+    "baselineRssMB": 848.765625,
+    "peakRssMB": 1449.4375,
+    "addedRssMB": 600.671875,
+    "fileMB": 39.292364,
+    "gzipMB": 36.468942,
+    "brotliMB": 36.014589
+  },
+  {
+    "model": "/models/m-fp16.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 27.3299999833107,
+    "createMs": 382.55000001192093,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 122.19999998807907,
+    "steady": {
+      "min": 111.28000003099442,
+      "median": 120.10500001907349,
+      "max": 135.24500000476837
+    },
+    "jsHeapMB": 34.3065,
+    "baselineRssMB": 848.71875,
+    "peakRssMB": 1323.296875,
+    "addedRssMB": 474.578125,
+    "fileMB": 19.653953,
+    "gzipMB": 18.121011,
+    "brotliMB": 17.142864
+  },
+  {
+    "model": "/models/m-fp32.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 1,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 28.389999985694885,
+    "createMs": 359.5549999475479,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 3625.524999976158,
+    "steady": {
+      "min": 3589.464999973774,
+      "median": 3598.1449999809265,
+      "max": 3610.810000002384
+    },
+    "jsHeapMB": 51.533578,
+    "baselineRssMB": 849.015625,
+    "peakRssMB": 1455.109375,
+    "addedRssMB": 606.09375,
+    "fileMB": 39.292364,
+    "gzipMB": 36.468942,
+    "brotliMB": 36.014589
+  },
+  {
+    "model": "/models/m-fp32.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 26.019999980926514,
+    "createMs": 352.83000004291534,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 950.8199999928474,
+    "steady": {
+      "min": 909.8999999761581,
+      "median": 911.7049999833107,
+      "max": 912.4800000190735
+    },
+    "jsHeapMB": 51.761494,
+    "baselineRssMB": 849.015625,
+    "peakRssMB": 1484.03125,
+    "addedRssMB": 635.015625,
+    "fileMB": 39.292364,
+    "gzipMB": 36.468942,
+    "brotliMB": 36.014589
+  },
+  {
+    "model": "/models/m-int8.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 14.585000038146973,
+    "createMs": 383.7699999809265,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 1073.2050000429153,
+    "steady": {
+      "min": 992.3100000023842,
+      "median": 1015.5949999690056,
+      "max": 1023.5100000500679
+    },
+    "jsHeapMB": 22.142103,
+    "baselineRssMB": 847.546875,
+    "peakRssMB": 1517.8125,
+    "addedRssMB": 670.265625,
+    "fileMB": 9.872957,
+    "gzipMB": 7.023049,
+    "brotliMB": 6.46738
+  },
+  {
+    "model": "/models/l-fp32.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 67.40499997138977,
+    "createMs": 419.2049999833107,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 432.6850000023842,
+    "steady": {
+      "min": 339.08999997377396,
+      "median": 398.7350000143051,
+      "max": 470.80500000715256
+    },
+    "jsHeapMB": 116.759775,
+    "baselineRssMB": 847.65625,
+    "peakRssMB": 1838.875,
+    "addedRssMB": 991.21875,
+    "fileMB": 101.956376,
+    "gzipMB": 94.607134,
+    "brotliMB": 93.477227
+  },
+  {
+    "model": "/models/l-fp16.onnx",
+    "ep": "webgpu",
+    "size": 512,
+    "threads": 0,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "hasWebGPU": true,
+    "fetchMs": 34.77500003576279,
+    "createMs": 380.75,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 345.6899999976158,
+    "steady": {
+      "min": 325.3400000333786,
+      "median": 333.0999999642372,
+      "max": 383.1299999952316
+    },
+    "jsHeapMB": 65.982507,
+    "baselineRssMB": 849.5625,
+    "peakRssMB": 1513,
+    "addedRssMB": 663.4375,
+    "fileMB": 50.985969,
+    "gzipMB": 46.914574,
+    "brotliMB": 44.289717
+  },
+  {
+    "model": "/models/l-fp32.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 1,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 67.59500002861023,
+    "createMs": 379.5049999952316,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 9351.275000035763,
+    "steady": {
+      "min": 9142.235000014305,
+      "median": 9229.629999995232,
+      "max": 9244.194999992847
+    },
+    "jsHeapMB": 116.033721,
+    "baselineRssMB": 850.671875,
+    "peakRssMB": 1840.546875,
+    "addedRssMB": 989.875,
+    "fileMB": 101.956376,
+    "gzipMB": 94.607134,
+    "brotliMB": 93.477227
+  },
+  {
+    "model": "/models/l-fp32.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 60.47000002861023,
+    "createMs": 401.7750000357628,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 2441.925000011921,
+    "steady": {
+      "min": 2330.7400000095367,
+      "median": 2339.6400000452995,
+      "max": 2344.339999973774
+    },
+    "jsHeapMB": 116.007549,
+    "baselineRssMB": 851.546875,
+    "peakRssMB": 1817.84375,
+    "addedRssMB": 966.296875,
+    "fileMB": 101.956376,
+    "gzipMB": 94.607134,
+    "brotliMB": 93.477227
+  },
+  {
+    "model": "/models/l-int8.onnx",
+    "ep": "wasm",
+    "size": 512,
+    "threads": 4,
+    "runs": 3,
+    "timeoutMs": 300000,
+    "fetchMs": 20.944999992847443,
+    "createMs": 403.58999997377396,
+    "outputDims": [
+      1,
+      1,
+      512,
+      512
+    ],
+    "firstRunMs": 2552.550000011921,
+    "steady": {
+      "min": 2452.0599999427795,
+      "median": 2458.6800000071526,
+      "max": 2472.8900000452995
+    },
+    "jsHeapMB": 38.058835,
+    "baselineRssMB": 850.59375,
+    "peakRssMB": 1717.65625,
+    "addedRssMB": 867.0625,
+    "fileMB": 25.546029,
+    "gzipMB": 17.769166,
+    "brotliMB": 16.252793
+  }
+]

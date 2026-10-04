@@ -207,3 +207,15 @@ The pipeline is now an optional Lab look, "Smart redraw", through a local helper
 - **Real run through the helper (pancake, minimal, standard):** 120 s total (cutout 7.6, analyse 27.3, redraw 71.7 for 4 steps, vector 9.6), 13 strokes, 1340 nodes, check passed (IoU 0.991, coverage 1.0). Real per-step progress works. No worker process or temp dir left behind.
 - **Tests:** app 919 pass (37 new: `tests/trace.test.mjs`, `tests/smart.test.mjs`), goldens and screen goldens match, none re-recorded, no existing test changed. Browser checks (Chrome, 1280 and 390 wide, default and Night) used a paced fake worker.
 - **Known limits:** the tracer rounds hard corners (harmless on thin strokes); the "1 Issue" badge in the dev screenshots is Next's dev overlay, not a console error; not run in Safari/Firefox.
+
+## Browser spike (2026-10-04, `browser-spike/`, nothing else touched)
+
+Question: can a small image-to-line-art model run in the browser? Full numbers and caveats in `browser-spike/REPORT.md`.
+
+- Built a plain U-Net at three sizes (4.9 / 19.7 / 51 MB at fp16), "trained" 300 steps on the 22 run2 pairs. It only proves the pipeline: dice loss stayed about 0.70, partly because the teacher SVGs are in the subject-crop frame and the photos were not cropped to match. Real training must fix that.
+- Exported to ONNX (fp32, fp16, int8 QDQ; outputs match PyTorch) and ran them in Chrome 154 with ONNX Runtime Web 1.30 on an M1 Max.
+- One 512 px picture: WebGPU 0.04 / 0.09-0.12 / 0.33-0.40 s (S / M / L); WASM 4 threads 0.24 / 0.91 / 2.3 s; WASM single thread 0.94 / 3.6 / 9.2 s. Extra browser RAM 0.4-1 GB.
+- int8 saved download (L: 102 -> 25 MB) but not time on WASM. U2-Netp and Silueta fail on WebGPU (MaxPool ceil_mode not implemented); they work on WASM.
+- Cutout candidates under about 40 MB: U2-Netp 4.6 MB (0.33 s WASM), MODNet 6.6-26 MB (0.04 s WebGPU, portrait only). RMBG-1.4 quantised (44 MB) is NON-COMMERCIAL. Licences recorded in LICENSES.md (READ, thin; upstream licences UNVERIFIED).
+- Under 10 s is achievable for the network on this machine by a wide margin. Quality of a model this small is the unproven part. Aim: about 20 MB fp16, ONNX Runtime Web, WebGPU first with 4-thread WASM fallback.
+- Only one machine tested; no Safari/Firefox.
