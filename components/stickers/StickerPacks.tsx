@@ -269,8 +269,7 @@ export function StickerPacks() {
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
-        <span className="text-[16px] font-[560]">Sticker packs</span>
-        <span className="ml-auto shrink-0 text-[13px] text-ink-500">kept on this computer only</span>
+        <span className="text-[16px] font-[560]">Packs</span>
       </StudioHeader>
 
       <StickerTabs />
@@ -279,53 +278,90 @@ export function StickerPacks() {
         <div className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-6">
           {open === null ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h1 className="display text-[24px] tracking-tight">Packs</h1>
-                {installer}
+              {/*
+                The name and the button that uses it, on the same line as the
+                heading. Making a pack is the only thing this screen asks for,
+                so it is a field and a button rather than a card at the end of
+                the gallery you have to find first.
+              */}
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h1 className="display text-[26px] tracking-tight">Packs</h1>
+                  {/* One line. What a pack actually is lives in the tooltips on
+                      the cards, where it is read at the moment it matters. */}
+                  <p className="mt-1 text-[13.5px] text-ink-500">
+                    Group stickers, then download them as a zip.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {installer}
+                  <TextInput
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    aria-label="A name for a new pack"
+                    placeholder="Name a new pack"
+                    className="!w-[200px] !rounded-full !py-2 !text-[14px]"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void make();
+                    }}
+                  />
+                  <Button variant="accent" onClick={() => void make()}>
+                    Start a pack
+                  </Button>
+                </div>
               </div>
-              {/* One line. The rest of what a pack is lives in the tooltips on
-                  the cards, where it is read at the moment it matters. */}
-              <p className="mt-1 text-[13.5px] text-ink-500">
-                A pack is a tag on each sticker in it, so one sticker can be in two packs and
-                nothing is ever copied.
-              </p>
 
               {notices}
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {/*
+                Three across on a desktop, one on a phone. Four was a row of
+                postage stamps: the collage is the only thing that says which
+                pack this is, and at a quarter of this width it stopped saying
+                it.
+              */}
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {packs.map((pack) => (
                   <div
                     key={pack.tag}
-                    className="group flex flex-col rounded-2xl border border-ink-200 bg-paper p-3 transition-colors hover:border-ink-300"
+                    className="proof plate group flex flex-col rounded-[8px] border border-ink-200 bg-paper-100 p-3 transition-colors hover:border-accentb-500"
                   >
                     <button
                       type="button"
-                      title={`Open ${pack.name} — ${pack.stickerIds.length} stickers`}
+                      title={`Open ${pack.name} — ${pack.stickerIds.length} stickers · a pack is a tag on each sticker, so nothing is ever copied`}
                       onClick={() => setChosen(pack.name)}
                       className="block text-left"
                     >
                       <Fan
                         urls={pack.stickerIds.map((id) => urls[id])}
                         name={pack.name}
-                        className="transition-colors group-hover:border-accent-500"
+                        className="transition-colors group-hover:border-accentb-500"
                       />
-                      <span className="mt-2 block truncate text-[14.5px] font-[600]">
+                      <span
+                        className="mt-2.5 block truncate"
+                        style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17 }}
+                      >
                         {pack.name}
                       </span>
-                      <span className="block text-[12px] text-ink-500">
+                      <span className="mono-label mt-0.5 block text-ink-500" style={{ fontSize: 10 }}>
                         {pack.stickerIds.length}{' '}
                         {pack.stickerIds.length === 1 ? 'sticker' : 'stickers'}
                       </span>
                     </button>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <Button onClick={() => setChosen(pack.name)}>Open</Button>
+                    {/*
+                      Both actions are always on the card, not revealed on
+                      hover. A phone has no hover, and an action nobody can see
+                      is an action nobody uses.
+                    */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Button
+                        variant="accent"
                         disabled={busy}
                         title="A zip of its pictures, saved to your downloads"
                         onClick={() => void download(pack.name)}
                       >
-                        Export zip
+                        Download zip
                       </Button>
+                      <Button onClick={() => setChosen(pack.name)}>Open</Button>
                       {installed(pack.name) && (
                         <Button
                           disabled={busy}
@@ -339,39 +375,23 @@ export function StickerPacks() {
                   </div>
                 ))}
 
-                {/* Making one is a card in the same grid, so it reads as one
-                    more pack rather than as a form above them. */}
-                <div className="flex flex-col justify-between rounded-2xl border border-dashed border-ink-300 p-3">
-                  <span className="grid aspect-square w-full place-items-center rounded-lg text-ink-500">
-                    <PlusIcon size={28} />
-                  </span>
-                  <div className="mt-2">
-                    <span className="block text-[14.5px] font-[600]">New pack</span>
-                    <span className="mt-0.5 block text-[12px] text-ink-500">
-                      Name it, then press stickers to put them in.
-                    </span>
-                    <TextInput
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      aria-label="A name for a new pack"
-                      placeholder="autumn"
-                      className="mt-2 w-full"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') void make();
-                      }}
-                    />
-                    <div className="mt-2">
-                      <Button variant="primary" onClick={() => void make()}>
-                        Start it
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                {/* One more card in the same grid, so making a pack reads as
+                    one more pack rather than as a form somewhere else. */}
+                <button
+                  type="button"
+                  title="Name it above, then press stickers to put them in"
+                  onClick={() => void make()}
+                  className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-[8px] border border-dashed border-ink-300 p-3 transition-colors hover:border-accentb-500"
+                  style={{ color: 'var(--color-accentb-700)' }}
+                >
+                  <PlusIcon size={28} />
+                  <span className="text-[14.5px] font-[600]">New pack</span>
+                </button>
               </div>
 
               {!stickers.length && (
                 <p className="mt-6 text-[13.5px] text-ink-500">
-                  Nothing to group yet — make a sticker in the studio, or install a pack above.
+                  Nothing to group yet. Make a sticker first.
                 </p>
               )}
             </>
