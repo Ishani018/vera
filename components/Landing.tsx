@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { BRAND } from '@/lib/brand';
 import { getAssetUrl } from '@/lib/assets';
 import { ACTIVE_PROJECT_KEY, getDb } from '@/lib/db';
 import {
@@ -140,7 +141,7 @@ function BrandKit() {
         className="mt-0.5 block leading-none"
         style={{ fontFamily: 'var(--font-script)', fontSize: 26, lineHeight: 1.3 }}
       >
-        Isnaevy
+        {BRAND.product}
       </span>
       <span aria-hidden="true" className="mt-2 flex gap-1.5">
         {[
@@ -657,9 +658,16 @@ export function Landing() {
             color: 'var(--sidebar-text)',
           }}
         >
-          <span className="max-lg:hidden">Isnaevy</span>
-          <span className="hidden max-lg:inline">I</span>
+          <span className="max-lg:hidden">{BRAND.product}</span>
+          <span className="hidden max-lg:inline">{BRAND.product.charAt(0)}</span>
         </a>
+        <p
+          data-byline
+          className="mono-label mt-1 shrink-0 max-lg:hidden"
+          style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--sidebar-muted)' }}
+        >
+          {BRAND.byline}
+        </p>
         <p
           className="mono-label mt-1.5 shrink-0 max-lg:hidden"
           style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--sidebar-muted)' }}

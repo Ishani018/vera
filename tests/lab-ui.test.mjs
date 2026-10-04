@@ -298,3 +298,26 @@ test('both palettes and both widths: nothing overflows sideways, and the zone an
       await page.close();
     }
   }));
+
+test('brand: the header says Vera with "by Isnaevy" small beside it, and the page title is Vera\'s', { skip }, () =>
+  withBrowser(async (browser) => {
+    for (const path of ['/lab', '/']) {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1280, height: 720 });
+      await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle0' });
+      const seen = await page.evaluate(() => ({
+        title: document.title,
+        wordmark: document.querySelector('header a[href="/"], nav a[href="/"]')?.innerText.trim(),
+        byline: [...document.querySelectorAll('[data-byline]')].map((n) => n.textContent.trim()),
+        ogTitle: document.querySelector('meta[property="og:title"]')?.content,
+        ogSite: document.querySelector('meta[property="og:site_name"]')?.content,
+      }));
+      assert.match(seen.title, /Vera/, `${path} title: ${seen.title}`);
+      assert.doesNotMatch(seen.title, /Isnaevy/);
+      assert.equal(seen.wordmark, 'Vera', `${path} wordmark`);
+      assert.deepEqual(seen.byline.slice(0, 1), ['by Isnaevy'], `${path} byline`);
+      assert.match(seen.ogTitle, /^Vera/);
+      assert.equal(seen.ogSite, 'Vera');
+      await page.close();
+    }
+  }));

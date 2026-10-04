@@ -288,6 +288,7 @@ export const themeById = (id: string | null | undefined): Palette =>
  * nothing in `lib/db.ts` is touched, and losing this one loses a preference
  * rather than a book.
  */
+// Keeps the studio's name, not the product's: a storage key renamed is a saved preference lost. See docs/BRAND.md.
 export const THEME_KEY = 'isnaevy:theme';
 
 /** Where a palette somebody mixed themselves is remembered. The one new key. */

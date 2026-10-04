@@ -1,5 +1,6 @@
 'use client';
 
+import { BRAND } from './brand';
 import { assetsAsDataUrls, importAssets } from './assets';
 import { buildBackup, designAssetIds, readBackup } from './backup';
 import { getDb } from './db';
@@ -303,7 +304,7 @@ export async function exportProjectJson(project: AnyProject): Promise<void> {
   ]);
   const payload = buildBackup({ project, assets, stickers, templates, designs });
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  download(blob, `${slug(project.meta.title)}-isnaevy.json`);
+  download(blob, `${slug(project.meta.title)}-${slug(BRAND.product)}.json`);
 }
 
 export async function importProjectJson(file: File): Promise<Project> {

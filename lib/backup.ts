@@ -1,3 +1,4 @@
+import { BRAND } from './brand';
 import { looksLikeProject, migrateContents } from './contents';
 import { alive, isDeleted } from './deleted';
 import { migrateDesign } from './designs';
@@ -80,7 +81,7 @@ export function readBackup(text: string): {
   const project = (parsed.project ?? parsed) as Project;
 
   if (!project || typeof project !== 'object' || !looksLikeProject(project)) {
-    throw new Error('That file is not an Isnaevy project.');
+    throw new Error(`That file is not a ${BRAND.product} project.`);
   }
 
   if (isDeleted(project)) {

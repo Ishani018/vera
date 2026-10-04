@@ -1,5 +1,7 @@
 import dynamic from 'next/dynamic';
 
+export const metadata = { title: 'Line Art Lab' };
+
 /**
  * The Line Art Lab. Client-side, like the editors: the engine, the worker and
  * the picture all live in the browser, and nothing is sent anywhere.

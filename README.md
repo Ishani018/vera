@@ -1,4 +1,6 @@
-# Isnaevy
+# Vera
+
+*by Isnaevy.* Vera is the product; Isnaevy is the studio. See [docs/BRAND.md](docs/BRAND.md).
 
 A browser-based typesetter for poetry collections. Paste or import poems, set
 the book the way a book should be set, and export the two print-ready PDFs KDP
@@ -105,12 +107,12 @@ deployed function.
 3. **Export cover PDF.** One page, back + spine + front, sized from the current
    page count and paper stock.
 4. In KDP, create a **Paperback**, and under *Print Options* choose the same
-   **trim size** and the same **paper type** you set in Isnaevy. These have to
+   **trim size** and the same **paper type** you set in Vera. These have to
    match or the spine will be wrong.
 5. Upload the interior under *Manuscript*, and the cover under *Book Cover →
    Upload a cover you already have (print-ready PDF)*.
 6. Run KDP's **Previewer** and read its margin and spine warnings. Anything it
-   raises that Isnaevy did not is worth reporting as a bug here.
+   raises that Vera did not is worth reporting as a bug here.
 7. Order a **proof copy**. Screens lie about leading and about how dark the ink
    sits on cream stock.
 

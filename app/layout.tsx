@@ -1,13 +1,30 @@
 import type { Metadata, Viewport } from 'next';
 import { Flow } from '@/components/Flow';
 import { Toasts } from '@/components/Toasts';
+import { BRAND } from '@/lib/brand';
 import { CUSTOM_ID, CUSTOM_KEY, DEFAULT_THEME, THEMES, THEME_KEY } from '@/lib/theme';
 import './globals.css';
 
+const TITLE = `${BRAND.product} — the design tool for people who self-publish books`;
+const DESCRIPTION =
+  'Book interiors, covers and the launch kit around a release. Print-ready KDP PDFs, made in the browser and kept on your own computer.';
+
 export const metadata: Metadata = {
-  title: 'Isnaevy — the design tool for people who self-publish books',
-  description:
-    'Book interiors, covers and the launch kit around a release. Print-ready KDP PDFs, made in the browser and kept on your own computer.',
+  // Absolute URLs for the social preview come from here.
+  metadataBase: new URL(BRAND.siteUrl),
+  title: { default: TITLE, template: `%s · ${BRAND.product}` },
+  description: DESCRIPTION,
+  applicationName: BRAND.product,
+  creator: BRAND.studio,
+  publisher: BRAND.studio,
+  openGraph: {
+    type: 'website',
+    siteName: BRAND.product,
+    title: TITLE,
+    description: DESCRIPTION,
+    url: BRAND.siteUrl,
+  },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
 export const viewport: Viewport = {

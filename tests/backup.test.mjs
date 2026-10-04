@@ -4,6 +4,7 @@ import test from 'node:test';
 import { buildBackup, designAssetIds, readBackup } from '../lib/backup.ts';
 import { createDesign, createProject } from '../lib/defaults.ts';
 import { SCHEMA } from '../lib/schema.ts';
+import { BRAND } from '../lib/brand.ts';
 
 /** A design that belongs to no book, with a picture on it and a line of type. */
 function standalone() {
@@ -105,5 +106,5 @@ test('a design stored before it carried a schema number is read as points', () =
 });
 
 test('something that is not a project is refused rather than half-restored', () => {
-  assert.throws(() => readBackup(JSON.stringify({ hello: 'world' })), /not an Isnaevy project/);
+  assert.throws(() => readBackup(JSON.stringify({ hello: 'world' })), new RegExp(`not a ${BRAND.product} project`));
 });
