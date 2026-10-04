@@ -39,11 +39,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         {/*
-          The four faces, in one request.
+          The three faces that come from Google, in one request.
 
           Fraunces SemiBold and its italic for headings, Inter for body and
           buttons, DM Mono for the small uppercase labels a proof sheet is
-          annotated with, and Great Vibes for the wordmark and nothing else.
+          annotated with. The wordmark's face is not in this request: it is
+          served from /fonts (see globals.css), so it never touches Google.
 
           Loaded the same way the two faces before them were — a stylesheet link
           at runtime rather than baked in at build time, so building has never
@@ -56,13 +57,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Latin only, which is what Google serves by default and what the
           unicode-range on each block limits it to.
         */}
+        {/* The wordmark face is ours: fetched early, from this origin, so the header does not flash in a fallback. */}
+        <link rel="preload" href="/fonts/wordmark-display-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
           href={
             'https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500' +
             '&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600' +
-            '&family=Great+Vibes' +
             '&family=Inter:wght@400..600' +
             '&display=swap'
           }

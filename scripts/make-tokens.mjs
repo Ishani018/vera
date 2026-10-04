@@ -182,7 +182,7 @@ ${indent(scale('space', SPACE), 2)}
   --font-display: ${FONTS.display};
   --font-body: ${FONTS.body};
   --font-mono: ${FONTS.mono};
-  --font-script: ${FONTS.script};
+  --font-wordmark: ${FONTS.wordmark};
 }
 
 ${PALETTES.filter((p) => p.id !== PRESS_PROOF.id)

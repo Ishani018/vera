@@ -87,3 +87,61 @@ test('every storage name is the one it was created with, so nobody loses saved w
     'isnaevy:theme', 'isnaevy:palette-custom',
   ]) assert.ok(all.includes(`'${key}'`), `${key} is still used, under that name`);
 });
+
+/* ---------------------------------------------------------- the wordmark font */
+
+test('the wordmark font is ours: small woff2 and woff files, and the licence travels with them', () => {
+  const woff2 = readFileSync(join(ROOT, 'public/fonts/wordmark-display-latin.woff2'));
+  const woff = readFileSync(join(ROOT, 'public/fonts/wordmark-display-latin.woff'));
+  assert.equal(woff2.subarray(0, 4).toString(), 'wOF2');
+  assert.equal(woff.subarray(0, 4).toString(), 'wOFF');
+  assert.ok(woff2.length < 30_000, `woff2 is ${woff2.length} bytes`);
+  const licence = read('public/fonts/AbrilFatface-OFL.txt');
+  assert.match(licence, /SIL OPEN FONT LICENSE Version 1\.1/);
+  assert.match(licence, /TypeTogether/);
+  const doc = read('docs/BRAND.md');
+  assert.match(doc, /Abril Fatface/);
+  assert.match(doc, /SIL Open Font Licen[cs]e/);
+  assert.match(doc, /github\.com\/google\/fonts\/tree\/main\/ofl\/abrilfatface/);
+  assert.match(doc, /2026-10-04/);
+});
+
+test('the page loads the wordmark face from /fonts and never asks Google for it', () => {
+  const layout = read('app/layout.tsx');
+  assert.match(layout, /rel="preload" href="\/fonts\/wordmark-display-latin\.woff2"/);
+  const googleUrl = layout.slice(layout.indexOf('fonts.googleapis.com'), layout.indexOf("'&display=swap'"));
+  assert.doesNotMatch(googleUrl, /Abril|Great/i, 'the Google request names no wordmark face');
+  assert.match(read('app/globals.css'), /font-family: 'Wordmark Display';\s*src: url\('\/fonts\/wordmark-display-latin\.woff2'\)/);
+  assert.match(read('lib/theme.ts'), /wordmark: "'Wordmark Display', Georgia/);
+});
+
+test('the old script face is gone from the app, so nothing can quietly load it again', () => {
+  const offenders = [];
+  for (const path of [...sources('app', 'components', 'lib', 'scripts'), 'app/tokens.css', 'app/globals.css', 'app/surfaces.css', 'scripts/topbar-check.mjs']) {
+    try {
+      if (/Great[ +]Vibes|font-script/.test(read(path))) offenders.push(path);
+    } catch { /* a folder with no such file */ }
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('the header wordmark is coloured by a token that is dark in Night, and sized as before', () => {
+  const source = read('components/Wordmark.tsx');
+  assert.match(source, /text-outline/, 'outline is near-black in every palette, Night included');
+  assert.doesNotMatch(source, /text-ink-900/, 'ink-900 is nearly white in Night, on a white bar');
+  assert.match(source, /text-\[34px\] leading-\[38px\]/, 'the size and line box the bar was built around');
+  assert.match(source, /var\(--font-wordmark\)/);
+});
+
+test('the favicon is outlines only: a path, no text and no font', () => {
+  const icon = read('app/icon.svg');
+  assert.match(icon, /<path[^>]* d="M[^"]+"/);
+  assert.doesNotMatch(icon, /<text|font-family|@font-face|<image/);
+  assert.match(icon, /viewBox="0 0 32 32"/);
+});
+
+test('the social image reads its fonts from disk, so a build needs no network', () => {
+  const source = read('app/opengraph-image.tsx');
+  assert.match(source, /public', 'fonts', 'wordmark-display-latin\.woff'/);
+  assert.doesNotMatch(source, /fetch\(|https?:\/\/fonts\./);
+});

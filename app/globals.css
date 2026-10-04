@@ -2,6 +2,19 @@
 @import './tokens.css';
 @import './surfaces.css';
 
+/*
+  The wordmark face, served from this site: Abril Fatface (SIL OFL), subset to Latin and renamed "Wordmark Display"
+  (the licence reserves the original name for unmodified copies). 12 KB. Nothing here, or in the page head, asks
+  Google for it. Source, licence and the build script: docs/BRAND.md.
+*/
+@font-face {
+  font-family: 'Wordmark Display';
+  src: url('/fonts/wordmark-display-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
 

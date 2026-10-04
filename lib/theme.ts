@@ -382,7 +382,7 @@ export const SPACE: Record<string, string> = {
 };
 
 /**
- * The three faces, and what each is for.
+ * The faces, and what each is for.
  *
  * Kept here rather than in CSS so the one place that decides what a label is
  * set in is the same place that decides what colour it is.
@@ -394,8 +394,11 @@ export const FONTS = {
   body: "'Inter', ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif",
   /** Small uppercase labels, sizes, badges, tags. A proof sheet's annotations. */
   mono: "'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-  /** The wordmark, and nothing else. */
-  script: "'Great Vibes', 'Snell Roundhand', cursive",
+  /**
+   * The wordmark, and nothing else: Abril Fatface, subset and renamed, served from /fonts (never from Google).
+   * See docs/BRAND.md. The fallback is a bold system serif, so a failed load still looks like a wordmark.
+   */
+  wordmark: "'Wordmark Display', Georgia, 'Times New Roman', serif",
 } as const;
 
 /* ---------------------------------------------- what the palette works out */

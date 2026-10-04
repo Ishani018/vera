@@ -139,7 +139,7 @@ function BrandKit() {
       </span>
       <span
         className="mt-0.5 block leading-none"
-        style={{ fontFamily: 'var(--font-script)', fontSize: 26, lineHeight: 1.3 }}
+        style={{ fontFamily: 'var(--font-wordmark)', fontSize: 26, lineHeight: 1.3 }}
       >
         {BRAND.product}
       </span>
@@ -650,10 +650,10 @@ export function Landing() {
           title="Everything you have made"
           className="block shrink-0 max-lg:text-center"
           style={{
-            fontFamily: 'var(--font-script)',
+            fontFamily: 'var(--font-wordmark)',
             fontSize: 46,
-            /* Great Vibes swashes reach 1.24em; less than this and they hang
-               out of the anchor and crowd the tagline underneath. */
+            /* The line box the old script wordmark needed, kept so the
+               navigation under it stays where it was. */
             lineHeight: 1.26,
             color: 'var(--sidebar-text)',
           }}

@@ -299,6 +299,38 @@ test('both palettes and both widths: nothing overflows sideways, and the zone an
     }
   }));
 
+test('brand: the wordmark is Abril from this site, readable in both palettes, and Google is never asked for it', { skip }, () =>
+  withBrowser(async (browser) => {
+    for (const palette of [null, 'night']) for (const [width, height] of [[1280, 720], [390, 844]]) {
+      const page = await browser.newPage();
+      await page.setViewport({ width, height });
+      const requests = [];
+      page.on('response', (r) => requests.push({ url: r.url(), status: r.status() }));
+      await page.goto(`${BASE}/lab`, { waitUntil: 'networkidle0' });
+      if (palette) await page.evaluate((p) => (document.documentElement.dataset.theme = p), palette);
+      await page.evaluate(() => document.fonts.ready);
+      const seen = await page.evaluate(() => {
+        const a = document.querySelector('header a[href="/"]');
+        const style = getComputedStyle(a);
+        const header = getComputedStyle(document.querySelector('header'));
+        const channel = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+        const lum = (css) => { const [r, g, b] = css.match(/[\d.]+/g).map(Number); return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b); };
+        const hi = Math.max(lum(style.color), lum(header.backgroundColor)); const lo = Math.min(lum(style.color), lum(header.backgroundColor));
+        return { family: style.fontFamily, size: style.fontSize, loaded: document.fonts.check("34px 'Wordmark Display'"), contrast: (hi + 0.05) / (lo + 0.05), height: document.querySelector('header').getBoundingClientRect().height,
+          fromHere: performance.getEntriesByType('resource').some((e) => e.name.endsWith('/fonts/wordmark-display-latin.woff2') && new URL(e.name).origin === location.origin) };
+      });
+      const label = `${palette ?? 'default'} ${width}`;
+      assert.match(seen.family, /^"?Wordmark Display"?/, label);
+      assert.equal(seen.size, '34px', `${label}: the size it always was`);
+      assert.equal(seen.loaded, true, `${label}: the font is loaded`);
+      assert.ok(seen.contrast >= 4.5, `${label}: wordmark contrast ${seen.contrast.toFixed(1)}:1 against the bar`);
+      assert.ok(seen.height <= 64, `${label}: the header is still the height it was (${seen.height})`);
+      assert.equal(seen.fromHere, true, `${label}: the font file came from this site (cached or not)`);
+      assert.deepEqual(requests.filter((r) => /Abril|Great[+ ]?Vibes|greatvibes/i.test(r.url)), [], `${label}: nothing about it asked of Google`);
+      await page.close();
+    }
+  }));
+
 test('brand: the header says Vera with "by Isnaevy" small beside it, and the page title is Vera\'s', { skip }, () =>
   withBrowser(async (browser) => {
     for (const path of ['/lab', '/']) {

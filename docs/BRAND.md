@@ -23,11 +23,44 @@ The site URL is the base for the social preview image and the page's canonical a
 
 ## The wordmark
 
-"Vera" is set in Great Vibes, the same script face the Isnaevy wordmark used (loaded in `app/layout.tsx`). It is
-text, not a picture, so **no new logo file is needed**. The favicon (`app/icon.svg`) has no letter in it and is
-unchanged. The social preview image (`app/opengraph-image.tsx`) uses the system sans, not the script, because the
-script is fetched at runtime and a build must not need the network. Swap it for a designed 1200 x 630 image if
-you want the script there.
+"Vera" is set in **Abril Fatface**, in normal case ("Vera", not "VERA"), at 34 px in a 38 px line box, with
+"by Isnaevy" in the small mono style beside it. The header is the same height it was.
+
+- **Colour.** The header bar is white in every palette. The wordmark and the byline use the `outline` token (a
+  near-black in all six palettes) rather than `ink-900`, which is nearly white in Night. The byline is the same ink
+  at 70% opacity. Nothing else in the header, and no header background, was changed. In Night, the page title and
+  the Stickers/Packs/Trash links beside the wordmark are still pale on white; that is an existing issue.
+- **Font file.** `public/fonts/wordmark-display-latin.woff2` (12 KB) for the browser and `.woff` for the social-image
+  renderer, which cannot read woff2. Loaded by a local `@font-face` in `app/globals.css` and preloaded in
+  `app/layout.tsx`. The page never asks Google for it. Rebuild with `scripts/make-wordmark-font.py`.
+- **Favicon.** `app/icon.svg`: a bold V taken from the font and converted to outline paths, so it needs no font.
+  A 0.9 px outline is added to the letter so its thin stroke survives at 16 px (checked at 16, 32 and 180 px in
+  `docs/brand-preview/favicon-check.png`).
+- **Social preview.** `app/opengraph-image.tsx` draws "Vera" from the same local font file, and the small text in
+  the sans that ships inside Next. It reads both from disk, so a build needs no network.
+- **Great Vibes (the old script)** is removed. It was used by the header wordmark, two spots on the landing page
+  (the sidebar wordmark and the brand-kit tile), the `--font-script` token (`FONTS.script`), and a check in
+  `scripts/topbar-check.mjs`. It was not used by stickers, designs, text presets, the editors' font lists or any
+  export. Only old design notes (`docs/design-explorations`, `docs/pressproof-log.md`) still mention it, as history.
+  The token is now `--font-wordmark`.
+
+### Font licence and source
+
+| | |
+|---|---|
+| Font | Abril Fatface, by TypeTogether |
+| Licence | SIL Open Font Licence 1.1. Full text: `public/fonts/AbrilFatface-OFL.txt` (kept with the font files) |
+| Source | https://github.com/google/fonts/tree/main/ofl/abrilfatface (`AbrilFatface-Regular.ttf`, `OFL.txt`) |
+| Downloaded | 2026-10-04 |
+
+The licence reserves the names "Abril" and "Abril Fatface". Subsetting and converting to woff2 count as modifying
+the font, so the files in `public/fonts` are renamed inside (family "Wordmark Display") and CSS calls them
+"Wordmark Display". The copyright and licence text stay in the files. The font is not sold on its own.
+
+### Fonts that still come from Google
+
+Fraunces, Inter and DM Mono are still fetched from Google Fonts at runtime (one stylesheet link in
+`app/layout.tsx`), as they were before. Only the wordmark is self-hosted. Self-hosting those three is a separate step.
 
 ## What is deliberately not renamed
 

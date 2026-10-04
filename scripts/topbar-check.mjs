@@ -107,7 +107,7 @@ for (const width of WIDTHS) {
     const inWindow = midX >= 0 && midX <= window.innerWidth - 1;
     return {
       wordmark: Math.round((header.querySelector('a')?.getBoundingClientRect().width ?? 0)),
-      greatVibes: document.fonts.check("34px 'Great Vibes'"),
+      wordmarkFont: document.fonts.check("34px 'Wordmark Display'"),
       barNeeds: header.scrollWidth,
       barHas: header.clientWidth,
       createLeft: Math.round(box.left),
@@ -128,7 +128,7 @@ for (const width of WIDTHS) {
   }
 
   say(
-    `${width}: wordmark ${seen.wordmark}px (Great Vibes ${seen.greatVibes ? 'loaded' : 'NOT loaded'}), ` +
+    `${width}: wordmark ${seen.wordmark}px (wordmark font ${seen.wordmarkFont ? 'loaded' : 'NOT loaded'}), ` +
       `bar needs ${seen.barNeeds} in ${seen.barHas}, Create ends at ${seen.createRight}`,
   );
 

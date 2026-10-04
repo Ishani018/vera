@@ -174,11 +174,11 @@ test('a white page silhouette is lettered in something you can read', () => {
 });
 
 test('four faces, each with one job', () => {
-  assert.deepEqual(Object.keys(FONTS), ['display', 'body', 'mono', 'script']);
+  assert.deepEqual(Object.keys(FONTS), ['display', 'body', 'mono', 'wordmark']);
   assert.match(FONTS.display, /Fraunces/);
   assert.match(FONTS.body, /Inter/);
   assert.match(FONTS.mono, /DM Mono/);
-  assert.match(FONTS.script, /Great Vibes/);
+  assert.match(FONTS.wordmark, /^'Wordmark Display'/);
   // Every stack ends in something the machine already has.
   for (const [name, stack] of Object.entries(FONTS)) {
     assert.match(stack, /(serif|sans-serif|monospace|cursive|system-ui)\s*$/, name);
