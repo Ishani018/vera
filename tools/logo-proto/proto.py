@@ -24,6 +24,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageOps
 
+from logoproto.artist import vectorise_artist
 from logoproto.check import CheckParams
 from logoproto.diagnose import diagnose, mask_facts
 from logoproto.pipeline import vectorise
@@ -55,6 +56,9 @@ def args_parser() -> argparse.ArgumentParser:
                    help="for busy subjects: ask for few bold shapes, no texture lines, ~10 interior lines at most")
     a.add_argument("--sparse-guide", action="store_true",
                    help="keep only the strongest interior edges in the guide image (top 3%% instead of top 12%%)")
+    a.add_argument("--mode", default="standard", choices=["standard", "artist"],
+                   help="standard: outline all the ink (default). artist: a bold outline from the cutout plus the few strongest strokes, drawn as strokes")
+    a.add_argument("--artist-cap", type=int, default=None, help="artist mode: most interior strokes to keep (default by style; minimal 8)")
     a.add_argument("--compact", action="store_true",
                    help="the earlier vector settings: fill small holes and thicken everything (about half the nodes, but fuses dense lines)")
     a.add_argument("--memory-limit-gb", type=float, default=28.0)
@@ -187,7 +191,10 @@ def main() -> int:
             with prof.stage(f"{name}: redraw #{n}{tag}", note=f"seed {seed}") as r_redraw:
                 raw = redrawer.run(refs, prompt, seed, size, args.steps, args.strength)
             with prof.stage(f"{name}: vectorise #{n}{tag}") as r_vec:
-                v = vectorise(raw, style, mask_np, params)
+                if args.mode == "artist":
+                    v = vectorise_artist(raw, style, mask_np, params, subject, cap=args.artist_cap)
+                else:
+                    v = vectorise(raw, style, mask_np, params)
                 r_vec.note = (f"{v.cleanup.start_shapes}->{v.cleanup.end_shapes} shapes, "
                               f"{v.cleanup.start_nodes}->{v.cleanup.end_nodes} nodes, weights {v.strokes.weights_px}, "
                               + ("PASS" if v.result.passed else "FAIL: " + "; ".join(v.result.reasons)))
