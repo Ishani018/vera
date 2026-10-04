@@ -118,8 +118,15 @@ HEAD = ("<tr><th>#</th><th>Original</th><th>Cutout</th><th>Raw redraw</th>"
         "<th>Final SVG (transparent)</th><th>Small sizes<div class=legend>1:1, and 3x enlarged<br>PASS = the outline still encloses the shape. Thin inner lines fade: see thin and ink.</div></th><th>Check</th></tr>")
 
 
+def diagnosis_block(items: list[str]) -> str:
+    if not items:
+        return ""
+    return ("<h2>What went wrong, or is likely to</h2><ul>"
+            + "".join(f"<li>{esc(i)}</li>" for i in items) + "</ul>")
+
+
 def write_report(path: Path, name: str, style: str, analysis: dict, variants: list[dict],
-                 stage_rows: list[dict], totals: dict, note: str = "") -> None:
+                 stage_rows: list[dict], totals: dict, note: str = "", diagnosis: list[str] | None = None) -> None:
     path.write_text(
         f"<!doctype html><meta charset=utf-8><title>{esc(name)} - logo prototype</title>"
         f"<style>{CSS}</style><h1>{esc(name)}</h1>"
@@ -127,6 +134,6 @@ def write_report(path: Path, name: str, style: str, analysis: dict, variants: li
         + (f"peak memory {totals['peak_gb']:.1f} GB (RSS or MLX, whichever is higher) &middot; "
            f"FLUX.2 klein 4B, {totals['quant']}-bit" if totals['peak_gb'] else "no models loaded")
         + (f" &middot; {esc(note)}" if note else "") + "</p>"
-        f"<h2>Analysis</h2>{analysis_block(analysis)}"
+        f"{diagnosis_block(diagnosis or [])}<h2>Analysis</h2>{analysis_block(analysis)}"
         f"<h2>Variations</h2><table>{HEAD}{''.join(variant_row(v) for v in variants)}</table>"
         f"<h2>Stage timings</h2>{timings_table(stage_rows)}", encoding="utf-8")
