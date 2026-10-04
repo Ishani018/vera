@@ -161,4 +161,24 @@ Page: `results/run2/bicycle/before-after.html`.
 
 **Busy-subject prompt** (`--busy`, and `--sparse-guide`). Burger, interior strokes drawn inside the outline (target about 10): normal prompt 108 / 89; `--busy` 101 / 96 (the model copies the guide's lines and ignores the words); `--busy --sparse-guide` (guide keeps the top 3% of interior edges, not 12%) 46 / 39, interior ink 14% -> 5%, nodes 698 / 573. Still about 4x the target and it loses some layering. Not tried: a sparser guide still, or an explicit stroke budget. The measure is `diagnose.busyness`.
 
-**Decisions waiting on the owner:** (1) keep the new vector default (no fusing, ~2x nodes) or `--compact`; (2) is `--busy --sparse-guide` worth making the default for busy subjects; (3) the 300-node target is still unmet on 21 of 22 results.
+**Decisions waiting on the owner:** (1) keep the new vector default (no fusing, ~2x nodes) or `--compact`; (2) is `--busy --sparse-guide` worth making the default for busy subjects; (3) the 300-node target is still unmet on 21 of 22 results. (1) and (2) were answered; see the next entry.
+
+### 2026-10-04 17:15 (Claude Code: owner's decisions, and all 11 photos re-vectorised)
+**Decisions (owner):** keep the new vector default (no fused lines) and keep `--compact` available. `--busy --sparse-guide` stays an OPTION for busy subjects only, never the default (nothing was changed in code for this: it already is an option). `HANDOFF.md` ignored for now; the owner will ask when needed.
+
+**What was run:** `revec_all.py results/run2 results/run2-revec`: all 22 variations re-vectorised from the existing redraws with the current default. No model, 306 s. `results/run2` was not touched (nothing in it is newer than the new folder; the script refuses to write into a folder that exists). Combined report with old next to new: `results/run2-revec/report.html`. Old and new are scored by the same current check and the same measuring code. The bicycle rows reproduce the earlier before/after exactly (1,825 / 1,867 nodes), which is the consistency check on the driver.
+
+**Result, mean over 22 variations (old -> new):**
+- nodes 766 -> **1,803** (median 651 -> 1,402); **up in 22 of 22**; within the 300 target: 1 -> **0**
+- solid areas thicker than 12 px, share of frame: 1.38% -> **0.13%**
+- outline coverage 0.972 -> 0.993; silhouette IoU 0.962 -> 0.965
+- ink on the three weights 70% -> **56%** (worse, on purpose: crowded strokes are held thin)
+- passes the check **22 -> 21 of 22**; passes both size tests **22 -> 21 of 22**
+
+**The two things that got worse, not hidden:**
+- london_eye #1 now FAILS, and only on the 5,000-node safety ceiling (5,328 nodes). It is not a quality failure and the ceiling was not changed. london_eye #2 is at 4,036, flowerbouquet at 2,846 / 3,039, vishansoudha 2,513 / 2,410.
+- vishansoudha #2 fails the 32 px size test (IoU 0.75; it passed before).
+
+**Where fusing remains** (new, over 0.4% of the frame): flowerbouquet #2 0.87% (was 3.98%), puppy #2 0.61%, cupcake #1 0.53%. The rule removed most of it, not all.
+
+**Recommendation not acted on:** the node cost falls hardest on the thin-structure subjects (ferris wheel, bouquet, building). If the 5,000 ceiling should scale with detail, or a node cap per style is wanted, that is a separate decision.
