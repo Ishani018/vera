@@ -14,6 +14,8 @@ import { Chequerboard } from '../stickers/Thumb';
 import { StudioHeader } from '../StudioHeader';
 import { ExportIcon, LookIcon, PictureIcon, TuneIcon } from './icons';
 import { SmartProgress } from './SmartProgress';
+import { ChangePicture, DropOverlay, DropZone, HelperChip, StatusLine, StepsList, StepsLine, useDropTarget } from './Intake';
+import { OPEN_FIRST, SAMPLES, checkPicture, downloadReason, explainFailure, labStatus } from '@/lib/lab/intake';
 import { saveBlob, svgToPng } from '@/lib/lab/rasterise';
 import {
   SMART_STYLES, SmartError, checkHelper, smartOrFallback, smartRedrawEnabled,
@@ -40,14 +42,13 @@ type SmartState =
  *
  * The layout is built to fit 1280 by 720 without scrolling, because the whole
  * point is comparing things side by side and a comparison you have to scroll
- * between is not one. A strip across the top for the picture, four tabs down
- * the left, the drawing in the middle, and whichever panel the tabs chose on
+ * between is not one. Four tabs down the left, the drawing in the middle, and whichever panel the tabs chose on
  * the right.
  *
- * The tall dashed drop box that used to fill the screen is gone. It took the
- * whole window to say one sentence, and it said it again every time somebody
- * wanted a different picture. The strip says the same thing in one row and
- * stays there, so changing picture is where opening one was.
+ * With no picture the whole canvas is one large drop zone (see Intake.tsx), and
+ * the tabs and downloads wait, disabled, with the reason on hover. Once a picture
+ * is open the zone gives way to the drawing, and a small "Change picture" button
+ * sits by the compare slider; the canvas still accepts a dropped file.
  */
 export function Lab() {
   const [file, setFile] = useState<{ blob: Blob; url: string; name: string } | null>(null);
@@ -71,6 +72,8 @@ export function Lab() {
   const [cards, setCards] = useState<Partial<Record<LookId, string>>>({});
   const [result, setResult] = useState<{ url: string; svg?: string; stats: LabResult['stats'] } | null>(null);
   const [updating, setUpdating] = useState(false);
+  /** Whether this picture has ever been drawn, so a failure can tell "cannot read it" from "this setting failed". */
+  const drawn = useRef(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [compare, setCompare] = useState(0.5);
   const [holding, setHolding] = useState(false);
@@ -99,10 +102,16 @@ export function Lab() {
   */
   const smartEnabled = useMemo(() => smartRedrawEnabled(), []);
   const [helper, setHelper] = useState<Health | null>(null);
+  const [helperChecked, setHelperChecked] = useState(false);
   useEffect(() => {
     if (!smartEnabled) return;
     let alive = true;
-    const look = () => void checkHelper().then((h) => alive && setHelper(h));
+    const look = () =>
+      void checkHelper().then((h) => {
+        if (!alive) return;
+        setHelper(h);
+        setHelperChecked(true);
+      });
     look();
     window.addEventListener('focus', look); // started it after opening the page? coming back to the tab finds it
     return () => {
@@ -125,10 +134,43 @@ export function Lab() {
     setSaid(null);
     setCards({});
     setResult(null);
+    drawn.current = false;
     const url = URL.createObjectURL(chosen);
     urls.current.push(url);
     setFile({ blob: chosen, url, name: chosen.name });
   }, []);
+
+  /** A picture from the picker, a drop or a sample: checked first, so a bad file says what is wrong and nothing else changes. */
+  const pick = useCallback(
+    (chosen: File) => {
+      const verdict = checkPicture(chosen);
+      if (!verdict.ok) {
+        setProblem(verdict.message);
+        return;
+      }
+      take(chosen);
+    },
+    [take],
+  );
+  const [busySample, setBusySample] = useState<string | null>(null);
+  const trySample = useCallback(
+    async (id: string) => {
+      const sample = SAMPLES.find((one) => one.id === id);
+      if (!sample) return;
+      setBusySample(id);
+      try {
+        const response = await fetch(sample.src);
+        if (!response.ok) throw new Error('missing');
+        pick(new File([await response.blob()], sample.name, { type: sample.type }));
+      } catch {
+        setProblem('Could not open that sample. Check your connection and try again, or choose your own picture.');
+      } finally {
+        setBusySample(null);
+      }
+    },
+    [pick],
+  );
+  const drop = useDropTarget(pick);
 
   /* The look cards: the real engine on the real picture, once, small. */
   useEffect(() => {
@@ -184,14 +226,17 @@ export function Lab() {
     job.done
       .then((answer) => {
         if (!alive) return;
+        drawn.current = true;
         setResult({ url: keep(answer.blob), svg: answer.svg, stats: answer.stats });
         setProblem(null);
         setUpdating(false);
       })
       .catch((error: Error) => {
         if (!alive) return;
-        setProblem(error.message);
+        setProblem(explainFailure(error.message));
         setUpdating(false);
+        // Never drawn at all: the picture itself cannot be read, so go back to the start rather than sit on an empty canvas.
+        if (!drawn.current) setFile(null);
       });
     return () => {
       alive = false;
@@ -241,6 +286,28 @@ export function Lab() {
   const showSmartCard = smartEnabled && (helper !== null || smartPicked);
   const label = smartPicked ? 'smart redraw' : look;
   const [saving, setSaving] = useState<'png' | 'svg' | null>(null);
+
+  /* What the page says about itself: one status line, and why a download is not there yet. */
+  const status = labStatus({
+    hasPicture: Boolean(file),
+    hasResult: Boolean(result),
+    updating,
+    cardsLeft,
+    cardsTotal: LOOKS.length,
+    smartPicked,
+    smart: smart.status,
+    smartSource: smartDone?.source,
+    smartStage: smart.status === 'running' ? smart.progress?.stage : undefined,
+    smartStep: smart.status === 'running' ? smart.progress?.step : undefined,
+    smartOf: smart.status === 'running' ? smart.progress?.of : undefined,
+    failed: Boolean(problem) && !result,
+  });
+  const noDownload = downloadReason({
+    hasPicture: Boolean(file),
+    hasDrawing: Boolean(shownUrl),
+    smartRunning: smart.status === 'running',
+    saving: saving !== null,
+  });
 
   /** The built-in engine's answer, for when Smart redraw cannot give one. Hand-inked, because it has real curves to export. */
   const engineInstead = async () => {
@@ -373,8 +440,6 @@ export function Lab() {
         <Rights onAgree={() => setAgreed(true)} smart={smartEnabled && helper !== null} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5 pt-3">
-          <DropStrip has={Boolean(file)} onPick={take} />
-
           {/*
             Three columns where there is room, one stack where there is not.
             On a phone the drawing goes first, the tabs under it where a thumb
@@ -382,49 +447,67 @@ export function Lab() {
             still look, choose, tune.
           */}
           <div className="flex min-h-0 flex-1 gap-4 max-lg:flex-col max-lg:gap-3 max-lg:overflow-y-auto">
-            <Rail tab={tab} onTab={setTab} />
+            <Rail tab={tab} onTab={setTab} disabled={!file} />
 
             {/* The drawing */}
             <section
-              className="flex min-w-0 flex-1 flex-col max-lg:order-1 max-lg:h-[46vh] max-lg:flex-none"
+              className={cx(
+                'flex min-w-0 flex-1 flex-col max-lg:order-1 max-lg:flex-none',
+                // The picture's stage is a fixed share of a phone's height; the empty zone is as tall as its contents.
+                file ? 'max-lg:h-[46vh]' : 'max-lg:h-auto',
+              )}
               aria-label="The drawing"
             >
-              <Canvas
-                before={file?.url ?? null}
-                after={shownUrl}
-                at={showing}
-                ground={ground}
-                working={working}
-                overlay={
-                  smart.status === 'running' ? (
-                    <SmartProgress progress={smart.progress} startedAt={smart.startedAt} onCancel={cancelSmart} />
-                  ) : null
-                }
-              />
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <input
-                  aria-label="Before and after"
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.001}
-                  value={compare}
-                  disabled={!file}
-                  onChange={(event) => setCompare(Number(event.target.value))}
-                  className="h-1 min-w-[180px] flex-1 accent-ink-900"
-                />
-                <Button
-                  disabled={!file}
-                  onMouseDown={() => setHolding(true)}
-                  onMouseUp={() => setHolding(false)}
-                  onMouseLeave={() => setHolding(false)}
-                  onKeyDown={(event) => event.key === ' ' && setHolding(true)}
-                  onKeyUp={() => setHolding(false)}
-                  onBlur={() => setHolding(false)}
-                >
-                  Hold to compare
-                </Button>
-              </div>
+              {!file ? (
+                <>
+                  <DropZone onFile={pick} onSample={(id) => void trySample(id)} problem={problem} busySample={busySample} />
+                  <StepsLine />
+                </>
+              ) : (
+                <>
+                  <div {...drop.props} className="relative flex min-h-0 flex-1 flex-col" data-canvas-drop data-over={String(drop.over)}>
+                    <Canvas
+                      before={file.url}
+                      after={shownUrl}
+                      at={showing}
+                      ground={ground}
+                      working={working}
+                      overlay={
+                        smart.status === 'running' ? (
+                          <SmartProgress progress={smart.progress} startedAt={smart.startedAt} onCancel={cancelSmart} />
+                        ) : null
+                      }
+                    />
+                    {drop.over && <DropOverlay />}
+                  </div>
+                  <div className="mt-2.5 flex min-h-5 items-center">
+                    <StatusLine status={status} />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input
+                      aria-label="Before and after"
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.001}
+                      value={compare}
+                      onChange={(event) => setCompare(Number(event.target.value))}
+                      className="h-1 min-w-[140px] flex-1 accent-ink-900"
+                    />
+                    <Button
+                      onMouseDown={() => setHolding(true)}
+                      onMouseUp={() => setHolding(false)}
+                      onMouseLeave={() => setHolding(false)}
+                      onKeyDown={(event) => event.key === ' ' && setHolding(true)}
+                      onKeyUp={() => setHolding(false)}
+                      onBlur={() => setHolding(false)}
+                    >
+                      Hold to compare
+                    </Button>
+                    <ChangePicture onFile={pick} />
+                  </div>
+                </>
+              )}
             </section>
 
             {/* Whichever panel the rail chose */}
@@ -441,11 +524,11 @@ export function Lab() {
                 className="shrink-0"
                 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 21 }}
               >
-                {TABS.find((one) => one.id === tab)?.label}
+                {file ? TABS.find((one) => one.id === tab)?.label : 'How it works'}
               </h2>
 
               <div className="mt-2.5 min-h-0 flex-1 overflow-y-auto pr-0.5 max-lg:overflow-visible">
-                {problem && (
+                {problem && file && (
                   <div className="mb-3">
                     <Notice level="warning">{problem}</Notice>
                   </div>
@@ -469,7 +552,12 @@ export function Lab() {
                 )}
 
                 {!file ? (
-                  <p className="text-[13px] leading-snug text-ink-500">Open a picture to begin.</p>
+                  <>
+                    <StepsList />
+                    <div className="mt-4">
+                      <HelperChip enabled={smartEnabled} checked={helperChecked} running={helper !== null} />
+                    </div>
+                  </>
                 ) : tab === 'picture' ? (
                   <>
                     <Dial name="Background" hint="Lift the background off before any line is looked for.">
@@ -494,6 +582,7 @@ export function Lab() {
                   </>
                 ) : tab === 'look' ? (
                   <>
+                  <HelperChip enabled={smartEnabled} checked={helperChecked} running={helper !== null} />
                   <div
                     className="grid grid-cols-2 content-start gap-x-3 gap-y-2.5"
                     aria-label="Looks"
@@ -751,23 +840,36 @@ export function Lab() {
                     </p>
                   )
                 )}
-                <Button
-                  variant="accent"
-                  className="w-full"
-                  disabled={!shownUrl || saving !== null}
-                  onClick={() => void savePng()}
-                >
-                  {saving === 'png' ? 'Preparing…' : 'Download PNG'}
-                </Button>
-                <Button
-                  variant="accent-outline"
-                  className="mt-2 w-full"
-                  disabled={!shownUrl || saving !== null}
-                  title={nativeSvg ? 'Real curves, any size' : "Traced from this drawing's pixels"}
-                  onClick={() => void saveSvg()}
-                >
-                  {saving === 'svg' ? 'Tracing…' : 'Download SVG'}
-                </Button>
+                {!file && (
+                  <p id="download-reason" className="mono-label mb-2 text-ink-500" style={{ fontSize: 10 }}>
+                    {OPEN_FIRST} to download it.
+                  </p>
+                )}
+                {/* The reason is on the wrapper as well as the button: a disabled button shows no tooltip in some browsers. */}
+                <span className="block" title={noDownload}>
+                  <Button
+                    variant="accent"
+                    className="w-full"
+                    disabled={Boolean(noDownload)}
+                    aria-describedby={!file ? 'download-reason' : undefined}
+                    title={noDownload}
+                    onClick={() => void savePng()}
+                  >
+                    {saving === 'png' ? 'Preparing…' : 'Download PNG'}
+                  </Button>
+                </span>
+                <span className="mt-2 block" title={noDownload}>
+                  <Button
+                    variant="accent-outline"
+                    className="w-full"
+                    disabled={Boolean(noDownload)}
+                    aria-describedby={!file ? 'download-reason' : undefined}
+                    title={noDownload ?? (nativeSvg ? 'Real curves, any size' : "Traced from this drawing's pixels")}
+                    onClick={() => void saveSvg()}
+                  >
+                    {saving === 'svg' ? 'Tracing…' : 'Download SVG'}
+                  </Button>
+                </span>
                 {/* True of every look but one: Smart redraw runs models, and the page says so when it is showing one. */}
                 <p className="mono-label mt-3 text-ink-500" style={{ fontSize: 10 }}>
                   {smartPicked && smartDone?.source === 'smart'
@@ -802,25 +904,28 @@ const TABS: { id: TabId; label: string; Icon: (p: { size?: number }) => React.Re
  * The fill is `accentb-100` with `accentb-700` letters, which is the pair the
  * contrast sweep already checks as "a teal chip" in all six palettes.
  */
-function Rail({ tab, onTab }: { tab: TabId; onTab: (id: TabId) => void }) {
+function Rail({ tab, onTab, disabled }: { tab: TabId; onTab: (id: TabId) => void; disabled: boolean }) {
   return (
     <nav aria-label="Lab sections" className="shrink-0 max-lg:order-2">
       <ul className="flex w-[84px] flex-col gap-1 max-lg:w-full max-lg:flex-row">
         {TABS.map(({ id, label, Icon }) => {
           const here = tab === id;
           return (
-            <li key={id} className="max-lg:flex-1">
+            // The tooltip sits on the item, not the button: a disabled button gets no hover in several browsers.
+            <li key={id} className="max-lg:flex-1" title={disabled ? OPEN_FIRST : undefined}>
               <button
                 type="button"
-                aria-current={here ? 'true' : undefined}
+                disabled={disabled}
+                aria-current={here && !disabled ? 'true' : undefined}
                 onClick={() => onTab(id)}
                 className={cx(
                   'flex w-full flex-col items-center gap-1.5 rounded-[8px] px-2 py-3 max-lg:py-2',
                   'transition-colors duration-[var(--motion-base)]',
-                  !here && 'text-ink-500 hover:text-ink-900',
+                  disabled && 'cursor-not-allowed text-ink-300',
+                  !here && !disabled && 'text-ink-500 hover:text-ink-900',
                 )}
                 style={
-                  here
+                  here && !disabled
                     ? { background: 'var(--color-accentb-100)', color: 'var(--color-accentb-700)' }
                     : undefined
                 }
@@ -835,55 +940,6 @@ function Rail({ tab, onTab }: { tab: TabId; onTab: (id: TabId) => void }) {
         })}
       </ul>
     </nav>
-  );
-}
-
-/**
- * One row across the top: what to do with a picture, and the picture's name.
- *
- * Under 64 pixels, and a drop target across its whole width. The tall dashed
- * box it replaces took the entire window to say one sentence, and said it again
- * every time somebody wanted to try a different photograph.
- */
-function DropStrip({ has, onPick }: { has: boolean; onPick: (file: File) => void }) {
-  const [over, setOver] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  return (
-    <div
-      onDragOver={(event) => {
-        event.preventDefault();
-        setOver(true);
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setOver(false);
-        const chosen = event.dataTransfer.files?.[0];
-        if (chosen) onPick(chosen);
-      }}
-      className={cx(
-        'flex h-[56px] shrink-0 items-center gap-3 rounded-[6px] border border-dashed px-3',
-        over ? 'border-ink-900 bg-paper-100' : 'border-ink-300',
-      )}
-    >
-      <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink-500">
-        {has ? 'Drop another picture, or choose a file' : 'Drop a picture here or choose a file'}
-      </span>
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        onChange={(event) => {
-          const chosen = event.target.files?.[0];
-          if (chosen) onPick(chosen);
-          event.target.value = '';
-        }}
-      />
-      <Button variant="accent" className="shrink-0" onClick={() => input.current?.click()}>
-        Choose picture
-      </Button>
-    </div>
   );
 }
 

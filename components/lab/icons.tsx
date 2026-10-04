@@ -64,3 +64,14 @@ export function ExportIcon({ size = 20 }: LabIconProps) {
     </svg>
   );
 }
+
+/** A tray with an arrow going into it: where a picture goes. Same grid and weight as the rail's four. */
+export function UploadIcon({ size = 20 }: LabIconProps) {
+  return (
+    <svg {...common(size)}>
+      <path d="M10 13V3.5" />
+      <path d="M6.5 7 10 3.5 13.5 7" />
+      <path d="M3 12.5v2A1.5 1.5 0 0 0 4.5 16h11a1.5 1.5 0 0 0 1.5-1.5v-2" />
+    </svg>
+  );
+}
