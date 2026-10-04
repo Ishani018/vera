@@ -415,8 +415,13 @@ a transparency backdrop. It is the Press Proof sidebar-footer motif, and its
 definition is `width: calc(var(--checker-square) * 8)` — a fixed 200 by 50. So
 it was wrong twice over: the red and teal squares shouted over every drawing,
 and the fixed width held the canvas to a quarter of the space it had. Replaced
-with the app's existing `Chequerboard`, which is the neutral palette-driven
-transparency chequer and stretches. The motif is back to the sidebar only.
+with the app's existing `Chequerboard`, which stretches and is quiet. To be
+exact about "quiet", since I first wrote "neutral" and then measured it: its two
+squares are `--chequer-light` and `--chequer-dark`, `#FBF7EE` and `#EBE2CE` in
+Press Proof — a warm off-white pair, **not** achromatic grey, with 13 and 29 of
+chroma and only 32/255 between the squares. It takes the palette's tint by
+design, and a drawing sits on it without competing. The motif is back to the
+sidebar only.
 
 **The "after" half was showing the drawing composited onto the photograph.** The
 obvious stacking — photograph underneath, drawing clipped on top — looks right
@@ -426,12 +431,15 @@ the photograph is clipped over it. `Hold to compare` shows the original whole.
 
 ### What the brief asked for afterwards, and where each is confirmed
 
-| asked | done | seen in |
+Re-measured at 1280 by 720 after stage 8, so these are the numbers as shipped,
+not as first written:
+
+| asked | measured | seen in |
 | --- | --- | --- |
-| neutral transparency chequer, never the red and teal motif | `Chequerboard` on thumbnails and canvas | `lab-1280.png` |
-| canvas fills the space, fitted, centred, no scrolling | `flex-1 min-w-0`, `object-contain` | `lab-1280.png` |
-| cards about 120 by 90, name below, Original first | 118 by 90 in two columns, seven cards | `lab-1280.png` |
-| labels at most four words, help in (i), rare controls under a closed Advanced | longest label is one word; Advanced closed | `lab-1280.png` |
+| quiet transparency chequer, never the red and teal motif | `#FBF7EE` / `#EBE2CE`, chroma 13 and 29, 672 px wide; `.checker` not used | `s5-confirm-lab-1280.png` |
+| canvas fills the space, fitted, centred, no scrolling | picture 670 × 573 in a 672 × 632 stage — 100% of the longer side | `s5-confirm-lab-1280.png` |
+| cards about 120 by 90, name below, Original first | eight cards, each picture 118 × 90, Original first | `s5-confirm-lab-1280.png` |
+| labels at most four words, help in (i), rare controls under a closed Advanced | longest label 1 word; 3 hints behind (i); Advanced `aria-expanded="false"` | `s5-confirm-lab-1280.png`, opened in `s5-confirm-advanced-1280.png` |
 
 Driven at 1280 by 720 and 800 wide, thirteen checks: all seven cards drawn from
 the real picture, nothing scrolls at 1280 (page, look column and control panel
@@ -448,8 +456,11 @@ pixels and all finish inside a few seconds.
 
 ### Tuning inputs: **there are none**
 
-`docs/lab-inputs/` **does not exist**. I pulled `origin/main` and checked; the
-folder is not in the repository. The repo's only photograph-like pictures are
+`docs/lab-inputs/` **did not exist** when this stage was written. I pulled
+`origin/main` and checked; the folder was not in the repository. It holds five
+pictures now — `test-card.png`, `synthetic-photo.png`, `drawing-cat.png`,
+`drawing-flower.png`, `textured-mark.png` — and every one of them is a stand-in
+I generated or adapted from what the repo already had. **None is a photograph.** The repo's only photograph-like pictures are
 synthetic too — `docs/background-removal/*-source.png` are drawings on textured
 grounds, not photographs.
 
@@ -733,6 +744,12 @@ Two sandbox notes, both recorded rather than papered over:
   before React arrives. I checked this is **not mine**: stashing every change in
   this stage and reloading prints it just the same. The drive ignores that one
   message by name and fails on any other.
+
+### Shots
+
+`docs/lineart-shots/trash-1280.png` and `sidebar-1280.png`, both at 1280 by 720.
+The red "1 Issue" badge in the corner is Next.js's development overlay carrying
+the `data-theme` warning above, not part of the app.
 
 ### Checked
 
