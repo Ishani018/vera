@@ -108,6 +108,41 @@
   color: var(--text-on-accenta-700);
 }
 
+/*
+  The teal primary, for the three screens whose main action is not Create.
+
+  `accenta` is the red one, and red is what this app uses for "make a new
+  thing" and for anything destructive. Downloading a drawing, choosing a
+  picture and starting a pack are none of those, so they take the brand teal
+  instead. White on `accentb-500` is in the contrast sweep for all six
+  palettes; the hover mixes that same teal toward the palette's own near-black,
+  which only darkens it, so the white stays at least as readable as it started.
+*/
+.btn-accent {
+  background: var(--color-accentb-500);
+  border: 1px solid var(--color-accentb-500);
+  color: var(--color-sheet);
+  font-weight: 600;
+}
+.btn-accent:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accentb-500) 86%, var(--color-outline));
+  border-color: color-mix(in srgb, var(--color-accentb-500) 86%, var(--color-outline));
+}
+
+/*
+  Its outline twin, for the second download beside the first. The letters are
+  `accentb-700`, which the sweep already reads on both the page and a plate.
+*/
+.btn-accent-outline {
+  background: transparent;
+  border: 1px solid var(--color-accentb-500);
+  color: var(--color-accentb-700);
+  font-weight: 600;
+}
+.btn-accent-outline:hover:not(:disabled) {
+  background: var(--color-accentb-100);
+}
+
 .btn-ghost {
   background: transparent;
   border: 1px solid transparent;

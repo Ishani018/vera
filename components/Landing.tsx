@@ -378,6 +378,22 @@ export function Landing() {
   }, []);
   useEffect(refresh, [refresh]);
 
+  /*
+    The trash, opened from somewhere else.
+
+    The sticker pages and the Lab carry a Trash link in their bar, and there is
+    one trash dialog, here. They link to `/?trash=1` rather than growing a copy
+    of it. Read from `location` in an effect rather than with `useSearchParams`,
+    which would make this statically-rendered page dynamic; it is a one-trip
+    message, so the address is tidied up behind it and a reload does not reopen
+    it.
+  */
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('trash')) return;
+    setTrashOpen(true);
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
+
   // Thirty days up, and gone. Here because the front page opening is the one
   // moment this app reliably gets, and nothing depends on it being punctual:
   // something that outstays its welcome by a week costs disk, not correctness.

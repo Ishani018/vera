@@ -41,8 +41,13 @@ export function LookCard({
     >
       <span
         className={cx(
-          'plate block rounded-[6px] bg-paper-100 p-1',
-          selected && 'ring-2 ring-ink-900',
+          'plate block rounded-[6px] bg-paper-100 p-[3px]',
+          /*
+            The chosen one is ringed in the brand teal, the same teal as the
+            rail's pill and the download button — so "this is the one you are
+            looking at" is one colour across the screen rather than three.
+          */
+          selected && 'ring-2 ring-accentb-500',
         )}
       >
         <Chequerboard className="relative !block h-[90px] w-full rounded-[3px]">
@@ -52,7 +57,10 @@ export function LookCard({
           ) : null}
           {busy && <span className="skeleton absolute inset-0 block" aria-hidden="true" />}
         </Chequerboard>
-        <span className="mt-1 block truncate px-0.5" style={{ fontSize: 11.5, fontWeight: 560 }}>
+        <span
+          className="mt-[3px] block truncate px-0.5 leading-tight"
+          style={{ fontSize: 11.5, fontWeight: 560 }}
+        >
           {label}
         </span>
       </span>

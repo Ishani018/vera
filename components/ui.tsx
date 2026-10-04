@@ -658,7 +658,7 @@ export function Button({
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'primary' | 'create' | 'ghost' | 'danger';
+  variant?: 'default' | 'primary' | 'create' | 'ghost' | 'danger' | 'accent' | 'accent-outline';
 }) {
   /*
     The look lives in `app/surfaces.css`; this names which one. The padding and

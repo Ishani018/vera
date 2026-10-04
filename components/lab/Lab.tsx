@@ -11,6 +11,8 @@ import type { InkedSettings } from '@/lib/lineart/inked';
 import { Accordion, Button, Info, Notice, Slider, Toggle, cx } from '../ui';
 import { LookCard } from './LookCard';
 import { Chequerboard } from '../stickers/Thumb';
+import { StudioHeader } from '../StudioHeader';
+import { ExportIcon, LookIcon, PictureIcon, TuneIcon } from './icons';
 
 /** The look cards are previews, so they run small and once. */
 const CARD_EDGE = 300;
@@ -25,8 +27,14 @@ const CARD_EDGE = 300;
  *
  * The layout is built to fit 1280 by 720 without scrolling, because the whole
  * point is comparing things side by side and a comparison you have to scroll
- * between is not one. Looks down the left, the picture in the middle, the
- * controls on the right.
+ * between is not one. A strip across the top for the picture, four tabs down
+ * the left, the drawing in the middle, and whichever panel the tabs chose on
+ * the right.
+ *
+ * The tall dashed drop box that used to fill the screen is gone. It took the
+ * whole window to say one sentence, and it said it again every time somebody
+ * wanted a different picture. The strip says the same thing in one row and
+ * stays there, so changing picture is where opening one was.
  */
 export function Lab() {
   const [file, setFile] = useState<{ blob: Blob; url: string; name: string } | null>(null);
@@ -53,8 +61,6 @@ export function Lab() {
   const [problem, setProblem] = useState<string | null>(null);
   const [compare, setCompare] = useState(0.5);
   const [holding, setHolding] = useState(false);
-  const [downloadOpen, setDownloadOpen] = useState(false);
-  const [sendOpen, setSendOpen] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   /*
     Asked once, the first time a picture is opened, and not stored anywhere —
@@ -153,160 +159,217 @@ export function Lab() {
 
   const controls = useMemo(() => controlsFor(look), [look]);
   /*
-    Two of them at most stay out. The rest go behind Advanced, closed: a panel
-    where everything is equally prominent is a panel where nothing is, and in
-    practice people reach for how heavy the line is and how much survives, then
-    stop.
+    One slider out, the rest behind Advanced.
+
+    A panel where everything is equally prominent is a panel where nothing is,
+    and in practice people reach for how much survives and then stop. `detail`
+    is that control wherever a look has one; the two looks that do not — a
+    colouring page is about how many areas, a logo about how closely the curves
+    follow — take the first of their own instead, so there is always exactly one
+    and it is always the one that matters most to what you are looking at.
   */
-  const main = controls.filter((id) => MAIN.has(id));
-  const advanced = controls.filter((id) => !MAIN.has(id));
+  const main = controls.filter((id) => id === (controls.includes('detail') ? 'detail' : controls[0]));
+  const advanced = controls.filter((id) => !main.includes(id));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   // Holding shows the picture you started with, whole.
   const showing = holding ? 1 : compare;
 
+  /** Which panel the rail is showing. */
+  const [tab, setTab] = useState<TabId>('look');
+
+  /*
+    The waiting mark is on while ANY of the engine is running, not just the big
+    picture. The eight cards take the longest and used to run in silence, so the
+    one moment the Lab looks broken — eight grey rectangles, nothing moving —
+    was the one moment it had nothing to say.
+  */
+  const cardsLeft = file ? LOOKS.length - Object.keys(cards).length : 0;
+  const working = updating || cardsLeft > 0;
+
+  const svgUrl = useMemo(
+    () => (result?.svg ? keep(new Blob([result.svg], { type: 'image/svg+xml' })) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [result?.svg],
+  );
+  const stem = file ? baseName(file.name) : 'drawing';
+
   return (
     <main data-lab className="flex h-dvh flex-col bg-paper-50">
-      <Bar name={file?.name ?? null} onPick={take} />
+      {/* The bar from the home screen, unchanged: wordmark, title, links. */}
+      <StudioHeader>
+        {/*
+          The title and the file name are what a narrow window gives up, the
+          same way the Sticker Studio's bar does: the wordmark already says
+          where you are, and the links are what the bar is for.
+        */}
+        <h1
+          className="hidden shrink-0 sm:inline"
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 19 }}
+        >
+          Line Art Lab
+        </h1>
+        {file && (
+          <span className="mono-label hidden min-w-0 truncate text-ink-500 lg:inline" style={{ fontSize: 10 }}>
+            {file.name}
+          </span>
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <Link href="/stickers" className="btn btn-ghost min-h-9 px-2.5 text-[14px]">
+            Stickers
+          </Link>
+          <Link href="/stickers/packs" className="btn btn-ghost min-h-9 px-2.5 text-[14px]">
+            Packs
+          </Link>
+          <Link href="/?trash=1" className="btn btn-ghost min-h-9 px-2.5 text-[14px]">
+            Trash
+          </Link>
+        </span>
+      </StudioHeader>
 
       {!agreed ? (
         <Rights onAgree={() => setAgreed(true)} />
-      ) : !file ? (
-        <Dropzone onPick={take} />
       ) : (
-        <div className="flex min-h-0 flex-1 gap-4 px-5 pb-5">
-          {/* Looks */}
-          <section
-            className="grid w-[268px] shrink-0 auto-rows-min grid-cols-2 content-start gap-x-3 gap-y-2.5 overflow-y-auto"
-            aria-label="Looks"
-          >
-            {/*
-              The picture itself, first. Without it the row of six is six
-              answers to a question nobody can see any more — and pressing it
-              is the quickest way back to what you started with.
-            */}
-            <LookCard
-              label="Original"
-              blurb="The picture you brought"
-              src={file.url}
-              busy={false}
-              selected={compare > 0.999}
-              onSelect={() => setCompare(1)}
-            />
-            {LOOKS.map((one) => (
-              <LookCard
-                key={one.id}
-                label={one.label}
-                blurb={one.blurb}
-                src={cards[one.id] ?? null}
-                busy={!cards[one.id]}
-                selected={look === one.id && compare <= 0.999}
-                onSelect={() => {
-                  setLook(one.id);
-                  if (compare > 0.999) setCompare(0);
-                }}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5 pt-3">
+          <DropStrip has={Boolean(file)} onPick={take} />
+
+          {/*
+            Three columns where there is room, one stack where there is not.
+            On a phone the drawing goes first, the tabs under it where a thumb
+            reaches, and the panel below that — so the order on the screen is
+            still look, choose, tune.
+          */}
+          <div className="flex min-h-0 flex-1 gap-4 max-lg:flex-col max-lg:gap-3 max-lg:overflow-y-auto">
+            <Rail tab={tab} onTab={setTab} />
+
+            {/* The drawing */}
+            <section
+              className="flex min-w-0 flex-1 flex-col max-lg:order-1 max-lg:h-[46vh] max-lg:flex-none"
+              aria-label="The drawing"
+            >
+              <Canvas
+                before={file?.url ?? null}
+                after={result?.url ?? null}
+                at={showing}
+                ground={ground}
+                working={working}
               />
-            ))}
-          </section>
-
-          {/* The picture */}
-          <section className="flex min-w-0 flex-1 flex-col" aria-label="The drawing">
-            <Canvas before={file.url} after={result?.url ?? null} at={showing} ground={ground} />
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input
-                aria-label="Before and after"
-                type="range"
-                min={0}
-                max={1}
-                step={0.001}
-                value={compare}
-                onChange={(event) => setCompare(Number(event.target.value))}
-                className="h-1 min-w-[180px] flex-1 accent-ink-900"
-              />
-              <Button
-                onMouseDown={() => setHolding(true)}
-                onMouseUp={() => setHolding(false)}
-                onMouseLeave={() => setHolding(false)}
-                onKeyDown={(event) => event.key === ' ' && setHolding(true)}
-                onKeyUp={() => setHolding(false)}
-                onBlur={() => setHolding(false)}
-              >
-                Hold to compare
-              </Button>
-              {look === 'logo' && (
-                <span className="flex shrink-0 items-center gap-1">
-                  {(['chequer', 'light', 'dark'] as const).map((one) => (
-                    <button
-                      key={one}
-                      type="button"
-                      aria-pressed={ground === one}
-                      onClick={() => setGround(one)}
-                      className="chip inline-flex min-h-7 items-center px-2.5"
-                      style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
-                    >
-                      {one}
-                    </button>
-                  ))}
-                </span>
-              )}
-              {updating && (
-                <span className="chip inline-flex min-h-7 shrink-0 items-center gap-1.5 px-2.5" style={{ fontSize: 11 }}>
-                  <span className="block size-1.5 animate-pulse rounded-full bg-accenta-500" />
-                  Updating
-                </span>
-              )}
-            </div>
-          </section>
-
-          {/* Controls */}
-          <section className="flex w-[268px] shrink-0 flex-col overflow-y-auto" aria-label="Controls">
-            {problem && (
-              <div className="mb-3">
-                <Notice level="warning">{problem}</Notice>
-              </div>
-            )}
-
-            <Dial name="Background" hint="Lift the background off before any line is looked for.">
-              <Toggle checked={cutOut} onChange={setCutOut} label="Remove it" />
-            </Dial>
-
-            {main.map((id) => (
-              <Dial key={id} name={LABELS[id]} hint={HINTS[id]}>
-                <Slider
-                  value={valueOf(id, { classic, inked, colouring, logo })}
-                  onChange={(next) =>
-                    setFrom(id, next, { classic, setClassic, inked, setInked, colouring, setColouring, logo, setLogo })
-                  }
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <input
+                  aria-label="Before and after"
+                  type="range"
                   min={0}
-                  max={100}
-                  step={1}
-                  format={(n) => String(Math.round(n))}
+                  max={1}
+                  step={0.001}
+                  value={compare}
+                  disabled={!file}
+                  onChange={(event) => setCompare(Number(event.target.value))}
+                  className="h-1 min-w-[180px] flex-1 accent-ink-900"
                 />
-              </Dial>
-            ))}
-
-            {advanced.length > 0 && (
-              <div className="-mx-1 mt-1">
-                <Accordion
-                  title="Advanced"
-                  open={advancedOpen}
-                  onToggle={() => setAdvancedOpen((was) => !was)}
+                <Button
+                  disabled={!file}
+                  onMouseDown={() => setHolding(true)}
+                  onMouseUp={() => setHolding(false)}
+                  onMouseLeave={() => setHolding(false)}
+                  onKeyDown={(event) => event.key === ' ' && setHolding(true)}
+                  onKeyUp={() => setHolding(false)}
+                  onBlur={() => setHolding(false)}
                 >
-                  <div className="px-3.5 pb-3 pt-1">
-                    {advanced.map((id) => (
+                  Hold to compare
+                </Button>
+              </div>
+            </section>
+
+            {/* Whichever panel the rail chose */}
+            {/*
+              The panel does not scroll; its middle does. The two downloads are
+              pinned below it, so they are in the same place whatever the rail
+              is showing and whatever the panel above them is long enough to do.
+            */}
+            <section
+              className="flex w-[300px] shrink-0 flex-col max-lg:order-3 max-lg:w-full"
+              aria-label="Controls"
+            >
+              <h2
+                className="shrink-0"
+                style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 21 }}
+              >
+                {TABS.find((one) => one.id === tab)?.label}
+              </h2>
+
+              <div className="mt-2.5 min-h-0 flex-1 overflow-y-auto pr-0.5 max-lg:overflow-visible">
+                {problem && (
+                  <div className="mb-3">
+                    <Notice level="warning">{problem}</Notice>
+                  </div>
+                )}
+
+                {!file ? (
+                  <p className="text-[13px] leading-snug text-ink-500">Open a picture to begin.</p>
+                ) : tab === 'picture' ? (
+                  <>
+                    <Dial name="Background" hint="Lift the background off before any line is looked for.">
+                      <Toggle checked={cutOut} onChange={setCutOut} label="Remove it" />
+                    </Dial>
+                    <Dial name="Ground" hint="What to judge the drawing against. A mark has to work on all three.">
+                      <span className="flex items-center gap-1">
+                        {(['chequer', 'light', 'dark'] as const).map((one) => (
+                          <button
+                            key={one}
+                            type="button"
+                            aria-pressed={ground === one}
+                            onClick={() => setGround(one)}
+                            className="chip inline-flex min-h-7 items-center px-2.5"
+                            style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                          >
+                            {one}
+                          </button>
+                        ))}
+                      </span>
+                    </Dial>
+                  </>
+                ) : tab === 'look' ? (
+                  <div
+                    className="grid grid-cols-2 content-start gap-x-3 gap-y-2.5"
+                    aria-label="Looks"
+                    role="group"
+                  >
+                    {/*
+                      The picture itself, first. Without it the row of seven is
+                      seven answers to a question nobody can see any more — and
+                      pressing it is the quickest way back to what you started
+                      with.
+                    */}
+                    <LookCard
+                      label="Original"
+                      blurb="The picture you brought"
+                      src={file.url}
+                      busy={false}
+                      selected={compare > 0.999}
+                      onSelect={() => setCompare(1)}
+                    />
+                    {LOOKS.map((one) => (
+                      <LookCard
+                        key={one.id}
+                        label={one.label}
+                        blurb={one.blurb}
+                        src={cards[one.id] ?? null}
+                        busy={!cards[one.id]}
+                        selected={look === one.id && compare <= 0.999}
+                        onSelect={() => {
+                          setLook(one.id);
+                          if (compare > 0.999) setCompare(0);
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : tab === 'tune' ? (
+                  <>
+                    {main.map((id) => (
                       <Dial key={id} name={LABELS[id]} hint={HINTS[id]}>
                         <Slider
                           value={valueOf(id, { classic, inked, colouring, logo })}
                           onChange={(next) =>
-                            setFrom(id, next, {
-                              classic,
-                              setClassic,
-                              inked,
-                              setInked,
-                              colouring,
-                              setColouring,
-                              logo,
-                              setLogo,
-                            })
+                            setFrom(id, next, { classic, setClassic, inked, setInked, colouring, setColouring, logo, setLogo })
                           }
                           min={0}
                           max={100}
@@ -315,170 +378,254 @@ export function Lab() {
                         />
                       </Dial>
                     ))}
-                  </div>
-                </Accordion>
-              </div>
-            )}
 
-            {look === 'logo' && (
-              <div className="mb-3">
-                <span data-dial className="mono-label mb-1 block text-ink-900" style={{ fontSize: 10 }}>
-                  At small sizes
-                  <Info label="At small sizes">
-                    A mark has to survive being a favicon and a stamp on the back of a book. If it
-                    turns to mush here, it is too detailed to be a logo.
-                  </Info>
-                </span>
-                <div className="flex items-end gap-3">
-                  {[48, 24, 16].map((size) => (
-                    <Chequerboard
-                      key={size}
-                      className="shrink-0 rounded-[3px] border border-ink-300"
-                      style={{ width: size, height: size }}
-                    >
-                      {result?.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={result.url} alt="" className="h-full w-full object-contain" />
-                      ) : null}
-                    </Chequerboard>
-                  ))}
-                </div>
-                {result?.stats.busy && (
-                  <p className="mt-2 text-[11.5px] leading-snug text-ink-700">
-                    This came out as {result.stats.strokes} curves. A logo is usually a handful of
-                    shapes, so a picture this detailed will not shrink well. Marks, lettering and
-                    silhouettes work; photographs mostly do not.
-                  </p>
-                )}
-              </div>
-            )}
+                    {advanced.length > 0 && (
+                      <div className="-mx-1 mt-1">
+                        <Accordion
+                          title="Advanced"
+                          open={advancedOpen}
+                          onToggle={() => setAdvancedOpen((was) => !was)}
+                        >
+                          <div className="px-3.5 pb-3 pt-1">
+                            {advanced.map((id) => (
+                              <Dial key={id} name={LABELS[id]} hint={HINTS[id]}>
+                                <Slider
+                                  value={valueOf(id, { classic, inked, colouring, logo })}
+                                  onChange={(next) =>
+                                    setFrom(id, next, {
+                                      classic,
+                                      setClassic,
+                                      inked,
+                                      setInked,
+                                      colouring,
+                                      setColouring,
+                                      logo,
+                                      setLogo,
+                                    })
+                                  }
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                  format={(n) => String(Math.round(n))}
+                                />
+                              </Dial>
+                            ))}
+                          </div>
+                        </Accordion>
+                      </div>
+                    )}
 
-            <div className="mt-auto pt-4">
-              {result && (
-                <p className="mono-label mb-2 text-ink-500" style={{ fontSize: 10 }}>
-                  {/* Ink on a page means nothing for a logo, which is curves. */}
-                  {look === 'logo'
-                    ? `${result.stats.strokes ?? 0} curves`
-                    : `${(result.stats.ink * 100).toFixed(1)}% ink${
-                        result.stats.strokes ? ` · ${result.stats.strokes} strokes` : ''
-                      }`}
-                  {` · ${result.stats.millis} ms`}
-                </p>
-              )}
-              {said && (
-                <p className="mb-2 text-[12px] leading-snug text-ink-700">{said}</p>
-              )}
-              <div className="relative mb-2">
-                <Button
-                  disabled={!result}
-                  aria-expanded={sendOpen}
-                  onClick={() => setSendOpen((was) => !was)}
-                >
-                  Send to
-                </Button>
-                {sendOpen && result && file && (
-                  <div className="dialog absolute bottom-full left-0 z-20 mb-2 w-[232px] p-1.5">
+                    {look === 'logo' && (
+                      <div className="mb-3 mt-3">
+                        <span data-dial className="mono-label mb-1 block text-ink-900" style={{ fontSize: 10 }}>
+                          At small sizes
+                          <Info label="At small sizes">
+                            A mark has to survive being a favicon and a stamp on the back of a book. If
+                            it turns to mush here, it is too detailed to be a logo.
+                          </Info>
+                        </span>
+                        <div className="flex items-end gap-3">
+                          {[48, 24, 16].map((size) => (
+                            <Chequerboard
+                              key={size}
+                              className="shrink-0 rounded-[3px] border border-ink-300"
+                              style={{ width: size, height: size }}
+                            >
+                              {result?.url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={result.url} alt="" className="h-full w-full object-contain" />
+                              ) : null}
+                            </Chequerboard>
+                          ))}
+                        </div>
+                        {result?.stats.busy && (
+                          <p className="mt-2 text-[11.5px] leading-snug text-ink-700">
+                            {result.stats.strokes} curves. A logo is a handful of shapes, so this will
+                            not shrink well.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {said && <p className="mb-2 text-[12px] leading-snug text-ink-700">{said}</p>}
                     <Hand
                       what="Save to My stickers"
                       note={`Tagged lab and ${look}`}
                       onPick={async () => {
+                        if (!result || !file) return;
                         const { saveToMyStickers } = await handoff();
-                        await saveToMyStickers(await blobOf(result.url), baseName(file.name), look);
+                        await saveToMyStickers(await blobOf(result.url), stem, look);
                         setSaid('Saved to My stickers.');
-                        setSendOpen(false);
                       }}
                     />
                     <Hand
                       what="Send to Sticker Studio"
                       note="Arrives as an ordinary sticker"
                       onPick={async () => {
+                        if (!result || !file) return;
                         const { sendToStickerStudio } = await handoff();
-                        await sendToStickerStudio(await blobOf(result.url), baseName(file.name), look);
+                        await sendToStickerStudio(await blobOf(result.url), stem, look);
                         setSaid('In your library. Open Stickers to use it.');
-                        setSendOpen(false);
                       }}
                     />
                     <Hand
                       what="Add to colouring book"
                       note="The book you have open"
                       onPick={async () => {
+                        if (!result || !file) return;
                         const { addToColouringBook } = await handoff();
-                        const done = await addToColouringBook(await blobOf(result.url), baseName(file.name));
-                        setSaid(
-                          done
-                            ? 'Added as a page.'
-                            : 'No colouring book is open. Open one first, then come back.',
-                        );
-                        setSendOpen(false);
+                        const done = await addToColouringBook(await blobOf(result.url), stem);
+                        setSaid(done ? 'Added as a page.' : 'No colouring book is open. Open one first.');
                       }}
                     />
-                  </div>
+                  </>
                 )}
               </div>
-              <div className="relative">
-                <Button
-                  variant="primary"
-                  disabled={!result}
-                  aria-expanded={downloadOpen}
-                  onClick={() => setDownloadOpen((was) => !was)}
+
+              {/*
+                The two downloads, at the bottom whichever tab is showing. They
+                are what the Lab is for, and a primary action that moves when
+                you change panel is one you have to find again each time.
+              */}
+              <div className="mt-4 shrink-0">
+                {result && (
+                  <p className="mono-label mb-2 text-ink-500" style={{ fontSize: 10 }}>
+                    {/* Ink on a page means nothing for a logo, which is curves. */}
+                    {look === 'logo'
+                      ? `${result.stats.strokes ?? 0} curves`
+                      : `${(result.stats.ink * 100).toFixed(1)}% ink${
+                          result.stats.strokes ? ` · ${result.stats.strokes} strokes` : ''
+                        }`}
+                    {` · ${result.stats.millis} ms`}
+                  </p>
+                )}
+                <a
+                  href={result?.url ?? undefined}
+                  download={`${stem} ${look}.png`}
+                  aria-disabled={!result}
+                  className={cx(
+                    'btn btn-accent w-full px-4 py-2.5 text-[15px]',
+                    !result && 'pointer-events-none opacity-40',
+                  )}
                 >
-                  Download
-                </Button>
-                {downloadOpen && result && (
-                  <div className="dialog absolute bottom-full left-0 z-20 mb-2 w-[232px] p-1.5">
-                    <Download
-                      href={result.url}
-                      name={`${baseName(file.name)} ${look}.png`}
-                      what="Transparent PNG"
-                      note="Ink on nothing, ready for a sticker"
-                      onDone={() => setDownloadOpen(false)}
-                    />
-                    {result.svg ? (
-                      <Download
-                        href={keep(new Blob([result.svg], { type: 'image/svg+xml' }))}
-                        name={`${baseName(file.name)} ${look}.svg`}
-                        what="SVG"
-                        note="Real curves, any size"
-                        onDone={() => setDownloadOpen(false)}
-                      />
-                    ) : (
-                      <p className="px-2 py-2 text-[12px] leading-snug text-ink-500">
-                        Hand-inked and Logo export as SVG. The others are drawn as pixels, so a
-                        traced copy would be a worse picture of the same thing.
-                      </p>
-                    )}
-                  </div>
-                )}
+                  Download PNG
+                </a>
+                <a
+                  href={svgUrl ?? undefined}
+                  download={`${stem} ${look}.svg`}
+                  aria-disabled={!svgUrl}
+                  title={
+                    svgUrl
+                      ? 'Real curves, any size'
+                      : 'Hand-inked and Logo export as curves. The others are pixels.'
+                  }
+                  className={cx(
+                    'btn btn-accent-outline mt-2 w-full px-4 py-2.5 text-[15px]',
+                    !svgUrl && 'pointer-events-none opacity-40',
+                  )}
+                >
+                  Download SVG
+                </a>
+                <p className="mono-label mt-3 text-ink-500" style={{ fontSize: 10 }}>
+                  Made with algorithms, no AI model
+                </p>
               </div>
-              <p className="mono-label mt-3 text-ink-500" style={{ fontSize: 10 }}>
-                Made with algorithms, no AI model
-              </p>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       )}
     </main>
   );
 }
 
-/* ------------------------------------------------------------------ parts */
+/* --------------------------------------------------------------- the rail */
 
-function Bar({ name, onPick }: { name: string | null; onPick: (file: File) => void }) {
+type TabId = 'picture' | 'look' | 'tune' | 'export';
+
+const TABS: { id: TabId; label: string; Icon: (p: { size?: number }) => React.ReactElement }[] = [
+  { id: 'picture', label: 'Picture', Icon: PictureIcon },
+  { id: 'look', label: 'Look', Icon: LookIcon },
+  { id: 'tune', label: 'Tune', Icon: TuneIcon },
+  { id: 'export', label: 'Export', Icon: ExportIcon },
+];
+
+/**
+ * Four tabs down the left, the current one in a pale teal pill.
+ *
+ * The pill rather than an underline because this rail is vertical and an
+ * underline under a stacked label reads as a divider between it and the next.
+ * The fill is `accentb-100` with `accentb-700` letters, which is the pair the
+ * contrast sweep already checks as "a teal chip" in all six palettes.
+ */
+function Rail({ tab, onTab }: { tab: TabId; onTab: (id: TabId) => void }) {
+  return (
+    <nav aria-label="Lab sections" className="shrink-0 max-lg:order-2">
+      <ul className="flex w-[84px] flex-col gap-1 max-lg:w-full max-lg:flex-row">
+        {TABS.map(({ id, label, Icon }) => {
+          const here = tab === id;
+          return (
+            <li key={id} className="max-lg:flex-1">
+              <button
+                type="button"
+                aria-current={here ? 'true' : undefined}
+                onClick={() => onTab(id)}
+                className={cx(
+                  'flex w-full flex-col items-center gap-1.5 rounded-[8px] px-2 py-3 max-lg:py-2',
+                  'transition-colors duration-[var(--motion-base)]',
+                  !here && 'text-ink-500 hover:text-ink-900',
+                )}
+                style={
+                  here
+                    ? { background: 'var(--color-accentb-100)', color: 'var(--color-accentb-700)' }
+                    : undefined
+                }
+              >
+                <Icon size={20} />
+                <span className="text-[12.5px]" style={{ fontWeight: here ? 600 : 500 }}>
+                  {label}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/**
+ * One row across the top: what to do with a picture, and the picture's name.
+ *
+ * Under 64 pixels, and a drop target across its whole width. The tall dashed
+ * box it replaces took the entire window to say one sentence, and said it again
+ * every time somebody wanted to try a different photograph.
+ */
+function DropStrip({ has, onPick }: { has: boolean; onPick: (file: File) => void }) {
+  const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   return (
-    <header className="flex shrink-0 items-center gap-3 px-5 py-3">
-      <Link href="/" className="btn btn-ghost inline-flex min-h-9 items-center px-3">
-        Home
-      </Link>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 19 }}>
-        Line Art Lab
-      </h1>
-      {name && (
-        <span className="mono-label truncate text-ink-500" style={{ fontSize: 10 }}>
-          {name}
-        </span>
+    <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setOver(false);
+        const chosen = event.dataTransfer.files?.[0];
+        if (chosen) onPick(chosen);
+      }}
+      className={cx(
+        'flex h-[56px] shrink-0 items-center gap-3 rounded-[6px] border border-dashed px-3',
+        over ? 'border-ink-900 bg-paper-100' : 'border-ink-300',
       )}
-      <span className="ml-auto" />
+    >
+      <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink-500">
+        {has ? 'Drop another picture, or choose a file' : 'Drop a picture here or choose a file'}
+      </span>
       <input
         ref={input}
         type="file"
@@ -490,10 +637,14 @@ function Bar({ name, onPick }: { name: string | null; onPick: (file: File) => vo
           event.target.value = '';
         }}
       />
-      <Button onClick={() => input.current?.click()}>{name ? 'Change picture' : 'Open a picture'}</Button>
-    </header>
+      <Button variant="accent" className="shrink-0" onClick={() => input.current?.click()}>
+        Choose picture
+      </Button>
+    </div>
   );
 }
+
+/* ------------------------------------------------------------------ parts */
 
 /**
  * The one question worth asking before anything else.
@@ -542,57 +693,6 @@ function Hand({ what, note, onPick }: { what: string; note: string; onPick: () =
   );
 }
 
-function Dropzone({ onPick }: { onPick: (file: File) => void }) {
-  const [over, setOver] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center p-5">
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setOver(false);
-          const chosen = event.dataTransfer.files?.[0];
-          if (chosen) onPick(chosen);
-        }}
-        className={cx(
-          'flex h-full w-full max-w-[680px] flex-col items-center justify-center gap-3 rounded-[6px] border border-dashed p-8 text-center',
-          over ? 'border-ink-900 bg-paper-100' : 'border-ink-300',
-        )}
-      >
-        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 24 }}>
-          Drop a picture here
-        </h2>
-        <p className="max-w-[44ch] text-[14px] leading-relaxed text-ink-500">
-          Six ways to turn it into line art. Everything happens on this computer: the picture is
-          never uploaded, and there is nothing to download before it works.
-        </p>
-        <input
-          ref={input}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={(event) => {
-            const chosen = event.target.files?.[0];
-            if (chosen) onPick(chosen);
-            event.target.value = '';
-          }}
-        />
-        <Button variant="primary" onClick={() => input.current?.click()}>
-          Choose a picture
-        </Button>
-        <p className="mono-label mt-2 text-ink-500" style={{ fontSize: 10 }}>
-          Made with algorithms, no AI model
-        </p>
-      </div>
-    </div>
-  );
-}
-
 /**
  * Before and after, one on top of the other with a wipe between them.
  *
@@ -605,12 +705,16 @@ function Canvas({
   after,
   at,
   ground,
+  working,
 }: {
-  before: string;
+  /** Null until a picture is opened: the stage is there either way. */
+  before: string | null;
   after: string | null;
   at: number;
   /** What to judge the drawing against. A mark has to work on all three. */
   ground: 'chequer' | 'light' | 'dark';
+  /** Any of the engine is running — the big picture or any of the cards. */
+  working: boolean;
 }) {
   /*
     The drawing underneath, the photograph clipped on top of it.
@@ -631,19 +735,44 @@ function Canvas({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={after} alt="The drawing" className="absolute inset-0 h-full w-full object-contain" />
       )}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={before}
-        alt="The picture you brought"
-        className="absolute inset-0 h-full w-full object-contain"
-        style={{ clipPath: `inset(0 ${(1 - at) * 100}% 0 0)` }}
-      />
+      {before && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={before}
+          alt="The picture you brought"
+          className="absolute inset-0 h-full w-full object-contain"
+          style={{ clipPath: `inset(0 ${(1 - at) * 100}% 0 0)` }}
+        />
+      )}
       {after && at > 0.001 && at < 0.999 && (
         <span
           aria-hidden="true"
           className="absolute inset-y-0 w-px bg-ink-900"
           style={{ left: `${at * 100}%` }}
         />
+      )}
+      {/*
+        The waiting mark, top right, over the stage.
+
+        It used to sit in the row of controls under the picture, at the end of a
+        wrapping line, which is the one place on this screen nobody is looking:
+        the eye is on the drawing, waiting for it to change. Here it is in the
+        corner of the thing being waited for.
+      */}
+      {working && (
+        <span
+          className="absolute right-2.5 top-2.5 z-10 inline-flex min-h-7 items-center gap-1.5 rounded-[4px] border px-2.5"
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            background: 'var(--color-paper-50)',
+            borderColor: 'var(--color-ink-300)',
+            color: 'var(--color-ink-700)',
+          }}
+        >
+          <span className="block size-1.5 animate-pulse rounded-full bg-accenta-500" />
+          Updating
+        </span>
       )}
     </>
   );
@@ -686,38 +815,7 @@ function Dial({ name, hint, children }: { name: string; hint: string; children: 
   );
 }
 
-function Download({
-  href,
-  name,
-  what,
-  note,
-  onDone,
-}: {
-  href: string;
-  name: string;
-  what: string;
-  note: string;
-  onDone: () => void;
-}) {
-  return (
-    <a
-      href={href}
-      download={name}
-      onClick={onDone}
-      className="block rounded-[6px] px-2 py-2 transition-colors hover:bg-paper-100"
-    >
-      <span className="block text-[13px] font-[560]">{what}</span>
-      <span className="mono-label block text-ink-500" style={{ fontSize: 10 }}>
-        {note}
-      </span>
-    </a>
-  );
-}
-
 /* ----------------------------------------------------------------- wiring */
-
-/** The two anybody actually reaches for. Everything else is behind Advanced. */
-const MAIN = new Set(['thickness', 'detail', 'complexity', 'taper', 'smoothness']);
 
 const LABELS: Record<string, string> = {
   thickness: 'Thickness',
