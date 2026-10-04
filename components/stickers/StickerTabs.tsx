@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { STICKER_TABS, tabFor, type TabIcon } from '@/lib/stickers/tabs';
 import { cx } from '../ui';
 import { LibraryIcon, MakeIcon, PackIcon, SheetIcon, type IconProps } from './icons';
+// The app's one bin, rather than a second drawing of the same thing.
+import { TrashIcon } from '../icons';
 
 /**
  * Where the sticker pages are, as a row of tabs you can see.
@@ -54,12 +56,17 @@ export function StickerTabs() {
       opacity: 1,
       width: a.width,
       transform: `translateX(${a.left - b.left}px)`,
-      background: `var(--color-${TAB_COLOUR[here] ?? 'accent'}-500)`,
     });
   }, [here]);
 
   return (
-    <nav aria-label="Stickers" className="shrink-0 border-b border-ink-200 bg-paper px-2 sm:px-4">
+    /*
+      `paper-50` rather than `paper`, which is white in every palette: on Night
+      a white band under a white bar is two white bands in a dark room. The page
+      below is `paper-50` too, so the bar now sits on the page rather than on a
+      slab of its own.
+    */
+    <nav aria-label="Stickers" className="shrink-0 border-b border-ink-200 bg-paper-50 px-2 sm:px-4">
       <ul className="relative mx-auto flex max-w-5xl items-stretch gap-1 overflow-x-auto">
         <span className="tab-underline" style={mark} aria-hidden="true" />
         {STICKER_TABS.map(({ href, label, icon, title }, n) => {
@@ -77,7 +84,7 @@ export function StickerTabs() {
                   'transition-colors duration-[var(--motion-base)]',
                   current ? 'font-[600]' : 'text-ink-700 hover:text-ink-900',
                 )}
-                style={current ? { color: `var(--color-${TAB_COLOUR[here] ?? 'accent'}-600)` } : undefined}
+                style={current ? { color: 'var(--color-accentb-700)' } : undefined}
               >
                 <span className="nudge">
                   <Icon size={17} />
@@ -87,22 +94,27 @@ export function StickerTabs() {
             </li>
           );
         })}
+
+        {/*
+          The trash, small and on the far right, in the red that means "this is
+          where things go when you take them away" everywhere else in the app.
+          It is a link, not a tab: there is one trash dialog and it lives on the
+          home screen, so this goes there rather than growing a copy.
+        */}
+        <li className="ml-auto flex items-center">
+          <Link
+            href="/?trash=1"
+            title="Thirty days, then gone"
+            className="nudge-hover flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-[12.5px]"
+            style={{ color: 'var(--color-accenta-700)' }}
+          >
+            <span className="nudge">
+              <TrashIcon size={15} />
+            </span>
+            Trash
+          </Link>
+        </li>
       </ul>
     </nav>
   );
 }
-
-/**
- * A colour per tab, from the palette's roles.
- *
- * Making a sticker is the lilac one because stickers are lilac throughout;
- * a sheet is printed, so it is clay; a pack is the sunny one; and the library
- * keeps the brand teal. The underline and the label take the same colour, so
- * the mark and the word agree.
- */
-const TAB_COLOUR: Record<string, string> = {
-  '/stickers': 'lilac',
-  '/stickers/sheet': 'clay',
-  '/stickers/packs': 'sun',
-  '/stickers/library': 'accent',
-};

@@ -356,9 +356,19 @@ export function Advanced({ title = 'Advanced', children }: { title?: string; chi
 export function DropZone({
   onFiles,
   busy,
+  compact = false,
 }: {
   onFiles: (files: FileList | null) => void;
   busy: boolean;
+  /**
+   * One row with a button, instead of a box you could park a car in.
+   *
+   * On the hub the drop zone is not the screen — what you have already made is
+   * — so it says the same thing in 56 pixels and gets out of the way. The
+   * marching dashes and the drop behaviour are identical; only the padding and
+   * the arrangement change.
+   */
+  compact?: boolean;
 }) {
   const [over, setOver] = useState(false);
 
@@ -388,19 +398,45 @@ export function DropZone({
         // here" without a word. The border is drawn as four repeating
         // gradients rather than as a dashed border, because a border cannot be
         // animated without the browser laying the box out again.
-        'dropzone block cursor-pointer px-8 py-14 text-center',
+        'cursor-pointer',
+        /*
+          The marching dashes are drawn as four repeating gradients sized to
+          200% of the box, which needs a box tall enough to show a cycle. At 56
+          pixels the two uprights come out as a tick each, so the compact one
+          takes a plain dashed border instead — the same border the Lab's strip
+          wears, which is where somebody meets this pattern next.
+        */
+        compact
+          ? cx(
+              'flex h-[56px] items-center gap-3 rounded-[6px] border border-dashed px-3',
+              // `.dropzone[data-over]` carries the tint for the big one; the
+              // compact one is not that class, so it says so itself.
+              over ? 'border-ink-900 bg-paper-100' : 'border-ink-300',
+            )
+          : 'dropzone block px-8 py-14 text-center',
         busy && 'pointer-events-none opacity-50',
       )}
     >
-      <span aria-hidden className="hop block text-[30px] leading-none">
-        ⬚
-      </span>
-      <span className="mt-3 block text-[16.5px] font-[570]">
-        {over ? 'Let go to open it' : 'Drop a picture here'}
-      </span>
-      <span className="mt-1 block text-[13.5px] text-ink-500">
-        or press to choose one — PNG, JPEG or WebP
-      </span>
+      {compact ? (
+        <>
+          <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink-500">
+            {over ? 'Let go to open it' : 'Drop a picture or choose a file'}
+          </span>
+          <span className="btn btn-accent shrink-0 px-4 py-2 text-[14px]">Choose file</span>
+        </>
+      ) : (
+        <>
+          <span aria-hidden className="hop block text-[30px] leading-none">
+            ⬚
+          </span>
+          <span className="mt-3 block text-[16.5px] font-[570]">
+            {over ? 'Let go to open it' : 'Drop a picture here'}
+          </span>
+          <span className="mt-1 block text-[13.5px] text-ink-500">
+            or press to choose one — PNG, JPEG or WebP
+          </span>
+        </>
+      )}
       <input
         type="file"
         accept="image/png,image/jpeg,image/webp"

@@ -444,10 +444,19 @@ export function StickerStudio() {
 
   /* ------------------------------------------------------------- the upload */
 
-  const take = async (chosen: File | undefined) => {
+  /**
+   * Opening a picture, optionally in the mode the hub asked for.
+   *
+   * The three "Start from" cards know something the studio cannot work out for
+   * itself — whether what you are holding is a photograph to cut out or a
+   * drawing to clean up — so they say, and the studio opens on that answer
+   * rather than on its own default. Saying nothing keeps the default.
+   */
+  const take = async (chosen: File | undefined, startMode?: Mode) => {
     if (!chosen) return;
     setProblem(null);
     setSaid(null);
+    if (startMode) setMode(startMode);
     try {
       // The same checks the rest of the app makes, and the same store. The
       // original goes in untouched and at full resolution; everything below
@@ -2033,7 +2042,7 @@ export function StickerStudio() {
         <StudioStart
           busy={busy}
           problem={problem}
-          onFiles={(files) => void take(files?.[0])}
+          onFiles={(files, startMode) => void take(files?.[0], startMode)}
           resumable={resumable}
           onResume={(draft) => void resume(draft)}
           onDiscard={(draft) => void discard(draft)}
