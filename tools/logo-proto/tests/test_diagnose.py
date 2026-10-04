@@ -59,3 +59,52 @@ def test_a_small_size_failure_and_loose_weights_are_reported():
     f = mask_facts(blob(spots=((100, 100, 60),)), (2000, 1500))
     out = diagnose(f, {"features": list("abcd")}, [v])
     assert any("32 px" in s for s in out) and any("thinner than the thinnest" in s for s in out)
+
+
+# ---- busyness: how many strokes are drawn inside the outline -----------------
+
+
+def _circle_outline(n=300, r=120):
+    yy, xx = np.mgrid[:n, :n]
+    d = np.hypot(yy - n / 2, xx - n / 2)
+    return (np.abs(d - r) <= 1.5), (d <= r + 1.5).astype(np.uint8) * 255
+
+
+def test_a_bare_outline_has_no_interior_strokes():
+    from logoproto.diagnose import busyness
+    ink, mask = _circle_outline()
+    assert busyness(ink, mask)["interior_strokes"] == 0
+
+
+def test_ten_separate_interior_lines_are_counted_as_ten():
+    from logoproto.diagnose import busyness
+    ink, mask = _circle_outline()
+    for k in range(10):
+        ink[80 + k * 14, 100:200] = True            # ten separate horizontal lines inside the circle
+    assert busyness(ink, mask)["interior_strokes"] == 10
+
+
+def test_texture_scores_far_higher_than_a_few_lines():
+    from logoproto.diagnose import busyness
+    ink, mask = _circle_outline()
+    rng = np.random.default_rng(1)
+    for _ in range(120):                              # 120 short scratches: seeds, fur, hatching
+        y, x = rng.integers(60, 240, 2)
+        ink[y, x:x + 20] = True
+    assert busyness(ink, mask)["interior_strokes"] > 60
+
+
+def test_short_flecks_are_not_strokes():
+    from logoproto.diagnose import busyness
+    ink, mask = _circle_outline()
+    for k in range(20):
+        ink[100 + k * 5, 150:156] = True            # 6 px flecks
+    assert busyness(ink, mask)["interior_strokes"] == 0
+
+
+def test_a_retry_the_current_check_would_not_have_made_says_so_instead_of_printing_nothing():
+    v = ok_variant()
+    v["attempt1"] = {"seed": 43, "check": {"passed": True, "reasons": []}}
+    f = mask_facts(blob(spots=((100, 100, 60),)), (2000, 1500))
+    out = diagnose(f, {"features": list("abcd")}, [v])
+    assert any("retry was not needed" in s for s in out) and not any(s.endswith("first seed 43: ).") for s in out)

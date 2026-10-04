@@ -68,18 +68,19 @@ def _card(name: str, d: dict) -> str:
             f'<p class="mono" style="margin:6px 0 0">peak {t.get("peak_gb", 0):.1f} GB</p></div>')
 
 
-def load(root: Path) -> dict[str, dict]:
+def load(root: Path, variants_file: str = "variants.json") -> dict[str, dict]:
     out: dict[str, dict] = {}
     for d in sorted(p for p in root.iterdir() if p.is_dir()):
-        if (d / "variants.json").exists():
-            out[d.name] = {"data": json.loads((d / "variants.json").read_text())}
+        if (d / variants_file).exists():
+            out[d.name] = {"data": json.loads((d / variants_file).read_text())}
         elif (d / "FAILED.json").exists():
             out[d.name] = {"failed": json.loads((d / "FAILED.json").read_text())}
     return out
 
 
-def build(root: Path, style: str = "minimal", node_target: int | None = 300, expected: list[str] | None = None) -> Path:
-    photos = load(root)
+def build(root: Path, style: str = "minimal", node_target: int | None = 300, expected: list[str] | None = None,
+          variants_file: str = "variants.json", out_name: str = "report.html", title_note: str = "") -> Path:
+    photos = load(root, variants_file)
     missing = [n for n in (expected or []) if n not in photos]
     allv = [(n, x) for n, d in photos.items() if "data" in d for x in d["data"]["variants"]]
     n_pass = sum(1 for _, x in allv if x["check"]["passed"])
@@ -122,11 +123,11 @@ def build(root: Path, style: str = "minimal", node_target: int | None = 300, exp
         f"<td class=mono>{d['data']['totals'].get('peak_gb', 0):.1f}</td></tr>"
         for n, d in photos.items() if "data" in d)
 
-    path = root / "report.html"
+    path = root / out_name
     path.write_text(
         f"<!doctype html><meta charset=utf-8><title>logo prototype - all photos</title>"
         f"<style>{CSS}{EXTRA_CSS}</style><h1>All photos, style {esc(style)}</h1>"
-        f"<p class=meta>FLUX.2 klein 4B 8-bit, edge-map guide. Every variation is shown, passing or not.</p>{summary}"
+        f"<p class=meta>FLUX.2 klein 4B 8-bit, edge-map guide. Every variation is shown, passing or not. {esc(title_note)}</p>{summary}"
         f"<h2>Contact sheet</h2><div class=sheet>{''.join(_card(n, d) for n, d in photos.items())}</div>"
         f"<h2>The hard ones</h2><p class=meta>Named in advance as likely to go wrong. Shown whether or not they did.</p>{hard or '<p>None in this run.</p>'}"
         f"<h2>Everything else the checks flagged</h2>{rest or '<p>Nothing.</p>'}"

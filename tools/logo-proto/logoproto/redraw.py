@@ -22,7 +22,8 @@ def fit_size(w: int, h: int, long_edge: int = 768, mult: int = 16) -> tuple[int,
     return max(mult, round(w * s / mult) * mult), max(mult, round(h * s / mult) * mult)
 
 
-def edge_guide(subject: Image.Image, mask: Image.Image, size: tuple[int, int]) -> Image.Image:
+def edge_guide(subject: Image.Image, mask: Image.Image, size: tuple[int, int],
+               interior_percentile: float = 88.0) -> Image.Image:
     """Black contour lines on white: the outline plus the strongest inner edges."""
     rgba = subject.convert("RGBA").resize(size, Image.LANCZOS)
     m = np.asarray(mask.resize(size, Image.BILINEAR)) > 127
@@ -32,18 +33,26 @@ def edge_guide(subject: Image.Image, mask: Image.Image, size: tuple[int, int]) -
     gx, gy = ndi.sobel(grey, axis=1), ndi.sobel(grey, axis=0)
     mag = np.hypot(gx, gy)
     inner = ndi.binary_erosion(m, iterations=6)
-    cut = np.percentile(mag[inner], 88) if inner.any() else mag.max()
+    cut = np.percentile(mag[inner], interior_percentile) if inner.any() else mag.max()
     edges = (mag > cut) & inner
     outline = m & ~ndi.binary_erosion(m, iterations=2)
     lines = ndi.binary_dilation(edges | outline, iterations=1)
     return Image.fromarray(np.where(lines, 0, 255).astype(np.uint8), "L").convert("RGB")
 
 
-def build_prompt(style: Style, analysis: dict) -> str:
+BUSY = "Few bold shapes, no texture lines, about 10 interior lines at most."
+
+
+def build_prompt(style: Style, analysis: dict, busy: bool = False) -> str:
+    """`busy` is for subjects made of texture (a burger's seeds and lettuce, fur, spokes): it asks for few
+    bold shapes and about ten interior lines, and drops the feature list, which names the very textures
+    (\"sesame seeds\", \"ruffled lettuce\") that the model then draws."""
     bits = [style.prompt]
+    if busy:
+        bits.append(BUSY)
     if analysis.get("subject"):
         bits.append(f"The subject is: {analysis['subject']}.")
-    if analysis.get("features"):
+    if analysis.get("features") and not busy:
         bits.append("Keep these recognisable: " + "; ".join(analysis["features"]) + ".")
     if analysis.get("style_prompt"):
         bits.append(analysis["style_prompt"])

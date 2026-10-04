@@ -86,6 +86,12 @@ def variant_row(v: dict) -> str:
     f = v.get("fidelity") or {}
     st = v.get("stats") or {}
     extra = ""
+    if c.get("coverage") is not None and "coverage" in c:
+        gp = c.get("gap_px")
+        extra += (f"<br>outline coverage {c['coverage']*100:.0f}%"
+                  f"<br>gap sealed {'none needed' if gp == 0 else (str(int(gp)) + ' px' if gp is not None else 'never sealed')}"
+                  f"<br>stray ink {c.get('stray', 0)*100:.0f}%"
+                  f"<br>old check said {c.get('legacy_iou', 0):.2f}")
     if f:
         extra += f"<br>on redraw {f['on_redraw']*100:.0f}%<br>kept {f['kept']*100:.0f}%"
     if st.get("weights"):

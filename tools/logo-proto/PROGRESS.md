@@ -11,9 +11,10 @@ Read `HANDOFF` context in the repo conversation notes, or the summary below.
 - Load/smoke tests: All 3 models verified individually with time and peak memory logged.
 - `LICENSES.md`: all three models marked "READ" (not "verified"): BiRefNet and Qwen cards state a licence tag and nothing else; the FLUX klein card has an unresolved caveat about BFL usage policies. Read it before shipping commercially.
 - Requirements pinned in `requirements.txt`.
-- Pancake run done (4/4 PASS, 512 s, peak 12.0 GB). Vector step then reworked (see 2026-10-04 15:00 below). Tests: 134 pass.
+- Pancake run done (4/4 PASS, 512 s, peak 12.0 GB). Vector step then reworked (see 2026-10-04 15:00 below). Tests: 180 pass.
 - `HANDOFF.md` does not exist; this file is the only handoff.
-- Full 11-photo run is NOT started: waiting for the owner's OK on the pancake v2 report.
+- Full 11-photo run DONE (results/run2/, one photo at a time, 22 variations, peak 12.2 GB, limit never hit). Re-scored with the current check; see the 2026-10-04 16:30 entry.
+- `HANDOFF.md`: the owner asked for an attached file to be saved here; nothing was attached and none exists on the Mac for this project (two others exist, for an unrelated project, `kavach`). NOT created.
 
 ## Log
 
@@ -65,3 +66,99 @@ Pancake v2 result (4 variations): 538-606 nodes, silhouette IoU 0.978-0.984, 77-
 - **Node target NOT met.** Asked 150-300; got 538-606 (about 2x). The drawing has ~60 enclosed loops and every stroke is an outline (two sides), so nodes follow detail. Hitting 300 needs a simpler redraw, centreline-stroke output (not VTracer), or solid fills.
 - Analysis: background no longer listed; colour/texture words stripped (7B model ignores the instruction, so this is a tested filter); a style sentence asking for colour falls back to a plain one. "crumbly bottom" shrank to a vague "bottom". The v2 analysis does NOT feed the existing raws: they were made with the old analysis.
 - Not touched: Next.js app, goldens, existing tests. No file deleted.
+
+### 2026-10-04 15:01 full run started: 11 photos, style minimal, 2 variations, one at a time, output results/run2/ (the earlier pancake results in results/pancake are untouched)
+
+### 2026-10-04 15:04 full run: pancake (3.5 min wall)
+- Subject: pancake stack; source 1829x2560, cutout 69% of the picture, 1 object(s). Peak memory 12.0 GB.
+- #1 seed 43: **PASS**, IoU 0.990, 592 nodes (OVER target 300), 12 shape(s), 83% of ink on the weights, 64px IoU 0.96 ok, 32px IoU 0.91 ok. Redraw 64s.
+- #2 seed 44: **PASS**, IoU 0.990, 645 nodes (OVER target 300), 15 shape(s), 77% of ink on the weights, 64px IoU 0.96 ok, 32px IoU 0.90 ok. Redraw 94s.
+
+### 2026-10-04 15:11 full run: bicycle (6.5 min wall)
+- Subject: Bicycle; source 474x644, cutout 25% of the picture, 1 object(s). Peak memory 12.0 GB.
+- #1 seed 1043: **FAIL** (retried), IoU 0.596, 768 nodes (OVER target 300), 2 shape(s), 60% of ink on the weights, 64px IoU 0.52 FAIL, 32px IoU 0.49 FAIL. Redraw 88s.
+- #2 seed 1044: **FAIL** (retried), IoU 0.595, 1078 nodes (OVER target 300), 4 shape(s), 70% of ink on the weights, 64px IoU 0.51 FAIL, 32px IoU 0.48 FAIL. Redraw 101s.
+- Flags: The source is small (474x644) and the redraw is generated at 768 px on the long edge, so the edge guide was enlarged 1.2x and any detail beyond what the photo holds was invented by the model. | Variation 1 FAILED: silhouette IoU 0.60 is below 0.80. | Variation 1 does not hold up at 64 px (silhouette IoU 0.52). | Variation 1 does not hold up at 32 px (silhouette IoU 0.49). | Variation 2 FAILED: silhouette IoU 0.59 is below 0.80. | Variation 2 does not hold up at 64 px (silhouette IoU 0.51). | Variation 2 does not hold up at 32 px (silhouette IoU 0.48).
+
+### 2026-10-04 15:16 full run: burger (5.3 min wall)
+- Subject: Double Cheeseburger; source 1392x2088, cutout 69% of the picture, 1 object(s). Peak memory 12.1 GB.
+- #1 seed 43: **PASS**, IoU 0.941, 613 nodes (OVER target 300), 13 shape(s), 70% of ink on the weights, 64px IoU 0.94 ok, 32px IoU 0.62 FAIL. Redraw 73s.
+- #2 seed 1044: **FAIL** (retried), IoU 0.141, 645 nodes (OVER target 300), 12 shape(s), 80% of ink on the weights, 64px IoU 0.92 ok, 32px IoU 0.62 FAIL. Redraw 96s.
+- Flags: Variation 1 does not hold up at 32 px (silhouette IoU 0.62). | Variation 2 FAILED: silhouette IoU 0.14 is below 0.80. | Variation 2 does not hold up at 32 px (silhouette IoU 0.62).
+
+### 2026-10-04 15:23 full run: cats (6.6 min wall)
+- Subject: Two Cats; source 1600x1054, cutout 52% of the picture, 1 object(s). Peak memory 12.0 GB.
+- #1 seed 1043: **FAIL** (retried), IoU 0.126, 518 nodes (OVER target 300), 14 shape(s), 72% of ink on the weights, 64px IoU 0.28 FAIL, 32px IoU 0.36 FAIL. Redraw 94s.
+- #2 seed 1044: **FAIL** (retried), IoU 0.136, 583 nodes (OVER target 300), 12 shape(s), 73% of ink on the weights, 64px IoU 0.32 FAIL, 32px IoU 0.37 FAIL. Redraw 103s.
+- Flags: Variation 1 FAILED: silhouette IoU 0.13 is below 0.80. | Variation 1 does not hold up at 64 px (silhouette IoU 0.28). | Variation 1 does not hold up at 32 px (silhouette IoU 0.36). | Variation 2 FAILED: silhouette IoU 0.14 is below 0.80. | Variation 2 does not hold up at 64 px (silhouette IoU 0.32). | Variation 2 does not hold up at 32 px (silhouette IoU 0.37).
+
+### 2026-10-04 15:26 full run: coffee (3.0 min wall)
+- Subject: Coffee cup; source 1100x738, cutout 59% of the picture, 1 object(s). Peak memory 11.9 GB.
+- #1 seed 43: **PASS**, IoU 0.948, 299 nodes (within target 300), 4 shape(s), 82% of ink on the weights, 64px IoU 0.92 ok, 32px IoU 0.89 ok. Redraw 58s.
+- #2 seed 44: **PASS**, IoU 0.952, 315 nodes (OVER target 300), 7 shape(s), 75% of ink on the weights, 64px IoU 0.92 ok, 32px IoU 0.89 ok. Redraw 88s.
+
+### 2026-10-04 15:30 full run: cupcake (4.3 min wall)
+- Subject: cupcake; source 1200x1800, cutout 56% of the picture, 1 object(s). Peak memory 12.0 GB.
+- #1 seed 1043: **FAIL** (retried), IoU 0.640, 357 nodes (OVER target 300), 11 shape(s), 83% of ink on the weights, 64px IoU 0.68 FAIL, 32px IoU 0.68 FAIL. Redraw 78s.
+- #2 seed 44: **PASS**, IoU 0.980, 320 nodes (OVER target 300), 8 shape(s), 75% of ink on the weights, 64px IoU 0.68 FAIL, 32px IoU 0.60 FAIL. Redraw 94s.
+- Flags: Variation 1 FAILED: silhouette IoU 0.64 is below 0.80. | Variation 1 does not hold up at 64 px (silhouette IoU 0.68). | Variation 1 does not hold up at 32 px (silhouette IoU 0.68). | Variation 2 does not hold up at 64 px (silhouette IoU 0.68). | Variation 2 does not hold up at 32 px (silhouette IoU 0.60).
+
+### 2026-10-04 15:38 full run: flowerbouquet (8.1 min wall)
+- Subject: Flower Bouquet; source 3000x3000, cutout 47% of the picture, 1 object(s). Peak memory 12.2 GB.
+- #1 seed 1043: **PASS** (retried), IoU 0.952, 1421 nodes (OVER target 300), 8 shape(s), 68% of ink on the weights, 64px IoU 0.78 ok, 32px IoU 0.74 FAIL. Redraw 90s.
+- #2 seed 1044: **PASS** (retried), IoU 0.964, 1257 nodes (OVER target 300), 5 shape(s), 52% of ink on the weights, 64px IoU 0.74 FAIL, 32px IoU 0.73 FAIL. Redraw 97s.
+- Flags: Variation 1 needed a retry (first seed 43: silhouette IoU 0.72 is below 0.80). | Variation 1 does not hold up at 32 px (silhouette IoU 0.74). | Variation 2 needed a retry (first seed 44: silhouette IoU 0.71 is below 0.80). | Variation 2 does not hold up at 64 px (silhouette IoU 0.74). | Variation 2 does not hold up at 32 px (silhouette IoU 0.73).
+
+### 2026-10-04 15:43 full run: kitten (5.1 min wall)
+- Subject: cat; source 700x350, cutout 63% of the picture, 1 object(s). Peak memory 12.2 GB.
+- #1 seed 43: **PASS**, IoU 0.979, 1441 nodes (OVER target 300), 29 shape(s), 70% of ink on the weights, 64px IoU 0.94 ok, 32px IoU 0.92 ok. Redraw 76s.
+- #2 seed 1044: **FAIL** (retried), IoU 0.139, 776 nodes (OVER target 300), 33 shape(s), 79% of ink on the weights, 64px IoU 0.38 FAIL, 32px IoU 0.92 ok. Redraw 101s.
+- Flags: The source is small (700x350) and the redraw is generated at 768 px on the long edge, so the edge guide was enlarged 1.1x and any detail beyond what the photo holds was invented by the model. | Variation 2 FAILED: silhouette IoU 0.14 is below 0.80. | Variation 2 does not hold up at 64 px (silhouette IoU 0.38).
+
+### 2026-10-04 15:51 full run: london_eye (7.5 min wall)
+- Subject: Ferris Wheel; source 2000x1334, cutout 19% of the picture, 1 object(s). Peak memory 12.1 GB.
+- #1 seed 1043: **FAIL** (retried), IoU 0.303, 1236 nodes (OVER target 300), 2 shape(s), 56% of ink on the weights, 64px IoU 0.24 FAIL, 32px IoU 0.22 FAIL. Redraw 105s.
+- #2 seed 1044: **FAIL** (retried), IoU 0.247, 1025 nodes (OVER target 300), 2 shape(s), 60% of ink on the weights, 64px IoU 0.24 FAIL, 32px IoU 0.22 FAIL. Redraw 103s.
+- Flags: Variation 1 FAILED: silhouette IoU 0.30 is below 0.80. | Variation 1 does not hold up at 64 px (silhouette IoU 0.24). | Variation 1 does not hold up at 32 px (silhouette IoU 0.22). | Variation 2 FAILED: silhouette IoU 0.25 is below 0.80. | Variation 2 does not hold up at 64 px (silhouette IoU 0.24). | Variation 2 does not hold up at 32 px (silhouette IoU 0.22).
+
+### 2026-10-04 15:54 full run: puppy (3.0 min wall)
+- Subject: Siberian Husky Puppy; source 405x720, cutout 64% of the picture, 1 object(s). Peak memory 12.0 GB.
+- #1 seed 43: **PASS**, IoU 0.981, 657 nodes (OVER target 300), 13 shape(s), 69% of ink on the weights, 64px IoU 0.94 ok, 32px IoU 0.88 ok. Redraw 54s.
+- #2 seed 44: **PASS**, IoU 0.986, 558 nodes (OVER target 300), 20 shape(s), 68% of ink on the weights, 64px IoU 0.94 ok, 32px IoU 0.41 FAIL. Redraw 98s.
+- Flags: The source is small (405x720) and the redraw is generated at 768 px on the long edge, so the edge guide was enlarged 1.1x and any detail beyond what the photo holds was invented by the model. | Variation 2 does not hold up at 32 px (silhouette IoU 0.41).
+
+### 2026-10-04 15:59 full run: vishansoudha (4.7 min wall)
+- Subject: Government Building; source 736x981, cutout 53% of the picture, 1 object(s). Peak memory 12.0 GB.
+- #1 seed 43: **PASS**, IoU 0.971, 844 nodes (OVER target 300), 4 shape(s), 63% of ink on the weights, 64px IoU 0.77 ok, 32px IoU 0.81 ok. Redraw 57s.
+- #2 seed 1044: **FAIL** (retried), IoU 0.687, 899 nodes (OVER target 300), 6 shape(s), 64% of ink on the weights, 64px IoU 0.78 ok, 32px IoU 0.81 ok. Redraw 94s.
+- Flags: Variation 2 FAILED: silhouette IoU 0.69 is below 0.80.
+
+### 2026-10-04 15:59 full run finished. Combined report: results/run2/report.html
+
+### 2026-10-04 16:30 (Claude Code: full run reviewed; check replaced; crowd rule; busy prompt)
+**Full run (results/run2/, original check, original vector settings).** 11 photos, 22 variations, one process per photo, 57 min pipeline time, peak 12.2 GB. Old check: 12 pass / 10 fail. Nodes 299-1441, median 657; 21 of 22 OVER the 300 target (coffee #1, 299, is the one that is not). Nothing outright failed at cutout/analyse/redraw.
+
+**Why burger #1 scored 0.94 and burger #2 scored 0.14 (drawings that look alike).** The old check filled the SVG's enclosed areas and compared that to the cutout. Burger #2's outline has a small break (about 16 px by the gap estimate); the fill leaked out of it, so the filled shape was 10% of the frame instead of 67%. Outline coverage was the same for both (85%). At 8 px of closing, #2 scored 0.928. It was a cliff, not a measurement of how alike they are.
+
+**The old check was wrong three ways, found by looking at the pictures and not the numbers:**
+1. Gap cliff, above.
+2. A cutout with holes (bicycle wheels): a FILLED drawing was compared to a mask with the holes still in it. IoU 0.59 against the cutout, 0.95 against its outer shape.
+3. A subject cropped by the photo's edge (both cats run off the bottom): no outline there, the fill leaks. IoU 0.25.
+**Replacement** (`logoproto/check.py`): PASS needs outline coverage >= 80% (share of the cutout's boundary, holes included, with ink within ~0.6% of the long edge) AND gap-tolerant filled IoU >= 0.80 against the cutout's OUTER shape, with the frame treated as a wall where the cutout touches it. Also reported: the widest outline gap in px, stray ink, and the old number. The 64/32 px tests had the same two bugs and got the same fixes.
+**Result:** 22/22 variations pass; every one of the 12 retries was unnecessary (the first attempt passes), about 19 minutes of FLUX time. 44/44 size tests pass (7 failed before; all artefacts).
+**Negative control** (do not skip this): scored each photo's drawing against every OTHER photo's cutout, 110 wrong pairings. Full check accepts 0. IoU alone would accept 14; coverage alone accepts 0. Coverage does the discriminating, IoU adds "the outline encloses the shape". Caveat: all drawings were guided by their own cutout's edges, so matching outlines is expected; the check is not evidence of a GOOD logo, only of a faithful silhouette.
+
+**Hard photos, honestly.**
+- cats: both variations FAILED under the old check (IoU 0.13). Cause: the photo crops both cats at the bottom, so the fill leaked. Not a drawing failure. Passes now (IoU 0.93). Not what you might assume: BiRefNet merged the two cats into ONE connected cutout (1 object), so the "several objects" flag did not fire. Both cats are drawn. Whether a two-cat mark is wanted is a design call.
+- vishansoudha #2: FAIL (0.69) under the old check, pass now (0.915): holes in the building's cutout.
+- kitten #2: FAIL (0.14) old check; a 6 px outline gap; passes now (0.97). Kitten #1 is dense: 1,441 nodes and 29 shapes. Source is 700x350.
+- puppy: both pass; source 405x720 (enlarged ~1.1x, so some detail is the model's invention).
+- bicycle and london_eye: failed under the old check because of the wheel holes. Both pass now. They are the densest drawings and the ones with the fused black wedges.
+
+**Vector step: lines closer than ~2 stroke widths are no longer thickened** (`strokes.py`, `crowd_factor=2.0`). First attempt compared skeleton branches and exempted junction neighbourhoods; a hatched patch is a mesh of junctions, so nearly everything was exempt and nothing changed (bicycle blob area 2.5% -> 2.2%). Replaced with white-space clearance: a stroke may grow only to spacing/2, never below 3 px, and the curve-fit tolerance is now capped at 40% of the thinnest stroke (a fixed 2 px deleted the thin strokes and dropped bicycle IoU to 0.49). The other source of blobs was the pancake-tuned hole filling (small white cells between spokes become solid black); `minimal` now has `hole_frac=0`.
+Bicycle before -> after (same redraw, same code measuring both): solid areas thicker than 12 px 2.46% -> 0.00% and 2.56% -> 0.00%; outline coverage 0.91 -> 0.99 and 0.96 -> 1.00; IoU 0.949 -> 0.951 and 0.940 -> 0.947. **Cost: nodes 768 -> 1,825 and 1,078 -> 1,867.** Across all 12 finished results: blobs 0.80% -> 0.06%, nodes 561 -> 1,187 mean (about 2.1x), share of ink on the three weights lower (crowded strokes are held thin on purpose). `--compact` restores the old settings exactly. Which default to keep is the owner's call; the new one is the default because fused lines were reported as the defect.
+Page: `results/run2/bicycle/before-after.html`.
+
+**Busy-subject prompt** (`--busy`, and `--sparse-guide`). Burger, interior strokes drawn inside the outline (target about 10): normal prompt 108 / 89; `--busy` 101 / 96 (the model copies the guide's lines and ignores the words); `--busy --sparse-guide` (guide keeps the top 3% of interior edges, not 12%) 46 / 39, interior ink 14% -> 5%, nodes 698 / 573. Still about 4x the target and it loses some layering. Not tried: a sparser guide still, or an explicit stroke budget. The measure is `diagnose.busyness`.
+
+**Decisions waiting on the owner:** (1) keep the new vector default (no fusing, ~2x nodes) or `--compact`; (2) is `--busy --sparse-guide` worth making the default for busy subjects; (3) the 300-node target is still unmet on 21 of 22 results.

@@ -34,6 +34,9 @@ def run(folder: Path, style_name: str, params: CheckParams, out_name: str = "v2"
     analysis = json.loads(a2.read_text()) if a2.exists() else (json.loads(a1.read_text()) if a1.exists() else {})
     old = json.loads((folder / "timings.json").read_text()) if (folder / "timings.json").exists() else {}
     seeds = {}
+    vj = folder / "variants.json"
+    if vj.exists():                                   # a run made by run_all.py / proto.py keeps its seeds here
+        seeds = {x["n"]: str(x["seed"]) for x in json.loads(vj.read_text()).get("variants", [])}
     for r in old.get("stages", []):
         m = re.match(r".*redraw #(\d+)( \(retry\))?$", r["stage"])
         if m:

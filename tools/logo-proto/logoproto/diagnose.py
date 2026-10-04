@@ -54,7 +54,11 @@ def diagnose(facts: dict, analysis: dict, variants: list[dict], long_edge: int =
             out.append(f"Variation {v['n']} FAILED: " + "; ".join(c["reasons"]) + ".")
         elif v.get("attempt1"):
             a = v["attempt1"]
-            out.append(f"Variation {v['n']} needed a retry (first seed {a['seed']}: " + "; ".join(a["check"]["reasons"]) + ").")
+            if a["check"].get("passed"):
+                out.append(f"Variation {v['n']} was retried (first seed {a['seed']}) by the earlier check, but that first attempt "
+                           "passes the current one: the retry was not needed.")
+            else:
+                out.append(f"Variation {v['n']} needed a retry (first seed {a['seed']}: " + "; ".join(a["check"]["reasons"]) + ").")
         r = (v.get("stats") or {}).get("rungs")
         if r and r["thinner"] > 0.25:
             out.append(f"Variation {v['n']}: {r['thinner']:.0%} of the ink is thinner than the thinnest weight, so the three weights are loose.")
@@ -62,3 +66,27 @@ def diagnose(facts: dict, analysis: dict, variants: list[dict], long_edge: int =
             if not s["passed"]:
                 out.append(f"Variation {v['n']} does not hold up at {s['size']} px (silhouette IoU {s['iou']:.2f}).")
     return out
+
+
+def busyness(raw_ink: np.ndarray, mask: np.ndarray, inset_px: int = 8, min_len: int = 15) -> dict:
+    """How many separate strokes are drawn INSIDE the outline of the subject.
+
+    The outline itself is not counted, and neither are the pixels within `inset_px` of it. What is left
+    of the skeleton is cut at its junctions and the pieces at least `min_len` px long are counted. A
+    clean mark has about ten; a burger drawn with every seed and lettuce frill has hundreds.
+    """
+    from .strokes import _neighbours, thin
+
+    m = ndi.binary_fill_holes(np.asarray(mask) > 127)
+    interior = ndi.binary_erosion(m, iterations=inset_px)
+    skel = thin(np.asarray(raw_ink).astype(bool)) & interior
+    if not skel.any():
+        return {"interior_strokes": 0, "interior_len": 0, "interior_ink": 0.0}
+    junction = skel & (_neighbours(skel) * skel >= 3)
+    pieces, n = ndi.label(skel & ~ndi.binary_dilation(junction, iterations=1), structure=np.ones((3, 3)))
+    sizes = ndi.sum(np.ones_like(pieces), pieces, range(1, n + 1)) if n else []
+    return {
+        "interior_strokes": int(sum(1 for s in sizes if s >= min_len)),
+        "interior_len": int(skel.sum()),
+        "interior_ink": float((np.asarray(raw_ink).astype(bool) & interior).sum() / max(1, interior.sum())),
+    }

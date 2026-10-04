@@ -29,7 +29,7 @@ from logoproto.diagnose import diagnose, mask_facts
 from logoproto.pipeline import vectorise
 from logoproto.profile import Profile
 from logoproto.report import write_report
-from logoproto.styles import ALIASES, STYLES, get_style
+from logoproto.styles import ALIASES, STYLES, compact, get_style
 
 EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 
@@ -51,6 +51,12 @@ def args_parser() -> argparse.ArgumentParser:
     a.add_argument("--min-iou", type=float, default=CheckParams.min_iou)
     a.add_argument("--max-shapes", type=int, default=CheckParams.max_shapes)
     a.add_argument("--max-nodes", type=int, default=CheckParams.max_nodes)
+    a.add_argument("--busy", action="store_true",
+                   help="for busy subjects: ask for few bold shapes, no texture lines, ~10 interior lines at most")
+    a.add_argument("--sparse-guide", action="store_true",
+                   help="keep only the strongest interior edges in the guide image (top 3%% instead of top 12%%)")
+    a.add_argument("--compact", action="store_true",
+                   help="the earlier vector settings: fill small holes and thicken everything (about half the nodes, but fuses dense lines)")
     a.add_argument("--memory-limit-gb", type=float, default=28.0)
     a.add_argument("--only", help="only photos whose name contains this")
     return a
@@ -68,6 +74,8 @@ def log(msg: str) -> None:
 def main() -> int:
     args = args_parser().parse_args()
     style = get_style(args.style)
+    if args.compact:
+        style = compact(style)
     photos = find_photos(args.photos, args.only)
     if not photos:
         print(f"no photos found in {args.photos}. Put images in it and run again.", file=sys.stderr)
@@ -167,12 +175,12 @@ def main() -> int:
         subject, cmask = cut[name]
         size = fit_size(subject.width, subject.height, args.long_edge)
         guide_path, subj_path = d / "guide.png", d / "subject-guide.png"
-        edge_guide(subject, cmask, size).save(guide_path)
+        edge_guide(subject, cmask, size, 97.0 if args.sparse_guide else 88.0).save(guide_path)
         white = Image.new("RGBA", subject.size, (255, 255, 255, 255))
         Image.alpha_composite(white, subject.convert("RGBA")).convert("RGB").resize(size, Image.LANCZOS).save(subj_path)
         refs = {"subject": [str(subj_path)], "edges": [str(guide_path)],
                 "both": [str(subj_path), str(guide_path)]}[args.guide]
-        prompt = build_prompt(style, analyses[name])
+        prompt = build_prompt(style, analyses[name], busy=args.busy)
         mask_np = np.asarray(cmask.resize(size, Image.BILINEAR))
 
         def attempt(n: int, seed: int, tag: str):

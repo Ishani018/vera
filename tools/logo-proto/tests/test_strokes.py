@@ -159,3 +159,81 @@ def test_local_thickness_reads_the_true_width_at_every_angle(angle, width):
     mid = local_thickness(band & _band(angle, width, length=120))[_band(angle, width, length=120)]
     assert abs(np.median(mid) - width) <= 1.5, (angle, width, np.median(mid))
     assert (interior >= width - 2).mean() > 0.9, (angle, width, (interior >= width - 2).mean())
+
+
+# ---- crowded lines are not fused -------------------------------------------
+
+
+def _two_lines(spacing, thickness=1, length=160):
+    img = np.zeros((80, length + 40), bool)
+    img[30:30 + thickness, 20:20 + length] = True
+    img[30 + spacing:30 + spacing + thickness, 20:20 + length] = True
+    return img
+
+
+def _components(a):
+    return ndi.label(a)[1]
+
+
+def test_without_the_crowd_rule_close_lines_fuse():
+    """The failure, stated as a test: two lines 4 px apart thickened to the 5 px weight become one blob."""
+    out, _ = normalise(_two_lines(4), StrokeParams(ladder=(5, 7, 11), min_stroke_px=10, crowd_factor=0))
+    assert _components(out) == 1
+
+
+def test_close_lines_stay_two_lines_with_a_gap():
+    out, info = normalise(_two_lines(4), StrokeParams(ladder=(5, 7, 11), min_stroke_px=10))
+    assert _components(out) == 2
+    rows = np.flatnonzero(out[:, 120])
+    assert np.diff(rows).max() >= 2                  # a real white channel between them
+    assert info.crowded_px > 100
+
+
+def test_the_gap_left_between_close_lines_is_wide_enough_to_see():
+    out, _ = normalise(_two_lines(8), StrokeParams(ladder=(5, 7, 11), min_stroke_px=10))
+    ink_rows = np.flatnonzero(out[:, 120])
+    assert np.diff(ink_rows).max() >= 4  # at least a 3 px white channel at 8 px spacing
+
+
+def test_well_spaced_lines_are_still_snapped_to_the_ladder():
+    out, info = normalise(_two_lines(40, thickness=2), StrokeParams(ladder=(5, 7, 11), min_stroke_px=10))
+    lab, n = ndi.label(out)
+    w = [np.median(measure_widths(lab == i)) for i in range(1, n + 1)]
+    assert n == 2 and all(abs(x - 5) <= 1 for x in w) and info.crowded_px == 0
+
+
+def test_a_junction_is_not_mistaken_for_a_crowd():
+    ink = np.zeros((120, 120), bool)
+    for ang in (0, 120, 240):                      # three arms meeting at the centre
+        a = np.radians(ang)
+        for t in np.linspace(0, 50, 200):
+            y, x = int(60 + t * np.sin(a)), int(60 + t * np.cos(a))
+            ink[y, x] = True
+    ink = ndi.binary_dilation(ink, iterations=1)
+    out, info = normalise(ink, StrokeParams(ladder=(5, 7, 11), min_stroke_px=10))
+    assert _components(out) == 1
+    far = out[60 - 50:60 + 50, 60 + 30:60 + 50]    # out along one arm, past the junction
+    assert far.any()
+    assert info.crowded_px < 0.15 * info.skeleton_px
+
+
+def test_spokes_keep_their_separate_arms_away_from_the_hub():
+    """The bicycle wheel: many spokes converging. Near the rim they must stay apart."""
+    yy, xx = np.mgrid[:240, :240]
+    ink = np.zeros((240, 240), bool)
+    for ang in range(0, 360, 20):                  # 18 spokes
+        a = np.radians(ang)
+        for t in np.linspace(8, 110, 500):
+            ink[int(120 + t * np.sin(a)), int(120 + t * np.cos(a))] = True
+    old, _ = normalise(ink, StrokeParams(ladder=(5, 7, 11), min_stroke_px=10, crowd_factor=0))
+    new, info = normalise(ink, StrokeParams(ladder=(5, 7, 11), min_stroke_px=10))
+    ring = (np.hypot(yy - 120, xx - 120) > 60) & (np.hypot(yy - 120, xx - 120) < 110)
+    assert _components(new & ring) >= 15            # the spokes are still separate arms out here
+    assert new.sum() < old.sum()                    # and less ink was spent fusing them near the hub
+    assert info.crowded_px > 0
+
+
+def test_a_crowded_line_is_never_drawn_thinner_than_the_floor():
+    out, info = normalise(_two_lines(3), StrokeParams(ladder=(5, 7, 11), min_stroke_px=10, crowd_min_radius=1))
+    assert info.thinnest_px >= 3.0
+    assert _components(out) >= 1 and out.sum() > 0

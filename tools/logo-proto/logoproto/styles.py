@@ -20,6 +20,7 @@ class Style:
     min_stroke_frac: float = 0.05    # loose strokes shorter than this share of the long edge are dropped
     min_spur_frac: float = 0.012
     hole_frac: float = 0.0           # enclosed white areas smaller than this share of the picture are filled
+    crowd_factor: float = 2.0        # lines closer than this many stroke widths are not thickened (0 = off)
 
 
 def stroke_params(style: "Style", long_edge: int) -> StrokeParams:
@@ -29,6 +30,7 @@ def stroke_params(style: "Style", long_edge: int) -> StrokeParams:
         min_spur_px=max(3, int(style.min_spur_frac * long_edge)),
         min_stroke_px=max(8, int(style.min_stroke_frac * long_edge)),
         hole_frac=style.hole_frac,
+        crowd_factor=style.crowd_factor,
     )
 
 
@@ -45,10 +47,13 @@ STYLES: dict[str, Style] = {
         "Uniform thin line weight, lots of white space.",
         6, 60, CleanupParams(min_area_frac=0.0004, simplify_eps=1.0, node_budget=300, snap_vector=False,
                       presimplify_eps=0.8),  # 0.35->0.8 cut nodes ~25% for ~3 points of weight accuracy; see sweep in PROGRESS.md
+        # hole_frac was 0.002 (tuned on the pancake). On a dense subject it turns the small white cells between
+        # spokes and hatching into solid black wedges (bicycle: 2.5% of the frame), so it is off by default now,
+        # and the crowd rule keeps close lines apart. Cost: about twice the nodes. compact() restores the old settings.
         # Measured on the pancake, not guessed. Weights of 0.4/0.65/0.9% of the long edge (3/5/7 px at 768)
         # broke the outline as soon as any detail was removed; 0.6/1.0/1.4% (5/7/11 px) did not, and passes
         # at 32 px. Hole filling above 0.2% turns small gaps into solid black lumps, so it stops there.
-        ladder_frac=(0.006, 0.010, 0.014), min_stroke_frac=0.07, hole_frac=0.002,
+        ladder_frac=(0.006, 0.010, 0.014), min_stroke_frac=0.07, hole_frac=0.0, crowd_factor=2.0,
     ),
     "bold": Style(
         "bold",
@@ -85,3 +90,10 @@ def get_style(name: str) -> Style:
     if key not in STYLES:
         raise SystemExit(f"unknown style {name!r}; choose from {', '.join(STYLES)}")
     return STYLES[key]
+
+
+def compact(style: "Style") -> "Style":
+    """The earlier vector settings: fill small holes, thicken everything. About half the nodes, but on a
+    dense subject (spokes, fur, hatching) it fuses close lines into solid blobs."""
+    import dataclasses
+    return dataclasses.replace(style, hole_frac=0.002, crowd_factor=0.0)

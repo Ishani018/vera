@@ -5,6 +5,7 @@ that already exist, so tuning it never costs another 60-90 s of FLUX per picture
 """
 from __future__ import annotations
 
+import dataclasses
 import time
 from dataclasses import dataclass, field
 
@@ -50,7 +51,14 @@ def vectorise(raw: Image.Image, style: Style, mask: np.ndarray, params: CheckPar
     t["trace"] = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    doc, st = cu.cleanup(parse_svg(svg_raw), style.cleanup)
+    # The fit's tolerance must stay under ~40% of the thinnest stroke drawn. A fixed 2 px deleted the 1-3 px
+    # strokes that the crowd rule keeps thin (bicycle IoU 0.949 -> 0.485); scaling it keeps them.
+    cl = style.cleanup
+    if sinfo.thinnest_px:
+        cap = max(0.5, 0.4 * sinfo.thinnest_px)
+        cl = dataclasses.replace(cl, simplify_eps_max=min(cl.simplify_eps_max, cap), simplify_eps=min(cl.simplify_eps, cap),
+                                 presimplify_eps=min(cl.presimplify_eps, cap / 2))
+    doc, st = cu.cleanup(parse_svg(svg_raw), cl)
     svg = write_svg(doc, smooth=True)
     t["cleanup"] = time.perf_counter() - t0
 

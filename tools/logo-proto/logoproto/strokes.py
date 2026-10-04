@@ -129,6 +129,8 @@ class StrokeParams:
     fill_frac: float = 0.06
     smooth_px: int = 9
     hole_frac: float = 0.0   # enclosed white areas under this share of the picture are filled: tiny loops are detail, not shape
+    crowd_factor: float = 2.0  # lines closer than this many stroke widths are NOT thickened (0 = always thicken)
+    crowd_min_radius: int = 1  # ...but never drawn thinner than 2*this+1 px: a 1 px line does not survive curve fitting
 
 
 @dataclass
@@ -139,6 +141,8 @@ class StrokeInfo:
     loose_removed: int = 0
     skeleton_px: int = 0
     holes_filled: int = 0
+    crowded_px: int = 0          # skeleton pixels held thin because another line was too close
+    thinnest_px: float = 0.0     # the thinnest stroke actually drawn; the curve fit's tolerance has to stay under about 40% of it
 
 
 def normalise(ink: np.ndarray, p: StrokeParams | None = None) -> tuple[np.ndarray, StrokeInfo]:
@@ -183,16 +187,51 @@ def normalise(ink: np.ndarray, p: StrokeParams | None = None) -> tuple[np.ndarra
     # A disk of radius r drawn on a 1-px centreline is 2*floor(r)+1 px wide, so
     # only odd widths exist. Use r = (target-1)/2 so an odd target lands exactly,
     # and report the width actually drawn rather than the one asked for.
-    out = fills.copy()
+    radius = np.zeros(ink.shape, np.float32)
     drawn = []
     for c, target in enumerate(targets):
         r = max(0.0, (target - 1) / 2.0)
         drawn.append(float(2 * np.floor(r) + 1))
-        layer = stroke_skel & (cls == c)
-        if layer.any():
-            out |= ndi.distance_transform_edt(~layer) <= r + 1e-6
+        radius[stroke_skel & (cls == c)] = r
+
+    # Where another line is closer than crowd_factor stroke widths, do not thicken it to the weight.
+    # Centre-to-centre spacing is about (this stroke's width + the white gap beside it); a stroke may
+    # grow to spacing / crowd_factor, never narrower than the width it already has.
+    if p.crowd_factor > 0:
+        gap = clearance(ink, stroke_skel, reach=max(3, int(max(targets) / 2) - 1))
+        spacing = np.where(np.isfinite(gap), local + gap, np.inf)
+        w_allowed = np.maximum(spacing / p.crowd_factor, np.maximum(local, 1.0))
+        allowed = np.where(np.isfinite(w_allowed), np.floor((w_allowed - 1) / 2.0), np.inf)
+        # smooth along the line so the width does not flicker: the smallest allowance in the neighbourhood wins
+        cap = np.where(stroke_skel, np.minimum(allowed, 1e6), 1e6)
+        cap = ndi.minimum_filter(cap, size=5)
+        cap = np.maximum(cap, float(p.crowd_min_radius))
+        capped = stroke_skel & (cap < radius)
+        info.crowded_px = int(capped.sum())
+        radius = np.where(capped, np.minimum(radius, cap), radius)
+
+    info.thinnest_px = float(2 * np.floor(radius[stroke_skel].min()) + 1) if stroke_skel.any() else 0.0
+    out = fills.copy()
+    for r in np.unique(radius[stroke_skel]):
+        layer = stroke_skel & (radius == r)
+        out |= ndi.distance_transform_edt(~layer) <= float(r) + 1e-6
     info.weights_px = [round(d, 2) for d in drawn]
     return out, info
+
+
+def clearance(ink: np.ndarray, skel: np.ndarray, reach: int = 4, max_r: int = 24) -> np.ndarray:
+    """The white space beside each skeleton pixel: the narrowest white gap within `reach` px of it (inf if none).
+
+    This is what decides whether a stroke can be thickened. Two lines whose white gap is c fuse when
+    each is grown by about c/2 on the side facing the other. An earlier version compared different
+    skeleton BRANCHES and exempted the area around junctions, but a hatched patch (the shading
+    between a wheel's spokes) is a dense mesh of junctions, so almost all of it was exempt and the
+    rule did nothing. Measuring the gap directly has no such blind spot.
+    """
+    white = local_thickness(~ink, max_r=max_r)
+    beside = np.where(ink, np.inf, np.where(white > 0, white, np.inf)).astype(np.float32)
+    near = ndi.minimum_filter(beside, size=2 * reach + 1)
+    return np.where(skel, near, np.inf).astype(np.float32)
 
 
 def measure_widths(ink: np.ndarray, p: StrokeParams | None = None) -> np.ndarray:

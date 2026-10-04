@@ -76,4 +76,5 @@ def test_no_shapes_fails():
 
 def test_as_dict_round_trip():
     d = check(ring_svg(), shapes=1, nodes=8, mask=disc_mask()).as_dict()
-    assert set(d) == {"passed", "iou", "shapes", "nodes", "ink_fraction", "reasons"}
+    assert set(d) == {"passed", "iou", "shapes", "nodes", "ink_fraction", "reasons",
+                      "coverage", "legacy_iou", "gap_px", "stray"}

@@ -184,7 +184,7 @@ def test_a_closed_outline_matches_its_cutout():
 
 
 def test_an_outline_with_a_gap_fails_on_iou():
-    r = check(outline_svg(False), shapes=1, nodes=12, mask=square_mask(), p=CheckParams(close_px=1))
+    r = check(outline_svg(False), shapes=1, nodes=12, mask=square_mask())  # a 20 px gap: too wide to be sealed
     assert not r.passed and any("IoU" in x for x in r.reasons), r
 
 
