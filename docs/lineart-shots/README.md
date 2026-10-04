@@ -34,6 +34,29 @@ claim in the log has a picture behind it.
 | `trash-1280.png` | the trash dialog: a picture per row, a type tag, what is inside, and a days-left bar |
 | `sidebar-1280.png` | the sidebar: four places, then the Brand kit and Storage tiles |
 
+## The three redesigned screens
+
+Each at 1280 by 720, at 390 wide, and at 1280 in the Night palette.
+
+| screen | desktop | phone | Night |
+| --- | --- | --- | --- |
+| Line Art Lab | `lab-redesign-1280.png` | `lab-redesign-390.png` | `lab-redesign-night-1280.png` |
+| Sticker Studio hub | `hub-1280.png` | `hub-390.png` | `hub-night-1280.png` |
+| Packs | `packs-1280.png` | `packs-390.png` | `packs-night-1280.png` |
+
+The phone shots are taken in a tall window rather than at 390 by 844, so the
+whole page is in one picture instead of the top of it.
+
+**What the Night shots show that is not ours.** The top bar stays white in
+Night, and secondary buttons and text fields are near-white letters on a white
+fill. Both predate this work and both are app-wide: `.btn-default` and `.field`
+in `app/surfaces.css` paint `--color-sheet` (white in every palette) and write
+on it in `--color-ink-900`, which in Night is `#F4EEE1`. `lib/theme.ts` already
+has the right answer — `inkOnSheet`, which the contrast sweep checks as "a title
+on a page silhouette" — but no CSS variable carries it. Left alone here because
+fixing it recolours every secondary button and every input in the app, which is
+a wider change than three screens.
+
 The red "1 Issue" badge in the bottom-left corner of the screen shots is Next.js's
 development overlay, not part of the app. It is the `data-theme` hydration
 warning described in the stage 8 notes, which predates this work.
