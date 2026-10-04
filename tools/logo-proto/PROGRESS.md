@@ -194,3 +194,16 @@ Page: `results/run2/bicycle/before-after.html`.
 
 **Result (22 variations, mean):** nodes 1,803 (current default) -> 117 (minimal) / 160 (detailed); strokes 13 -> 6 / 13. Passes the check 21 -> 18 / 18: bicycle and london_eye fail on outline coverage (0.19-0.34) because wheel interiors are not drawn. The 64/32 px test passes 22/22 but passes by construction (the outline comes from the cutout), so it is not evidence of anything.
 **By eye, and this is the finding:** BETTER on coffee, puppy, cats (simple, contour-defined subjects: the logo-like result the mode is for); MIXED on cupcake, kitten, vishansoudha; WORSE on bicycle, burger (reads as a loaf), flowerbouquet (flowers gone), london_eye (reads as a gear), pancake at 8 strokes (bun with a seam; the 30-stroke profile recovers layers and syrup, still not the butter). Artist mode did NOT win overall. It wins where the identity is in the contour, and loses where it is in many repeated or fine structures, which a stroke cap cannot keep.
+
+## Smart redraw in the Lab (2026-10-04)
+
+The pipeline is now an optional Lab look, "Smart redraw", through a local helper.
+
+- **Mode:** standard is the default. Artist mode did not win the comparison overall (it wins on simple, contour-driven subjects), so it is offered as an optional "Simplified" choice next to "Detailed".
+- **Helper:** `server.py`, 127.0.0.1 only, CORS and Host allow-list, 25 MB / 60 MP cap, one job at a time, one child process per job (`logoproto/worker.py`) so Cancel really kills it. No copies kept, temp dir deleted per job, models load offline. 19 tests in `tests/test_server.py` with a fake worker.
+- **App:** `lib/lab/smart.ts` (client; imports nothing, so no model in the bundle), `components/lab/SmartProgress.tsx`, edits to `Lab.tsx`/`LookCard.tsx`. Shown only when `/health` answers. Failure, no helper or timeout falls back to the built-in Hand-inked look with a plain notice; Cancel does not fall back.
+- **Download SVG fix:** every pixel look can now export SVG, traced on demand (`lib/lab/trace.ts`).
+- **Licence guard:** flag `NEXT_PUBLIC_SMART_REDRAW`, off by default in production. Model licence note: `docs/SMART-REDRAW.md`.
+- **Real run through the helper (pancake, minimal, standard):** 120 s total (cutout 7.6, analyse 27.3, redraw 71.7 for 4 steps, vector 9.6), 13 strokes, 1340 nodes, check passed (IoU 0.991, coverage 1.0). Real per-step progress works. No worker process or temp dir left behind.
+- **Tests:** app 919 pass (37 new: `tests/trace.test.mjs`, `tests/smart.test.mjs`), goldens and screen goldens match, none re-recorded, no existing test changed. Browser checks (Chrome, 1280 and 390 wide, default and Night) used a paced fake worker.
+- **Known limits:** the tracer rounds hard corners (harmless on thin strokes); the "1 Issue" badge in the dev screenshots is Next's dev overlay, not a console error; not run in Safari/Firefox.

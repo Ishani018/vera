@@ -19,6 +19,7 @@ import { runInked, runInkedSvg, type InkedSettings } from '../lineart/inked';
 import { SOLID, backgroundMask } from '../lineart/mask';
 import { INK, type Bitmap, type Gray } from '../lineart/pipeline';
 import { pathDataFor, runLogo, type LogoSettings } from './logo';
+import { traceInk } from './trace';
 import type { LookId } from './looks';
 
 export type LabRequest = {
@@ -33,7 +34,7 @@ export type LabRequest = {
   longEdge: number;
   /** Lift the background off first, using the app's existing mask. */
   removeBackground: boolean;
-  /** Also return the drawing as SVG. Only Hand-inked has one to give. */
+  /** Also return the drawing as SVG: native curves for Hand-inked and Logo, traced from the pixels for the rest. */
   wantSvg?: boolean;
 };
 
@@ -147,6 +148,9 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
     } else {
       lines = runClassic(input, event.data.classic);
     }
+    // Every look can export an SVG. Hand-inked and Logo have curves of their own; the rest are drawn in pixels,
+    // so their ink is traced. Only when asked for: tracing is not free and a slider drag must not pay for it.
+    if (wantSvg && !svg) svg = traceInk(lines);
 
     const out = new OffscreenCanvas(lines.width, lines.height);
     const outContext = out.getContext('2d');

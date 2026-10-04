@@ -23,6 +23,7 @@ export function LookCard({
   busy,
   selected,
   onSelect,
+  note,
 }: {
   label: string;
   blurb: string;
@@ -30,6 +31,8 @@ export function LookCard({
   busy: boolean;
   selected: boolean;
   onSelect: () => void;
+  /** Shown on the card while it has no picture of its own, for a look that is not drawn ahead of time. */
+  note?: string;
 }) {
   return (
     <button
@@ -56,6 +59,11 @@ export function LookCard({
             <img src={src} alt="" className="absolute inset-0 h-full w-full object-contain" />
           ) : null}
           {busy && <span className="skeleton absolute inset-0 block" aria-hidden="true" />}
+          {!src && !busy && note && (
+            <span className="mono-label absolute inset-0 grid place-items-center text-ink-500" style={{ fontSize: 10 }}>
+              {note}
+            </span>
+          )}
         </Chequerboard>
         <span
           className="mt-[3px] block truncate px-0.5 leading-tight"

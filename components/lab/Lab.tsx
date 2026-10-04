@@ -13,9 +13,22 @@ import { LookCard } from './LookCard';
 import { Chequerboard } from '../stickers/Thumb';
 import { StudioHeader } from '../StudioHeader';
 import { ExportIcon, LookIcon, PictureIcon, TuneIcon } from './icons';
+import { SmartProgress } from './SmartProgress';
+import { saveBlob, svgToPng } from '@/lib/lab/rasterise';
+import {
+  SMART_STYLES, SmartError, checkHelper, smartOrFallback, smartRedrawEnabled,
+  type Health, type SmartMode, type SmartProgress as Progress, type SmartStats, type SmartStyle,
+} from '@/lib/lab/smart';
 
 /** The look cards are previews, so they run small and once. */
 const CARD_EDGE = 300;
+
+/** Where a Smart redraw has got to. `fallback` means the built-in engine answered instead, and `message` says why. */
+type SmartState =
+  | { status: 'idle'; note?: string }
+  | { status: 'running'; progress: Progress | null; startedAt: number }
+  | { status: 'done'; source: 'smart' | 'fallback'; url: string; svg: string; stats?: SmartStats; message?: string }
+  | { status: 'failed'; message: string };
 
 /**
  * The Line Art Lab.
@@ -78,7 +91,36 @@ export function Lab() {
   };
   useEffect(() => () => urls.current.forEach((url) => URL.revokeObjectURL(url)), []);
 
+  /* ------------------------------------------------------------- Smart redraw */
+
+  /*
+    Optional, and off unless the flag is on AND a helper is answering. The helper is a separate program on this
+    Mac; nothing about it is in this page's code. See docs/SMART-REDRAW.md.
+  */
+  const smartEnabled = useMemo(() => smartRedrawEnabled(), []);
+  const [helper, setHelper] = useState<Health | null>(null);
+  useEffect(() => {
+    if (!smartEnabled) return;
+    let alive = true;
+    const look = () => void checkHelper().then((h) => alive && setHelper(h));
+    look();
+    window.addEventListener('focus', look); // started it after opening the page? coming back to the tab finds it
+    return () => {
+      alive = false;
+      window.removeEventListener('focus', look);
+    };
+  }, [smartEnabled]);
+
+  const [smartPicked, setSmartPicked] = useState(false);
+  const [smartStyle, setSmartStyle] = useState<SmartStyle>('minimal');
+  const [smartMode, setSmartMode] = useState<SmartMode>('standard');
+  const [smart, setSmart] = useState<SmartState>({ status: 'idle' });
+  const smartAbort = useRef<AbortController | null>(null);
+
   const take = useCallback((chosen: File) => {
+    smartAbort.current?.abort(); // a new picture makes the old job pointless
+    setSmart({ status: 'idle' });
+    setSmartPicked(false);
     setProblem(null);
     setSaid(null);
     setCards({});
@@ -186,12 +228,113 @@ export function Lab() {
   const cardsLeft = file ? LOOKS.length - Object.keys(cards).length : 0;
   const working = updating || cardsLeft > 0;
 
-  const svgUrl = useMemo(
-    () => (result?.svg ? keep(new Blob([result.svg], { type: 'image/svg+xml' })) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [result?.svg],
-  );
   const stem = file ? baseName(file.name) : 'drawing';
+
+  /*
+    What the canvas and the downloads are about: Smart redraw's answer when that card is chosen, the engine's
+    otherwise. The engine keeps running for whichever look it was last on, so choosing Smart redraw and then
+    going back does not lose anything.
+  */
+  const smartDone = smart.status === 'done' ? smart : null;
+  const shownUrl = smartPicked ? (smartDone?.url ?? null) : (result?.url ?? null);
+  const nativeSvg = smartPicked ? Boolean(smartDone?.svg) : Boolean(result?.svg);
+  const showSmartCard = smartEnabled && (helper !== null || smartPicked);
+  const label = smartPicked ? 'smart redraw' : look;
+  const [saving, setSaving] = useState<'png' | 'svg' | null>(null);
+
+  /** The built-in engine's answer, for when Smart redraw cannot give one. Hand-inked, because it has real curves to export. */
+  const engineInstead = async () => {
+    if (!file) throw new Error('No picture.');
+    const answer = await render({
+      blob: file.blob,
+      look: 'hand-inked',
+      classic: (defaultsFor('hand-inked') as { classic: ClassicSettings }).classic,
+      inked,
+      colouring,
+      logo,
+      longEdge: CLASSIC_WORKING_EDGE,
+      removeBackground: cutOut,
+      wantSvg: true,
+    }).done;
+    return { url: keep(answer.blob), svg: answer.svg ?? '', millis: answer.stats.millis };
+  };
+
+  const runSmart = async () => {
+    if (!file) return;
+    const controller = new AbortController();
+    smartAbort.current = controller;
+    setSmartPicked(true);
+    setSmart({ status: 'running', progress: null, startedAt: Date.now() });
+    try {
+      const out = await smartOrFallback(file.blob, engineInstead, {
+        style: smartStyle,
+        mode: smartMode,
+        signal: controller.signal,
+        onProgress: (progress) => setSmart((was) =>
+            was.status === 'running'
+              ? { ...was, progress: { ...progress, subject: progress.subject ?? was.progress?.subject } }
+              : was,
+          ),
+      });
+      if (out.source === 'smart') {
+        setSmart({
+          status: 'done',
+          source: 'smart',
+          url: keep(new Blob([out.result.svg], { type: 'image/svg+xml' })),
+          svg: out.result.svg,
+          stats: out.result.stats,
+        });
+      } else {
+        setSmart({ status: 'done', source: 'fallback', url: out.result.url, svg: out.result.svg, message: out.message });
+      }
+    } catch (error) {
+      if (error instanceof SmartError && error.kind === 'cancelled') setSmart({ status: 'idle', note: 'Cancelled.' });
+      else setSmart({ status: 'failed', message: error instanceof Error ? error.message : 'Something went wrong.' });
+    } finally {
+      smartAbort.current = null;
+    }
+  };
+
+  const cancelSmart = () => smartAbort.current?.abort();
+
+  const savePng = async () => {
+    if (!shownUrl) return;
+    setSaving('png');
+    try {
+      const blob = smartDone?.source === 'smart' ? await svgToPng(smartDone.svg) : await blobOf(shownUrl);
+      saveBlob(blob, `${stem} ${label}.png`);
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'Could not make the PNG.');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  /*
+    Every look can export an SVG now. The engine's pixel looks have none of their own, so asking for one runs the
+    same look again with the tracer switched on. That is a second or two, once, on a press; the live preview never
+    pays for it.
+  */
+  const saveSvg = async () => {
+    if (!file || !shownUrl) return;
+    setSaving('svg');
+    try {
+      let svg = smartPicked ? smartDone?.svg : result?.svg;
+      if (!svg && !smartPicked) {
+        const answer = await render({
+          blob: file.blob, look, classic, inked, colouring, logo,
+          longEdge: CLASSIC_WORKING_EDGE, removeBackground: cutOut, wantSvg: true,
+        }).done;
+        svg = answer.svg;
+      }
+      if (svg) saveBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem} ${label}.svg`);
+      else setProblem('Could not make an SVG of this one.');
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'Could not make the SVG.');
+    } finally {
+      setSaving(null);
+    }
+  };
 
   return (
     <main data-lab className="flex h-dvh flex-col bg-paper-50">
@@ -227,7 +370,7 @@ export function Lab() {
       </StudioHeader>
 
       {!agreed ? (
-        <Rights onAgree={() => setAgreed(true)} />
+        <Rights onAgree={() => setAgreed(true)} smart={smartEnabled && helper !== null} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5 pt-3">
           <DropStrip has={Boolean(file)} onPick={take} />
@@ -248,10 +391,15 @@ export function Lab() {
             >
               <Canvas
                 before={file?.url ?? null}
-                after={result?.url ?? null}
+                after={shownUrl}
                 at={showing}
                 ground={ground}
                 working={working}
+                overlay={
+                  smart.status === 'running' ? (
+                    <SmartProgress progress={smart.progress} startedAt={smart.startedAt} onCancel={cancelSmart} />
+                  ) : null
+                }
               />
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <input
@@ -302,6 +450,23 @@ export function Lab() {
                     <Notice level="warning">{problem}</Notice>
                   </div>
                 )}
+                {smartPicked && smartDone?.source === 'fallback' && (
+                  <div className="mb-3">
+                    <Notice level="warning">
+                      {/[.!?]$/.test((smartDone.message ?? "")) ? smartDone.message : `${smartDone.message ?? ""}.`} This is Hand-inked from the built-in engine instead, made in your browser with no model.
+                    </Notice>
+                  </div>
+                )}
+                {smartPicked && smart.status === 'failed' && (
+                  <div className="mb-3">
+                    <Notice level="warning">{smart.message}</Notice>
+                  </div>
+                )}
+                {smartPicked && smartDone?.source === 'smart' && !smartDone.stats?.passed && (
+                  <div className="mb-3">
+                    <Notice level="warning">Check: {smartDone.stats?.reasons[0] ?? 'the outline is incomplete'}.</Notice>
+                  </div>
+                )}
 
                 {!file ? (
                   <p className="text-[13px] leading-snug text-ink-500">Open a picture to begin.</p>
@@ -328,6 +493,7 @@ export function Lab() {
                     </Dial>
                   </>
                 ) : tab === 'look' ? (
+                  <>
                   <div
                     className="grid grid-cols-2 content-start gap-x-3 gap-y-2.5"
                     aria-label="Looks"
@@ -354,14 +520,89 @@ export function Lab() {
                         blurb={one.blurb}
                         src={cards[one.id] ?? null}
                         busy={!cards[one.id]}
-                        selected={look === one.id && compare <= 0.999}
+                        selected={!smartPicked && look === one.id && compare <= 0.999}
                         onSelect={() => {
+                          setSmartPicked(false);
                           setLook(one.id);
                           if (compare > 0.999) setCompare(0);
                         }}
                       />
                     ))}
+                    {showSmartCard && (
+                      <LookCard
+                        label="Smart redraw"
+                        blurb="Redraws it with models that run on this Mac. About 90 seconds."
+                        src={smartDone?.url ?? null}
+                        busy={false}
+                        note="~90 s"
+                        selected={smartPicked && compare <= 0.999}
+                        onSelect={() => {
+                          setSmartPicked(true);
+                          if (compare > 0.999) setCompare(0);
+                        }}
+                      />
+                    )}
                   </div>
+                  {smartPicked && showSmartCard && (
+                    <section aria-label="Smart redraw" className="mt-3 border-t border-ink-200 pt-3">
+                      <span data-dial className="mono-label mb-1 block text-ink-900" style={{ fontSize: 10 }}>
+                        Style
+                      </span>
+                      <div className="mb-3 flex flex-wrap gap-1">
+                        {SMART_STYLES.map((one) => (
+                          <button
+                            key={one}
+                            type="button"
+                            aria-pressed={smartStyle === one}
+                            onClick={() => setSmartStyle(one)}
+                            className="chip inline-flex min-h-7 items-center px-2.5"
+                            style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                          >
+                            {one}
+                          </button>
+                        ))}
+                      </div>
+                      <span data-dial className="mono-label mb-1 block text-ink-900" style={{ fontSize: 10 }}>
+                        Detail
+                        <Info label="Detail">
+                          Detailed keeps every line. Simplified keeps a bold outline and the few strongest lines.
+                        </Info>
+                      </span>
+                      <div className="mb-3 flex gap-1">
+                        {([['standard', 'Detailed'], ['artist', 'Simplified']] as const).map(([id, name]) => (
+                          <button
+                            key={id}
+                            type="button"
+                            aria-pressed={smartMode === id}
+                            onClick={() => setSmartMode(id)}
+                            className="chip inline-flex min-h-7 items-center px-2.5"
+                            style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                      {helper && !helper.ready && (
+                        <div className="mb-2">
+                          <Notice level="warning">
+                            Some models are missing on this Mac: {Object.entries(helper.models).filter(([, here]) => !here).map(([name]) => name).join(', ')}.
+                          </Notice>
+                        </div>
+                      )}
+                      <Button
+                        variant="accent"
+                        className="w-full"
+                        disabled={smart.status === 'running' || (helper !== null && !helper.ready)}
+                        onClick={() => void runSmart()}
+                      >
+                        {smart.status === 'running' ? 'Working…' : smart.status === 'done' ? 'Redraw again' : 'Redraw'}
+                      </Button>
+                      <p className="mono-label mt-1.5 text-ink-500" style={{ fontSize: 10 }}>
+                        {smart.status === 'idle' && smart.note ? smart.note : 'About 90 seconds. Stays on this Mac.'}
+                      </p>
+                    </section>
+                  )}
+                  </>
                 ) : tab === 'tune' ? (
                   <>
                     {main.map((id) => (
@@ -490,46 +731,48 @@ export function Lab() {
                 you change panel is one you have to find again each time.
               */}
               <div className="mt-4 shrink-0">
-                {result && (
+                {smartPicked && smartDone ? (
                   <p className="mono-label mb-2 text-ink-500" style={{ fontSize: 10 }}>
-                    {/* Ink on a page means nothing for a logo, which is curves. */}
-                    {look === 'logo'
-                      ? `${result.stats.strokes ?? 0} curves`
-                      : `${(result.stats.ink * 100).toFixed(1)}% ink${
-                          result.stats.strokes ? ` · ${result.stats.strokes} strokes` : ''
-                        }`}
-                    {` · ${result.stats.millis} ms`}
+                    {smartDone.source === 'smart' && smartDone.stats
+                      ? `${smartDone.stats.nodes} nodes · ${smartDone.stats.strokes} paths · ${Math.round(smartDone.stats.timings.total ?? 0)} s`
+                      : 'Built-in engine, no model'}
                   </p>
+                ) : (
+                  !smartPicked &&
+                  result && (
+                    <p className="mono-label mb-2 text-ink-500" style={{ fontSize: 10 }}>
+                      {/* Ink on a page means nothing for a logo, which is curves. */}
+                      {look === 'logo'
+                        ? `${result.stats.strokes ?? 0} curves`
+                        : `${(result.stats.ink * 100).toFixed(1)}% ink${
+                            result.stats.strokes ? ` · ${result.stats.strokes} strokes` : ''
+                          }`}
+                      {` · ${result.stats.millis} ms`}
+                    </p>
+                  )
                 )}
-                <a
-                  href={result?.url ?? undefined}
-                  download={`${stem} ${look}.png`}
-                  aria-disabled={!result}
-                  className={cx(
-                    'btn btn-accent w-full px-4 py-2.5 text-[15px]',
-                    !result && 'pointer-events-none opacity-40',
-                  )}
+                <Button
+                  variant="accent"
+                  className="w-full"
+                  disabled={!shownUrl || saving !== null}
+                  onClick={() => void savePng()}
                 >
-                  Download PNG
-                </a>
-                <a
-                  href={svgUrl ?? undefined}
-                  download={`${stem} ${look}.svg`}
-                  aria-disabled={!svgUrl}
-                  title={
-                    svgUrl
-                      ? 'Real curves, any size'
-                      : 'Hand-inked and Logo export as curves. The others are pixels.'
-                  }
-                  className={cx(
-                    'btn btn-accent-outline mt-2 w-full px-4 py-2.5 text-[15px]',
-                    !svgUrl && 'pointer-events-none opacity-40',
-                  )}
+                  {saving === 'png' ? 'Preparing…' : 'Download PNG'}
+                </Button>
+                <Button
+                  variant="accent-outline"
+                  className="mt-2 w-full"
+                  disabled={!shownUrl || saving !== null}
+                  title={nativeSvg ? 'Real curves, any size' : "Traced from this drawing's pixels"}
+                  onClick={() => void saveSvg()}
                 >
-                  Download SVG
-                </a>
+                  {saving === 'svg' ? 'Tracing…' : 'Download SVG'}
+                </Button>
+                {/* True of every look but one: Smart redraw runs models, and the page says so when it is showing one. */}
                 <p className="mono-label mt-3 text-ink-500" style={{ fontSize: 10 }}>
-                  Made with algorithms, no AI model
+                  {smartPicked && smartDone?.source === 'smart'
+                    ? 'Made with models on this Mac'
+                    : 'Made with algorithms, no AI model'}
                 </p>
               </div>
             </section>
@@ -654,7 +897,7 @@ function DropStrip({ has, onPick }: { has: boolean; onPick: (file: File) => void
  * imply it did. It costs one press and it is the only thing standing between
  * this tool and somebody tracing a photograph they found.
  */
-function Rights({ onAgree }: { onAgree: () => void }) {
+function Rights({ onAgree, smart }: { onAgree: () => void; smart: boolean }) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-5">
       <div className="max-w-[46ch] text-center">
@@ -671,7 +914,8 @@ function Rights({ onAgree }: { onAgree: () => void }) {
           </Button>
         </div>
         <p className="mono-label mt-4 text-ink-500" style={{ fontSize: 10 }}>
-          Made with algorithms, no AI model
+          {/* Said as it is: the looks are algorithms, and Smart redraw, when offered, is the one thing that is not. */}
+          {smart ? 'Made with algorithms. Smart redraw uses models on this Mac.' : 'Made with algorithms, no AI model'}
         </p>
       </div>
     </div>
@@ -706,6 +950,7 @@ function Canvas({
   at,
   ground,
   working,
+  overlay,
 }: {
   /** Null until a picture is opened: the stage is there either way. */
   before: string | null;
@@ -715,6 +960,8 @@ function Canvas({
   ground: 'chequer' | 'light' | 'dark';
   /** Any of the engine is running — the big picture or any of the cards. */
   working: boolean;
+  /** Drawn over the stage: the progress of a Smart redraw, with its Cancel. */
+  overlay?: React.ReactNode;
 }) {
   /*
     The drawing underneath, the photograph clipped on top of it.
@@ -759,6 +1006,7 @@ function Canvas({
         the eye is on the drawing, waiting for it to change. Here it is in the
         corner of the thing being waited for.
       */}
+      {overlay}
       {working && (
         <span
           className="absolute right-2.5 top-2.5 z-10 inline-flex min-h-7 items-center gap-1.5 rounded-[4px] border px-2.5"
