@@ -615,3 +615,128 @@ real photographs**, and nothing in this log should be read as saying they have.
 881 tests pass. PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe` unchanged.
 `golden:screen` **0 pixels changed on both boards**. Build clean, first-load JS
 still 103 kB, `/lab` 119 kB. No dependencies added, in any stage.
+
+## Stage 8 — the trash dialog, naming, and the sidebar
+
+Three jobs that do not touch the engine at all, grouped because they are all
+about the same thing: a screen saying what is true instead of saying what is
+tidy.
+
+### The trash: every row shows the thing itself
+
+The old dialog listed a name, a kind and a byte count. That is a list about a
+filing system. The question somebody opening the trash is actually asking is
+"is this the one I want back", and three lines of metadata do not answer it.
+
+So `TrashEntry` gained three fields and `listTrash` fills them:
+
+| field | what it is |
+| --- | --- |
+| `thumb` | a picture drawn from the contents — `bookThumb` for books, `designThumb` for designs, the same two the library cards already use |
+| `assetId` | a picture that **is** the thing: a sticker, or the upload an unfinished sticker was being cut out of |
+| `contents` | what is inside, in words — "12 poems", "1 picture · 1 text box", "Not finished", "Empty" |
+
+An unfinished sticker has no cut-out yet, so it shows the picture it was being
+cut out **of**. Showing nothing there would be truthful and useless.
+
+Nothing new was written to draw them: `bookThumb`, `designThumb` and `isColoring`
+were already in `lib/projects.ts` behind the library cards and were simply
+exported, and `useAssetUrls` was already in `ThumbArt`. Two implementations of
+the same thumbnail would drift the way the logo raster and the logo SVG did in
+stage 6.
+
+Thumbnails sit on `Chequerboard`, not on white, so a transparent sticker reads
+as transparent rather than as a white square.
+
+### Delete forever, taken back
+
+It used to ask "are you sure". That is the usual way to make an irreversible
+thing safe, and it is also the way that trains people to press Yes without
+reading.
+
+Instead the row goes **immediately** and the purge is **held for eight seconds**.
+Press Undo and nothing happened; leave it and it happens.
+
+The hold is real, not a toast over a completed delete. `purge` calls
+`sweepAssets()`, so the picture bytes are gone the moment it runs and no toast
+could bring them back — an undo button over that would be a lie. Closing the
+dialog with deletes waiting carries them out; closing the tab first means they
+simply never happen, which is the safe way round.
+
+### Naming
+
+`lib/home/naming.ts` gained `poemName`, `pageName`, `plateName`, `bookName`,
+`newCollectionTitle`, `newColouringBookTitle` and `isPlaceholder`.
+
+One correction worth recording, because I got it wrong first: I initially made
+imports and **Add poem** *store* a generated title. The renderer prints stored
+titles as headings, so that would have invented headings in people's books and
+made the import dialog's own copy false. A generated name is for **showing in a
+list**; what is stored stays `''` until somebody types something.
+
+### The sidebar
+
+Removed:
+
+- **Templates** — a destination with a SOON badge that cannot be visited. A
+  disabled row in the one list meant to be the fastest way anywhere is worse
+  than no row. With it went the `soon` field, the disabled styling and the badge
+  itself, so there is now no mechanism for adding an unvisitable place.
+- **The "Saved on this computer" line** and the bare `.checker` strip above it —
+  decoration and a claim, in the space two useful tiles now occupy.
+
+Added, in that space:
+
+- **Brand kit** — the wordmark, the five palette colours and the three faces.
+  The dots are the live palette, so switching palette changes them, which is
+  also the quickest way to see that it worked.
+- **Storage** — what `navigator.storage.estimate()` reports, with a bar, and a
+  **Back up** button. Worth a tile because everything here lives in one browser:
+  there is no server copy, the quota is finite, and the moment it runs out
+  saving starts failing. Browsers that will not report a quota are not asked to
+  pretend — the tile says "On this computer" and shows no bar.
+
+The exporter behind **Back up** is loaded on the press, not on the page: it
+reaches the database, the sticker library and the template store between them,
+and none of that belongs in the bundle of a page whose job is to list what you
+have made. First-load JS is unchanged at 103 kB.
+
+### Driven in a browser, not eyeballed
+
+`trash-drive.mjs` seeds the database, puts two designs in the trash 24 days ago,
+and checks twelve things. All twelve pass:
+
+```
+the sidebar has only Home, Designs, Stickers and Trash — Home / Designs / Stickers / Trash
+Templates is gone
+there is a brand kit tile
+there is a storage tile with a back up button
+every row shows the thing itself — 2 pictures for 2 rows
+rows carry a type tag and what is inside
+rows show how many days are left
+there is a select all and a restore all
+the long intro paragraph is gone
+deleting offers an undo — {"before":2,"after":1,"undo":true}
+undo really brings it back — 1 -> 2, was 2
+nothing wrote an error to the console
+```
+
+Two sandbox notes, both recorded rather than papered over:
+
+- The first run died on `VersionError: The requested version (50) is less than
+  the existing version (51)`. Dexie opens `versecraft` at its own version × 10,
+  and bumps it on open; a script that names a version races it. The script now
+  opens with **no version at all**, attaching to whatever is there. Nothing in
+  the app changed and **no database version was bumped**.
+- The page prints one React error in dev — `data-theme` on `<html>` differs
+  between the server render and hydration, because the theme bootstrap sets it
+  before React arrives. I checked this is **not mine**: stashing every change in
+  this stage and reloading prints it just the same. The drive ignores that one
+  message by name and fails on any other.
+
+### Checked
+
+881 tests pass. PDF digests `e3e2a36e0ac60ce1` and `d4eeeb9e99cb1bfe` unchanged.
+`golden:screen` **0 pixels changed on both boards**. Build clean, first-load JS
+still 103 kB. No renderer, export route, storage key or database change. No
+dependencies added.

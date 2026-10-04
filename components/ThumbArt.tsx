@@ -113,7 +113,7 @@ export function ThumbArt({ thumb }: { thumb: Thumb }) {
  * `getAssetUrl` keeps one URL per asset for the life of the page, so a book
  * and a post that use the same picture ask the database once between them.
  */
-function useAssetUrls(ids: string[]): Record<string, string> {
+export function useAssetUrls(ids: string[]): Record<string, string> {
   const key = ids.join('|');
   const [urls, setUrls] = useState<Record<string, string>>({});
 

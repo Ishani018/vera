@@ -63,7 +63,6 @@ import {
   PlusIcon,
   PostcardIcon,
   SearchIcon,
-  TemplatesIcon,
   TrashIcon,
 } from './icons';
 import { PackIcon } from './stickers/icons';
@@ -78,6 +77,7 @@ import { PalettePicker } from './PalettePicker';
 import { SILHOUETTES } from './home/Silhouette';
 import { nameFor } from '@/lib/home/naming';
 import { Chequerboard } from './stickers/Thumb';
+import { readableSize } from '@/lib/deleted';
 
 /**
  * The way in.
@@ -112,6 +112,138 @@ function LabMark() {
       />
       <line x1="56" y1="2" x2="56" y2="66" stroke="var(--color-ink-900)" strokeWidth="1" />
     </svg>
+  );
+}
+
+/**
+ * The brand, in the one place somebody looks for it.
+ *
+ * Three dots, three faces and the wordmark — not a settings screen, just the
+ * answer to "what am I working in". The dots are the live palette, so switching
+ * palette changes them, which is also the quickest way to see that it worked.
+ */
+function BrandKit() {
+  const faces = [
+    ['Fraunces', 'var(--font-display)'],
+    ['Inter', 'var(--font-body)'],
+    ['DM Mono', 'var(--font-mono)'],
+  ] as const;
+  return (
+    <div
+      className="rounded-[8px] p-3"
+      style={{ background: 'var(--sidebar-active-fill)', color: 'var(--sidebar-active-text)' }}
+    >
+      <span className="mono-label block" style={{ fontSize: 9, opacity: 0.7 }}>
+        Brand kit
+      </span>
+      <span
+        className="mt-0.5 block leading-none"
+        style={{ fontFamily: 'var(--font-script)', fontSize: 26, lineHeight: 1.3 }}
+      >
+        Isnaevy
+      </span>
+      <span aria-hidden="true" className="mt-2 flex gap-1.5">
+        {[
+          'var(--color-accenta-500)',
+          'var(--color-accentb-500)',
+          'var(--color-accentc-400)',
+          'var(--color-ink-900)',
+          'var(--color-paper-200)',
+        ].map((colour) => (
+          <span
+            key={colour}
+            className="block size-3 rounded-full"
+            style={{ background: colour, boxShadow: '0 0 0 1px rgb(0 0 0 / 0.12) inset' }}
+          />
+        ))}
+      </span>
+      <span className="mt-2 flex flex-col gap-0.5">
+        {faces.map(([name, family]) => (
+          <span key={name} className="truncate text-[11px]" style={{ fontFamily: family }}>
+            {name}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * How much room this computer is giving us, and the way out.
+ *
+ * Worth a tile because everything here lives in one browser: there is no server
+ * copy, the quota is finite, and the moment it runs out saving starts failing.
+ * The number is what the browser itself reports; browsers that will not say are
+ * simply not asked to pretend.
+ */
+function Storage() {
+  const [used, setUsed] = useState<{ bytes: number; share: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return;
+    void navigator.storage.estimate().then((estimate) => {
+      const bytes = estimate.usage ?? 0;
+      const quota = estimate.quota ?? 0;
+      setUsed({ bytes, share: quota > 0 ? Math.min(1, bytes / quota) : 0 });
+    });
+  }, []);
+
+  /*
+    Loaded on the press. The exporter reaches the database, the sticker library
+    and the template store between them, and none of that belongs in the bundle
+    of a page whose job is to list what you have made.
+  */
+  const backUp = async () => {
+    setSaving(true);
+    try {
+      const [{ listProjects, migrateProject }, { exportProjectJson }, { getDb }] = await Promise.all([
+        import('@/lib/projects'),
+        import('@/lib/exportClient'),
+        import('@/lib/db'),
+      ]);
+      const books = await listProjects();
+      if (!books.length) return;
+      const db = getDb();
+      const row = db ? await db.projects.get(books[0].id) : null;
+      if (row) await exportProjectJson(migrateProject(row));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="rounded-[8px] p-3"
+      style={{ background: 'var(--sidebar-active-fill)', color: 'var(--sidebar-active-text)' }}
+    >
+      <span className="mono-label block" style={{ fontSize: 9, opacity: 0.7 }}>
+        Storage
+      </span>
+      <span className="mt-0.5 block text-[13px] font-[560]">
+        {used ? `${readableSize(used.bytes)} used` : 'On this computer'}
+      </span>
+      {used && used.share > 0 && (
+        <span aria-hidden="true" className="mt-1.5 block h-1 overflow-hidden rounded-full" style={{ background: 'var(--color-paper-200)' }}>
+          <span
+            className="block h-full rounded-full"
+            style={{
+              width: `${Math.max(2, used.share * 100)}%`,
+              background: used.share > 0.85 ? 'var(--color-accenta-500)' : 'var(--color-ink-500)',
+            }}
+          />
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => void backUp()}
+        className="btn btn-default mt-2 inline-flex min-h-8 w-full items-center justify-center px-3"
+        style={{ fontSize: 12 }}
+      >
+        {saving ? 'Saving…' : 'Back up'}
+      </button>
+    </div>
   );
 }
 
@@ -448,7 +580,13 @@ export function Landing() {
     refresh();
   };
 
-  /** The sidebar, which is the same five places wherever the window is. */
+  /**
+   * The sidebar: four places, and only four.
+   *
+   * `Templates` used to sit here with a SOON badge. A destination that cannot
+   * be visited is not a destination, and a disabled row in the one list that is
+   * meant to be the fastest way anywhere is worse than no row.
+   */
   const PLACES = [
     { id: 'home', label: 'Home', title: 'Everything you have made', Icon: HomeIcon, go: () => {} },
     {
@@ -462,9 +600,8 @@ export function Landing() {
       },
     },
     { id: 'stickers', label: 'Stickers', title: 'Make, print and pack stickers', Icon: PackIcon, go: () => router.push('/stickers') },
-    { id: 'templates', label: 'Templates', title: 'Not built yet', Icon: TemplatesIcon, soon: true },
     { id: 'trash', label: 'Trash', title: `Thirty days, then gone`, Icon: TrashIcon, go: () => setTrashOpen(true) },
-  ] as { id: string; label: string; title: string; Icon: (p: { size?: number }) => React.ReactElement; soon?: boolean; go?: () => void }[];
+  ] as { id: string; label: string; title: string; Icon: (p: { size?: number }) => React.ReactElement; go: () => void }[];
 
   /** The seven things made most often, as one press each. */
   const SHORTCUTS = [
@@ -523,22 +660,16 @@ export function Landing() {
                   type="button"
                   title={place.title}
                   aria-current={here ? 'page' : undefined}
-                  disabled={place.soon}
-                  onClick={() => place.go?.()}
+                  onClick={() => place.go()}
                   className={cx(
                     'flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-left',
                     'transition-colors duration-[var(--motion-base)]',
                     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
                     'max-lg:justify-center max-lg:px-0',
-                    place.soon && 'cursor-not-allowed',
                   )}
                   style={{
                     background: here ? 'var(--sidebar-active-fill)' : 'transparent',
-                    color: here
-                      ? 'var(--sidebar-active-text)'
-                      : place.soon
-                        ? 'var(--sidebar-muted)'
-                        : 'var(--sidebar-text)',
+                    color: here ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
                     outlineColor: 'var(--sidebar-text)',
                   }}
                 >
@@ -548,21 +679,6 @@ export function Landing() {
                   <span className="min-w-0 flex-1 truncate text-[14px] font-[500] max-lg:hidden">
                     {place.label}
                   </span>
-                  {place.soon && (
-                    <span
-                      className="shrink-0 rounded-[3px] border px-[7px] py-[2px] max-lg:hidden"
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 9,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        borderColor: 'var(--color-ink-500)',
-                        color: 'var(--sidebar-muted)',
-                      }}
-                    >
-                      Soon
-                    </span>
-                  )}
                   {place.id === 'trash' && trashCount > 0 && (
                     <span
                       className="shrink-0 rounded-[3px] px-1.5 py-[2px] tabular-nums max-lg:hidden"
@@ -585,19 +701,11 @@ export function Landing() {
 
         <div className="flex-1" />
 
-        {/* The two cover colours, alternating. Here and nowhere else. */}
-        <span aria-hidden="true" className="checker mb-4 block shrink-0 max-lg:hidden" />
-        <p
-          className="mono-label flex shrink-0 items-center gap-2 max-lg:hidden"
-          style={{ fontSize: 10, color: 'var(--sidebar-muted)' }}
-        >
-          <span
-            aria-hidden="true"
-            className="block size-[7px] shrink-0 rounded-full"
-            style={{ background: 'var(--color-accentb-100)' }}
-          />
-          Saved on this computer
-        </p>
+        {/* What you are working in, and how much room is left to work in it. */}
+        <div className="mt-auto flex shrink-0 flex-col gap-2.5 max-lg:hidden">
+          <BrandKit />
+          <Storage />
+        </div>
       </nav>
 
       <div className="flex min-h-0 flex-1 flex-col">

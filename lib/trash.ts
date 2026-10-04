@@ -13,6 +13,7 @@ import { migrateDesign } from './designs';
 import { migrateDraft } from './stickers/drafts';
 import type { CoverTemplate, Design, LibrarySticker } from './types';
 import { bookName, firstWords, isPlaceholder } from './home/naming';
+import { bookThumb, designThumb, isColoring, type Thumb } from './projects';
 
 /**
  * The trash itself: what is in it, putting things in, taking them out again,
@@ -41,7 +42,27 @@ export type TrashEntry = {
   daysLeft: number;
   /** Bytes that would come back if this alone were thrown away. */
   bytes: number;
+  /**
+   * What it looks like, drawn from its own contents.
+   *
+   * A row saying "Poetry book · 2.1 MB" is a row about a filing system. The
+   * question somebody opening the trash is actually asking is "is this the one
+   * I want back", and the only honest answer to that is a picture of it.
+   */
+  thumb?: Thumb;
+  /**
+   * A picture that IS the thing, rather than something drawn from it: a
+   * sticker, or the upload an unfinished sticker was being cut out of.
+   */
+  assetId?: string;
+  /** What is inside, in words: "12 poems", "3 pictures", "2 stickers". */
+  contents: string;
 };
+
+/** How many of a thing there are, named so a count of one reads properly. */
+function howMany(n: number, one: string, many = `${one}s`): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
 
 /**
  * What is in the trash, newest first, and what each one is costing.
@@ -70,6 +91,16 @@ function designName(design: { name?: string; cover?: { textBoxes?: Array<{ text?
   const stickers = design.cover?.stickers?.length ?? 0;
   if (stickers > 0) return stickers === 1 ? 'One sticker' : `${stickers} stickers`;
   return 'Design';
+}
+
+/** What is placed on a design, for the line under its name. */
+function whatIsOn(design: { cover?: { stickers?: unknown[]; textBoxes?: unknown[] } }): string {
+  const pictures = design.cover?.stickers?.length ?? 0;
+  const words = design.cover?.textBoxes?.length ?? 0;
+  const parts: string[] = [];
+  if (pictures) parts.push(howMany(pictures, 'picture'));
+  if (words) parts.push(howMany(words, 'text box', 'text boxes'));
+  return parts.join(' · ') || 'Empty';
 }
 
 export async function listTrash(): Promise<TrashEntry[]> {
@@ -124,6 +155,10 @@ export async function listTrash(): Promise<TrashEntry[]> {
         deletedAt: project.deletedAt!,
         daysLeft: daysLeft(project, now),
         bytes: soleBytes(projectAssets(project)),
+        thumb: bookThumb(project),
+        contents: isColoring(project)
+          ? howMany(project.pages.length, 'picture')
+          : howMany(project.contents.filter((one) => one.kind === 'poem').length, 'poem'),
       });
       // A deleted book takes its launch kit with it; those designs are not
       // listed separately or they would be restorable on their own, into a
@@ -142,6 +177,8 @@ export async function listTrash(): Promise<TrashEntry[]> {
         deletedAt: design.deletedAt!,
         daysLeft: daysLeft(design, now),
         bytes: soleBytes(designAssets(design)),
+        thumb: designThumb(design),
+        contents: whatIsOn(design),
       });
     }
   }
@@ -157,6 +194,8 @@ export async function listTrash(): Promise<TrashEntry[]> {
       deletedAt: design.deletedAt!,
       daysLeft: daysLeft(design, now),
       bytes: soleBytes(designAssets(design)),
+      thumb: designThumb(design),
+      contents: whatIsOn(design),
     });
   }
 
@@ -171,6 +210,8 @@ export async function listTrash(): Promise<TrashEntry[]> {
       deletedAt: sticker.deletedAt!,
       daysLeft: daysLeft(sticker, now),
       bytes: soleBytes(stickerAssets(sticker)),
+      assetId: sticker.assetId,
+      contents: `${sticker.width} × ${sticker.height}`,
     });
   }
 
@@ -185,6 +226,10 @@ export async function listTrash(): Promise<TrashEntry[]> {
       deletedAt: draft.deletedAt!,
       daysLeft: daysLeft(draft, now),
       bytes: soleBytes(draftAssets(draft)),
+      // An unfinished sticker has no cut-out yet, so it shows the picture it
+      // was being cut out OF. Showing nothing would be truthful and useless.
+      assetId: draftAssets(draft)[0],
+      contents: 'Not finished',
     });
   }
 
@@ -199,6 +244,7 @@ export async function listTrash(): Promise<TrashEntry[]> {
       deletedAt: template.deletedAt!,
       daysLeft: daysLeft(template, now),
       bytes: soleBytes(templateAssets(template)),
+      contents: howMany(template.cover?.textBoxes?.length ?? 0, 'text box', 'text boxes'),
     });
   }
 

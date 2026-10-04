@@ -460,7 +460,7 @@ export function frontThumb(
   };
 }
 
-function bookThumb(project: AnyProject): Thumb {
+export function bookThumb(project: AnyProject): Thumb {
   // A record old enough to be missing its trim still gets a card rather than
   // taking the whole front page down with it.
   const trim = getTrim(project.trim?.trimId ?? '');
@@ -476,7 +476,7 @@ function bookThumb(project: AnyProject): Thumb {
   return frontThumb(cover, coverLayout(project, NOMINAL_PAGES));
 }
 
-function designThumb(design: Design): Thumb {
+export function designThumb(design: Design): Thumb {
   const preset = presetById(design.presetId);
   const board = preset ? boardFor(preset) : null;
   if (!board) return { width: 100, height: 100, background: '#f4efe4', items: [] };
