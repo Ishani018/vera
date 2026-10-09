@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { render, type LabResult } from '@/lib/lab/client';
+import type { LabStage } from '@/lib/lab/worker';
 import { LOGO_GROUNDS, LOOKS, controlsFor, defaultsFor, type LookId } from '@/lib/lab/looks';
 import { CLASSIC_WORKING_EDGE, type ClassicSettings } from '@/lib/lineart/xdog';
 import type { ColouringSettings } from '@/lib/lineart/colouring';
@@ -72,6 +73,8 @@ export function Lab() {
   const [cards, setCards] = useState<Partial<Record<LookId, string>>>({});
   const [result, setResult] = useState<{ url: string; svg?: string; stats: LabResult['stats'] } | null>(null);
   const [updating, setUpdating] = useState(false);
+  /** What the engine's worker last said it was doing. Null between runs. */
+  const [stage, setStage] = useState<LabStage | null>(null);
   /** Whether this picture has ever been drawn, so a failure can tell "cannot read it" from "this setting failed". */
   const drawn = useRef(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -211,6 +214,9 @@ export function Lab() {
   useEffect(() => {
     if (!file) return;
     setUpdating(true);
+    setStage(null);
+    // Declared before the job, because the job's `onStage` closes over it.
+    let alive = true;
     const job = render({
       blob: file.blob,
       look,
@@ -221,8 +227,10 @@ export function Lab() {
       longEdge: CLASSIC_WORKING_EDGE,
       removeBackground: cutOut,
       wantSvg: look === 'hand-inked' || look === 'logo',
+      onStage: (next) => {
+        if (alive) setStage(next);
+      },
     });
-    let alive = true;
     job.done
       .then((answer) => {
         if (!alive) return;
@@ -230,11 +238,13 @@ export function Lab() {
         setResult({ url: keep(answer.blob), svg: answer.svg, stats: answer.stats });
         setProblem(null);
         setUpdating(false);
+        setStage(null);
       })
       .catch((error: Error) => {
         if (!alive) return;
         setProblem(explainFailure(error.message));
         setUpdating(false);
+        setStage(null);
         // Never drawn at all: the picture itself cannot be read, so go back to the start rather than sit on an empty canvas.
         if (!drawn.current) setFile(null);
       });
@@ -292,6 +302,7 @@ export function Lab() {
     hasPicture: Boolean(file),
     hasResult: Boolean(result),
     updating,
+    stage: stage ?? undefined,
     cardsLeft,
     cardsTotal: LOOKS.length,
     smartPicked,
@@ -839,6 +850,19 @@ export function Lab() {
                       {` · ${result.stats.millis} ms`}
                     </p>
                   )
+                )}
+                {/*
+                  Said plainly rather than swallowed. A picture over about 32
+                  megapixels cannot be decoded whole without risking the tab, so
+                  the decoder shrinks it on the way in — which is a different
+                  resampling filter from the usual one and does move some
+                  pixels. Somebody comparing two runs deserves to know which
+                  they are looking at.
+                */}
+                {result?.stats.resampled && (
+                  <p className="mono-label mb-2 text-ink-500" style={{ fontSize: 10 }}>
+                    Very large picture · scaled down on the way in
+                  </p>
                 )}
                 {!file && (
                   <p id="download-reason" className="mono-label mb-2 text-ink-500" style={{ fontSize: 10 }}>

@@ -89,7 +89,24 @@ export type StatusInput = {
   smartStage?: string;
   smartStep?: number;
   smartOf?: number;
+  /**
+   * What the built-in engine is actually doing, as the worker reports it.
+   *
+   * The lines below used to infer this from "has a card come back yet", which
+   * was a reasonable guess and sometimes a wrong one. The worker now says, so
+   * when it has said, that wins.
+   */
+  stage?: 'reading' | 'background' | 'drawing' | 'curves' | 'encoding';
   failed: boolean;
+};
+
+/** What each stage of the built-in engine is called, for somebody waiting. */
+const STAGE_WORDS: Record<NonNullable<StatusInput['stage']>, string> = {
+  reading: 'Reading your picture',
+  background: 'Lifting the background off',
+  drawing: 'Finding the lines',
+  curves: 'Turning the lines into curves',
+  encoding: 'Saving the drawing',
 };
 
 export type Status = { text: string; engine: Engine | null; tone: 'idle' | 'working' | 'done' | 'warning' };
@@ -117,12 +134,13 @@ export function labStatus(s: StatusInput): Status {
     return { text: 'Ready. Press Redraw', engine: 'Smart redraw', tone: 'idle' };
   }
   if (s.failed) return { text: 'Could not finish this look', engine: 'Built-in engine', tone: 'warning' };
-  if (!s.hasResult) {
-    // The previews come back after the picture is read, so one of them being in means it has been.
-    const read = s.cardsLeft < s.cardsTotal;
-    return { text: read ? 'Finding the lines' : 'Reading your picture', engine: 'Built-in engine', tone: 'working' };
+  if (!s.hasResult || s.updating) {
+    // What the worker says it is doing, when it has said. Otherwise the old
+    // guess: the previews come back after the picture is read, so one of them
+    // being in means it has been.
+    const guess = s.cardsLeft < s.cardsTotal ? 'Finding the lines' : 'Reading your picture';
+    return { text: s.stage ? STAGE_WORDS[s.stage] : guess, engine: 'Built-in engine', tone: 'working' };
   }
-  if (s.updating) return { text: 'Finding the lines', engine: 'Built-in engine', tone: 'working' };
   if (s.cardsLeft > 0) return { text: 'Done. Making the other looks', engine: 'Built-in engine', tone: 'done' };
   return { text: 'Done', engine: 'Built-in engine', tone: 'done' };
 }

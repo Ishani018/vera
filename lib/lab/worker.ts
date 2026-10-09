@@ -20,6 +20,7 @@ import { SOLID, backgroundMask } from '../lineart/mask';
 import { INK, type Bitmap, type Gray } from '../lineart/pipeline';
 import { pathDataFor, runLogo, type LogoSettings } from './logo';
 import { traceInk } from './trace';
+import { FULL_DECODE_PIXELS, MOST_PIXELS, sizeOf, targetSize } from './measure';
 import type { LookId } from './looks';
 
 export type LabRequest = {
@@ -38,7 +39,14 @@ export type LabRequest = {
   wantSvg?: boolean;
 };
 
+/** Told to stop. The run ends at the next stage boundary and answers nothing. */
+export type LabCancel = { id: number; cancel: true };
+
+/** Where a run has got to. Coarse on purpose: these are real boundaries, not a guess. */
+export type LabStage = 'reading' | 'background' | 'drawing' | 'curves' | 'encoding';
+
 export type LabResponse =
+  | { id: number; ok: 'progress'; stage: LabStage }
   | {
       id: number;
       ok: true;
@@ -47,7 +55,15 @@ export type LabResponse =
       height: number;
       svg?: string;
       /** For the Lab's own readouts, and for the bench to tabulate. */
-      stats: { ink: number; midtone: number; strokes?: number; busy?: boolean; millis: number };
+      stats: {
+        ink: number;
+        midtone: number;
+        strokes?: number;
+        busy?: boolean;
+        /** The picture was too large to decode whole, so the decoder shrank it. */
+        resampled?: boolean;
+        millis: number;
+      };
     }
   | { id: number; ok: false; error: string };
 
@@ -83,11 +99,86 @@ function measure(lines: Gray): { ink: number; midtone: number } {
   return { ink: ink / lines.data.length, midtone: midtone / lines.data.length };
 }
 
-self.onmessage = async (event: MessageEvent<LabRequest>) => {
+/**
+ * Runs told to stop, by id.
+ *
+ * The heavy pass is synchronous, so a cancel message cannot interrupt it. What
+ * makes this work is `breathe()` below: between stages the worker yields to the
+ * event loop for one turn, which is the only moment a queued message can be
+ * read. So cancelling takes effect at the next stage boundary rather than
+ * instantly — real, bounded, and honest about which.
+ */
+const stopped = new Set<number>();
+
+/**
+ * Hand the event loop one turn, then say whether this run was cancelled.
+ *
+ * `setTimeout` rather than a resolved promise: a microtask does not let queued
+ * messages in, so the cancel would not be seen until the run had finished,
+ * which is the thing being fixed.
+ */
+async function breathe(id: number, stage: LabStage): Promise<boolean> {
+  const progress: LabResponse = { id, ok: 'progress', stage };
+  self.postMessage(progress);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  if (!stopped.has(id)) return false;
+  stopped.delete(id);
+  return true;
+}
+
+/**
+ * Read the picture in, at a size the rest of the run can afford.
+ *
+ * Two paths, and which one is taken is a quality decision — see
+ * `FULL_DECODE_PIXELS` in `./measure` for the measurements behind it.
+ *
+ * - Under the budget (almost every photograph): decode at full size and shrink
+ *   with `drawImage`, exactly as the Lab always has. Bit-identical output.
+ * - Over it: ask the decoder to shrink as it goes, because a 100-megapixel
+ *   picture decoded whole is 400 MB and the alternative is not a worse drawing
+ *   but no drawing at all. The caller is told, so the page can say so.
+ */
+async function readPicture(
+  blob: Blob,
+  longEdge: number,
+): Promise<{ bitmap: ImageBitmap; resampled: boolean }> {
+  const header = await blob.slice(0, 64).arrayBuffer().catch(() => null);
+  const source = header ? sizeOf(header) : null;
+
+  if (source && source.width * source.height > FULL_DECODE_PIXELS) {
+    const want = targetSize(source, longEdge);
+    try {
+      const bitmap = await createImageBitmap(blob, {
+        resizeWidth: want.width,
+        resizeHeight: want.height,
+        resizeQuality: 'high',
+      });
+      return { bitmap, resampled: true };
+    } catch {
+      // Some decoders refuse the resize options for some files. Falling through
+      // is heavier, not wrong — and the cap below still applies.
+    }
+  }
+
+  const bitmap = await createImageBitmap(blob);
+  if (bitmap.width * bitmap.height > MOST_PIXELS) {
+    bitmap.close();
+    throw new Error('That picture is too large to open here. Try one under about 80 megapixels.');
+  }
+  return { bitmap, resampled: false };
+}
+
+self.onmessage = async (event: MessageEvent<LabRequest | LabCancel>) => {
+  if ('cancel' in event.data) {
+    stopped.add(event.data.id);
+    return;
+  }
   const { id, blob, look, longEdge, removeBackground, wantSvg } = event.data;
   const started = performance.now();
   try {
-    const decoded = await createImageBitmap(blob);
+    if (await breathe(id, 'reading')) return;
+    const { bitmap: decoded, resampled } = await readPicture(blob, longEdge);
+    // A no-op when the decoder already shrank it, and the usual path otherwise.
     const scale = Math.min(1, longEdge / Math.max(decoded.width, decoded.height));
     const width = Math.max(1, Math.round(decoded.width * scale));
     const height = Math.max(1, Math.round(decoded.height * scale));
@@ -99,12 +190,27 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
     decoded.close();
 
     let input: Bitmap = context.getImageData(0, 0, width, height);
-    if (removeBackground) input = onlyTheSubject(input);
+    /*
+      The canvas has handed over its pixels and will not be read again. Shrinking
+      it to nothing lets the backing store go now rather than whenever the
+      collector next looks, which on a long slider drag is the difference
+      between one working buffer and a dozen.
+    */
+    canvas.width = 0;
+    canvas.height = 0;
+
+    if (removeBackground) {
+      if (await breathe(id, 'background')) return;
+      input = onlyTheSubject(input);
+    }
 
     let lines: Gray;
     let strokes: number | undefined;
     let svg: string | undefined;
     let busy: boolean | undefined;
+
+    if (await breathe(id, 'drawing')) return;
+
     if (look === 'logo') {
       /*
         Drawn from the very path data the SVG carries, through Path2D, rather
@@ -116,6 +222,7 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
       svg = logo.svg;
       strokes = logo.verdict.curves;
       busy = logo.verdict.busy;
+      if (await breathe(id, 'encoding')) return;
       const out = new OffscreenCanvas(logo.width, logo.height);
       const paint = out.getContext('2d');
       if (!paint) throw new Error('This browser cannot draw the result.');
@@ -126,6 +233,8 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
         paint.fill(new Path2D(pathDataFor(shape)), 'evenodd');
       }
       const encoded = await out.convertToBlob({ type: 'image/png' });
+      out.width = 0;
+      out.height = 0;
       const answer: LabResponse = {
         id,
         ok: true,
@@ -133,7 +242,7 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
         width: logo.width,
         height: logo.height,
         svg,
-        stats: { ink: 0, midtone: 0, strokes, busy, millis: Math.round(performance.now() - started) },
+        stats: { ink: 0, midtone: 0, strokes, busy, resampled, millis: Math.round(performance.now() - started) },
       };
       self.postMessage(answer);
       return;
@@ -143,15 +252,22 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
     } else if (look === 'hand-inked') {
       const maskLines = runClassic(input, event.data.classic);
       lines = runInked(maskLines, event.data.inked);
-      if (wantSvg) svg = runInkedSvg(maskLines, event.data.inked);
+      if (wantSvg) {
+        if (await breathe(id, 'curves')) return;
+        svg = runInkedSvg(maskLines, event.data.inked);
+      }
       strokes = (svg?.match(/<path/g) ?? []).length || undefined;
     } else {
       lines = runClassic(input, event.data.classic);
     }
     // Every look can export an SVG. Hand-inked and Logo have curves of their own; the rest are drawn in pixels,
     // so their ink is traced. Only when asked for: tracing is not free and a slider drag must not pay for it.
-    if (wantSvg && !svg) svg = traceInk(lines);
+    if (wantSvg && !svg) {
+      if (await breathe(id, 'curves')) return;
+      svg = traceInk(lines);
+    }
 
+    if (await breathe(id, 'encoding')) return;
     const out = new OffscreenCanvas(lines.width, lines.height);
     const outContext = out.getContext('2d');
     if (!outContext) throw new Error('This browser cannot draw the result.');
@@ -159,6 +275,8 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
     // PNG, because a drawing is hard edges and a lossy codec would put grey
     // fringes along every one of them.
     const encoded = await out.convertToBlob({ type: 'image/png' });
+    out.width = 0;
+    out.height = 0;
 
     const response: LabResponse = {
       id,
@@ -167,10 +285,11 @@ self.onmessage = async (event: MessageEvent<LabRequest>) => {
       width: lines.width,
       height: lines.height,
       svg,
-      stats: { ...measure(lines), strokes, millis: Math.round(performance.now() - started) },
+      stats: { ...measure(lines), strokes, resampled, millis: Math.round(performance.now() - started) },
     };
     self.postMessage(response);
   } catch (error) {
+    stopped.delete(id);
     const response: LabResponse = {
       id,
       ok: false,

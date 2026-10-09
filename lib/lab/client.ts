@@ -5,7 +5,7 @@ import type { ColouringSettings } from '../lineart/colouring';
 import type { InkedSettings } from '../lineart/inked';
 import type { LogoSettings } from './logo';
 import type { LookId } from './looks';
-import type { LabRequest, LabResponse } from './worker';
+import type { LabCancel, LabRequest, LabResponse, LabStage } from './worker';
 
 /**
  * One worker, started the first time the Lab asks for anything.
@@ -16,18 +16,22 @@ import type { LabRequest, LabResponse } from './worker';
  * canvas settles on a picture nobody asked for.
  *
  * Here that is worse than it is elsewhere, because a full-size run is seconds
- * rather than milliseconds. So there is also cancelling: asking for a new
- * preview abandons the one in flight rather than queueing behind it. The worker
- * cannot be interrupted mid-run — it is one long synchronous pass — so what is
- * abandoned is the ANSWER, not the work. Dropping it on arrival is what keeps
- * the canvas honest; the engine being fast enough that it rarely matters is
- * Stage 2's business and not this file's.
+ * rather than milliseconds. So there is also cancelling, and it now stops the
+ * work rather than only dropping the answer: the worker yields to its event
+ * loop between stages, which is the one moment a cancel message can be read, so
+ * a cancelled run ends at the next stage boundary. Bounded rather than
+ * instant — the heavy pass inside a stage is still one synchronous block — but
+ * on a slider drag it is the difference between one run and a queue of them.
+ *
+ * The worker also reports which stage it is in. The Lab shows it; the point is
+ * that a run of several seconds should say what it is doing.
  */
 let worker: Worker | null = null;
 let nextId = 1;
 type Waiting = {
   resolve: (r: Extract<LabResponse, { ok: true }>) => void;
   reject: (e: Error) => void;
+  onStage?: (stage: LabStage) => void;
 };
 const pending = new Map<number, Waiting>();
 
@@ -37,6 +41,10 @@ function ensureWorker(): Worker {
   worker.onmessage = (event: MessageEvent<LabResponse>) => {
     const waiting = pending.get(event.data.id);
     if (!waiting) return;
+    if (event.data.ok === 'progress') {
+      waiting.onStage?.(event.data.stage);
+      return;
+    }
     pending.delete(event.data.id);
     if (event.data.ok) waiting.resolve(event.data);
     else waiting.reject(new Error(event.data.error));
@@ -62,22 +70,33 @@ export type LabJob = {
   longEdge: number;
   removeBackground: boolean;
   wantSvg?: boolean;
+  /** Called as the run moves between stages, for a status line that is true. */
+  onStage?: (stage: LabStage) => void;
 };
 
 export function render(job: LabJob): { done: Promise<LabResult>; cancel: () => void } {
   const id = nextId++;
-  const request: LabRequest = { id, ...job };
+  const { onStage, ...rest } = job;
+  const request: LabRequest = { id, ...rest };
   const done = new Promise<LabResult>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
+    pending.set(id, { resolve, reject, onStage });
     ensureWorker().postMessage(request);
   });
   return {
     done,
     cancel: () => {
-      // Forgotten, not stopped. The promise is left unsettled on purpose: the
-      // caller has already moved on, and rejecting would make every cancelled
-      // slider position look like a failure.
+      /*
+        Two halves, and both are needed.
+
+        Forgetting it here means the answer is dropped if it arrives anyway; the
+        promise is left unsettled on purpose, because rejecting would make every
+        cancelled slider position look like a failure. Telling the worker means
+        the remaining stages are not run at all, which is what stops a drag from
+        queueing a dozen full-size passes behind the one you want.
+      */
       pending.delete(id);
+      const stop: LabCancel = { id, cancel: true };
+      worker?.postMessage(stop);
     },
   };
 }
