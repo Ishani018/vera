@@ -23,6 +23,7 @@ import { StickerTabs } from './StickerTabs';
 import { Fan, Thumb } from './Thumb';
 import { PlusIcon, TickIcon } from './icons';
 import { Button, Notice, TextInput, cx } from '../ui';
+import { CARD, COLUMN, PageHead, StudioPage, cardHover, cardStyle } from '../studio/Shell';
 
 /**
  * Packs: a named group of stickers, and a zip of them.
@@ -275,8 +276,8 @@ export function StickerPacks() {
         </span>
       </StudioHeader>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-6">
+      <StudioPage>
+        <div className={`${COLUMN} py-9`}>
           {open === null ? (
             <>
               {/*
@@ -285,46 +286,53 @@ export function StickerPacks() {
                 so it is a field and a button rather than a card at the end of
                 the gallery you have to find first.
               */}
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h1 className="display text-[26px] tracking-tight">Packs</h1>
-                  {/* One line. What a pack actually is lives in the tooltips on
-                      the cards, where it is read at the moment it matters. */}
-                  <p className="mt-1 text-[13.5px] text-ink-500">
-                    Group stickers, then download them as a zip.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+              {/* One line. What a pack actually is lives in the tooltips on
+                  the cards, where it is read at the moment it matters. */}
+              <PageHead
+                title="Packs"
+                line="Group stickers, then download them as a zip."
+                size="hero"
+              >
+                <div className="flex flex-wrap items-center gap-2.5">
                   {installer}
                   <TextInput
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     aria-label="A name for a new pack"
                     placeholder="Name a new pack"
-                    className="!w-[200px] !rounded-full !py-2 !text-[14px]"
+                    /* 435 by 91 on the mockup's 1738px window, so 290 by 60. */
+                    className="!w-[290px] !rounded-[8px] !py-3"
+                    style={{ fontSize: 'var(--studio-text-body)' }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') void make();
                     }}
                   />
-                  <Button variant="accent" onClick={() => void make()}>
+                  <Button
+                    variant="accent"
+                    className="!px-6 !py-3"
+                    style={{ fontSize: 'var(--studio-text-body)' }}
+                    onClick={() => void make()}
+                  >
                     Start a pack
                   </Button>
                 </div>
-              </div>
+              </PageHead>
 
               {notices}
 
               {/*
-                Three across on a desktop, one on a phone. Four was a row of
-                postage stamps: the collage is the only thing that says which
-                pack this is, and at a quarter of this width it stopped saying
-                it.
+                Four across on a desktop, two on a tablet, one on a phone — the
+                mockup's own grid. It was three because at the old column width
+                a quarter was 230px and the collage stopped saying which pack
+                this is. With the column at its drawn width a quarter is 270,
+                which is wide enough.
               */}
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 {packs.map((pack) => (
                   <div
                     key={pack.tag}
-                    className="proof plate group flex flex-col rounded-[8px] border border-ink-200 bg-paper-100 p-3 transition-colors hover:border-accentb-500"
+                    className={`proof ${CARD} ${cardHover} group flex flex-col p-3.5`}
+                    style={cardStyle}
                   >
                     <button
                       type="button"
@@ -338,12 +346,17 @@ export function StickerPacks() {
                         className="transition-colors group-hover:border-accentb-500"
                       />
                       <span
-                        className="mt-2.5 block truncate"
-                        style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17 }}
+                        className="mt-3 block truncate tracking-tight"
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontWeight: 600,
+                          fontSize: 'var(--studio-text-section)',
+                          color: 'var(--color-ink-900)',
+                        }}
                       >
                         {pack.name}
                       </span>
-                      <span className="mono-label mt-0.5 block text-ink-500" style={{ fontSize: 10 }}>
+                      <span className="mono-label mt-1 block text-ink-500" style={{ fontSize: 11 }}>
                         {pack.stickerIds.length}{' '}
                         {pack.stickerIds.length === 1 ? 'sticker' : 'stickers'}
                       </span>
@@ -382,16 +395,28 @@ export function StickerPacks() {
                   type="button"
                   title="Name it above, then press stickers to put them in"
                   onClick={() => void make()}
-                  className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-[8px] border border-dashed border-ink-300 p-3 transition-colors hover:border-accentb-500"
-                  style={{ color: 'var(--color-accentb-700)' }}
+                  className="flex min-h-[260px] flex-col items-center justify-center gap-2.5 rounded-[10px] border border-dashed p-3 transition-colors hover:border-accentb-500"
+                  style={{ color: 'var(--color-accentb-700)', borderColor: 'var(--studio-line)' }}
                 >
-                  <PlusIcon size={28} />
-                  <span className="text-[14.5px] font-[600]">New pack</span>
+                  <PlusIcon size={34} />
+                  <span
+                    className="tracking-tight"
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 600,
+                      fontSize: 'var(--studio-text-section)',
+                    }}
+                  >
+                    New pack
+                  </span>
                 </button>
               </div>
 
               {!stickers.length && (
-                <p className="mt-6 text-[13.5px] text-ink-500">
+                <p
+                  className="mt-6"
+                  style={{ fontSize: 'var(--studio-text-body)', color: 'var(--color-ink-500)' }}
+                >
                   Nothing to group yet. Make a sticker first.
                 </p>
               )}
@@ -532,7 +557,7 @@ export function StickerPacks() {
             </Modal>
           )}
         </div>
-      </div>
+      </StudioPage>
     </main>
   );
 }
