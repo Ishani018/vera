@@ -45,11 +45,17 @@
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
+  --text-on-sheet: #1B1815;
   --sidebar-fill: #1B1815;
   --sidebar-text: #FBF7EE;
   --sidebar-muted: #A79E90;
   --sidebar-active-fill: #FBF7EE;
   --sidebar-active-text: #1B1815;
+
+  /* the studio screens: a page, a card on it, and the card's edge */
+  --studio-page: #fefdfa;
+  --studio-card: #fbf8f2;
+  --studio-line: #e4dac3;
 
   /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;
@@ -125,6 +131,17 @@
   --text-display: 26px;
   --text-hero: 34px;
 
+  --studio-text-caption: 11.5px;
+  --studio-text-body: 14.5px;
+  --studio-text-nav: 16px;
+  --studio-text-card: 17px;
+  --studio-text-section: 19.5px;
+  --studio-text-page: 30px;
+  --studio-text-hero: 44px;
+
+  --studio-shadow-card: 0 1px 2px rgb(var(--shade) / 0.06), 0 10px 24px -14px rgb(var(--shade) / 0.28);
+  --studio-shadow-cardRaised: 0 2px 4px rgb(var(--shade) / 0.08), 0 16px 32px -16px rgb(var(--shade) / 0.34);
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -167,11 +184,17 @@
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
+  --text-on-sheet: #3B2433;
   --sidebar-fill: #F8D9CB;
   --sidebar-text: #3B2433;
   --sidebar-muted: #755B6D;
   --sidebar-active-fill: #FFFFFF;
   --sidebar-active-text: #3B2433;
+
+  /* the studio screens: a page, a card on it, and the card's edge */
+  --studio-page: #fffdfc;
+  --studio-card: #fef7f3;
+  --studio-line: #f2cfbf;
 
   /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;
@@ -244,11 +267,17 @@
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
+  --text-on-sheet: #1F3A33;
   --sidebar-fill: #D2E8DA;
   --sidebar-text: #1F3A33;
   --sidebar-muted: #536961;
   --sidebar-active-fill: #FFFFFF;
   --sidebar-active-text: #1F3A33;
+
+  /* the studio screens: a page, a card on it, and the card's edge */
+  --studio-page: #fcfefd;
+  --studio-card: #f5faf7;
+  --studio-line: #c5dfcf;
 
   /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;
@@ -321,11 +350,17 @@
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
+  --text-on-sheet: #2A2145;
   --sidebar-fill: #E3DAF6;
   --sidebar-text: #2A2145;
   --sidebar-muted: #665D84;
   --sidebar-active-fill: #FFFFFF;
   --sidebar-active-text: #2A2145;
+
+  /* the studio screens: a page, a card on it, and the card's edge */
+  --studio-page: #fefdff;
+  --studio-card: #f9f6fd;
+  --studio-line: #d8cdf0;
 
   /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;
@@ -398,11 +433,17 @@
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #111A6B;
   --text-on-accenta-700: #FFFEFA;
+  --text-on-sheet: #111A6B;
   --sidebar-fill: #111A6B;
   --sidebar-text: #F6F2E7;
   --sidebar-muted: #9AA0D4;
   --sidebar-active-fill: #F6F2E7;
   --sidebar-active-text: #111A6B;
+
+  /* the studio screens: a page, a card on it, and the card's edge */
+  --studio-page: #fcfbf5;
+  --studio-card: #f7f4ea;
+  --studio-line: #d4cbb0;
 
   /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFEFA;
@@ -475,11 +516,17 @@
   /* what the palette decided, for the components that have to ask */
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #0C0A08;
+  --text-on-sheet: #0C0A08;
   --sidebar-fill: #0C0A08;
   --sidebar-text: #F4EEE1;
   --sidebar-muted: #A39A8A;
   --sidebar-active-fill: #F4EEE1;
   --sidebar-active-text: #0C0A08;
+
+  /* the studio screens: a page, a card on it, and the card's edge */
+  --studio-page: #14110E;
+  --studio-card: #24201a;
+  --studio-line: #453E33;
 
   /* aliases — the names the app was written in, pointing at the roles above */
   --color-paper: #FFFFFF;

@@ -80,7 +80,13 @@
 .btn-default {
   background: var(--color-sheet);
   border: 1px solid var(--color-ink-300);
-  color: var(--color-ink-900);
+  /*
+    `text-on-sheet`, not `ink-900`. The fill is a real white in every palette;
+    `ink-900` is the colour body text is, which in Night is near-WHITE — so this
+    button was white on white there. Identical to `ink-900` in all five light
+    palettes, so nothing but Night moves.
+  */
+  color: var(--text-on-sheet);
 }
 .btn-default:hover:not(:disabled) {
   border-color: var(--color-ink-900);
@@ -168,7 +174,8 @@
   background: var(--color-sheet);
   border: 1px solid var(--color-ink-300);
   border-radius: var(--radius-xs);
-  color: var(--color-ink-900);
+  /* Same reason as `.btn-default` above: a white fill needs ink chosen for it. */
+  color: var(--text-on-sheet);
   transition:
     border-color var(--motion-base) var(--ease-out),
     box-shadow var(--motion-base) var(--ease-out);

@@ -341,6 +341,27 @@ export const SHADOWS: Record<string, string> = {
   glow: 'none',
 };
 
+/**
+ * The studio screens' own depth — a deliberate departure, recorded here.
+ *
+ * `SHADOWS` above has `rest` and `raised` set to none and a test holds them
+ * there: a printed proof has no drop shadows, and a page of floating cards is a
+ * page of nothing sitting on anything. That rule still governs every screen it
+ * governed before; this object does not touch it.
+ *
+ * The approved mockups do put a quiet lift under the gallery cards, and without
+ * it those screens read as rectangles ruled on a page. So the lift lives here,
+ * under its own name, used only by those screens rather than smuggled into the
+ * proof-sheet set.
+ *
+ * Two layers each: a 1px contact edge so the card meets the page, and a wide,
+ * very soft pool so it floats a millimetre rather than a centimetre.
+ */
+export const STUDIO_SHADOWS: Record<string, string> = {
+  card: '0 1px 2px rgb(var(--shade) / 0.06), 0 10px 24px -14px rgb(var(--shade) / 0.28)',
+  cardRaised: '0 2px 4px rgb(var(--shade) / 0.08), 0 16px 32px -16px rgb(var(--shade) / 0.34)',
+};
+
 /** How long things take. Nothing here is slower than half a second. */
 export const MOTION: Record<string, string> = {
   fast: '120ms',
@@ -367,6 +388,30 @@ export const TYPE: Record<string, string> = {
   xl: '20px',
   display: '26px',
   hero: '34px',
+};
+
+/**
+ * The studio scale, read off the approved mockups.
+ *
+ * Its own object rather than more steps on `TYPE`, for two reasons. `TYPE` is a
+ * ramp and a test holds it to being one, and these sizes interleave with it
+ * rather than extending it. And `TYPE` is load-bearing for the editors and the
+ * renderer: moving `base` to suit a gallery would move type inside somebody's
+ * book.
+ *
+ * The three studio screens are drawn at 1920 in a 1738px app window, so each
+ * size is the mockup's own number times 1280/1738. Measured there: a page title
+ * at 42.2 and 68.5, a section heading at 29.1, a card title at 25.5, body at
+ * 21.6, a caption at 15.9, a nav item at 25.5.
+ */
+export const STUDIO_TYPE: Record<string, string> = {
+  caption: '11.5px',
+  body: '14.5px',
+  nav: '16px',
+  card: '17px',
+  section: '19.5px',
+  page: '30px',
+  hero: '44px',
 };
 
 /** Space, in fours. */
@@ -440,6 +485,47 @@ export function textOn(palette: Palette, fill: string): string {
  * `outline` — which is the whole reason that role exists.
  */
 export const inkOnSheet = (p: Palette) => (p.isDark ? p.outline : p.ink900);
+
+/**
+ * Two colours, mixed. Plain sRGB — what `color-mix` in a stylesheet would do,
+ * and close enough for two surfaces a shade apart.
+ */
+function mix(a: string, b: string, amount: number): string {
+  const read = (hex: string, at: number) => parseInt(hex.replace('#', '').slice(at, at + 2), 16);
+  const one = (at: number) =>
+    Math.round(read(a, at) * (1 - amount) + read(b, at) * amount)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${one(0)}${one(2)}${one(4)}`;
+}
+
+/**
+ * The page the studio screens stand on.
+ *
+ * `paper50` is a warm cream, which is right for a page of a book and heavy for
+ * a gallery of pictures: eight stickers on cream read as eight stickers on a
+ * stain. The mockups put them on something much closer to white, so this lifts
+ * the page most of the way to `sheet` and keeps the palette's hue.
+ *
+ * A dark palette has nothing to lift towards — `sheet` is a real white there,
+ * and a near-white page is the opposite of the palette — so Night keeps
+ * `paper50` exactly and the depth comes from the card surfaces instead.
+ */
+export const studioPage = (p: Palette) => (p.isDark ? p.paper50 : mix(p.paper50, p.sheet, 0.72));
+
+/**
+ * A card on that page: one quiet step off it, in the same direction as the ink.
+ *
+ * Light palettes step DOWN from the near-white page towards `paper100`; dark
+ * palettes step UP from the near-black page towards `paper200`, because in the
+ * dark a raised surface is a lighter one. Either way the card is the thing in
+ * front and the page the thing behind, which is what "not flat" means here.
+ */
+export const studioCard = (p: Palette) =>
+  p.isDark ? mix(p.paper100, p.paper200, 0.45) : mix(p.sheet, p.paper100, 0.42);
+
+/** The hairline round a card: a step further again, so an edge is an edge. */
+export const studioLine = (p: Palette) => (p.isDark ? p.paper300 : mix(p.paper200, p.paper300, 0.5));
 export const mutedOnSheet = (p: Palette) => (p.isDark ? p.ink300 : p.ink500);
 
 /* ------------------------------------------------------- what to check */
@@ -473,6 +559,15 @@ export const MUST_READ: { text: string; on: string; what: string; large?: boolea
   { text: 'ink700', on: 'paper200', what: 'a label on a tint' },
   { text: 'ink500', on: 'paper50', what: 'mono small print on the page' },
   { text: 'ink500', on: 'paper100', what: 'mono small print on a plate' },
+
+  /* The studio screens' own two surfaces. New surfaces, so new lines here. */
+  { text: 'ink900', on: 'studioPage', what: 'a heading on a studio page' },
+  { text: 'ink700', on: 'studioPage', what: 'body text on a studio page' },
+  { text: 'ink500', on: 'studioPage', what: 'a caption on a studio page' },
+  { text: 'ink900', on: 'studioCard', what: 'a title on a studio card' },
+  { text: 'ink700', on: 'studioCard', what: 'body text on a studio card' },
+  { text: 'ink500', on: 'studioCard', what: 'a caption on a studio card' },
+  { text: 'accentB700', on: 'studioCard', what: 'a teal label on a studio card' },
 
   /* Text drawn on a white page silhouette, which stays white in every palette. */
   { text: 'inkOnSheet', on: 'sheet', what: 'a title on a page silhouette' },
@@ -519,6 +614,12 @@ export function colourAt(palette: Palette, path: string): string {
       return palette.textOnAccentA === 'ink' ? palette.outline : palette.sheet;
     case 'textOnA700':
       return textOn(palette, palette.accentA700);
+    case 'studioPage':
+      return studioPage(palette);
+    case 'studioCard':
+      return studioCard(palette);
+    case 'studioLine':
+      return studioLine(palette);
     case 'inkOnSheet':
       return inkOnSheet(palette);
     case 'mutedOnSheet':

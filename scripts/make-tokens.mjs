@@ -11,6 +11,8 @@ import {
   RADII,
   SHADOWS,
   SPACE,
+  STUDIO_SHADOWS,
+  STUDIO_TYPE,
   TYPE,
 } from '../lib/theme.ts';
 
@@ -84,11 +86,25 @@ function colours(p) {
     // Worked out rather than declared: Riso's pink needs ink on it and Riso's
     // deep magenta needs white, so the hover state cannot inherit the rest one.
     `--text-on-accenta-700: ${colourAt(p, 'textOnA700')};`,
+    /*
+      Ink on a real white fill — a secondary button, a text field — which is a
+      different question from ink on the page. `sheet` is #FFFFFF in every
+      palette including Night, where `ink900` is near-WHITE, so anything that
+      reached for ink900 on a sheet fill was invisible there. The sweep has
+      always checked this pair as "a title on a page silhouette"; it just had no
+      variable to hand the stylesheet.
+    */
+    `--text-on-sheet: ${colourAt(p, 'inkOnSheet')};`,
     `--sidebar-fill: ${colourAt(p, 'sidebarFill')};`,
     `--sidebar-text: ${colourAt(p, 'sidebarText')};`,
     `--sidebar-muted: ${colourAt(p, 'sidebarMuted')};`,
     `--sidebar-active-fill: ${colourAt(p, 'sidebarActiveFill')};`,
     `--sidebar-active-text: ${colourAt(p, 'sidebarActiveText')};`,
+    '',
+    "/* the studio screens: a page, a card on it, and the card's edge */",
+    `--studio-page: ${colourAt(p, 'studioPage')};`,
+    `--studio-card: ${colourAt(p, 'studioCard')};`,
+    `--studio-line: ${colourAt(p, 'studioLine')};`,
     '',
     '/* aliases — the names the app was written in, pointing at the roles above */',
     `--color-paper: ${p.sheet};`,
@@ -176,6 +192,10 @@ ${indent(scale('motion', MOTION), 2)}
 ${indent(scale('ease', EASING), 2)}
 
 ${indent(scale('text', TYPE), 2)}
+
+${indent(scale('studio-text', STUDIO_TYPE), 2)}
+
+${indent(scale('studio-shadow', STUDIO_SHADOWS), 2)}
 
 ${indent(scale('space', SPACE), 2)}
 

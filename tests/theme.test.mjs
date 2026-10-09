@@ -69,6 +69,9 @@ test('the sweep covers every colour role the palette has', () => {
     'sidebarMuted',
     'sidebarActiveFill',
     'sidebarActiveText',
+    // The studio screens' page and card, added when those surfaces were.
+    'studioPage',
+    'studioCard',
   ]);
   const roles = [
     'ink900', 'ink700', 'ink500', 'ink300',
