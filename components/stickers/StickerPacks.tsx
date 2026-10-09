@@ -18,7 +18,7 @@ import { planRemoval, type ItemOutcome } from '@/lib/starter/install';
 import { removeSticker } from '@/lib/cover/library';
 import { Modal } from '../Modal';
 import type { LibrarySticker } from '@/lib/types';
-import { StudioHeader } from '../StudioHeader';
+import { StudioHeader, StudioTitle } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
 import { Fan, Thumb } from './Thumb';
 import { PlusIcon, TickIcon } from './icons';
@@ -269,10 +269,11 @@ export function StickerPacks() {
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
-        <span className="text-[16px] font-[560]">Packs</span>
+        <StudioTitle>Packs</StudioTitle>
+        <span className="ml-auto flex shrink-0 items-stretch self-stretch">
+          <StickerTabs />
+        </span>
       </StudioHeader>
-
-      <StickerTabs />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-6">

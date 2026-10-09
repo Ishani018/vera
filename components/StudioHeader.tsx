@@ -14,9 +14,43 @@ import { Wordmark } from './Wordmark';
  */
 export function StudioHeader({ children }: { children?: ReactNode }) {
   return (
-    <header className="flex min-w-0 items-center gap-4 overflow-x-auto border-b border-ink-200 bg-paper px-5">
+    /*
+      The bar stays white in every palette, including Night. That is a decided
+      thing, not an oversight: the wordmark is drawn in `outline`, a near-black
+      in all six, and `tests/brand.test.mjs` holds it there. So everything else
+      in this bar is coloured for a white fill too — see `StudioTitle` below and
+      the tab colours in `StickerTabs`.
+    */
+    <header className="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-ink-200 bg-paper px-3 sm:gap-4 sm:px-5">
       <Wordmark />
       {children}
     </header>
+  );
+}
+
+/**
+ * The page's name, beside the wordmark.
+ *
+ * The mockups set it at 42px on a 1738px window — 30px here — against the 16px
+ * it was, which left the title reading as a caption on the wordmark rather than
+ * as the name of the screen. In the display face, like every other heading on
+ * these screens. It is what a narrow window gives up first: the wordmark
+ * already says where you are.
+ */
+export function StudioTitle({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className="hidden shrink-0 truncate tracking-tight sm:inline"
+      style={{
+        fontFamily: 'var(--font-display)',
+        fontWeight: 600,
+        fontSize: 'var(--studio-text-page)',
+        // `text-on-sheet`, like the wordmark beside it: the bar is white in
+        // every palette and `ink-900` is near-white in Night.
+        color: 'var(--text-on-sheet)',
+      }}
+    >
+      {children}
+    </span>
   );
 }

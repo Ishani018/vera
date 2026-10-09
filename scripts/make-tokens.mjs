@@ -95,6 +95,11 @@ function colours(p) {
       variable to hand the stylesheet.
     */
     `--text-on-sheet: ${colourAt(p, 'inkOnSheet')};`,
+    `--text-muted-on-sheet: ${colourAt(p, 'mutedOnSheet')};`,
+    // The top bar is white in every palette, so its accents are chosen for
+    // white rather than for the page. In Night the deep steps invert.
+    `--red-on-sheet: ${colourAt(p, 'redOnSheet')};`,
+    `--teal-on-sheet: ${colourAt(p, 'tealOnSheet')};`,
     `--sidebar-fill: ${colourAt(p, 'sidebarFill')};`,
     `--sidebar-text: ${colourAt(p, 'sidebarText')};`,
     `--sidebar-muted: ${colourAt(p, 'sidebarMuted')};`,

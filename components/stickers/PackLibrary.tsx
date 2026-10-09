@@ -14,7 +14,7 @@ import { installPack, summarise } from '@/lib/starter/installClient';
 import type { ItemOutcome } from '@/lib/starter/install';
 import type { LibrarySticker } from '@/lib/types';
 import { Modal } from '../Modal';
-import { StudioHeader } from '../StudioHeader';
+import { StudioHeader, StudioTitle } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
 import { BrowseGraphics } from './BrowseGraphics';
 import { Fan, Thumb } from './Thumb';
@@ -143,11 +143,11 @@ export function PackLibrary() {
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
-        <span className="text-[16px] font-[560]">Library</span>
-        <span className="ml-auto shrink-0 text-[13px] text-ink-500">kept on this computer only</span>
+        <StudioTitle>Library</StudioTitle>
+        <span className="ml-auto flex shrink-0 items-stretch self-stretch">
+          <StickerTabs />
+        </span>
       </StudioHeader>
-
-      <StickerTabs />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-6">

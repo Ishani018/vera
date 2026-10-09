@@ -37,7 +37,7 @@ import {
 import type { LineArtSettings, StickerDraft } from '@/lib/types';
 import { ColourField } from '../cover/ColourField';
 import { Control, ModeChoice } from '../coloring/LineArtControls';
-import { StudioHeader } from '../StudioHeader';
+import { StudioHeader, StudioTitle } from '../StudioHeader';
 import { Rail } from '../cover/Rail';
 import { Advanced, Field, Stage, useAfter } from './StudioShell';
 import { StudioStart } from './StudioStart';
@@ -2034,8 +2034,11 @@ export function StickerStudio() {
         <StudioHeader>
           {/* No link home beside it: the wordmark to its left is that link,
               and has been all along. */}
-          <span className="text-[15.5px] font-[560]">Sticker Studio</span>
-          <span className="ml-auto shrink-0">
+          <StudioTitle>Sticker Studio</StudioTitle>
+          <span className="ml-auto flex shrink-0 items-center gap-3 self-stretch">
+            <span className="flex items-stretch self-stretch">
+              <StickerTabs />
+            </span>
             <PalettePicker compact />
           </span>
         </StudioHeader>
@@ -2059,7 +2062,7 @@ export function StickerStudio() {
         {/* The title and the status are the two things a narrow window can
             lose: the wordmark already says where you are, and the actions are
             what the bar is for. */}
-        <span className="hidden shrink-0 text-[15.5px] font-[560] lg:inline">Sticker Studio</span>
+        <StudioTitle>Sticker Studio</StudioTitle>
 
         <span className="flex shrink-0 items-center gap-1">
           <Button onClick={undoHere} title="Undo (Cmd+Z)" aria-label="Undo">
@@ -2094,7 +2097,19 @@ export function StickerStudio() {
         </span>
       </StudioHeader>
 
-      <StickerTabs />
+      {/*
+        The editor keeps the tabs in a band of their own. Its header is already
+        a row of eight actions, and the mockups do not cover this screen — they
+        draw the hub, the Lab and Packs, where the bar has room. Losing the only
+        way out of a half-finished sticker to match a mockup of somewhere else
+        would be a bad trade.
+      */}
+      <div
+        className="flex shrink-0 items-stretch border-b px-5"
+        style={{ background: 'var(--studio-page)', borderColor: 'var(--studio-line)' }}
+      >
+        <StickerTabs />
+      </div>
       <WhileSliding onChange={setDragging}>
       <div className="flex min-h-0 flex-1 max-lg:flex-col">
         <Rail panels={panels} open={openPanel} onOpen={setOpenPanel} />

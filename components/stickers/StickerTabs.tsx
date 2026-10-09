@@ -10,13 +10,15 @@ import { LibraryIcon, MakeIcon, PackIcon, SheetIcon, type IconProps } from './ic
 import { TrashIcon } from '../icons';
 
 /**
- * Where the sticker pages are, as a row of tabs you can see.
+ * Where the sticker pages are, as tabs on the right of the top bar.
  *
- * It replaces three underlined links in the top-right corner. Those were the
- * same size as the small print beside them and sat where a browser keeps its
- * own furniture, so the second and third pages of this part of the app were
- * effectively undiscovered. A tab bar says, without being read: there are four
- * places, and you are in this one.
+ * They used to sit in a full-width band of their own under the header, which is
+ * what none of the three approved mockups do: there the tabs are level with the
+ * wordmark, on the right, and there is one bar rather than two. The band cost a
+ * row of height on every sticker page and read as a second header.
+ *
+ * Sized from the mockups: 25.5px on a 1738px window, so 16px here, against the
+ * 13.5px it was. It is a destination, not a footnote.
  *
  * The current tab is marked three ways over — colour, weight and a rule under
  * it — because colour alone is the one that fails for a reader who cannot see
@@ -60,34 +62,40 @@ export function StickerTabs() {
   }, [here]);
 
   return (
-    /*
-      `paper-50` rather than `paper`, which is white in every palette: on Night
-      a white band under a white bar is two white bands in a dark room. The page
-      below is `paper-50` too, so the bar now sits on the page rather than on a
-      slab of its own.
-    */
-    <nav aria-label="Stickers" className="shrink-0 border-b border-ink-200 bg-paper-50 px-2 sm:px-4">
-      <ul className="relative mx-auto flex max-w-5xl items-stretch gap-1 overflow-x-auto">
+    <nav aria-label="Stickers" className="flex min-w-0 self-stretch">
+      <ul className="relative flex items-stretch gap-0.5 overflow-x-auto">
         <span className="tab-underline" style={mark} aria-hidden="true" />
         {STICKER_TABS.map(({ href, label, icon, title }, n) => {
           const current = here === href;
           const Icon = ICONS[icon];
           return (
-            <li key={href}>
+            <li key={href} className="flex">
               <Link
                 ref={(node) => void (tabs.current[n] = node)}
                 href={href}
                 title={title}
                 aria-current={current ? 'page' : undefined}
                 className={cx(
-                  'nudge-hover flex items-center gap-2 whitespace-nowrap px-3 py-2.5 text-[13.5px]',
+                  // Smaller and tighter below `sm`: the bar is one row and the
+                  // wordmark is not negotiable, so the tabs give way first
+                  // rather than letting the last one scroll off the screen.
+                  'nudge-hover flex items-center gap-2 whitespace-nowrap px-1.5 text-[13px]',
+                  'sm:px-3 sm:text-[length:var(--studio-text-nav)]',
                   'transition-colors duration-[var(--motion-base)]',
-                  current ? 'font-[600]' : 'text-ink-700 hover:text-ink-900',
+                  current && 'font-[600]',
                 )}
-                style={current ? { color: 'var(--color-accentb-700)' } : undefined}
+                /*
+                  Coloured for a WHITE fill, not for the page: the bar stays
+                  white in every palette, and in Night the deep accent steps
+                  invert — `accentb-700` is a pale teal that reads 2.1:1 there.
+                  Both tokens pick whichever step actually reads on sheet.
+                */
+                style={{
+                  color: current ? 'var(--teal-on-sheet)' : 'var(--text-muted-on-sheet)',
+                }}
               >
-                <span className="nudge">
-                  <Icon size={17} />
+                <span className="nudge max-sm:hidden">
+                  <Icon size={18} />
                 </span>
                 {label}
               </Link>
@@ -96,20 +104,23 @@ export function StickerTabs() {
         })}
 
         {/*
-          The trash, small and on the far right, in the red that means "this is
-          where things go when you take them away" everywhere else in the app.
-          It is a link, not a tab: there is one trash dialog and it lives on the
-          home screen, so this goes there rather than growing a copy.
+          The trash, smaller and last, in the red that means "this is where
+          things go when you take them away" everywhere else in the app. It is a
+          link, not a tab: there is one trash dialog and it lives on the home
+          screen, so this goes there rather than growing a copy.
         */}
-        <li className="ml-auto flex items-center">
+        <li className="flex">
           <Link
             href="/?trash=1"
             title="Thirty days, then gone"
-            className="nudge-hover flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-[12.5px]"
-            style={{ color: 'var(--color-accenta-700)' }}
+            className={cx(
+              'nudge-hover flex items-center gap-1.5 whitespace-nowrap pl-1.5 text-[13px]',
+              'sm:pl-3 sm:text-[length:var(--studio-text-body)]',
+            )}
+            style={{ color: 'var(--red-on-sheet)' }}
           >
-            <span className="nudge">
-              <TrashIcon size={15} />
+            <span className="nudge max-sm:hidden">
+              <TrashIcon size={16} />
             </span>
             Trash
           </Link>

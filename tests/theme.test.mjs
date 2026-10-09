@@ -72,6 +72,10 @@ test('the sweep covers every colour role the palette has', () => {
     // The studio screens' page and card, added when those surfaces were.
     'studioPage',
     'studioCard',
+    // What can be read on the white top bar, which is not what can be read on
+    // the page: in Night the deep accent steps invert.
+    'redOnSheet',
+    'tealOnSheet',
   ]);
   const roles = [
     'ink900', 'ink700', 'ink500', 'ink300',

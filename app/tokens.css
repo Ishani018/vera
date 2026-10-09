@@ -46,6 +46,9 @@
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
   --text-on-sheet: #1B1815;
+  --text-muted-on-sheet: #6B6256;
+  --red-on-sheet: #A8321D;
+  --teal-on-sheet: #084F49;
   --sidebar-fill: #1B1815;
   --sidebar-text: #FBF7EE;
   --sidebar-muted: #A79E90;
@@ -185,6 +188,9 @@
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
   --text-on-sheet: #3B2433;
+  --text-muted-on-sheet: #755B6D;
+  --red-on-sheet: #8E3247;
+  --teal-on-sheet: #2C5C65;
   --sidebar-fill: #F8D9CB;
   --sidebar-text: #3B2433;
   --sidebar-muted: #755B6D;
@@ -268,6 +274,9 @@
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
   --text-on-sheet: #1F3A33;
+  --text-muted-on-sheet: #536961;
+  --red-on-sheet: #8F3724;
+  --teal-on-sheet: #2A5578;
   --sidebar-fill: #D2E8DA;
   --sidebar-text: #1F3A33;
   --sidebar-muted: #536961;
@@ -351,6 +360,9 @@
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #FFFFFF;
   --text-on-sheet: #2A2145;
+  --text-muted-on-sheet: #665D84;
+  --red-on-sheet: #922F5E;
+  --teal-on-sheet: #343F92;
   --sidebar-fill: #E3DAF6;
   --sidebar-text: #2A2145;
   --sidebar-muted: #665D84;
@@ -434,6 +446,9 @@
   --text-on-accenta: #111A6B;
   --text-on-accenta-700: #FFFEFA;
   --text-on-sheet: #111A6B;
+  --text-muted-on-sheet: #4F58A8;
+  --red-on-sheet: #B81D72;
+  --teal-on-sheet: #00568A;
   --sidebar-fill: #111A6B;
   --sidebar-text: #F6F2E7;
   --sidebar-muted: #9AA0D4;
@@ -517,6 +532,9 @@
   --text-on-accenta: #FFFFFF;
   --text-on-accenta-700: #0C0A08;
   --text-on-sheet: #0C0A08;
+  --text-muted-on-sheet: #6F6759;
+  --red-on-sheet: #D1432A;
+  --teal-on-sheet: #0E8277;
   --sidebar-fill: #0C0A08;
   --sidebar-text: #F4EEE1;
   --sidebar-muted: #A39A8A;

@@ -408,7 +408,8 @@ export function DropZone({
         */
         compact
           ? cx(
-              'flex h-[56px] items-center gap-3 rounded-[6px] border border-dashed px-3',
+              // 113.6 tall on the mockup's 1738px window, so 76 here.
+              'flex h-[76px] items-center gap-3 rounded-[8px] border border-dashed px-4',
               // `.dropzone[data-over]` carries the tint for the big one; the
               // compact one is not that class, so it says so itself.
               over ? 'border-ink-900 bg-paper-100' : 'border-ink-300',
@@ -419,10 +420,18 @@ export function DropZone({
     >
       {compact ? (
         <>
-          <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink-500">
+          <span
+            className="min-w-0 flex-1 truncate"
+            style={{ fontSize: 'var(--studio-text-body)', color: 'var(--color-ink-500)' }}
+          >
             {over ? 'Let go to open it' : 'Drop a picture or choose a file'}
           </span>
-          <span className="btn btn-accent shrink-0 px-4 py-2 text-[14px]">Choose file</span>
+          <span
+            className="btn btn-accent shrink-0 px-5 py-2.5"
+            style={{ fontSize: 'var(--studio-text-body)' }}
+          >
+            Choose file
+          </span>
         </>
       ) : (
         <>

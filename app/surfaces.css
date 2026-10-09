@@ -421,7 +421,8 @@ input[type='range']:hover::-moz-range-thumb {
   bottom: -1px;
   height: 2px;
   border-radius: var(--radius-pill);
-  background: var(--color-accent-500);
+  /* The bar it sits in is white in every palette; see `--teal-on-sheet`. */
+  background: var(--teal-on-sheet);
   transition:
     transform var(--motion-slow) var(--ease-spring),
     width var(--motion-slow) var(--ease-out),

@@ -11,7 +11,7 @@ import type { LibrarySticker, StickerDraft } from '@/lib/types';
 import { Button, Notice } from '../ui';
 import { DropZone } from './StudioShell';
 import { Chequerboard, Thumb } from './Thumb';
-import { StickerTabs } from './StickerTabs';
+import { CARD, COLUMN, PageHead, SectionHead, StudioPage, cardHover, cardStyle } from '../studio/Shell';
 import { TickIcon } from './icons';
 
 /** The three modes the studio opens in. Named here so a card can ask for one. */
@@ -106,16 +106,13 @@ export function StudioStart({
   const latest = resumable ?? drafts[0] ?? null;
 
   return (
-    <>
-      <StickerTabs />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-          <h1 className="display text-[26px] tracking-tight">Make a sticker</h1>
-          <p className="mt-1 text-[13.5px] text-ink-500">
-            Start from a picture, a drawing or a pack.
-          </p>
+    <StudioPage>
+        <div className={`${COLUMN} py-9`}>
+          <PageHead title="Make a sticker" line="Start from a picture, a drawing or a pack." />
 
-          <div className="mt-4 max-w-2xl">
+          {/* 733 wide on the mockup's 1738px window — 540 here — and 76 tall.
+              Not the full column: it is one way in among three. */}
+          <div className="mt-5 max-w-[540px]">
             <DropZone compact busy={busy} onFiles={onFiles} />
           </div>
 
@@ -131,10 +128,8 @@ export function StudioStart({
             the same file chooser and set the mode the picture needs; the third
             is a different tool and says so by going somewhere.
           */}
-          <h2 className="mono-label mt-7 text-ink-500" style={{ fontSize: 10 }}>
-            Start from
-          </h2>
-          <div className="mt-2.5 grid gap-3 sm:grid-cols-3">
+          <SectionHead className="mt-10">Start from</SectionHead>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <StartCard
               title="Photo"
               caption="Cut out and outline"
@@ -184,7 +179,7 @@ export function StudioStart({
           */}
           {latest && (
             <section className="mt-7">
-              <div className="plate flex flex-wrap items-center gap-3 rounded-[8px] bg-paper-100 p-3">
+              <div className={`${CARD} flex flex-wrap items-center gap-4 p-4`} style={cardStyle}>
                 <Chequerboard className="size-[56px] shrink-0 rounded-[3px] border border-ink-200">
                   {urls[latest.id] ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -227,14 +222,21 @@ export function StudioStart({
 
           <section className="mt-7">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-[15px] font-[600]">
+              <SectionHead>
                 Your stickers
                 {stickers.length > 0 && (
-                  <span className="ml-2 text-[12.5px] font-normal text-ink-500">
+                  <span
+                    className="ml-2.5 font-normal"
+                    style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 'var(--studio-text-caption)',
+                      color: 'var(--color-ink-500)',
+                    }}
+                  >
                     {picked.length ? `${picked.length} picked` : 'press one to pick it'}
                   </span>
                 )}
-              </h2>
+              </SectionHead>
               {/* The one way to a sheet from here, and only when there is
                   something to put on it. */}
               {picked.length > 0 && (
@@ -247,15 +249,15 @@ export function StudioStart({
               )}
             </div>
             {!loaded ? (
-              <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-6">
-                {Array.from({ length: 6 }, (_, n) => (
+              <div className="mt-4 grid grid-cols-3 gap-3.5 sm:grid-cols-5 lg:grid-cols-8">
+                {Array.from({ length: 8 }, (_, n) => (
                   <span key={n} className="block">
                     <span className="skeleton block aspect-square w-full rounded-lg" />
                   </span>
                 ))}
               </div>
             ) : stickers.length ? (
-              <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-6">
+              <div className="mt-4 grid grid-cols-3 gap-3.5 sm:grid-cols-5 lg:grid-cols-8">
                 {stickers.map((sticker) => (
                   <Thumb
                     key={sticker.id}
@@ -275,14 +277,16 @@ export function StudioStart({
                 ))}
               </div>
             ) : (
-              <p className="mt-2 text-[13.5px] text-ink-500">
+              <p
+                className="mt-3"
+                style={{ fontSize: 'var(--studio-text-body)', color: 'var(--color-ink-500)' }}
+              >
                 Nothing saved yet. The ones you keep appear here.
               </p>
             )}
           </section>
         </div>
-      </div>
-    </>
+      </StudioPage>
   );
 }
 
@@ -322,8 +326,8 @@ function StartCard({
         </span>
       )}
       <svg
-        width="32"
-        height="32"
+        width="44"
+        height="44"
         viewBox="0 0 32 32"
         fill="none"
         stroke="currentColor"
@@ -334,24 +338,45 @@ function StartCard({
       >
         {icon}
       </svg>
-      <span className="mt-2 block text-[15px] font-[600]">{title}</span>
-      <span className="mt-0.5 block text-[12.5px] text-ink-500">{caption}</span>
+      <span
+        className="mt-3 block font-[600] tracking-tight"
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 'var(--studio-text-card)',
+          color: 'var(--color-ink-900)',
+        }}
+      >
+        {title}
+      </span>
+      <span
+        className="mt-1 block"
+        style={{ fontSize: 'var(--studio-text-caption)', color: 'var(--color-ink-500)' }}
+      >
+        {caption}
+      </span>
     </>
   );
 
-  const shell =
-    'proof plate relative flex flex-col items-center justify-center rounded-[8px] border border-ink-200 ' +
-    'bg-paper-100 px-3 py-5 text-center transition-colors hover:border-accentb-500';
+  /*
+    The mockup's card is 504 by 226 on a 1738px window — 371 by 167 here — with
+    the mark, the word and the line stacked in the middle. It was 100 tall with
+    a 32px mark, which is why three ways in read as three buttons.
+  */
+  const shell = `proof ${CARD} ${cardHover} relative flex min-h-[150px] flex-col items-center justify-center px-4 py-6 text-center`;
 
   if (href) {
     return (
-      <Link href={href} title={caption} className={shell}>
+      <Link href={href} title={caption} className={shell} style={cardStyle}>
         {inside}
       </Link>
     );
   }
   return (
-    <label title={caption} className={`${shell} cursor-pointer ${busy ? 'pointer-events-none opacity-50' : ''}`}>
+    <label
+      title={caption}
+      className={`${shell} cursor-pointer ${busy ? 'pointer-events-none opacity-50' : ''}`}
+      style={cardStyle}
+    >
       {inside}
       <input
         type="file"

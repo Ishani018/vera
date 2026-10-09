@@ -16,7 +16,7 @@ import {
   type SheetSettings,
 } from '@/lib/stickers/sheet';
 import type { LibrarySticker } from '@/lib/types';
-import { StudioHeader } from '../StudioHeader';
+import { StudioHeader, StudioTitle } from '../StudioHeader';
 import { StickerTabs } from './StickerTabs';
 import { Thumb } from './Thumb';
 import { MinusIcon } from './icons';
@@ -237,11 +237,11 @@ export function StickerSheet() {
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
-        <span className="text-[16px] font-[560]">Sticker sheet</span>
-        <span className="ml-auto shrink-0 text-[13px] text-ink-500">made in this browser</span>
+        <StudioTitle>Sticker sheet</StudioTitle>
+        <span className="ml-auto flex shrink-0 items-stretch self-stretch">
+          <StickerTabs />
+        </span>
       </StudioHeader>
-
-      <StickerTabs />
 
       {!stickers.length ? (
         <div className="grid flex-1 place-items-center px-6">

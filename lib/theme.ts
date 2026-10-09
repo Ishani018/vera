@@ -528,6 +528,28 @@ export const studioCard = (p: Palette) =>
 export const studioLine = (p: Palette) => (p.isDark ? p.paper300 : mix(p.paper200, p.paper300, 0.5));
 export const mutedOnSheet = (p: Palette) => (p.isDark ? p.ink300 : p.ink500);
 
+/**
+ * An accent that can be READ on a white fill, which is a different question
+ * from an accent that can be read on the page.
+ *
+ * The top bar is white in every palette — that is the decision the wordmark's
+ * `outline` colour and `tests/brand.test.mjs` are built on — so the tabs and
+ * the Trash link in it sit on white even in Night. There the deep steps invert:
+ * `accentA700` is a pale coral (2.30:1 on white) and `accentB700` a pale teal
+ * (2.14:1), both of which are what you want on a dark PAGE and useless here.
+ *
+ * So each picks whichever of its own two steps reads better on `sheet`, the way
+ * `textOnA700` already picks between inks. Worst case across the six palettes
+ * is 4.55:1, so every one passes AA.
+ */
+const betterOnSheet = (p: Palette, deep: string, mid: string) => {
+  const against = (hex: string) => ratio(hex, p.sheet);
+  return against(deep) >= against(mid) ? deep : mid;
+};
+
+export const redOnSheet = (p: Palette) => betterOnSheet(p, p.accentA700, p.accentA500);
+export const tealOnSheet = (p: Palette) => betterOnSheet(p, p.accentB700, p.accentB500);
+
 /* ------------------------------------------------------- what to check */
 
 /**
@@ -572,6 +594,9 @@ export const MUST_READ: { text: string; on: string; what: string; large?: boolea
   /* Text drawn on a white page silhouette, which stays white in every palette. */
   { text: 'inkOnSheet', on: 'sheet', what: 'a title on a page silhouette' },
   { text: 'mutedOnSheet', on: 'sheet', what: 'small print on a page silhouette' },
+  /* The top bar is white in every palette, so what sits in it is read on white. */
+  { text: 'redOnSheet', on: 'sheet', what: 'the Trash link in the top bar' },
+  { text: 'tealOnSheet', on: 'sheet', what: 'the current tab in the top bar' },
 
   /* The sidebar, dark or tinted. */
   { text: 'sidebarText', on: 'sidebarFill', what: 'a nav label on the sidebar' },
@@ -624,6 +649,10 @@ export function colourAt(palette: Palette, path: string): string {
       return inkOnSheet(palette);
     case 'mutedOnSheet':
       return mutedOnSheet(palette);
+    case 'redOnSheet':
+      return redOnSheet(palette);
+    case 'tealOnSheet':
+      return tealOnSheet(palette);
     case 'sidebarFill':
       return palette.sidebarStyle === 'dark'
         ? palette.isDark
