@@ -1821,7 +1821,16 @@ export function CoverDesigner<T extends CoverableBook>({
       </div>
 
       {!rail && (
-        <aside className="w-80 shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper p-3.5">
+        /*
+          The fallback aside, for the book cover designer, which stacks every
+          section rather than opening one door at a time. Its width and padding
+          are the shared panel's now — it was 320px and 14px, against the rail's
+          312 and 16, for no reason anyone wrote down.
+        */
+        <aside
+          className="shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper lg:w-[var(--panel-width)]"
+          style={{ padding: 'var(--panel-pad)' }}
+        >
           {sections.browseSize}
           {sections.measurements}
           {sections.history}

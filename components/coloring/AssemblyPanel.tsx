@@ -7,6 +7,7 @@ import { frontMatterPages } from '@/lib/render/coloringLayout';
 import type { PaperType } from '@/lib/types';
 import { MatterPage } from './MatterPage';
 import { Field, Notice, Select, TextInput, Toggle } from '../ui';
+import { PanelSection, SectionHeading } from '../panel/Panel';
 import { newColouringBookTitle } from '@/lib/home/naming';
 
 /**
@@ -29,9 +30,7 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
 
   return (
     <div className="flex flex-col gap-7">
-      <section>
-        <h3 className="text-[17px] font-semibold">The book</h3>
-        <div className="mt-3 flex flex-col gap-3.5">
+      <PanelSection title="The book">
           <Field label="Title">
             <TextInput
               value={book.meta.title}
@@ -69,12 +68,9 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
               />
             </Field>
           </div>
-        </div>
-      </section>
+      </PanelSection>
 
-      <section>
-        <h3 className="text-[17px] font-semibold">Paper</h3>
-        <div className="mt-3 flex flex-col gap-3.5">
+      <PanelSection title="Paper">
           <Field label="Size" hint={`${trim.width}″ × ${trim.height}″ when trimmed`}>
             <Select
               value={book.trim.trimId}
@@ -109,16 +105,12 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
             checked={book.coloring.singleSided}
             onChange={(value) => setBookSetting('singleSided', value)}
           />
-        </div>
-      </section>
+      </PanelSection>
 
-      <section>
-        <h3 className="text-[17px] font-semibold">Front of the book</h3>
-        <p className="mt-1 text-[14px] text-ink-500">
-          Four pages, each optional. Three of them can be a drawing of your own instead of the
-          built-in design — it goes through the same cleanup as a coloring page.
-        </p>
-        <div className="mt-3 flex flex-col gap-5">
+      <PanelSection
+        title="Front of the book"
+        note="Four pages, each optional. Three can be a drawing of your own, through the same cleanup as a colouring page."
+      >
           <MatterPage
             slot="title"
             label="Title page"
@@ -146,11 +138,10 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
             on={book.coloring.colorTestPage}
             onToggle={(value) => setBookSetting('colorTestPage', value)}
           />
-        </div>
-      </section>
+      </PanelSection>
 
       <section>
-        <h3 className="text-[17px] font-semibold">How it adds up</h3>
+        <SectionHeading>How it adds up</SectionHeading>
         <dl className="mt-3 divide-y divide-ink-200 text-[14.5px]">
           <Row label="Front of the book" value={`${front} page${front === 1 ? '' : 's'}`} />
           <Row label="Pictures" value={`${book.pages.length}`} />
@@ -173,7 +164,7 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
 
       {issues.length > 0 && (
         <section>
-          <h3 className="text-[17px] font-semibold">Before you publish</h3>
+          <SectionHeading>Before you publish</SectionHeading>
           <div className="mt-3 flex flex-col gap-2.5">
             {issues.map((issue) => (
               <Notice key={issue.id} level={issue.level}>

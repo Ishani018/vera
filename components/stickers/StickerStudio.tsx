@@ -40,6 +40,7 @@ import { Control, ModeChoice } from '../coloring/LineArtControls';
 import { StudioHeader, StudioTitle } from '../StudioHeader';
 import { Rail } from '../cover/Rail';
 import { Advanced, Field, Stage, useAfter } from './StudioShell';
+import { Control as PanelControl, ControlLabel } from '../panel/Panel';
 import { StudioStart } from './StudioStart';
 import { StickerTabs } from './StickerTabs';
 import { Button, Info, Notice, ProgressRing, TextInput, Toggle, WhileSliding, cx } from '../ui';
@@ -1151,15 +1152,12 @@ export function StickerStudio() {
               value={settings.detail}
               onChange={(detail) => setSettings((s) => ({ ...s, detail }))}
             />
-            <div>
-              <span className="mb-2 block font-[570]">
-                Line colour
-                <Info label="Line colour">
-                  The sticker is this colour and everything else is see-through.
-                </Info>
-              </span>
+            <PanelControl
+              label="Line colour"
+              hint="The sticker is this colour and everything else is see-through."
+            >
               <ColourField label="Line colour" value={inkColour} onChange={setInkColour} />
-            </div>
+            </PanelControl>
             {/* Set once and rarely again: closed, so the three that matter are
                 the three on screen. */}
             <Advanced>
@@ -1264,7 +1262,7 @@ export function StickerStudio() {
                   onChange={setDieCutRadius}
                 />
                 <div>
-                  <span className="mb-2 block font-[570]">Outline colour</span>
+                  <ControlLabel label="Outline colour" />
                   <ColourField
                     label="Outline colour"
                     value={dieCutColour}
@@ -1291,7 +1289,7 @@ export function StickerStudio() {
             <div className="mt-4 flex flex-col gap-5">
               {tool !== 'eraser' && !isTouchTool(tool) && (
                 <div>
-                  <span className="mb-2 block font-[570]">Colour</span>
+                  <ControlLabel label="Colour" />
                   <ColourField
                     label="Colour"
                     value={brushColour}
@@ -1346,9 +1344,7 @@ export function StickerStudio() {
           ) : (
             <div className="mt-4 flex flex-col gap-5">
               <div>
-                <span className="mb-2 block font-[570]">
-                  {tool === 'dropper' ? 'Picked up' : 'Change it to'}
-                </span>
+                <ControlLabel label={tool === 'dropper' ? 'Picked up' : 'Change it to'} />
                 <ColourField
                   label="Colour"
                   value={brushColour}
@@ -1378,9 +1374,7 @@ export function StickerStudio() {
 
               {swaps.length > 0 && (
                 <div>
-                  <span className="mb-2 block font-[570]">
-                    Changed in the picture, in order
-                  </span>
+                  <ControlLabel label="Changed in the picture, in order" />
                   <ol className="flex flex-col gap-1.5">
                     {swaps.map((swap, n) => (
                       <li
@@ -1526,7 +1520,7 @@ export function StickerStudio() {
                   />
 
                   <div>
-                    <span className="mb-2 block font-[570]">Font</span>
+                    <ControlLabel label="Font" />
                     <FontPicker
                       label="Font"
                       value={editing.family}
@@ -1535,7 +1529,7 @@ export function StickerStudio() {
                   </div>
 
                   <div>
-                    <span className="mb-2 block font-[570]">Colour</span>
+                    <ControlLabel label="Colour" />
                     <ColourField
                       label="Text colour"
                       value={editing.colour}
@@ -1599,7 +1593,7 @@ export function StickerStudio() {
                           }
                         />
                         <div>
-                          <span className="mb-2 block font-[570]">Outline colour</span>
+                          <ControlLabel label="Outline colour" />
                           <ColourField
                             label="Outline colour"
                             value={editing.outline.colour}
@@ -1649,7 +1643,7 @@ export function StickerStudio() {
     effects: (
       <div className="flex flex-col gap-6 px-4 py-4">
         <div>
-          <span className="block font-[570]">Finishing</span>
+          <ControlLabel label="Finishing" />
 
           {/* Three pictures of the three effects, each one the switch for it. */}
           <div className="mt-2 grid grid-cols-3 gap-2">
@@ -1716,7 +1710,7 @@ export function StickerStudio() {
                 onChange={(n) => decorate({ shadow: { ...decorations.shadow!, opacity: n / 100 } })}
               />
               <div>
-                <span className="mb-2 block font-[570]">Shadow colour</span>
+                <ControlLabel label="Shadow colour" />
                 <ColourField
                   label="Shadow colour"
                   value={decorations.shadow.colour}
@@ -1785,7 +1779,7 @@ export function StickerStudio() {
           {!framing ? null : (
             <div className="mt-4 flex flex-col gap-5">
               <div>
-                <span className="mb-2 block font-[570]">Flip</span>
+                <ControlLabel label="Flip" />
                 <div className="grid grid-cols-2 gap-1.5">
                   <Button
                     onClick={() => setFrameRemembering({ ...frame, flipX: !frame.flipX })}
@@ -1801,7 +1795,7 @@ export function StickerStudio() {
               </div>
 
               <div>
-                <span className="mb-2 block font-[570]">Turn</span>
+                <ControlLabel label="Turn" />
                 <div className="grid grid-cols-2 gap-1.5">
                   <Button
                     onClick={() =>
@@ -1830,7 +1824,7 @@ export function StickerStudio() {
               />
 
               <div>
-                <span className="mb-2 block font-[570]">Crop</span>
+                <ControlLabel label="Crop" />
                 <p className="mb-2 text-[13px] leading-snug text-ink-500">
                   {frame.crop
                     ? `Keeping ${Math.round(frame.crop.width * 100)}% across and ${Math.round(frame.crop.height * 100)}% down. Drag again to change it.`

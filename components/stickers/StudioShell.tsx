@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Info, Spinner, cx } from '../ui';
+import { Spinner, cx } from '../ui';
+import { PanelSection } from '../panel/Panel';
 
 /**
  * The furniture of a studio: a stage that does not scroll away, a strip of
@@ -285,11 +286,19 @@ export function ToolButton({
 export const ToolRule = () => <span className="my-1 h-px w-6 bg-white/25" />;
 
 /**
- * One named thing in a panel: a title, a line of help, and the control itself.
+ * One named group in a panel: a title, a line of help, and the controls.
  *
- * The help is one short line. Anything longer belongs in a tooltip on the
- * control it is about — a panel of paragraphs is a panel nobody reads, and the
- * old screen had four of them before the first slider.
+ * This used to draw itself — a 13.5px bold heading and a bottom border between
+ * one group and the next — while the Lab drew the same idea as a 10px mono
+ * label with no rule at all. It is now the shared `PanelSection`, so a group of
+ * controls looks the same in the Sticker Studio, the Lab, the colouring book's
+ * assembly panel and the cover designer.
+ *
+ * The borders are gone with it. A panel of bordered blocks inside a bordered
+ * panel is three nested containers to say "these two sliders belong together",
+ * which space already says.
+ *
+ * The signature is unchanged: forty-odd call sites pass `title` and `help`.
  */
 export function Field({
   title,
@@ -301,49 +310,25 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="border-b border-ink-200 px-4 py-4 last:border-b-0">
-      {/* The title stays; the sentence under it moves into the (i). */}
-      {title && (
-        <h4 className="text-[13.5px] font-[600] tracking-tight">
-          {title}
-          {help && <Info label={title}>{help}</Info>}
-        </h4>
-      )}
-      <div className={cx(title || help ? 'mt-3' : '', 'flex flex-col gap-4')}>{children}</div>
-    </div>
+    <PanelSection title={title} hint={help}>
+      {children}
+    </PanelSection>
   );
 }
 
 /**
- * A section that starts closed.
+ * A group that starts closed, for the controls somebody sets once.
  *
- * For the controls somebody sets once and then never looks at again. They are
- * not hidden — the heading says what is in there and one press opens it — but
- * they are not in the way of the three controls that get used every time, and
- * a panel that fits on the screen is a panel nobody has to scroll.
- *
- * `<details>` rather than state of our own: it is open to the keyboard, it is
- * found by the browser's own find-on-page, and it needs no JavaScript at all.
+ * Also the shared `PanelSection` now. It keeps the `<details>` element this
+ * component always used — open to the keyboard, reachable by the browser's own
+ * find-on-page, no JavaScript — because `PanelSection` was changed to use one
+ * rather than this being changed to a button.
  */
 export function Advanced({ title = 'Advanced', children }: { title?: string; children: ReactNode }) {
   return (
-    <details className="group rounded-xl border border-ink-200 bg-ink-50/60">
-      <summary
-        className={cx(
-          'flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-[570]',
-          'transition-colors duration-[var(--motion-fast)] hover:text-accent-600',
-        )}
-      >
-        <span
-          aria-hidden
-          className="inline-block text-[10px] text-ink-500 transition-transform duration-[var(--motion-base)] ease-[var(--ease-out)] group-open:rotate-90"
-        >
-          ▶
-        </span>
-        {title}
-      </summary>
-      <div className="flex flex-col gap-4 px-3 pb-3 pt-1">{children}</div>
-    </details>
+    <PanelSection title={title} collapsible>
+      {children}
+    </PanelSection>
   );
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Info, Notice, Spinner, cx } from '../ui';
 
 /**
@@ -140,6 +140,7 @@ export function PanelSection({
   collapsible = false,
   defaultOpen = false,
   note,
+  hint,
 }: {
   title?: string;
   children: ReactNode;
@@ -147,54 +148,94 @@ export function PanelSection({
   defaultOpen?: boolean;
   /** One short line under the heading, when the group needs a word of context. */
   note?: string;
+  /**
+   * The same thing as `note`, but behind an "i" on the heading.
+   *
+   * Preferred. A panel of five groups each with a visible line of prose is a
+   * panel nobody reads twice; one press is enough for a sentence somebody
+   * needs once.
+   */
+  hint?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const bodyId = useId();
+  const body = (
+    <>
+      {note && <SectionNote>{note}</SectionNote>}
+      <div style={{ display: 'grid', gap: 'var(--panel-gap)' }}>{children}</div>
+    </>
+  );
 
   if (!collapsible) {
     return (
       <section style={{ marginBottom: 'var(--panel-sectionGap)' }}>
-        {title && <SectionLabel>{title}</SectionLabel>}
-        {note && <SectionNote>{note}</SectionNote>}
-        <div style={{ display: 'grid', gap: 'var(--panel-gap)' }}>{children}</div>
+        {title && (
+          <SectionLabel hint={hint} label={title}>
+            {title}
+          </SectionLabel>
+        )}
+        {title && <span className="block h-2" aria-hidden="true" />}
+        {body}
       </section>
     );
   }
 
+  /*
+    `<details>` rather than a button and a piece of state.
+
+    It is open to the keyboard without any work, the browser's own
+    find-on-page opens it to reach a control inside, and it needs no
+    JavaScript. The Sticker Studio's old `Advanced` was already a `<details>`
+    for exactly those reasons, and replacing it with a button would have been
+    a quiet accessibility regression dressed up as consistency.
+  */
   return (
-    <section style={{ marginBottom: 'var(--panel-sectionGap)' }}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={bodyId}
-        onClick={() => setOpen((was) => !was)}
-        className="flex w-full items-center justify-between gap-2 py-1 text-left transition-colors hover:text-ink-900"
-      >
-        <SectionLabel>{title}</SectionLabel>
+    <details
+      className="group"
+      open={defaultOpen}
+      style={{ marginBottom: 'var(--panel-sectionGap)' }}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 transition-colors hover:text-ink-900">
+        <SectionLabel hint={hint} label={title}>
+          {title}
+        </SectionLabel>
         <span
           aria-hidden="true"
-          className="shrink-0 transition-transform duration-[var(--motion-base)]"
-          style={{ color: 'var(--color-ink-500)', transform: open ? 'rotate(90deg)' : 'none' }}
+          className="shrink-0 transition-transform duration-[var(--motion-base)] group-open:rotate-90"
+          style={{ color: 'var(--color-ink-500)' }}
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
             <path d="M6 3.5L10.5 8L6 12.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-      </button>
-      {open && (
-        <div id={bodyId} className="pt-2" style={{ display: 'grid', gap: 'var(--panel-gap)' }}>
-          {note && <SectionNote>{note}</SectionNote>}
-          {children}
-        </div>
-      )}
-    </section>
+      </summary>
+      <div className="pt-2">{body}</div>
+    </details>
   );
 }
 
-function SectionLabel({ children }: { children: ReactNode }) {
+/**
+ * A section's name, on its own.
+ *
+ * Exported for the few places whose section is not a stack of controls — a
+ * table of page counts, a list of warnings — and so cannot be a
+ * `PanelSection`, but should still be headed the same way as one.
+ */
+export function SectionHeading({ children }: { children: ReactNode }) {
+  return <SectionLabel>{children}</SectionLabel>;
+}
+
+function SectionLabel({
+  children,
+  hint,
+  label,
+}: {
+  children: ReactNode;
+  hint?: string;
+  label?: string;
+}) {
   return (
-    <span className="mono-label block text-ink-500" style={{ fontSize: 10 }}>
+    <span className="mono-label text-ink-500" style={{ fontSize: 10 }}>
       {children}
+      {hint && <Info label={label ?? 'this group'}>{hint}</Info>}
     </span>
   );
 }
@@ -238,31 +279,56 @@ export function Control({
 }) {
   return (
     <div className={cx(disabled && 'pointer-events-none opacity-40')} data-control>
-      <span className="mb-1.5 flex items-baseline gap-1.5">
-        <span className="mono-label text-ink-900" style={{ fontSize: 10 }}>
-          {label}
-        </span>
-        {hint && <Info label={label}>{hint}</Info>}
-        <span className="ml-auto flex items-baseline gap-2">
-          {value !== undefined && (
-            <span className="mono-label tabular-nums text-ink-500" style={{ fontSize: 10 }}>
-              {value}
-            </span>
-          )}
-          {onReset && (
-            <button
-              type="button"
-              onClick={onReset}
-              title={`Put ${label.toLowerCase()} back`}
-              className="rounded-[3px] px-1 text-[10px] text-ink-500 transition-colors hover:text-ink-900"
-            >
-              Reset
-            </button>
-          )}
-        </span>
-      </span>
+      <ControlLabel label={label} hint={hint} value={value} onReset={onReset} />
       {children}
     </div>
+  );
+}
+
+/**
+ * A control's label row on its own: the name, its "i", its reading, its reset.
+ *
+ * Exported for the handful of places whose control is already wrapped in its
+ * own markup and cannot become a `Control` without restructuring the JSX around
+ * it. Using this keeps them on one definition of what a label is instead of
+ * copying the classes.
+ */
+export function ControlLabel({
+  label,
+  hint,
+  value,
+  onReset,
+}: {
+  label: ReactNode;
+  hint?: string;
+  value?: ReactNode;
+  onReset?: () => void;
+}) {
+  const named = typeof label === 'string' ? label : 'this';
+  return (
+    <span className="mb-1.5 flex items-baseline gap-1.5">
+      <span className="mono-label text-ink-900" style={{ fontSize: 10 }}>
+        {label}
+      </span>
+      {hint && <Info label={named}>{hint}</Info>}
+      <span className="ml-auto flex items-baseline gap-2">
+        {value !== undefined && (
+          <span className="mono-label tabular-nums text-ink-500" style={{ fontSize: 10 }}>
+            {value}
+          </span>
+        )}
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            title={`Put ${named.toLowerCase()} back`}
+            className="rounded-[3px] px-1 text-[10px] text-ink-500 transition-colors hover:text-ink-900"
+          >
+            Reset
+          </button>
+        )}
+      </span>
+    </span>
   );
 }
 

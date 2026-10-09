@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Info, Slider, cx } from '../ui';
+import { Control as PanelControl } from '../panel/Panel';
 import { CHEQUER } from '../stickers/Thumb';
 
 /**
@@ -14,7 +15,20 @@ import { CHEQUER } from '../stickers/Thumb';
  * matters most to someone who has never traced a drawing before.
  */
 
-/** A slider with a name and a sentence about what it does. */
+/**
+ * A slider with a name, a sentence one press away, its reading, and a reset.
+ *
+ * This used to draw itself — a `font-[570]` label, an `Info`, a `Slider` — and
+ * the Lab's panel drew the same thing in 10px uppercase mono. Two shapes for
+ * one idea, on two tools that sit side by side in the same app. It is now the
+ * shared `Control` from `components/panel`, so the Sticker Studio, the
+ * colouring book's line art and the Lab all label a slider the same way.
+ *
+ * The signature is unchanged, because thirty-two call sites pass `value` and
+ * `onChange` and renaming them would be churn rather than a change. What is
+ * new is `defaultValue`: pass it and the control offers a Reset once it has
+ * moved, which is the behaviour the shared panel gives every other slider.
+ */
 export function Control({
   label,
   hint,
@@ -23,6 +37,7 @@ export function Control({
   min = 0,
   max = 100,
   step = 1,
+  defaultValue,
 }: {
   label: string;
   hint: string;
@@ -31,18 +46,18 @@ export function Control({
   min?: number;
   max?: number;
   step?: number;
+  /** What this slider started as. Omitted, no Reset is offered. */
+  defaultValue?: number;
 }) {
+  const moved = defaultValue !== undefined && Math.round(value) !== Math.round(defaultValue);
   return (
-    <div>
-      {/* Four words and an (i). The sentence is one press away. */}
-      <span className="block font-[570]">
-        {label}
-        {hint && <Info label={label}>{hint}</Info>}
-      </span>
-      <div className="mt-2">
-        <Slider value={value} onChange={onChange} min={min} max={max} step={step} />
-      </div>
-    </div>
+    <PanelControl
+      label={label}
+      hint={hint}
+      onReset={moved ? () => onChange(defaultValue) : undefined}
+    >
+      <Slider value={value} onChange={onChange} min={min} max={max} step={step} />
+    </PanelControl>
   );
 }
 
