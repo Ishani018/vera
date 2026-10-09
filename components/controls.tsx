@@ -32,7 +32,6 @@ import {
   Accordion,
   Button,
   ColorInput,
-  Field,
   Notice,
   NumberInput,
   Select,
@@ -41,6 +40,15 @@ import {
   TextInput,
   Toggle,
 } from './ui';
+/*
+  The panel's own field, under the name all thirty-one call sites below already
+  use. Same props — a label and an optional hint — so nothing here changed
+  except what a label looks like: the 10px mono the rest of the app's panels
+  use, instead of 15px sentence case with the hint printed underneath.
+
+  It is still a `<label>`, so clicking the word still focuses the control.
+*/
+import { PanelField as Field } from './panel/Panel';
 
 const TYPOGRAPHY_SLOTS: Array<{ key: keyof Typography; label: string }> = [
   { key: 'body', label: 'Poem body' },

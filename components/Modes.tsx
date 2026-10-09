@@ -16,7 +16,8 @@ import {
 import { ExportPanel } from './ExportPanel';
 import { ImagesMode } from './ImagesMode';
 import { PoemList } from './PoemList';
-import { Choice, Scroller, Tray } from './ui';
+import { Choice, Scroller } from './ui';
+import { Tray } from './panel/Panel';
 
 export type Mode = 'write' | 'design' | 'images' | 'export';
 

@@ -2,7 +2,8 @@
 
 import type { FontSpec, TextTransform } from '@/lib/types';
 import { FontPicker } from './FontPicker';
-import { Field, NumberInput, Select, Slider, cx } from './ui';
+import { ControlLabel, PanelField as Field } from './panel/Panel';
+import { NumberInput, Select, Slider, cx } from './ui';
 
 type Options = {
   showAlign?: boolean;
@@ -38,7 +39,7 @@ export function FontControls({
   } = options;
 
   return (
-    <div className="space-y-2.5">
+    <div style={{ display: 'grid', gap: 'var(--panel-gap)' }}>
       {showFamily && (
         <FontPicker
           value={spec.family}
@@ -113,49 +114,60 @@ export function FontControls({
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        {showAlign && (
-          <div className="inline-flex rounded-md border border-ink-300 bg-paper p-0.5">
-            {(['left', 'center', 'right'] as const).map((align) => (
+      {(showAlign || showItalic || showColor) && (
+        <div data-control>
+          {/* Alignment, italic and colour had no label at all, which in a panel
+              where everything else is named reads as a stray row of buttons. */}
+          <ControlLabel label="Style" />
+          <div className="flex items-center gap-2">
+            {showAlign && (
+              <div
+                role="group"
+                aria-label="Alignment"
+                className="inline-flex rounded-md border border-ink-300 bg-paper p-0.5"
+              >
+                {(['left', 'center', 'right'] as const).map((align) => (
+                  <button
+                    key={align}
+                    type="button"
+                    title={`Align ${align}`}
+                    onClick={() => onChange({ align })}
+                    className={cx(
+                      'rounded px-2 py-1 transition-colors',
+                      spec.align === align ? 'bg-ink-200 text-ink-900' : 'text-ink-500 hover:text-ink-900',
+                    )}
+                  >
+                    {align === 'left' ? '⯇' : align === 'center' ? '≡' : '⯈'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {showItalic && (
               <button
-                key={align}
                 type="button"
-                title={`Align ${align}`}
-                onClick={() => onChange({ align })}
+                onClick={() => onChange({ italic: !spec.italic })}
                 className={cx(
-                  'rounded px-2 py-1 transition-colors',
-                  spec.align === align ? 'bg-ink-200 text-ink-900' : 'text-ink-500 hover:text-ink-900',
+                  'rounded-md border px-2.5 py-1 italic transition-colors',
+                  spec.italic
+                    ? 'border-accent-500/60 bg-accent-500/15 text-accent-600'
+                    : 'border-ink-300 text-ink-500 hover:text-ink-900',
                 )}
               >
-                {align === 'left' ? '⯇' : align === 'center' ? '≡' : '⯈'}
+                I
               </button>
-            ))}
+            )}
+            {showColor && (
+              <input
+                type="color"
+                value={spec.color}
+                onChange={(e) => onChange({ color: e.target.value })}
+                className="ml-auto h-7 w-9"
+                aria-label="Text colour"
+              />
+            )}
           </div>
-        )}
-        {showItalic && (
-        <button
-          type="button"
-          onClick={() => onChange({ italic: !spec.italic })}
-          className={cx(
-            'rounded-md border px-2.5 py-1 italic transition-colors',
-            spec.italic
-              ? 'border-accent-500/60 bg-accent-500/15 text-accent-600'
-              : 'border-ink-300 text-ink-500 hover:text-ink-900',
-          )}
-        >
-          I
-        </button>
-        )}
-        {showColor && (
-          <input
-            type="color"
-            value={spec.color}
-            onChange={(e) => onChange({ color: e.target.value })}
-            className="ml-auto h-7 w-9"
-            aria-label="Text colour"
-          />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

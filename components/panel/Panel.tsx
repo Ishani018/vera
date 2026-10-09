@@ -141,6 +141,8 @@ export function PanelSection({
   defaultOpen = false,
   note,
   hint,
+  now,
+  onToggle,
 }: {
   title?: string;
   children: ReactNode;
@@ -156,6 +158,17 @@ export function PanelSection({
    * needs once.
    */
   hint?: string;
+  /**
+   * What this group currently says, shown on the heading while it is SHUT.
+   *
+   * From the poetry book's trays, which had it and the rest of the app did
+   * not: "Type — 11.5pt" tells you the answer without opening anything, and a
+   * panel of five shut groups becomes a summary of the whole book rather than
+   * five doors. Only meaningful with `collapsible`.
+   */
+  now?: ReactNode;
+  /** Called when a collapsible group is opened or shut, for a caller that remembers. */
+  onToggle?: (open: boolean) => void;
 }) {
   const body = (
     <>
@@ -193,10 +206,23 @@ export function PanelSection({
       open={defaultOpen}
       style={{ marginBottom: 'var(--panel-sectionGap)' }}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 transition-colors hover:text-ink-900">
+      <summary
+        onClick={onToggle ? (event) => onToggle(!(event.currentTarget.parentElement as HTMLDetailsElement).open) : undefined}
+        className="flex cursor-pointer list-none items-center justify-between gap-2 py-1 transition-colors hover:text-ink-900"
+      >
         <SectionLabel hint={hint} label={title}>
           {title}
         </SectionLabel>
+        {now !== undefined && (
+          <span
+            className="ml-auto mr-1 truncate text-right"
+            style={{ fontSize: 'var(--studio-text-caption)', color: 'var(--color-ink-500)' }}
+          >
+            {/* Only while shut: once it is open the controls themselves say it,
+                and two readings of one thing is one too many. */}
+            <span className="group-open:hidden">{now}</span>
+          </span>
+        )}
         <span
           aria-hidden="true"
           className="shrink-0 transition-transform duration-[var(--motion-base)] group-open:rotate-90"
@@ -333,6 +359,49 @@ export function ControlLabel({
 }
 
 /**
+ * One control whose label is the `<label>` itself.
+ *
+ * `Control` is deliberately a `<div>`: a slider plus its number box is two
+ * focusable things, and wrapping both in one `<label>` makes a click on the
+ * number drag the slider. But most of the poetry book's fields are a single
+ * input, and there the wrapping label is what makes the name clickable and what
+ * a screen reader reads out with the value. Losing that in the name of
+ * consistency would be a regression dressed up as tidying, so this variant
+ * keeps the wrapper and takes the shared label row.
+ */
+export function PanelField({
+  label,
+  hint,
+  children,
+  inline = false,
+}: {
+  label: string;
+  /** The explanation, behind an "i". One sentence; it is a tooltip, not a manual. */
+  hint?: string;
+  children: ReactNode;
+  /** Name on the left, control on the right: for a toggle or a short number. */
+  inline?: boolean;
+}) {
+  if (inline) {
+    return (
+      <label className="flex items-center justify-between gap-3" data-control>
+        <span className="mono-label text-ink-900" style={{ fontSize: 10 }}>
+          {label}
+          {hint && <Info label={label}>{hint}</Info>}
+        </span>
+        <span className="shrink-0">{children}</span>
+      </label>
+    );
+  }
+  return (
+    <label className="block" data-control>
+      <ControlLabel label={label} hint={hint} />
+      {children}
+    </label>
+  );
+}
+
+/**
  * The three things a panel has to be able to say when it has no controls to
  * show: nothing is selected, something is loading, something went wrong.
  *
@@ -361,5 +430,55 @@ export function PanelState({
       {kind === 'loading' && <Spinner />}
       {children}
     </p>
+  );
+}
+
+export function Tray({
+  title,
+  now,
+  children,
+  open,
+  onToggle,
+  onAnyChange,
+}: {
+  title: string;
+  /** The current value, shown on the shut header. */
+  now?: ReactNode;
+  children: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  /** Flashes what this tray governs in the preview when anything inside changes. */
+  onAnyChange?: () => void;
+}) {
+  /*
+    The poetry book's trays, on the shared `PanelSection`.
+
+    They used to be their own thing: a rounded, bordered card with a 16.5px
+    bold heading and a tinted bar when open. Three of those stacked inside a
+    panel that already has a border is three nested containers to say "these
+    controls belong together", which space says on its own — and the heading
+    was a fourth size of heading in an app that now has one.
+
+    What this pattern had and the shared one did not is the CURRENT VALUE on the
+    shut header: "Type — 11.5pt" answers the question without opening anything.
+    That moved into `PanelSection` as `now` rather than being lost, so the
+    poetry book keeps what was good about its trays and drops what was only
+    different.
+
+    `open` stays controlled by the caller, because the book editor keeps which
+    tray is open in its store so that it survives changing mode.
+  */
+  return (
+    <PanelSection
+      title={title}
+      now={now}
+      collapsible
+      defaultOpen={open}
+      onToggle={onToggle}
+    >
+      <div onChangeCapture={onAnyChange} onClickCapture={onAnyChange} className="contents">
+        {children}
+      </div>
+    </PanelSection>
   );
 }
