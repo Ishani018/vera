@@ -76,9 +76,13 @@ export function Rail({
       <nav
         className={cx(
           'relative flex shrink-0 gap-0.5 bg-paper',
-          'w-[78px] flex-col border-r border-ink-200 p-1.5',
+          // `--panel-rail`, shared, rather than a number written here.
+          'flex-col border-r border-ink-200 p-1.5',
           // Narrow: along the bottom, scrollable sideways, ordered last.
           'max-lg:order-last max-lg:w-full max-lg:flex-row max-lg:overflow-x-auto max-lg:border-r-0 max-lg:border-t',
+          // Width from the shared token, but only where the rail is a column:
+          // lying down across the bottom it is as wide as the window.
+          'lg:w-[var(--panel-rail)]',
         )}
       >
         <span className="slider-pill" style={pill} aria-hidden="true" />
@@ -145,14 +149,30 @@ export function Rail({
           key={shown.id}
           className={cx(
             'panel-in flex shrink-0 flex-col overflow-y-auto bg-paper',
-            'w-[300px] border-r border-ink-200',
+            // The width is `--panel-width` now, shared with the Lab, which used
+            // to be 37px wider for no decided reason. See `PANEL` in lib/theme.
+            'border-r border-ink-200',
             // Narrow: a drawer across the bottom, above the bar, capped so it
             // never takes the whole window.
             'max-lg:order-last max-lg:max-h-[46vh] max-lg:w-full max-lg:border-r-0 max-lg:border-t',
+            'lg:w-[var(--panel-width)]',
           )}
         >
-          <header className="flex items-baseline justify-between gap-2 px-4 pb-2 pt-4">
-            <h3 className="text-[17px] font-semibold tracking-tight">{shown.label}</h3>
+          <header
+            className="flex items-baseline justify-between gap-2"
+            style={{ padding: 'var(--panel-pad)', paddingBottom: 'var(--space-2)' }}
+          >
+            <h3
+              className="tracking-tight"
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 600,
+                fontSize: 'var(--studio-text-section)',
+                color: 'var(--color-ink-900)',
+              }}
+            >
+              {shown.label}
+            </h3>
             <button
               type="button"
               onClick={() => onOpen(null)}
@@ -177,7 +197,12 @@ export function Rail({
               ✕
             </button>
           </header>
-          <div className="space-y-4 px-4 pb-6">{shown.node}</div>
+          <div
+            className="space-y-4"
+            style={{ paddingLeft: 'var(--panel-pad)', paddingRight: 'var(--panel-pad)', paddingBottom: 'var(--space-6)' }}
+          >
+            {shown.node}
+          </div>
         </section>
       )}
     </>

@@ -10,6 +10,7 @@ import {
   PRESS_PROOF,
   RADII,
   SHADOWS,
+  PANEL,
   SPACE,
   STUDIO_SHADOWS,
   STUDIO_TYPE,
@@ -197,6 +198,8 @@ ${indent(scale('motion', MOTION), 2)}
 ${indent(scale('ease', EASING), 2)}
 
 ${indent(scale('text', TYPE), 2)}
+
+${indent(scale('panel', PANEL), 2)}
 
 ${indent(scale('studio-text', STUDIO_TYPE), 2)}
 

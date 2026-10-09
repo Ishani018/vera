@@ -10,9 +10,10 @@ import type { ColouringSettings } from '@/lib/lineart/colouring';
 import type { LogoSettings } from '@/lib/lab/logo';
 import type { InkedSettings } from '@/lib/lineart/inked';
 import { Accordion, Button, Info, Notice, Slider, Toggle, cx } from '../ui';
+import { Control, PanelSection } from '../panel/Panel';
 import { LookCard } from './LookCard';
 import { Chequerboard } from '../stickers/Thumb';
-import { StudioHeader } from '../StudioHeader';
+import { StudioHeader, StudioTitle } from '../StudioHeader';
 import { ExportIcon, LookIcon, PictureIcon, TuneIcon } from './icons';
 import { SmartProgress } from './SmartProgress';
 import { ChangePicture, DropOverlay, DropZone, HelperChip, StatusLine, StepsList, StepsLine, useDropTarget } from './Intake';
@@ -423,11 +424,11 @@ export function Lab() {
           same way the Sticker Studio's bar does: the wordmark already says
           where you are, and the links are what the bar is for.
         */}
-        <h1
-          className="hidden shrink-0 sm:inline"
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 19 }}
-        >
-          Line Art Lab
+        <h1 className="contents">
+          {/* `StudioTitle` so every screen's name is the same size and, more
+              to the point, the same INK: the bar is white in every palette and
+              `ink-900` is near-white in Night, which this used to inherit. */}
+          <StudioTitle>Line Art Lab</StudioTitle>
         </h1>
         {file && (
           <span className="mono-label hidden min-w-0 truncate text-ink-500 lg:inline" style={{ fontSize: 10 }}>
@@ -435,13 +436,26 @@ export function Lab() {
           </span>
         )}
         <span className="ml-auto flex shrink-0 items-center gap-1">
-          <Link href="/stickers" className="btn btn-ghost min-h-9 px-2.5 text-[14px]">
+          {/* Coloured for a white fill, like the tabs on the sticker pages. */}
+          <Link
+            href="/stickers"
+            className="btn btn-ghost min-h-9 px-2.5"
+            style={{ fontSize: 'var(--studio-text-nav)', color: 'var(--text-muted-on-sheet)' }}
+          >
             Stickers
           </Link>
-          <Link href="/stickers/packs" className="btn btn-ghost min-h-9 px-2.5 text-[14px]">
+          <Link
+            href="/stickers/packs"
+            className="btn btn-ghost min-h-9 px-2.5"
+            style={{ fontSize: 'var(--studio-text-nav)', color: 'var(--text-muted-on-sheet)' }}
+          >
             Packs
           </Link>
-          <Link href="/?trash=1" className="btn btn-ghost min-h-9 px-2.5 text-[14px]">
+          <Link
+            href="/?trash=1"
+            className="btn btn-ghost min-h-9 px-2.5"
+            style={{ fontSize: 'var(--studio-text-nav)', color: 'var(--red-on-sheet)' }}
+          >
             Trash
           </Link>
         </span>
@@ -528,12 +542,22 @@ export function Lab() {
               is showing and whatever the panel above them is long enough to do.
             */}
             <section
-              className="flex w-[300px] shrink-0 flex-col max-lg:order-3 max-lg:w-full"
+              className={cx(
+                'flex shrink-0 flex-col max-lg:order-3 max-lg:w-full',
+                // The shared panel width, so the Lab and the cover designer
+                // agree. It used to be 300 here and 300 there by coincidence.
+                'lg:w-[var(--panel-width)]',
+              )}
               aria-label="Controls"
             >
               <h2
-                className="shrink-0"
-                style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 21 }}
+                className="shrink-0 tracking-tight"
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 600,
+                  fontSize: 'var(--studio-text-section)',
+                  color: 'var(--color-ink-900)',
+                }}
               >
                 {file ? TABS.find((one) => one.id === tab)?.label : 'How it works'}
               </h2>
@@ -705,55 +729,76 @@ export function Lab() {
                   </>
                 ) : tab === 'tune' ? (
                   <>
-                    {main.map((id) => (
-                      <Dial key={id} name={LABELS[id]} hint={HINTS[id]}>
-                        <Slider
-                          value={valueOf(id, { classic, inked, colouring, logo })}
-                          onChange={(next) =>
-                            setFrom(id, next, { classic, setClassic, inked, setInked, colouring, setColouring, logo, setLogo })
+                    {/*
+                      The one control that matters for this look, out; the rest
+                      behind a section that is closed until asked for. Both are
+                      the shared panel parts now, so this groups and collapses
+                      the same way the cover designer's panels do.
+                    */}
+                    <PanelSection>
+                      {main.map((id) => (
+                        <Control
+                          key={id}
+                          label={LABELS[id]}
+                          hint={HINTS[id]}
+                          /* The slider prints its own number; a second copy on
+                             the label row would be two readings of one thing. */
+                          onReset={
+                            Math.round(valueOf(id, { classic, inked, colouring, logo })) ===
+                            Math.round(defaultOf(id, look))
+                              ? undefined
+                              : () =>
+                                  setFrom(id, defaultOf(id, look), {
+                                    classic, setClassic, inked, setInked, colouring, setColouring, logo, setLogo,
+                                  })
                           }
-                          min={0}
-                          max={100}
-                          step={1}
-                          format={(n) => String(Math.round(n))}
-                        />
-                      </Dial>
-                    ))}
+                        >
+                          <Slider
+                            value={valueOf(id, { classic, inked, colouring, logo })}
+                            onChange={(next) =>
+                              setFrom(id, next, { classic, setClassic, inked, setInked, colouring, setColouring, logo, setLogo })
+                            }
+                            min={0}
+                            max={100}
+                            step={1}
+                            format={(n) => String(Math.round(n))}
+                          />
+                        </Control>
+                      ))}
+                    </PanelSection>
 
                     {advanced.length > 0 && (
-                      <div className="-mx-1 mt-1">
-                        <Accordion
-                          title="Advanced"
-                          open={advancedOpen}
-                          onToggle={() => setAdvancedOpen((was) => !was)}
-                        >
-                          <div className="px-3.5 pb-3 pt-1">
-                            {advanced.map((id) => (
-                              <Dial key={id} name={LABELS[id]} hint={HINTS[id]}>
-                                <Slider
-                                  value={valueOf(id, { classic, inked, colouring, logo })}
-                                  onChange={(next) =>
-                                    setFrom(id, next, {
-                                      classic,
-                                      setClassic,
-                                      inked,
-                                      setInked,
-                                      colouring,
-                                      setColouring,
-                                      logo,
-                                      setLogo,
+                      <PanelSection title="Advanced" collapsible>
+                        {advanced.map((id) => (
+                          <Control
+                            key={id}
+                            label={LABELS[id]}
+                            hint={HINTS[id]}
+                            onReset={
+                              Math.round(valueOf(id, { classic, inked, colouring, logo })) ===
+                              Math.round(defaultOf(id, look))
+                                ? undefined
+                                : () =>
+                                    setFrom(id, defaultOf(id, look), {
+                                      classic, setClassic, inked, setInked, colouring, setColouring, logo, setLogo,
                                     })
-                                  }
-                                  min={0}
-                                  max={100}
-                                  step={1}
-                                  format={(n) => String(Math.round(n))}
-                                />
-                              </Dial>
-                            ))}
-                          </div>
-                        </Accordion>
-                      </div>
+                            }
+                          >
+                            <Slider
+                              value={valueOf(id, { classic, inked, colouring, logo })}
+                              onChange={(next) =>
+                                setFrom(id, next, {
+                                  classic, setClassic, inked, setInked, colouring, setColouring, logo, setLogo,
+                                })
+                              }
+                              min={0}
+                              max={100}
+                              step={1}
+                              format={(n) => String(Math.round(n))}
+                            />
+                          </Control>
+                        ))}
+                      </PanelSection>
                     )}
 
                     {look === 'logo' && (
@@ -1132,13 +1177,15 @@ function Canvas({
  * press away instead, and the title attribute still carries it for a hover.
  */
 function Dial({ name, hint, children }: { name: string; hint: string; children: React.ReactNode }) {
+  // The shared `Control` now draws this — same label, same hint behind the same
+  // "i" — so the Lab's controls and the cover designer's are one thing. The
+  // wrapper stays because every call site here passes `name`, and renaming
+  // forty of them would be churn rather than a change.
   return (
-    <div className="mb-3">
-      <span data-dial className="mono-label mb-1 block text-ink-900" style={{ fontSize: 10 }}>
-        {name}
-        <Info label={name}>{hint}</Info>
-      </span>
-      {children}
+    <div data-dial>
+      <Control label={name} hint={hint}>
+        {children}
+      </Control>
     </div>
   );
 }
@@ -1188,6 +1235,27 @@ function valueOf(id: string, bag: Bag): number {
   if (id === 'thickness') return bag.classic.thickness;
   if (id === 'detail') return bag.classic.detail;
   return bag.classic[id as 'softness' | 'cleanup'];
+}
+
+/**
+ * What one control started as, for the Reset beside its label.
+ *
+ * Read from `defaultsFor` — the same source the Lab opens with — rather than
+ * from a second table that would drift. A look that has no opinion about a
+ * control (Logo has nothing to say about taper) falls back to the classic
+ * defaults, which is what that control is reading anyway.
+ */
+function defaultOf(id: string, look: LookId): number {
+  const defaults = defaultsFor(look) as unknown as Record<string, Record<string, number> | string>;
+  for (const group of ['logo', 'colouring', 'inked', 'classic']) {
+    const bag = defaults[group];
+    if (bag && typeof bag === 'object') {
+      const value = bag[id];
+      if (typeof value === 'number') return value;
+    }
+  }
+  const classic = (defaultsFor('ink-pen') as unknown as { classic: Record<string, number> }).classic;
+  return classic[id] ?? 50;
 }
 
 function setFrom(

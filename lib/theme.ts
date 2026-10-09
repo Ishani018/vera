@@ -404,6 +404,28 @@ export const TYPE: Record<string, string> = {
  * at 42.2 and 68.5, a section heading at 29.1, a card title at 25.5, body at
  * 21.6, a caption at 15.9, a nav item at 25.5.
  */
+/**
+ * The right-hand settings panel, as numbers rather than as a habit.
+ *
+ * Three panels grew up separately — the cover designer's rail, the sticker
+ * studio's (the same component) and the Lab's own — and drifted: 78 vs 102px
+ * rails, 300 vs 337px panels, and three different ideas of what a control's
+ * label looks like. These are the sizes they agree on now, in one place, so
+ * that a fourth panel has something to copy and the existing three cannot
+ * quietly disagree again.
+ */
+export const PANEL: Record<string, string> = {
+  /** Wide enough for a slider and its number, narrow enough to leave the canvas the room. */
+  width: '312px',
+  /** The rail of named doors beside it. */
+  rail: '78px',
+  pad: '16px',
+  /** Between one control and the next. */
+  gap: '14px',
+  /** Between one group of controls and the next: twice the gap, so groups read as groups. */
+  sectionGap: '28px',
+};
+
 export const STUDIO_TYPE: Record<string, string> = {
   caption: '11.5px',
   body: '14.5px',

@@ -134,6 +134,12 @@
   --text-display: 26px;
   --text-hero: 34px;
 
+  --panel-width: 312px;
+  --panel-rail: 78px;
+  --panel-pad: 16px;
+  --panel-gap: 14px;
+  --panel-sectionGap: 28px;
+
   --studio-text-caption: 11.5px;
   --studio-text-body: 14.5px;
   --studio-text-nav: 16px;
