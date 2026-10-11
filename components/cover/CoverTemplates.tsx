@@ -9,6 +9,7 @@ import {
 } from '@/lib/cover/library';
 import type { CoverSpec, CoverTemplate } from '@/lib/types';
 import { Button, TextInput } from '../ui';
+import { SectionHeading } from '../panel/Panel';
 
 /**
  * Saved cover layouts, so every book in a series can start from one design.
@@ -49,9 +50,7 @@ export function CoverTemplates({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-          Cover templates
-        </h4>
+        <SectionHeading>Cover templates</SectionHeading>
         <button
           type="button"
           onClick={() => setNaming(!naming)}

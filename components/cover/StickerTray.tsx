@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { UnsupportedImageError, getAssetUrl, putAsset } from '@/lib/assets';
 import { ACCEPTED_TYPES } from '../coloring/PageGrid';
 import { cx } from '../ui';
+import { SectionHeading } from '../panel/Panel';
 
 /** A picture the tray can offer: whatever it is, it has bytes and a size. */
 export type TrayItem = {
@@ -60,7 +61,7 @@ export function StickerTray({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">{title}</h4>
+        <SectionHeading>{title}</SectionHeading>
         {onUpload && (
           <button
             type="button"

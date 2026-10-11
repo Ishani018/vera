@@ -298,7 +298,10 @@ export function StickerSheet() {
             </p>
           </div>
 
-          <div className="flex w-[352px] shrink-0 flex-col border-l border-ink-200 bg-paper">
+          <div
+            className="flex w-[352px] shrink-0 flex-col border-l"
+            style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+          >
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="w-12 shrink-0 text-[12px] text-ink-500">Paper</span>

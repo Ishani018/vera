@@ -48,7 +48,7 @@ import {
 
   It is still a `<label>`, so clicking the word still focuses the control.
 */
-import { PanelField as Field } from './panel/Panel';
+import { PanelField as Field, PanelSection } from './panel/Panel';
 
 const TYPOGRAPHY_SLOTS: Array<{ key: keyof Typography; label: string }> = [
   { key: 'body', label: 'Poem body' },
@@ -267,12 +267,9 @@ export function TrimPanel() {
 export function TypographyPanel() {
   const [project, update] = useProject();
   return (
-    <div className="space-y-5">
+    <div>
       {TYPOGRAPHY_SLOTS.map(({ key, label }) => (
-        <div key={key} className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-            {label}
-          </h4>
+        <PanelSection key={key} title={label}>
           <FontControls
             spec={project.typography[key]}
             onChange={(patch) =>
@@ -282,7 +279,7 @@ export function TypographyPanel() {
             }
             options={{ showAlign: key !== 'body' }}
           />
-        </div>
+        </PanelSection>
       ))}
     </div>
   );
@@ -518,8 +515,7 @@ export function MatterPanel() {
   const [project, update] = useProject();
 
   const renderGroup = (which: 'frontMatter' | 'backMatter', label: string) => (
-    <div className="space-y-2">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">{label}</h4>
+    <PanelSection title={label}>
       {project[which]
         .slice()
         .sort((a, b) => a.order - b.order)
@@ -535,11 +531,11 @@ export function MatterPanel() {
             }
           />
         ))}
-    </div>
+    </PanelSection>
   );
 
   return (
-    <div className="space-y-5">
+    <div>
       {renderGroup('frontMatter', 'Front matter')}
       {renderGroup('backMatter', 'Back matter')}
       <Notice level="info">

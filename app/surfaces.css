@@ -307,7 +307,13 @@
 */
 .tip {
   background: var(--color-ink-900);
-  color: var(--color-paper);
+  /*
+    Inverse of the ink, so `paper-50`, not `paper`. `--color-paper` is the
+    printed sheet and stays white in every palette, while ink-900 turns cream
+    in Night: white on cream measured 1.16:1 on every hint behind an "i" and
+    on the sliders' value bubble. paper-50 flips with the ink.
+  */
+  color: var(--color-paper-50);
   border-radius: var(--radius-xs);
   box-shadow: var(--shadow-float);
   font-size: var(--text-xs);

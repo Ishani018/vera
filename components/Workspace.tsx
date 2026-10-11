@@ -144,7 +144,10 @@ export function Workspace() {
 
       {tab === 'book' ? (
         <div className="grid min-h-0 flex-1 grid-cols-[104px_404px_minmax(0,1fr)]">
-          <nav className="flex flex-col gap-1.5 border-r border-ink-200 bg-paper p-2.5">
+          <nav
+            className="flex flex-col gap-1.5 border-r p-2.5"
+            style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+          >
             {MODES.map((entry) => (
               <button
                 key={entry.id}

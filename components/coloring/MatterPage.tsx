@@ -7,7 +7,7 @@ import { pageQuality } from '@/lib/coloring/quality';
 import { ACCEPTED_TYPES } from './PageGrid';
 import { matterArt } from '@/lib/render/coloringLayout';
 import type { MatterSlot } from '@/lib/types';
-import { Toggle, cx } from '../ui';
+import { Notice, Toggle, cx } from '../ui';
 
 /**
  * One generated front-matter page: whether it prints at all, and whether it is
@@ -144,7 +144,13 @@ export function MatterPage({
             </div>
           )}
 
-          {error && <p className="mt-2 text-[13.5px] text-red-800">{error}</p>}
+          {/* The app has one way of saying something went wrong; this used to
+              have a second. */}
+          {error && (
+            <div className="mt-2">
+              <Notice level="error">{error}</Notice>
+            </div>
+          )}
         </div>
       )}
     </div>

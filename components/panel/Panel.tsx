@@ -181,7 +181,7 @@ export function PanelSection({
     return (
       <section style={{ marginBottom: 'var(--panel-sectionGap)' }}>
         {title && (
-          <SectionLabel hint={hint} label={title}>
+          <SectionLabel as="h4" hint={hint} label={title}>
             {title}
           </SectionLabel>
         )}
@@ -246,23 +246,37 @@ export function PanelSection({
  * `PanelSection`, but should still be headed the same way as one.
  */
 export function SectionHeading({ children }: { children: ReactNode }) {
-  return <SectionLabel>{children}</SectionLabel>;
+  return (
+    <SectionLabel as="h4">
+      {children}
+    </SectionLabel>
+  );
 }
 
+/**
+ * A section's name.
+ *
+ * `as` is a heading everywhere a heading is what it is, so that a screen
+ * reader's outline of a panel is its list of groups. The one place it stays a
+ * `<span>` is inside a `<summary>`, which is already the control that names and
+ * opens the group — a heading nested in a button reads as both, twice.
+ */
 function SectionLabel({
   children,
   hint,
   label,
+  as: Tag = 'span',
 }: {
   children: ReactNode;
   hint?: string;
   label?: string;
+  as?: 'span' | 'h4';
 }) {
   return (
-    <span className="mono-label text-ink-500" style={{ fontSize: 10 }}>
+    <Tag className="mono-label text-ink-500" style={{ fontSize: 10, margin: 0, display: Tag === 'h4' ? 'block' : undefined }}>
       {children}
       {hint && <Info label={label ?? 'this group'}>{hint}</Info>}
-    </span>
+    </Tag>
   );
 }
 

@@ -59,7 +59,6 @@ import { FontPicker } from './FontPicker';
 import {
   Button,
   ColorInput,
-  Field,
   Notice,
   NumberInput,
   Select,
@@ -68,6 +67,8 @@ import {
   Toggle,
   cx,
 } from './ui';
+/* The panel's own field, under the name the fourteen call sites already use. */
+import { PanelField as Field } from './panel/Panel';
 
 const PANEL_LABELS: Record<CoverPanel, string> = {
   back: 'Back cover',
@@ -1828,8 +1829,12 @@ export function CoverDesigner<T extends CoverableBook>({
           312 and 16, for no reason anyone wrote down.
         */
         <aside
-          className="shrink-0 space-y-4 overflow-y-auto border-l border-ink-200 bg-paper lg:w-[var(--panel-width)]"
-          style={{ padding: 'var(--panel-pad)' }}
+          className="shrink-0 space-y-4 overflow-y-auto border-l lg:w-[var(--panel-width)]"
+          style={{
+            padding: 'var(--panel-pad)',
+            background: 'var(--studio-card)',
+            borderColor: 'var(--studio-line)',
+          }}
         >
           {sections.browseSize}
           {sections.measurements}

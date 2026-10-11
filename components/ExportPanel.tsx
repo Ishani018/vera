@@ -12,6 +12,7 @@ import {
 import { padToEven } from '@/lib/kdp';
 import { useStore } from '@/lib/store';
 import { countByLevel, validateProject } from '@/lib/validate';
+import { PanelSection } from './panel/Panel';
 import { Button, Notice } from './ui';
 
 type Status = { level: 'ok' | 'error' | 'info'; text: string } | null;
@@ -73,11 +74,8 @@ export function ExportPanel() {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-md border border-ink-200 bg-ink-50 p-2.5">
-        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-          Before you upload
-        </h4>
+    <div>
+      <PanelSection title="Before you upload">
         {issues.length === 0 ? (
           <Notice level="ok">Nothing to flag. The book is ready for KDP.</Notice>
         ) : (
@@ -105,54 +103,52 @@ export function ExportPanel() {
           </ul>
         )}
         {(counts.error > 0 || counts.warning > 0) && (
-          <p className="mt-2 text-[11px] text-ink-500">
+          <p className="text-[11px] text-ink-500">
             {counts.error} to fix, {counts.warning} to consider. Exporting is never blocked.
           </p>
         )}
-      </div>
+      </PanelSection>
 
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
-        <dt>Interior pages</dt>
-        <dd className="text-right tabular-nums text-ink-700">
-          {pageCount || '—'}
-          {padded > 0 && ` (+${padded} blank)`}
-        </dd>
-        <dt>Uploaded as</dt>
-        <dd className="text-right tabular-nums text-ink-700">{finalPages || '—'} pages</dd>
-      </dl>
+      <PanelSection title="The two PDFs">
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
+          <dt>Interior pages</dt>
+          <dd className="text-right tabular-nums text-ink-700">
+            {pageCount || '—'}
+            {padded > 0 && ` (+${padded} blank)`}
+          </dd>
+          <dt>Uploaded as</dt>
+          <dd className="text-right tabular-nums text-ink-700">{finalPages || '—'} pages</dd>
+        </dl>
 
-      <div className="grid gap-2">
-        <Button variant="primary" disabled={busy !== null} onClick={() => void run('interior')}>
-          {busy === 'interior' ? 'Rendering…' : 'Export interior PDF'}
-        </Button>
-        <Button disabled={busy !== null} onClick={() => void run('cover')}>
-          {busy === 'cover' ? 'Rendering…' : 'Export cover PDF'}
-        </Button>
-      </div>
+        <div className="grid gap-2">
+          <Button variant="primary" disabled={busy !== null} onClick={() => void run('interior')}>
+            {busy === 'interior' ? 'Rendering…' : 'Export interior PDF'}
+          </Button>
+          <Button disabled={busy !== null} onClick={() => void run('cover')}>
+            {busy === 'cover' ? 'Rendering…' : 'Export cover PDF'}
+          </Button>
+        </div>
 
-      {status && (
-        <Notice level={status.level === 'ok' ? 'ok' : status.level === 'error' ? 'error' : 'info'}>
-          {status.text}
-        </Notice>
-      )}
+        {status && (
+          <Notice level={status.level === 'ok' ? 'ok' : status.level === 'error' ? 'error' : 'info'}>
+            {status.text}
+          </Notice>
+        )}
+      </PanelSection>
 
       {printFallback && (
-        <div className="space-y-2 rounded-md border border-ink-200 bg-ink-50 p-2.5">
-          <p className="text-[11px] text-ink-500">
-            No Chromium on the server. Print the same Paged.js output from this browser instead —
-            the pagination and type are identical.
-          </p>
+        <PanelSection
+          title="Print instead"
+          note="No Chromium on the server. The same Paged.js output prints from this browser — the pagination and type are identical."
+        >
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={() => void print('interior')}>Print interior</Button>
             <Button onClick={() => void print('cover')}>Print cover</Button>
           </div>
-        </div>
+        </PanelSection>
       )}
 
-      <div className="border-t border-ink-200 pt-3">
-        <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-          Backup
-        </h4>
+      <PanelSection title="Backup">
         <div className="grid grid-cols-2 gap-2">
           <Button onClick={() => void exportProjectJson(project)}>Save project</Button>
           <Button onClick={() => fileRef.current?.click()}>Load project</Button>
@@ -177,10 +173,10 @@ export function ExportPanel() {
             }
           }}
         />
-        <p className="mt-2 text-[11px] text-ink-500">
+        <p className="text-[11px] text-ink-500">
           Everything lives in this browser. Save a copy before clearing site data.
         </p>
-      </div>
+      </PanelSection>
     </div>
   );
 }

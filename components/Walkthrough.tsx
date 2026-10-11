@@ -146,7 +146,7 @@ export function Walkthrough({
   return (
     <aside
       aria-label="Getting started"
-      className="pointer-events-auto fixed bottom-4 left-4 z-40 w-80 rounded-xl border border-accent-500/40 bg-paper/97 p-3.5 shadow-2xl backdrop-blur"
+      className="pointer-events-auto fixed bottom-4 left-4 z-40 w-80 rounded-xl border border-accent-500/40 bg-[color-mix(in_srgb,var(--studio-card)_97%,transparent)] p-3.5 shadow-2xl backdrop-blur"
     >
       <div className="mb-2 flex items-center gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-600">

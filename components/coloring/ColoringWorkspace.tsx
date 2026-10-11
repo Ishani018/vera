@@ -135,7 +135,10 @@ export function ColoringWorkspace() {
         </div>
       ) : mode === 'pictures' ? (
         <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto border-r border-ink-200 bg-paper px-6 py-6">
+          <aside
+            className="min-h-0 overflow-y-auto border-r px-6 py-6"
+            style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+          >
             <h2 className="text-[22px] font-semibold tracking-tight">Pictures</h2>
             <p className="mb-5 mt-1.5 text-[15px] text-ink-500">
               Drag to set the order they are bound in.
@@ -158,7 +161,10 @@ export function ColoringWorkspace() {
         </div>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto border-r border-ink-200 bg-paper px-6 py-6">
+          <aside
+            className="min-h-0 overflow-y-auto border-r px-6 py-6"
+            style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+          >
             <h2 className="text-[22px] font-semibold tracking-tight">Book</h2>
             <p className="mb-5 mt-1.5 text-[15px] text-ink-500">
               How the pictures are bound into something KDP will print.

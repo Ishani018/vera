@@ -17,6 +17,7 @@ import type { LibrarySticker } from '@/lib/types';
 import { ACCEPTED_TYPES } from '../coloring/PageGrid';
 import type { TrayItem } from './StickerTray';
 import { TextInput, cx } from '../ui';
+import { SectionHeading } from '../panel/Panel';
 
 /**
  * Stickers kept across every book.
@@ -81,9 +82,7 @@ export function StickerLibrary({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-          My stickers
-        </h4>
+        <SectionHeading>My stickers</SectionHeading>
         <button
           type="button"
           onClick={() => fileRef.current?.click()}

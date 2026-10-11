@@ -45,7 +45,19 @@ const HEADINGS: Record<Mode, { title: string; blurb: string }> = {
 export function ModePanel({ mode }: { mode: Mode }) {
   const heading = HEADINGS[mode];
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-y-auto border-r border-ink-200 bg-paper">
+    <aside
+      /*
+        `--studio-card`, not `bg-paper`.
+
+        `--color-paper` is the printed SHEET: pure white in all six palettes,
+        Night included. A panel painted with it therefore stayed white while
+        its ink went pale, and in Night this column measured cream on white at
+        1.16:1. The studio surfaces are the palette-aware ones, and the
+        contrast sweep in lib/theme.ts already guarantees ink reads on them.
+      */
+      className="flex h-full min-h-0 flex-col overflow-y-auto border-r"
+      style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+    >
       <header className="px-6 pb-2 pt-6">
         <h2 className="text-[26px] font-semibold tracking-tight">{heading.title}</h2>
         <p className="mt-1.5 text-[15px] text-ink-500">{heading.blurb}</p>

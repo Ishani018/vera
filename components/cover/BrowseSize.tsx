@@ -10,6 +10,7 @@ import { frontThumb } from '@/lib/projects';
 import type { CoverSpec } from '@/lib/types';
 import { ThumbArt } from '../ThumbArt';
 import { Notice, cx } from '../ui';
+import { SectionHeading } from '../panel/Panel';
 
 /**
  * The cover at the size people actually meet it.
@@ -39,9 +40,7 @@ export function BrowseSize({
 
   return (
     <div className="space-y-2">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-        At a search result&rsquo;s size
-      </h4>
+      <SectionHeading>At a search result&rsquo;s size</SectionHeading>
 
       <div className="flex items-start gap-3">
         <span

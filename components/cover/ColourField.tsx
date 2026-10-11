@@ -109,7 +109,7 @@ export function ColourField({
         <div className="absolute left-0 z-40 mt-1.5 w-[248px] rounded-xl border border-ink-200 bg-paper p-3 shadow-xl">
           {row && (
             <>
-              <h5 className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-500">
+              <h5 className="mono-label mb-1.5 block text-ink-500" style={{ fontSize: 10 }}>
                 In your picture
               </h5>
               <div className="mb-3 flex flex-wrap gap-1.5">
@@ -122,7 +122,7 @@ export function ColourField({
 
           {recent.length > 0 && (
             <>
-              <h5 className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-500">
+              <h5 className="mono-label mb-1.5 block text-ink-500" style={{ fontSize: 10 }}>
                 Just used
               </h5>
               <div className="mb-3 flex flex-wrap gap-1.5">
@@ -133,7 +133,7 @@ export function ColourField({
             </>
           )}
 
-          <h5 className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-ink-500">
+          <h5 className="mono-label mb-1.5 block text-ink-500" style={{ fontSize: 10 }}>
             Palette
           </h5>
           <div className="grid grid-cols-6 gap-1.5">
@@ -148,7 +148,7 @@ export function ColourField({
             ))}
           </div>
 
-          <h5 className="mb-1.5 mt-3 text-[10.5px] font-semibold uppercase tracking-wider text-ink-500">
+          <h5 className="mono-label mb-1.5 mt-3 block text-ink-500" style={{ fontSize: 10 }}>
             Anything else
           </h5>
           <div className="flex items-center gap-2">

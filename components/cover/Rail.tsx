@@ -75,15 +75,16 @@ export function Rail({
     <>
       <nav
         className={cx(
-          'relative flex shrink-0 gap-0.5 bg-paper',
+          'relative flex shrink-0 gap-0.5',
           // `--panel-rail`, shared, rather than a number written here.
-          'flex-col border-r border-ink-200 p-1.5',
+          'flex-col border-r p-1.5',
           // Narrow: along the bottom, scrollable sideways, ordered last.
           'max-lg:order-last max-lg:w-full max-lg:flex-row max-lg:overflow-x-auto max-lg:border-r-0 max-lg:border-t',
           // Width from the shared token, but only where the rail is a column:
           // lying down across the bottom it is as wide as the window.
           'lg:w-[var(--panel-rail)]',
         )}
+        style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
       >
         <span className="slider-pill" style={pill} aria-hidden="true" />
         {panels.map((panel, n) => (
@@ -148,15 +149,16 @@ export function Rail({
              unchanged, so nothing it does moves the board. */
           key={shown.id}
           className={cx(
-            'panel-in flex shrink-0 flex-col overflow-y-auto bg-paper',
+            'panel-in flex shrink-0 flex-col overflow-y-auto',
             // The width is `--panel-width` now, shared with the Lab, which used
             // to be 37px wider for no decided reason. See `PANEL` in lib/theme.
-            'border-r border-ink-200',
+            'border-r',
             // Narrow: a drawer across the bottom, above the bar, capped so it
             // never takes the whole window.
             'max-lg:order-last max-lg:max-h-[46vh] max-lg:w-full max-lg:border-r-0 max-lg:border-t',
             'lg:w-[var(--panel-width)]',
           )}
+          style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
         >
           <header
             className="flex items-baseline justify-between gap-2"

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BUNDLED_FAMILIES, CATEGORY_FALLBACK, type FontFamily } from '@/lib/fonts';
 import { Button, TextInput, cx } from './ui';
+import { ControlLabel } from './panel/Panel';
 
 /** One fetch per session, shared by every picker on screen. */
 let familiesPromise: Promise<{ families: FontFamily[]; source: string }> | null = null;
@@ -113,9 +114,7 @@ export function FontPicker({
   return (
     <div ref={containerRef} className="relative">
       {label && (
-        <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-ink-500">
-          {label}
-        </span>
+<ControlLabel label={label} />
       )}
       <button
         type="button"
