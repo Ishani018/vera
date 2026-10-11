@@ -417,6 +417,15 @@ export const TYPE: Record<string, string> = {
 export const PANEL: Record<string, string> = {
   /** Wide enough for a slider and its number, narrow enough to leave the canvas the room. */
   width: '312px',
+  /**
+   * The book cover designer's aside, which stacks every section down one column
+   * instead of opening one door at a time. It is 320px, not 312, on purpose:
+   * the cover's screen golden records the stage this leaves the board
+   * (1080px), so narrowing it to match the rail's panel moved the board 8px and
+   * broke the golden's layout tier. A decision about the cover's layout, not
+   * drift — so it is named here rather than rounded to `width`.
+   */
+  stackedWidth: '320px',
   /** The rail of named doors beside it. */
   rail: '78px',
   pad: '16px',

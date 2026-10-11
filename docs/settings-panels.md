@@ -54,11 +54,30 @@ so a panel on it stayed white while its ink turned cream in Night.
 
 - Only the Lab and the colouring line-art sliders have a per-control Reset. The
   poetry book's settings are not "moved from a default" in a way the app tracks,
-  so adding Reset there would mean inventing defaults; not done.
-- Night: the floating zoom pill and the rail's undo/redo buttons on the cover
-  designer still read pale-on-white. Same root cause as above; not fixed here.
-- `golden:screen`: the image tier fails the same way on a clean checkout (this
-  container's text rendering). The cover's layout tier also reports the stage
-  1088px wide instead of 1080 since the cover aside went from 320 to 312px. That
-  is a consequence of the width standardisation, not an environment effect, and
-  the golden has **not** been re-recorded.
+  so adding Reset there would mean inventing defaults; not done, on purpose.
+- Night, still pale-on-light, outside the settings panels and so not touched:
+  the `text-paper` badges on thumbnails (`PageGrid` numbers and delete,
+  `StickerLibrary` delete). Same cause as everything fixed here: `--color-paper`
+  is the printed sheet and stays white, `ink-900` turns cream.
+- Observed in a Night screenshot but not measured or touched: the floating
+  toolbar over the canvas (Arc / Corners / arrange icons) is a white pill with
+  pale icons. It is a canvas overlay, not a settings panel.
+- Disabled Undo/Redo on the cover rail measure 1.95:1 (Night) to 2.5:1 (Default,
+  Riso). That is the app-wide `.btn:disabled { opacity: .4 }`, which WCAG exempts
+  for inactive controls; it was left alone rather than changed for every button.
+  Enabled, hovered and keyboard-focused they are 15:1 or better.
+- `golden:screen`, image tier: fails with the same numbers (cover 4981/1163,
+  board 2971/668) at `df27df3` — the commit that recorded the goldens, before
+  any of this work — so it is this container's text rendering, not a regression.
+  Not re-recorded.
+- `golden:screen`, cover layout tier: passes. The cover's stacked aside is
+  320px (`PANEL.stackedWidth`), not the rail panel's 312, because 312 moved the
+  board stage from 1080px to 1088px.
+- `node.getAttribute is not a function` is thrown by the vendored Paged.js
+  (`public/vendor/paged.polyfill.js`, `findElement`) when the colouring book's
+  preview paginates (any of its Book/Cover/Launch kit/Export tabs). It is
+  present at `df27df3`, before this work, and not on the poetry book's
+  routes. It does not touch the panels; not investigated further.
+- At 390px wide the poetry book's top toolbar overflows by about 13px
+  (document width 403). Present without these changes; it is the header, not a
+  panel.

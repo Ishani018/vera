@@ -20,7 +20,7 @@ import { SOLID, backgroundMask } from '../lineart/mask';
 import { INK, type Bitmap, type Gray } from '../lineart/pipeline';
 import { pathDataFor, runLogo, type LogoSettings } from './logo';
 import { traceInk } from './trace';
-import { FULL_DECODE_PIXELS, MOST_PIXELS, sizeOf, targetSize } from './measure';
+import { FULL_DECODE_PIXELS, MOST_PIXELS, sizeOfBlob, targetSize } from './measure';
 import type { LookId } from './looks';
 
 export type LabRequest = {
@@ -142,8 +142,7 @@ async function readPicture(
   blob: Blob,
   longEdge: number,
 ): Promise<{ bitmap: ImageBitmap; resampled: boolean }> {
-  const header = await blob.slice(0, 64).arrayBuffer().catch(() => null);
-  const source = header ? sizeOf(header) : null;
+  const source = await sizeOfBlob(blob);
 
   if (source && source.width * source.height > FULL_DECODE_PIXELS) {
     const want = targetSize(source, longEdge);

@@ -1769,7 +1769,18 @@ export function CoverDesigner<T extends CoverableBook>({
                   ? 'Red is the trim line — anything outside it is cut off. Green is the safe margin.'
                   : 'Green is the safe area — feeds and overlays crop outside it.'}
           </p>
-          <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-ink-200 bg-paper/95 px-1.5 py-1 shadow-lg">
+          {/*
+            The studio card, not `bg-paper`. `--color-paper` is the printed sheet
+            and is white in every palette, so in Night this pill stayed white
+            while its ink turned cream: 1.39:1 for the buttons, 1.16:1 for the
+            pressed one. The card and its edge flip with the palette, and the
+            pressed state reads as `text-paper-50` on `bg-ink-900` — the same
+            inverse the shared `.tip` uses.
+          */}
+          <div
+            className="pointer-events-auto flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-lg"
+            style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+          >
             <button
               type="button"
               title={guidesOn ? 'Hide the guides' : 'Show the guides'}
@@ -1777,12 +1788,12 @@ export function CoverDesigner<T extends CoverableBook>({
               aria-pressed={guidesOn}
               className={cx(
                 'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] transition-colors',
-                guidesOn ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+                guidesOn ? 'bg-ink-900 text-paper-50' : 'text-ink-700 hover:bg-ink-200',
               )}
             >
               Guides
             </button>
-            <span className="h-4 w-px bg-ink-200" />
+            <span className="h-4 w-px" style={{ background: 'var(--studio-line)' }} />
             <button
               type="button"
               title="Fit the whole board in the window"
@@ -1790,7 +1801,7 @@ export function CoverDesigner<T extends CoverableBook>({
               aria-pressed={zoom === 'fit'}
               className={cx(
                 'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] transition-colors',
-                zoom === 'fit' ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+                zoom === 'fit' ? 'bg-ink-900 text-paper-50' : 'text-ink-700 hover:bg-ink-200',
               )}
             >
               Fit
@@ -1805,7 +1816,7 @@ export function CoverDesigner<T extends CoverableBook>({
                 className={cx(
                   'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] tabular-nums',
                   'transition-colors',
-                  zoom === step ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+                  zoom === step ? 'bg-ink-900 text-paper-50' : 'text-ink-700 hover:bg-ink-200',
                 )}
               >
                 {step * 100}%
@@ -1824,12 +1835,13 @@ export function CoverDesigner<T extends CoverableBook>({
       {!rail && (
         /*
           The fallback aside, for the book cover designer, which stacks every
-          section rather than opening one door at a time. Its width and padding
-          are the shared panel's now — it was 320px and 14px, against the rail's
-          312 and 16, for no reason anyone wrote down.
+          section rather than opening one door at a time. Its padding is the
+          shared panel's, but its WIDTH stays 320px (`--panel-stackedWidth`):
+          the cover's screen golden records the stage that width leaves the
+          board, and 312 moved it 8px.
         */
         <aside
-          className="shrink-0 space-y-4 overflow-y-auto border-l lg:w-[var(--panel-width)]"
+          className="shrink-0 space-y-4 overflow-y-auto border-l lg:w-[var(--panel-stackedWidth)]"
           style={{
             padding: 'var(--panel-pad)',
             background: 'var(--studio-card)',

@@ -197,13 +197,19 @@ export function Stage({
                   ? 'A quick version while the control is moving. The full-size one follows when you let go.'
                   : 'A new version is being made. What you can see is the last one.'
               }
-              className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-ink-200 bg-paper/95 px-2.5 py-1 text-[11.5px] text-ink-700 shadow-lg"
+              className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] text-ink-700 shadow-lg"
+              style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
             >
               {working && <Spinner size={12} />}
               {working ? 'Working…' : 'Quick preview'}
             </span>
           )}
-          <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border border-ink-200 bg-paper/95 px-1.5 py-1 shadow-lg">
+          {/* The studio card, not `bg-paper`: the printed sheet is white in Night,
+              and this pill's ink is cream there. Same fix as the cover designer's. */}
+          <div
+            className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-1 shadow-lg"
+            style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+          >
             <button
               type="button"
               title="Fit the whole sticker in the window"
@@ -212,7 +218,7 @@ export function Stage({
               className={cx(
                 // min-h-8: a 26px pill in a floating bar is a thing you aim at twice.
                 'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] transition-colors',
-                zoom === 'fit' ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+                zoom === 'fit' ? 'bg-ink-900 text-paper-50' : 'text-ink-700 hover:bg-ink-200',
               )}
             >
               Fit
@@ -227,7 +233,7 @@ export function Stage({
                 className={cx(
                   'inline-flex min-h-8 items-center rounded-full px-2.5 text-[12px] tabular-nums',
                   'transition-colors',
-                  zoom === step ? 'bg-ink-900 text-paper' : 'text-ink-700 hover:bg-ink-100',
+                  zoom === step ? 'bg-ink-900 text-paper-50' : 'text-ink-700 hover:bg-ink-200',
                 )}
               >
                 {step * 100}

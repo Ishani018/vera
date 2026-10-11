@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { FULL_DECODE_PIXELS, MOST_PIXELS, sizeOf, targetSize } from '../lib/lab/measure.ts';
+import { FULL_DECODE_PIXELS, HEADER_READS, MOST_PIXELS, sizeOf, sizeOfBlob, targetSize } from '../lib/lab/measure.ts';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -148,4 +148,83 @@ test('the full-decode budget leaves normal cameras on the path they were always 
   // 128 MB of RGBA. Stated here so changing it is a decision, not a typo.
   assert.equal(FULL_DECODE_PIXELS * 4, 128_000_000);
   assert.ok(MOST_PIXELS > FULL_DECODE_PIXELS, 'the hard cap is above the budget');
+});
+
+/**
+ * A camera's JPEG, not a hand-made one.
+ *
+ * The first version of the worker read 64 bytes and asked `sizeOf` for the size.
+ * That is right for PNG, GIF and WebP and wrong for JPEG, whose start-of-frame
+ * follows every APPn/DQT/DHT segment before it: a phone photograph carries an
+ * EXIF block (and a thumbnail) of tens of kilobytes first. The size was never
+ * found for the pictures the memory budget exists for, and they all silently
+ * took the full-decode path. The synthetic JPEG test above could not see it
+ * because its frame header sat at byte 100.
+ */
+function jpegWithPadding(paddingBytes, { width, height }) {
+  const chunks = [Buffer.from('ffd8', 'hex')];
+  // APP1 segments are at most 65535 bytes, so a bigger header is several of them.
+  let left = paddingBytes;
+  while (left > 0) {
+    const take = Math.min(65533, left);
+    const seg = Buffer.alloc(4 + take);
+    seg.writeUInt16BE(0xffe1, 0);
+    seg.writeUInt16BE(2 + take, 2);
+    chunks.push(seg);
+    left -= take;
+  }
+  const sof = Buffer.from('ffc0001108' + '0000' + '0000' + '03012200', 'hex');
+  sof.writeUInt16BE(height, 5);
+  sof.writeUInt16BE(width, 7);
+  chunks.push(sof);
+  chunks.push(Buffer.alloc(4096)); // some entropy-coded data after it
+  return Buffer.concat(chunks);
+}
+
+test('a JPEG whose size is past the first 64 bytes is not found by a 64-byte read', () => {
+  const photo = jpegWithPadding(30_000, { width: 8000, height: 6000 });
+  // This is the bug: the first read cannot see the frame header at all.
+  assert.equal(sizeOf(photo.subarray(0, HEADER_READS[0])), null);
+  // The whole file can.
+  assert.deepEqual(sizeOf(photo), { width: 8000, height: 6000 });
+});
+
+test('sizeOfBlob reads on until it finds the size, and no further than it has to', async () => {
+  // A phone photo: tens of kilobytes of EXIF first.
+  const phone = new Blob([jpegWithPadding(30_000, { width: 8000, height: 6000 })]);
+  assert.deepEqual(await sizeOfBlob(phone), { width: 8000, height: 6000 });
+
+  // A JPEG with a very large preview block, which needs the last read.
+  const heavy = new Blob([jpegWithPadding(200_000, { width: 11648, height: 8736 })]);
+  assert.deepEqual(await sizeOfBlob(heavy), { width: 11648, height: 8736 });
+
+  // PNG still costs one 64-byte read.
+  const png = readFileSync(join(ROOT, 'starter/lines/cat.png'));
+  let reads = [];
+  const spy = {
+    size: png.length,
+    slice(a, b) {
+      reads.push(b - a);
+      return new Blob([png]).slice(a, b);
+    },
+  };
+  assert.ok(await sizeOfBlob(spy));
+  assert.deepEqual(reads, [HEADER_READS[0]], 'a PNG must not read more than its header');
+});
+
+test('sizeOfBlob gives up on a file that is not a picture, after a bounded read', async () => {
+  let largest = 0;
+  const junk = Buffer.alloc(5_000_000, 0x41);
+  const spy = {
+    size: junk.length,
+    slice(a, b) {
+      largest = Math.max(largest, b - a);
+      return new Blob([junk]).slice(a, b);
+    },
+  };
+  assert.equal(await sizeOfBlob(spy), null);
+  assert.ok(largest <= HEADER_READS.at(-1), `read ${largest} bytes of something that is not a picture`);
+
+  // And a tiny file is not read past its end.
+  assert.equal(await sizeOfBlob(new Blob([Buffer.from('hi')])), null);
 });

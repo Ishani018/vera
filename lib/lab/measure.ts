@@ -9,9 +9,11 @@
  *
  * `createImageBitmap` can downscale while it decodes, but only if it is told
  * the target size, and the target depends on the aspect ratio, which is the one
- * thing you do not know until you have decoded. Hence this: the first few bytes
- * of every format the app accepts carry the dimensions in plain sight, so a few
- * hundred bytes of header answer the question for nothing.
+ * thing you do not know until you have decoded. Hence this: every format the
+ * app accepts carries its dimensions in a header, so reading the start of the
+ * file answers the question for nothing. How much of the start varies — 30
+ * bytes for PNG, WebP and GIF, but a JPEG's size can sit hundreds of kilobytes
+ * in, behind its EXIF — which is what `sizeOfBlob` and `HEADER_READS` are for.
  *
  * Pure byte-reading, no DOM and no canvas, so it runs in Node and is tested
  * there against real files.
@@ -128,6 +130,47 @@ export function sizeOf(bytes: ArrayBuffer | Uint8Array): Size | null {
   // A header can say anything; a zero or a negative is not a picture.
   if (!(found.width > 0) || !(found.height > 0)) return null;
   return found;
+}
+
+/**
+ * How much of the file to read, in order, before giving up on its header.
+ *
+ * PNG, GIF and WebP keep the size in the first 30 bytes, so 64 is plenty. JPEG
+ * does not: the size is in the start-of-frame, which comes AFTER every APPn and
+ * DQT/DHT segment before it, and a photograph's EXIF block alone is routinely
+ * tens of kilobytes (and its embedded thumbnail more). A camera JPEG's frame
+ * header sits anywhere from ~200 bytes to several hundred kilobytes in, so the
+ * first read being 64 bytes meant the size was never found for exactly the
+ * pictures this exists for, and they silently took the full-decode path.
+ *
+ * Each step is only taken if the one before could not answer, so a PNG still
+ * costs 64 bytes. The last step bounds the cost of a file that is simply not a
+ * picture.
+ */
+export const HEADER_READS = [64, 64 * 1024, 1024 * 1024] as const;
+
+/** The minimum a Blob has to offer. Node's and the browser's both do. */
+type Sliceable = {
+  size: number;
+  slice(start: number, end: number): { arrayBuffer(): Promise<ArrayBuffer> };
+};
+
+/**
+ * `sizeOf`, for a file: reads as little of it as it takes.
+ *
+ * Null still means "could not tell", never "failed": the caller decodes at full
+ * size exactly as it did before any of this existed.
+ */
+export async function sizeOfBlob(blob: Sliceable): Promise<Size | null> {
+  for (const bytes of HEADER_READS) {
+    const buffer = await blob.slice(0, bytes).arrayBuffer().catch(() => null);
+    if (!buffer) return null;
+    const found = sizeOf(buffer);
+    if (found) return found;
+    // Fewer bytes than asked for means that was the whole file: reading more cannot help.
+    if (buffer.byteLength < bytes || blob.size <= bytes) return null;
+  }
+  return null;
 }
 
 /**
