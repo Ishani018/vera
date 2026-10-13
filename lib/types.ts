@@ -502,6 +502,16 @@ export type ColoringSettings = {
   titleArt: ColoringPage | null;
   belongsArt: ColoringPage | null;
   colorTestArt: ColoringPage | null;
+  /**
+   * Whether pictures are turned into line art at all.
+   *
+   * On, a painting or photograph is traced and the line art is what prints —
+   * a colouring book. Off, the picture prints exactly as it was uploaded: a
+   * maze, a word search, a dot-to-dot, a page somebody drew or typeset
+   * elsewhere. Missing means on, so a book saved before this existed is
+   * unchanged.
+   */
+  lineArtOn: boolean;
   /** A blank back behind every coloring page, so markers cannot bleed through. */
   singleSided: boolean;
   /** The generated front matter, each page its own switch. */

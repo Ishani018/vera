@@ -1,4 +1,5 @@
 import { illustrationsOf } from './contents';
+import { isReady, pictureAssetId, usesLineArt } from './coloring/picture';
 import type { AnyProject } from './types';
 
 /** A picture already inside a book, offered as something to put on a board. */
@@ -20,14 +21,16 @@ export type BookPicture = {
  */
 export function picturesOf(project: AnyProject): BookPicture[] {
   if (project.kind === 'coloring') {
+    const asIs = !usesLineArt(project);
     return project.pages
-      .filter((page) => page.lineArtAssetId)
+      .filter((page) => isReady(project, page))
       .map((page) => ({
         key: page.id,
         name: page.title || 'Picture',
-        assetId: page.lineArtAssetId!,
-        width: Math.round(page.naturalWidth * (page.upscaled || 1)),
-        height: Math.round(page.naturalHeight * (page.upscaled || 1)),
+        assetId: pictureAssetId(project, page)!,
+        // As uploaded, nothing was enlarged.
+        width: Math.round(page.naturalWidth * (asIs ? 1 : page.upscaled || 1)),
+        height: Math.round(page.naturalHeight * (asIs ? 1 : page.upscaled || 1)),
       }));
   }
   return illustrationsOf(project)

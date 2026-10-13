@@ -96,7 +96,9 @@ export function Workspace() {
       */}
       <header className="flex min-w-0 items-center gap-4 overflow-x-auto border-b border-ink-200 bg-paper px-5">
         <Wordmark />
-        <span className="truncate rounded-lg px-3 py-2 text-ink-700">{project.meta.title}</span>
+        <span className="truncate rounded-lg px-3 py-2" style={{ color: 'var(--text-on-sheet)' }}>
+          {project.meta.title}
+        </span>
 
         <SegmentedControl<Tab>
           value={tab}

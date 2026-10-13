@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useConversionQueue } from '@/lib/coloring/convert';
+import { usesLineArt } from '@/lib/coloring/picture';
 import { useColoring } from '@/lib/coloring/store';
+import { picturesOf } from '@/lib/pictures';
 import { sheetCount } from '@/lib/render/coloringLayout';
 import { useOpenIntent } from '../openIntent';
 import { StudioHeader } from '../StudioHeader';
@@ -86,7 +88,10 @@ export function ColoringWorkspace() {
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
-        <span className="truncate text-ink-700">{book.name}</span>
+        {/* The bar is white in every palette, so its text is coloured for white. */}
+        <span className="truncate" style={{ color: 'var(--text-on-sheet)' }}>
+          {book.name}
+        </span>
         <div className="ml-4">
           <SegmentedControl
             value={mode}
@@ -100,7 +105,7 @@ export function ColoringWorkspace() {
             ]}
           />
         </div>
-        <span className="ml-auto text-[14px] text-ink-500">
+        <span className="ml-auto text-[14px]" style={{ color: 'var(--text-muted-on-sheet)' }}>
           {book.pages.length} picture{book.pages.length === 1 ? '' : 's'} · {pageCount} pages ·
           saved on this computer
         </span>
@@ -122,15 +127,7 @@ export function ColoringWorkspace() {
             openDesign={intent?.open === 'kit' ? intent.designId : null}
             displayFont={book.typography.title}
             // The line art, so a page from inside the book can go on a post.
-            pictures={book.pages
-              .filter((page) => page.lineArtAssetId)
-              .map((page) => ({
-                key: page.id,
-                name: page.title || 'Picture',
-                assetId: page.lineArtAssetId!,
-                width: Math.round(page.naturalWidth * (page.upscaled || 1)),
-                height: Math.round(page.naturalHeight * (page.upscaled || 1)),
-              }))}
+            pictures={picturesOf(book)}
           />
         </div>
       ) : mode === 'pictures' ? (
@@ -150,11 +147,9 @@ export function ColoringWorkspace() {
             <div className="mx-auto max-w-6xl">
               <LineArtStudio />
               <p className="mt-10 border-t border-ink-200 pt-5 text-[14.5px] leading-relaxed text-ink-500">
-                The converter itself is not generative: every picture is filtered by a fixed
-                sequence of arithmetic on its own pixels, so the same painting and the same
-                settings always give the same page. What it cannot know is where a picture came
-                from before you added it — that is what the disclosure switch is for, and it will
-                be shown again when you export.
+                {usesLineArt(book)
+                  ? 'The converter itself is not generative: every picture is filtered by a fixed sequence of arithmetic on its own pixels, so the same painting and the same settings always give the same page. What it cannot know is where a picture came from before you added it — that is what the disclosure switch is for, and it will be shown again when you export.'
+                  : 'Pictures print exactly as you added them: nothing is traced, thresholded or enlarged. What the app cannot know is where a picture came from — that is what the disclosure switch is for, and it will be shown again when you export.'}
               </p>
             </div>
           </section>

@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
 import { useColoring } from '@/lib/coloring/store';
+import { pictureAssetId, usesLineArt } from '@/lib/coloring/picture';
 import { pageQuality } from '@/lib/coloring/quality';
 import type { ColoringBook, ColoringPage } from '@/lib/types';
 import { cx } from '../ui';
@@ -89,7 +90,10 @@ export function PageGrid() {
             : 'border-ink-300 hover:border-accent-500 hover:bg-accent-50',
         )}
       >
-        <strong className="block text-[17px] font-semibold">Drop your paintings here</strong>
+        <strong className="block text-[17px] font-semibold">
+          {/* An activity book's pages are puzzles and drawings, not paintings. */}
+          {book && !usesLineArt(book) ? 'Drop your pages here' : 'Drop your paintings here'}
+        </strong>
         <span className="mt-1 block text-[14.5px] text-ink-500">
           JPG, PNG or WebP · they never leave this computer
         </span>
@@ -163,7 +167,8 @@ function Thumb({
     id: page.id,
   });
   const [url, setUrl] = useState<string | null>(null);
-  const shown = page.lineArtAssetId ?? page.sourceAssetId;
+  const lineArt = usesLineArt(book);
+  const shown = pictureAssetId(book, page) ?? page.sourceAssetId;
 
   useEffect(() => {
     let live = true;
@@ -193,7 +198,7 @@ function Thumb({
       >
         <span className="relative block h-28 bg-ink-100">
           {url && <img src={url} alt="" className="h-28 w-full object-contain" draggable={false} />}
-          {busy && (
+          {lineArt && busy && (
             <span className="absolute inset-0 grid place-items-center bg-paper/75 text-[13px] font-[550] text-ink-700">
               Converting…
             </span>
@@ -229,7 +234,7 @@ function Thumb({
               cropped
             </span>
           )}
-          {page.source === 'lineart' && (
+          {lineArt && page.source === 'lineart' && (
             <span
               className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500"
               title={
@@ -241,7 +246,7 @@ function Thumb({
               line art{page.upscaled > 1.01 ? ` ×${page.upscaled.toFixed(1)}` : ''}
             </span>
           )}
-          {!page.lineArtAssetId && (
+          {lineArt && !page.lineArtAssetId && (
             <span className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500">
               not converted
             </span>

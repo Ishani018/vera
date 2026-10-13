@@ -1,4 +1,5 @@
 import type { ColoringBook, ColoringPage, FontSpec, RenderOptions } from '../types';
+import { pictureAssetId } from '../coloring/picture';
 import { artBox, matterArt, matterArtwork, sheetOf, type Side } from './coloringLayout';
 import { RUNTIME_SCRIPT, type RuntimeConfig } from './runtime';
 import { FLIP_SCRIPT } from './flip';
@@ -187,7 +188,7 @@ ${
 function renderPicture(page: ColoringPage, book: ColoringBook, options: RenderOptions): string {
   // The line art if it has been made, and the original if it has not: a book
   // half-converted should still preview as a book rather than as holes.
-  const assetId = page.lineArtAssetId ?? page.sourceAssetId;
+  const assetId = pictureAssetId(book, page);
   const src = assetId ? (options.assets?.[assetId] ?? '') : '';
   const art = src
     ? `<img class="cpage-art" src="${escapeHtml(src)}" alt="${escapeHtml(page.title)}">`
@@ -204,12 +205,13 @@ function renderPicture(page: ColoringPage, book: ColoringBook, options: RenderOp
  * anything about themselves.
  */
 function renderMatterArt(
+  book: ColoringBook,
   art: ColoringPage,
   label: string,
   options: RenderOptions,
   recto = false,
 ): string {
-  const assetId = art.lineArtAssetId ?? art.sourceAssetId;
+  const assetId = pictureAssetId(book, art);
   const src = assetId ? (options.assets?.[assetId] ?? '') : '';
   const picture = src
     ? `<img class="cpage-art" src="${escapeHtml(src)}" alt="${escapeHtml(label)}">`
@@ -219,7 +221,7 @@ function renderMatterArt(
 
 function renderTitlePage(book: ColoringBook, options: RenderOptions): string {
   const art = matterArt(book, 'title');
-  if (art) return renderMatterArt(art, 'Title page', options);
+  if (art) return renderMatterArt(book, art, 'Title page', options);
 
   const { title, subtitle, author } = book.meta;
   return `<div class="matter-sheet" data-label="Title page">
@@ -247,7 +249,7 @@ function renderCopyrightPage(book: ColoringBook): string {
 
 function renderBelongsPage(book: ColoringBook, options: RenderOptions): string {
   const art = matterArt(book, 'belongs');
-  if (art) return renderMatterArt(art, 'This book belongs to', options);
+  if (art) return renderMatterArt(book, art, 'This book belongs to', options);
 
   return `<div class="matter-sheet" data-label="This book belongs to">
 <p class="belongs-heading">This book belongs to</p>
@@ -258,7 +260,7 @@ function renderBelongsPage(book: ColoringBook, options: RenderOptions): string {
 
 function renderColorTestPage(book: ColoringBook, options: RenderOptions): string {
   const art = matterArt(book, 'colorTest');
-  if (art) return renderMatterArt(art, 'Pen test page', options, book.coloring.singleSided);
+  if (art) return renderMatterArt(book, art, 'Pen test page', options, book.coloring.singleSided);
 
   const swatches = Array.from({ length: 16 }, () => '<div class="test-swatch"></div>').join('');
   // "Test your pens" rather than "try your colours": the word is spelled two

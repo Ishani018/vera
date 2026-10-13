@@ -68,6 +68,7 @@ export function ColoringPreview({
     book.margins,
     book.meta,
     book.coloring.singleSided,
+    book.coloring.lineArtOn,
     book.coloring.titlePage,
     book.coloring.copyrightPage,
     book.coloring.belongsToPage,

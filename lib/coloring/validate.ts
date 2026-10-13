@@ -6,6 +6,7 @@ import {
   type ValidationIssue,
 } from '../kdp';
 import { matterArtwork } from '../render/coloringLayout';
+import { isReady } from './picture';
 import { EXTREME_UPSCALE, pageQuality } from './quality';
 import type { ColoringBook } from '../types';
 import { pageName } from '../home/naming';
@@ -40,8 +41,9 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
     );
   }
 
+  // Nothing to wait for when pictures print as they are.
   const unconverted = [...book.pages, ...matterArtwork(book)].filter(
-    (page) => !page.lineArtAssetId,
+    (page) => !isReady(book, page),
   );
   if (unconverted.length) {
     issues.push({

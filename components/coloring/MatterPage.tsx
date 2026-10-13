@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { UnsupportedImageError, getAssetUrl } from '@/lib/assets';
 import { useColoring } from '@/lib/coloring/store';
+import { pictureAssetId } from '@/lib/coloring/picture';
 import { pageQuality } from '@/lib/coloring/quality';
 import { ACCEPTED_TYPES } from './PageGrid';
 import { matterArt } from '@/lib/render/coloringLayout';
@@ -41,7 +42,7 @@ export function MatterPage({
   const [error, setError] = useState<string | null>(null);
 
   const art = book ? matterArt(book, slot) : null;
-  const shown = art?.lineArtAssetId ?? art?.sourceAssetId ?? null;
+  const shown = book && art ? pictureAssetId(book, art) : null;
 
   useEffect(() => {
     let live = true;

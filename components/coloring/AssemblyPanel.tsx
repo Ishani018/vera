@@ -1,6 +1,7 @@
 'use client';
 
 import { COLORING_TRIM_IDS, MIN_PAGES, PAPER_LABELS, getTrim } from '@/lib/kdp';
+import { usesLineArt } from '@/lib/coloring/picture';
 import { useColoring } from '@/lib/coloring/store';
 import { validateColoringBook } from '@/lib/coloring/validate';
 import { frontMatterPages } from '@/lib/render/coloringLayout';
@@ -27,9 +28,31 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
   const trim = getTrim(book.trim.trimId);
   const front = frontMatterPages(book);
   const backs = book.coloring.singleSided ? book.pages.length : 0;
+  const lineArt = usesLineArt(book);
+  const matter = [
+    book.coloring.titlePage,
+    book.coloring.copyrightPage,
+    book.coloring.belongsToPage,
+    book.coloring.colorTestPage,
+  ].filter(Boolean).length;
 
   return (
     <div>
+      <PanelSection title="How pages are made">
+        <Toggle
+          label="Turn pictures into line art"
+          hint="Off prints each picture exactly as you added it — mazes, word searches, dot-to-dot, finished drawings. Nothing is traced or thresholded."
+          checked={lineArt}
+          onChange={(value) => setBookSetting('lineArtOn', value)}
+        />
+        <Toggle
+          label="A blank page behind every picture"
+          hint="So a marker that soaks through spoils nothing. Leave it off when the back of a page is a page too."
+          checked={book.coloring.singleSided}
+          onChange={(value) => setBookSetting('singleSided', value)}
+        />
+      </PanelSection>
+
       <PanelSection title="The book">
         <Field label="Title">
           <TextInput
@@ -70,7 +93,7 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
         </div>
       </PanelSection>
 
-      <PanelSection title="Paper">
+      <PanelSection title="Paper" collapsible defaultOpen now={`${trim.width}″ × ${trim.height}″`}>
         <Field label="Size" hint={`${trim.width}″ × ${trim.height}″ when trimmed`}>
           <Select
             value={book.trim.trimId}
@@ -99,16 +122,12 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
           checked={book.trim.bleed}
           onChange={(value) => update((draft) => void (draft.trim.bleed = value))}
         />
-        <Toggle
-          label="A blank page behind every picture"
-          hint="Single-sided, so a marker that soaks through spoils nothing."
-          checked={book.coloring.singleSided}
-          onChange={(value) => setBookSetting('singleSided', value)}
-        />
       </PanelSection>
 
       <PanelSection
         title="Front of the book"
+        collapsible
+        now={`${matter} of 4 pages`}
         note="Four pages, each optional. Three can be a drawing of your own, through the same cleanup as a colouring page."
       >
         <MatterPage
@@ -187,3 +206,4 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
     </div>
   );
 }
+

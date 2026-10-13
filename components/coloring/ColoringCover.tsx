@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
 import { useColoring } from '@/lib/coloring/store';
 import { MIN_COVER_DPI, effectiveDpi, getTrim } from '@/lib/kdp';
+import { picturesOf } from '@/lib/pictures';
 import type { ColoringPage } from '@/lib/types';
 import { CoverDesigner } from '../CoverDesigner';
 import { cx } from '../ui';
@@ -72,15 +73,7 @@ export function ColoringCover({ pageCount }: { pageCount: number }) {
           pageCount={pageCount}
           displayFont={book.typography.title}
           // The line art, so a page from inside can be stuck on the outside.
-          pictures={book.pages
-            .filter((page) => page.lineArtAssetId)
-            .map((page) => ({
-              key: page.id,
-              name: page.title || 'Picture',
-              assetId: page.lineArtAssetId!,
-              width: Math.round(page.naturalWidth * (page.upscaled || 1)),
-              height: Math.round(page.naturalHeight * (page.upscaled || 1)),
-            }))}
+          pictures={picturesOf(book)}
         />
       </div>
     </div>

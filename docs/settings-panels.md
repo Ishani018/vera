@@ -30,7 +30,7 @@ Which part to reach for:
 | Font picker label | `FontPicker.tsx` | `ControlLabel`. |
 | Sticker Studio | `stickers/StudioShell.tsx`, `StickerStudio.tsx` | `Field`/`Advanced` are thin wrappers over `PanelSection`; 12 hand-rolled labels are `ControlLabel`. |
 | Colouring: line-art controls | `coloring/LineArtControls.tsx` | 32 sliders; optional `defaultValue` gives a Reset that restores it. |
-| Colouring: Book tab | `coloring/AssemblyPanel.tsx`, `MatterPage.tsx` | Sections and fields; the upload error is a `Notice`. |
+| Colouring: Book tab | `coloring/AssemblyPanel.tsx`, `MatterPage.tsx` | Starts with **How pages are made**: two switches, line art on/off and a blank back behind each picture on/off. Paper and Front of the book are collapsible with their current value on the shut header. |
 | Poetry: trays | `Modes.tsx` → `Tray` | `PanelSection` with `now`; open tray still kept in the store. |
 | Poetry: Design/Write panels | `controls.tsx` (9 panels, 31 fields) | One import line: `PanelField as Field`. Typography and matter groups are `PanelSection`. |
 | Poetry: type controls | `FontControls.tsx` | Alignment/italic/colour row now has a label and a named group. |
@@ -81,3 +81,15 @@ so a panel on it stayed white while its ink turned cream in Night.
 - At 390px wide the poetry book's top toolbar overflows by about 13px
   (document width 403). Present without these changes; it is the header, not a
   panel.
+
+## Line art and blank backs (for activity books)
+
+There are no book "types" — just two switches in the Book tab's **How pages are
+made** section. `coloring.lineArtOn` (default true, so existing books are
+unchanged) decides whether pictures are traced. Off, a picture prints exactly as
+uploaded: the conversion queue does nothing, the preview and export use the
+original, resolution is the upload's own pixels, the Pictures tab shows placement
+only, and nothing is reported as "not converted". Stored line art is ignored, not
+deleted, so switching back costs nothing. `coloring.singleSided` (a blank page
+behind every picture) was already a switch and now sits beside it. An activity
+book is simply a book with both off.

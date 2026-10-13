@@ -3,8 +3,9 @@
 import { useEffect, useRef } from 'react';
 import { forgetAssetUrl, getAsset, putAssetBlob } from '../assets';
 import { renderLineArt } from '../lineart/client';
-import type { ColoringPage } from '../types';
+import type { ColoringBook, ColoringPage } from '../types';
 import { targetLongEdge } from './quality';
+import { usesLineArt } from './picture';
 import { convertibles, useColoring } from './store';
 
 /** Settle time after the last change before anything is converted. */
@@ -16,8 +17,16 @@ const sameSettings = (page: ColoringPage) =>
     (key) => page.settings[key] === page.renderedWith![key],
   );
 
-/** Pages whose stored line art no longer matches their settings, or is missing. */
-const stale = (pages: ColoringPage[]) => pages.filter((page) => !sameSettings(page));
+/**
+ * Pages whose stored line art no longer matches their settings, or is missing.
+ *
+ * Nothing at all when the book prints pictures as they are: there is no line art
+ * to be out of date. Turning it back on makes the same pages stale again, and
+ * the queue picks them up — including any whose stored art still matches, which
+ * are left exactly as they were.
+ */
+const stale = (book: ColoringBook, pages: ColoringPage[]) =>
+  usesLineArt(book) ? pages.filter((page) => !sameSettings(page)) : [];
 
 /**
  * Converts every page that needs it, one at a time.
@@ -38,13 +47,13 @@ export function useConversionQueue() {
 
   // The queue is driven off what the pages say they need, so this signature is
   // the whole of the dependency: nothing else can make work appear.
-  const signature = (book ? convertibles(book) : [])
+  const signature = `${book ? usesLineArt(book) : ''}#${(book ? convertibles(book) : [])
     .map((page) => `${page.id}:${JSON.stringify(page.settings)}:${page.lineArtAssetId ?? ''}`)
-    .join('|');
+    .join('|')}`;
 
   useEffect(() => {
     if (!book || running.current) return;
-    const waiting = stale(convertibles(book));
+    const waiting = stale(book, convertibles(book));
     if (!waiting.length) return;
 
     const timer = setTimeout(() => void run(), SETTLE_MS);
@@ -59,7 +68,7 @@ export function useConversionQueue() {
         for (;;) {
           const current = useColoring.getState().book;
           if (!current) break;
-          const pending = stale(convertibles(current));
+          const pending = stale(current, convertibles(current));
           if (!pending.length) break;
 
           const selected = useColoring.getState().selectedId;

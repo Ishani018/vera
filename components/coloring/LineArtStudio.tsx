@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
+import { pictureAssetId, usesLineArt } from '@/lib/coloring/picture';
 import { pageQuality, placeOnPage, printedSize, shapesAgree } from '@/lib/coloring/quality';
 import { MIN_COVER_DPI } from '@/lib/kdp';
 import { useColoring } from '@/lib/coloring/store';
@@ -47,14 +48,18 @@ export function LineArtStudio() {
     };
   }, [page?.sourceAssetId, page]);
 
+  // What actually prints: the line art when that is on and made, the upload as
+  // it came when line art is off.
+  const printsFrom = page && book ? pictureAssetId(book, page) : null;
+  const lineArt = book ? usesLineArt(book) : true;
   useEffect(() => {
     let live = true;
-    if (!page?.lineArtAssetId) return setLineUrl(null);
-    void getAssetUrl(page.lineArtAssetId).then((url) => live && setLineUrl(url));
+    if (!printsFrom || (lineArt && !page?.lineArtAssetId)) return setLineUrl(null);
+    void getAssetUrl(printsFrom).then((url) => live && setLineUrl(url));
     return () => {
       live = false;
     };
-  }, [page?.lineArtAssetId, page]);
+  }, [printsFrom, lineArt, page?.lineArtAssetId]);
 
   if (!book) return null;
   if (!page) {
@@ -76,12 +81,21 @@ export function LineArtStudio() {
       <div className="sticky top-0 z-10 -mx-2 bg-ink-100 px-2 pb-4 pt-1">
         <div className="flex items-baseline gap-3">
           <h3 className="flex-1 truncate text-[18px] font-semibold">{pageName(page, 0)}</h3>
-          {busy.has(page.id) && <span className="text-[14px] text-ink-500">converting…</span>}
+          {lineArt && busy.has(page.id) && <span className="text-[14px] text-ink-500">converting…</span>}
+          {!lineArt && <span className="text-[14px] text-ink-500">prints as uploaded</span>}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Pane label={page.source === 'lineart' ? 'What you uploaded' : 'Your painting'} url={sourceUrl} />
-          <PagePane page={page} book={book} url={lineUrl} />
-        </div>
+        {lineArt ? (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Pane label={page.source === 'lineart' ? 'What you uploaded' : 'Your painting'} url={sourceUrl} />
+            <PagePane page={page} book={book} url={lineUrl} />
+          </div>
+        ) : (
+          // One picture, not two: there is no before and after when nothing
+          // happens to it, and the page it lands on is the thing worth seeing.
+          <div className="mx-auto mt-3 max-w-[460px]">
+            <PagePane page={page} book={book} url={lineUrl} />
+          </div>
+        )}
         <Resolution page={page} book={book} />
       </div>
 
@@ -126,6 +140,8 @@ export function LineArtStudio() {
         </div>
       </div>
 
+      {lineArt && (
+      <>
       <div>
         <span className="block font-[570]">What kind of picture is this?</span>
         <span className="mt-0.5 block text-[14px] text-ink-500">
@@ -241,6 +257,11 @@ export function LineArtStudio() {
         />
       </div>
 
+      </>
+      )}
+
+      {/* About the whole book, not about tracing, so it stays whichever way the
+          pictures are made. */}
       <div className="rounded-2xl border border-ink-200 bg-paper px-5 py-4">
         <Toggle
           label="This book contains AI-generated images"
@@ -258,6 +279,7 @@ export function LineArtStudio() {
         )}
       </div>
 
+      {lineArt && (
       <div className="flex items-center gap-3">
         <Button
           onClick={() => {
@@ -272,6 +294,7 @@ export function LineArtStudio() {
           {book.pages.length} page{book.pages.length === 1 ? '' : 's'}
         </span>
       </div>
+      )}
       </div>
     </div>
   );

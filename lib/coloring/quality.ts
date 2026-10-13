@@ -1,6 +1,7 @@
 import { BLEED, MIN_COVER_DPI, getTrim } from '../kdp';
 import { TRACE_EDGE } from '../lineart/pipeline';
 import type { ColoringBook, ColoringPage } from '../types';
+import { usesLineArt } from './picture';
 
 /**
  * What a picture will actually look like once it is printed.
@@ -53,6 +54,11 @@ export function storedLongEdge(page: ColoringPage): number {
 export function printedDpi(page: ColoringPage, book: ColoringBook): number {
   if (!page.naturalWidth || !page.naturalHeight) return 0;
   const printed = printedSize(book);
+  if (!usesLineArt(book)) {
+    // Printed as uploaded: no tracing reduction and no enlargement, so the
+    // upload's own pixels are the whole story.
+    return Math.max(page.naturalWidth / printed.width, page.naturalHeight / printed.height);
+  }
   const scale = Math.min(TRACE_EDGE / Math.max(page.naturalWidth, page.naturalHeight), 1);
   const width = page.naturalWidth * scale * (page.upscaled || 1);
   const height = page.naturalHeight * scale * (page.upscaled || 1);
@@ -62,12 +68,16 @@ export function printedDpi(page: ColoringPage, book: ColoringBook): number {
 /** Everything the interface needs to say, worked out once. */
 export function pageQuality(page: ColoringPage, book: ColoringBook) {
   const dpi = printedDpi(page, book);
-  const factor = page.upscaled || 1;
+  const asIs = !usesLineArt(book);
+  // An upload that prints as it is was never enlarged, whatever an earlier run
+  // with line art on left behind in `upscaled`.
+  const factor = asIs ? 1 : page.upscaled || 1;
+  const natural = Math.max(page.naturalWidth, page.naturalHeight);
   return {
     dpi,
     factor,
-    stored: storedLongEdge(page),
-    natural: Math.max(page.naturalWidth, page.naturalHeight),
+    stored: asIs ? natural : storedLongEdge(page),
+    natural,
     stretched: factor > EXTREME_UPSCALE,
     soft: dpi > 0 && dpi < MIN_COVER_DPI,
   };

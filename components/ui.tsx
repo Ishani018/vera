@@ -633,7 +633,10 @@ export function SegmentedControl<T extends string>({
             'transition-[transform,background-color,color,box-shadow] duration-[var(--motion-base)] ease-[var(--ease-out)]',
             'active:scale-[0.98]',
             value === o.value
-              ? 'bg-paper text-ink-900 shadow-[var(--shadow-raised)]'
+              ? // `text-on-sheet`, not `ink-900`: the pill is the printed sheet, white in
+                // every palette, and ink-900 is cream in Night (1.16:1). Same fix, same
+                // reason, as `.btn-default`.
+                'bg-paper text-[var(--text-on-sheet)] shadow-[var(--shadow-raised)]'
               : 'text-ink-500 hover:text-ink-900',
           )}
         >

@@ -125,6 +125,7 @@ export function migrateProject(raw: unknown): AnyProject {
       })),
       coloring: {
         lineArt: { ...DEFAULT_LINE_ART, ...(book.coloring?.lineArt ?? {}) },
+        lineArtOn: book.coloring?.lineArtOn ?? true,
         singleSided: book.coloring?.singleSided ?? true,
         titlePage: book.coloring?.titlePage ?? true,
         copyrightPage: book.coloring?.copyrightPage ?? true,
@@ -200,6 +201,7 @@ export function createColoringBook(name = newColouringBookTitle()): ColoringBook
     pages: [],
     coloring: {
       lineArt: { ...DEFAULT_LINE_ART },
+      lineArtOn: true,
       singleSided: true,
       titlePage: true,
       copyrightPage: true,
