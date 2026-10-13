@@ -862,7 +862,7 @@ export function Landing() {
               }}
             >
               What are we{' '}
-              <em style={{ fontStyle: 'italic', color: 'var(--color-accenta-500)' }}>printing</em>{' '}
+              <em style={{ fontStyle: 'italic', color: 'var(--color-accenta-500)' }}>making</em>{' '}
               today?
             </h1>
             <p className="mt-3 text-[16px] text-ink-500">
