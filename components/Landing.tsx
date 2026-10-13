@@ -75,6 +75,7 @@ import { StudioHeader } from './StudioHeader';
 import { ThumbArt } from './ThumbArt';
 import { Button, TextInput, cx } from './ui';
 import { PalettePicker } from './PalettePicker';
+import { UserMenu } from './UserMenu';
 import { SILHOUETTES } from './home/Silhouette';
 import { nameFor } from '@/lib/home/naming';
 import { Chequerboard } from './stickers/Thumb';
@@ -823,6 +824,7 @@ export function Landing() {
           <span className="ml-auto shrink-0">
             <PalettePicker />
           </span>
+          <UserMenu />
           <button
             type="button"
             onClick={() => setCreating(true)}

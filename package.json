@@ -30,6 +30,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
+    "jose": "^6.2.12",
     "mammoth": "^1.12.2",
     "next": "15.5.25",
     "pagedjs": "^0.4.3",

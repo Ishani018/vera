@@ -12,6 +12,7 @@ import { MODES, ModePanel, type Mode } from './Modes';
 import { useOpenIntent } from './openIntent';
 import { PoemEditor } from './PoemEditor';
 import { Walkthrough, useWalkthrough } from './Walkthrough';
+import { UserMenu } from './UserMenu';
 import { Wordmark } from './Wordmark';
 import { Button, SegmentedControl, cx } from './ui';
 
@@ -141,6 +142,8 @@ export function Workspace() {
           >
             Export PDF
           </Button>
+          {/* Nothing where sign-in is not set up. */}
+          <UserMenu />
         </div>
       </header>
 

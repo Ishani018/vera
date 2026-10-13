@@ -59,3 +59,11 @@ The Smithsonian collection needs a free key from api.data.gov. It is read from
 the `SMITHSONIAN_API_KEY` environment variable on the server, never written
 into this repository, never sent to the browser, and never sent anywhere but
 `api.si.edu`. With no key, that collection simply is not offered.
+
+## Sign-in (optional)
+
+If the host sets up Google sign-in, signing in shares your Google name, email address and
+profile picture with this app, and nothing else. They are kept in a cookie in your browser,
+signed so it cannot be altered. They are not stored on the server. Your books, pictures and
+settings are still saved only in your browser and are never uploaded, signed in or not.
+Signing out deletes the cookie. See `docs/DEPLOY-AUTH.md`.

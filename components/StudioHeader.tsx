@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { UserMenu } from './UserMenu';
 import { Wordmark } from './Wordmark';
 
 /**
@@ -24,6 +25,12 @@ export function StudioHeader({ children }: { children?: ReactNode }) {
     <header className="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-ink-200 bg-paper px-3 sm:gap-4 sm:px-5">
       <Wordmark />
       {children}
+      {/* Takes the rest of the bar and puts the menu at its far end. Empty, so
+          removed from the layout altogether, where sign-in is not set up: the bar
+          is then exactly what it always was. */}
+      <span className="flex flex-1 justify-end py-1 empty:hidden">
+        <UserMenu />
+      </span>
     </header>
   );
 }
