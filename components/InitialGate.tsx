@@ -11,29 +11,39 @@ const Landing = dynamic(() => import('@/components/Landing').then((m) => m.Landi
 /**
  * Initial entry gate.
  *
- * Presents the log in and sign up screen when someone first opens the studio,
- * while allowing instant one-click guest access that is remembered in storage.
+ * Shows the log in and sign up screen when someone opens the studio.
+ * A single click on "Continue as guest" enters the studio dashboard.
  */
 export function InitialGate() {
   const { user, ready, configured } = useUser();
   const [checked, setChecked] = useState(false);
-  const [guest, setGuest] = useState(false);
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
-        const isGuest = window.localStorage.getItem('studio_guest') === 'true';
-        setGuest(isGuest);
+        // Clear any old permanent guest flag
+        window.localStorage.removeItem('studio_guest');
+        const inSession = window.sessionStorage.getItem('studio_entered') === 'true';
+        setEntered(inSession);
       }
     } catch {
-      // Storage restricted, proceed
-      setGuest(true);
+      setEntered(false);
     } finally {
       setChecked(true);
     }
   }, []);
 
-  // During SSR or initial mount before checking storage
+  const handleEnter = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('studio_entered', 'true');
+      }
+    } catch {}
+    setEntered(true);
+  };
+
+  // Before mount or user check is ready
   if (!checked || !ready) {
     return (
       <main className="flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
@@ -42,12 +52,12 @@ export function InitialGate() {
     );
   }
 
-  // If already signed in or guest mode active, render the studio dashboard
-  if (user || guest) {
+  // If signed in or guest clicked continue in this session, show dashboard
+  if (user || entered) {
     return <Landing />;
   }
 
-  // Otherwise, present the initial log in and sign up screen
+  // Initial log in and sign up screen
   return (
     <main className="flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
       <StudioHeader />
@@ -57,8 +67,8 @@ export function InitialGate() {
           googleHref="/api/auth/google?returnTo=/"
           errorMessage={null}
           returnTo="/"
-          onGuestContinue={() => setGuest(true)}
-          onSuccess={() => setGuest(true)}
+          onGuestContinue={handleEnter}
+          onSuccess={handleEnter}
         />
       </div>
     </main>

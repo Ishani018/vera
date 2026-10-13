@@ -299,7 +299,7 @@ function Nothing({
     <div className="mt-5 flex items-center gap-7 rounded-[6px] border border-ink-300 bg-paper-100 px-8 py-9">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/starter/teary-cat.png"
+        src="/starter/teary-cat.png?v=2"
         alt="Teary Chibi Cream Cat"
         className="size-[104px] shrink-0 object-contain drop-shadow-sm"
       />

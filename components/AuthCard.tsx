@@ -68,7 +68,8 @@ export function AuthCard({
   const handleGuest = (e: MouseEvent) => {
     try {
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem('studio_guest', 'true');
+        window.sessionStorage.setItem('studio_entered', 'true');
+        window.localStorage.removeItem('studio_guest');
       }
     } catch {}
     if (onGuestContinue) {
