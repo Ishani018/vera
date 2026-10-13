@@ -2024,7 +2024,7 @@ export function StickerStudio() {
 
   if (!file) {
     return (
-      <main className="flex h-dvh flex-col">
+      <main className="flex h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
         <StudioHeader>
           {/* No link home beside it: the wordmark to its left is that link,
               and has been all along. */}
@@ -2051,7 +2051,7 @@ export function StickerStudio() {
   /* ------------------------------------------------------------- the studio */
 
   return (
-    <main className="flex h-dvh flex-col">
+    <main className="flex h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
       <StudioHeader>
         {/* The title and the status are the two things a narrow window can
             lose: the wordmark already says where you are, and the actions are

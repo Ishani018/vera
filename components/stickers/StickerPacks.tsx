@@ -19,6 +19,7 @@ import { removeSticker } from '@/lib/cover/library';
 import { Modal } from '../Modal';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader, StudioTitle } from '../StudioHeader';
+import { PalettePicker } from '../PalettePicker';
 import { StickerTabs } from './StickerTabs';
 import { Fan, Thumb } from './Thumb';
 import { PlusIcon, TickIcon } from './icons';
@@ -270,9 +271,12 @@ export function StickerPacks() {
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
-        <StudioTitle>Packs</StudioTitle>
-        <span className="ml-auto flex shrink-0 items-stretch self-stretch">
-          <StickerTabs />
+        <StudioTitle>Sticker Studio</StudioTitle>
+        <span className="ml-auto flex shrink-0 items-center gap-3 self-stretch">
+          <span className="flex items-stretch self-stretch">
+            <StickerTabs />
+          </span>
+          <PalettePicker compact />
         </span>
       </StudioHeader>
 
@@ -308,7 +312,7 @@ export function StickerPacks() {
                     }}
                   />
                   <Button
-                    variant="accent"
+                    variant="create"
                     className="!px-6 !py-3"
                     style={{ fontSize: 'var(--studio-text-body)' }}
                     onClick={() => void make()}
@@ -368,7 +372,7 @@ export function StickerPacks() {
                     */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Button
-                        variant="accent"
+                        variant="default"
                         disabled={busy}
                         title="A zip of its pictures, saved to your downloads"
                         onClick={() => void download(pack.name)}

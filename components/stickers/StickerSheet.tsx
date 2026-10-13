@@ -17,6 +17,7 @@ import {
 } from '@/lib/stickers/sheet';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader, StudioTitle } from '../StudioHeader';
+import { PalettePicker } from '../PalettePicker';
 import { StickerTabs } from './StickerTabs';
 import { Thumb } from './Thumb';
 import { MinusIcon } from './icons';
@@ -235,11 +236,14 @@ export function StickerSheet() {
   );
 
   return (
-    <main className="flex h-dvh flex-col">
+    <main className="flex h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
       <StudioHeader>
-        <StudioTitle>Sticker sheet</StudioTitle>
-        <span className="ml-auto flex shrink-0 items-stretch self-stretch">
-          <StickerTabs />
+        <StudioTitle>Sticker Studio</StudioTitle>
+        <span className="ml-auto flex shrink-0 items-center gap-3 self-stretch">
+          <span className="flex items-stretch self-stretch">
+            <StickerTabs />
+          </span>
+          <PalettePicker compact />
         </span>
       </StudioHeader>
 
@@ -262,7 +266,7 @@ export function StickerSheet() {
           column of sliders, on a 720px screen.
         */
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col bg-ink-100 p-4">
+          <div className="flex min-w-0 flex-1 flex-col p-4" style={{ background: 'var(--studio-page)' }}>
             {/*
               The pane is positioned and the canvas fills it absolutely. A
               canvas carries its own size — 612 by 792 at 72 DPI for Letter —

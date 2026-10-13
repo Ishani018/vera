@@ -15,11 +15,13 @@ import type { ItemOutcome } from '@/lib/starter/install';
 import type { LibrarySticker } from '@/lib/types';
 import { Modal } from '../Modal';
 import { StudioHeader, StudioTitle } from '../StudioHeader';
+import { PalettePicker } from '../PalettePicker';
 import { StickerTabs } from './StickerTabs';
 import { BrowseGraphics } from './BrowseGraphics';
 import { Fan, Thumb } from './Thumb';
 import { DownloadIcon, LibraryIcon, UploadIcon } from './icons';
 import { Button, Notice, Spinner, TextInput, cx } from '../ui';
+import { CARD, COLUMN, NumberedLabel, PageHead, StudioPage, cardHover, cardStyle } from '../studio/Shell';
 
 /**
  * The library: what is installed, where each of it came from, and how to get
@@ -120,7 +122,7 @@ export function PackLibrary() {
   const installer = (
     <label
       className={cx(
-        'flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-1.5 text-[13.5px] font-[560] transition-colors hover:border-ink-400',
+        'btn btn-default flex cursor-pointer items-center gap-2 rounded-[6px] px-4 py-2.5 text-[14px]',
         busy && 'pointer-events-none opacity-50',
       )}
     >
@@ -143,21 +145,22 @@ export function PackLibrary() {
   return (
     <main className="flex h-dvh flex-col">
       <StudioHeader>
-        <StudioTitle>Library</StudioTitle>
-        <span className="ml-auto flex shrink-0 items-stretch self-stretch">
-          <StickerTabs />
+        <StudioTitle>Sticker Studio</StudioTitle>
+        <span className="ml-auto flex shrink-0 items-center gap-3 self-stretch">
+          <span className="flex items-stretch self-stretch">
+            <StickerTabs />
+          </span>
+          <PalettePicker compact />
         </span>
       </StudioHeader>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="display text-[24px] tracking-tight">Library</h1>
+      <StudioPage>
+        <div className={`${COLUMN} py-8`}>
+          <PageHead title="Library" line="Free graphics to browse, and everything you have installed.">
             <div className="flex flex-wrap gap-2">
               {installer}
               {credits.length > 0 && (
                 <Button
-                  variant="primary"
                   title="A plain-text list of every installed sticker, its author, its licence and its link"
                   onClick={exportCredits}
                 >
@@ -165,7 +168,7 @@ export function PackLibrary() {
                 </Button>
               )}
             </div>
-          </div>
+          </PageHead>
 
           {installing && (
             <p className="mt-3 flex items-center gap-2 text-[13px] text-ink-500">
@@ -196,23 +199,33 @@ export function PackLibrary() {
           {/* Browse on top, installed below: looking for something is what
               brings somebody here, and what they already have is the answer to
               "have I got this one already". */}
-          <div className="mt-6 border-t border-ink-200 pt-6">
+          <div className="mt-10">
+            <NumberedLabel number="01" title="Browse free graphics" />
             <BrowseGraphics onAdded={() => void reload()} />
           </div>
 
-          <div className="mt-8 border-t border-ink-200 pt-6">
-            <h2 className="display text-[17px] tracking-tight">Installed</h2>
+          <div className="mt-12">
+            <NumberedLabel number="02" title="Installed" />
           </div>
 
           {!credits.length ? (
-            <div className="mt-10 grid place-items-center">
+            <div
+              className="mt-5 grid place-items-center rounded-[10px] border border-dashed px-6 py-12"
+              style={{ borderColor: 'var(--studio-line)', background: 'var(--studio-card)' }}
+            >
               <div className="max-w-xl text-center">
-                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-ink-100 text-ink-500">
+                <span
+                  className="mx-auto grid size-14 place-items-center rounded-2xl text-ink-500"
+                  style={{ background: 'var(--studio-page)' }}
+                >
                   <LibraryIcon size={28} />
                 </span>
-                <h2 className="mt-4 text-[20px] font-semibold tracking-tight">
+                <h3
+                  className="mt-4 tracking-tight"
+                  style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 22 }}
+                >
                   Nothing installed yet
-                </h2>
+                </h3>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-ink-500">
                   This is where stickers that came from somewhere else live, with the licence and
                   the link for each one. The ones you drew yourself are under Make a sticker.
@@ -235,7 +248,8 @@ export function PackLibrary() {
                 {packs.map((summary) => (
                   <div
                     key={summary.pack}
-                    className="group flex flex-col rounded-2xl border border-ink-200 bg-paper p-3"
+                    className={`${CARD} ${cardHover} group flex flex-col p-3`}
+                    style={cardStyle}
                   >
                     <button
                       type="button"
@@ -293,10 +307,7 @@ export function PackLibrary() {
                   type="button"
                   aria-pressed={pack === null}
                   onClick={() => setPack(null)}
-                  className={cx(
-                    'rounded-lg border px-3 py-1.5 text-[13px] transition-colors',
-                    pack === null ? 'border-accent-500 bg-accent-50' : 'border-ink-200 hover:border-ink-300',
-                  )}
+                  className={cx(CHIP, pack === null && CHIP_ON)}
                 >
                   All <span className="ml-1 text-ink-500">{credits.length}</span>
                 </button>
@@ -306,12 +317,7 @@ export function PackLibrary() {
                     type="button"
                     aria-pressed={pack === entry.pack}
                     onClick={() => setPack(entry.pack)}
-                    className={cx(
-                      'rounded-lg border px-3 py-1.5 text-[13px] transition-colors',
-                      pack === entry.pack
-                        ? 'border-accent-500 bg-accent-50'
-                        : 'border-ink-200 hover:border-ink-300',
-                    )}
+                    className={cx(CHIP, pack === entry.pack && CHIP_ON)}
                   >
                     {entry.pack} <span className="ml-1 text-ink-500">{entry.count}</span>
                   </button>
@@ -394,10 +400,17 @@ export function PackLibrary() {
             </Modal>
           )}
         </div>
-      </div>
+      </StudioPage>
     </main>
   );
 }
+
+/** The pill the home screen's filters use, so a filter looks the same wherever it is. */
+const CHIP =
+  'inline-flex min-h-9 items-center rounded-[6px] border px-3 text-[12px] uppercase tracking-[0.06em] ' +
+  'transition-colors hover:border-ink-900 [border-color:var(--studio-line)] [background:var(--studio-card)] ' +
+  '[font-family:var(--font-mono)]';
+const CHIP_ON = '!border-ink-900 !bg-ink-900 !text-paper-50';
 
 /** "commons.wikimedia.org", for a link that would otherwise wrap over two lines. */
 function hostOf(url: string): string {

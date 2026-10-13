@@ -5,6 +5,7 @@ import { ADD_ALL_LIMIT, CATEGORIES, packFor } from '@/lib/graphics/policy';
 import { addPicks, countOutcomes, type AddOutcome, type Pick } from '@/lib/graphics/add';
 import { Button, Notice, Spinner, TextInput, cx } from '../ui';
 import { Chequerboard } from './Thumb';
+import { CARD, cardHover, cardStyle } from '../studio/Shell';
 import { PlusIcon } from './icons';
 
 /**
@@ -108,7 +109,6 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
   return (
     <section>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-[17px] font-semibold tracking-tight">Browse free graphics</h2>
         {sources.smithsonian && (
           <span className="flex gap-1">
             {(['commons', 'smithsonian'] as const).map((one) => (
@@ -135,7 +135,7 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
       </div>
 
       <form
-        className="mt-3 flex flex-wrap items-center gap-2"
+        className="mt-4 flex flex-wrap items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           void look(query, source, 0);
@@ -146,14 +146,14 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search free graphics"
           placeholder="ferns, moths, ornaments…"
-          className="max-w-sm"
+          className="w-full max-w-md"
         />
-        <Button variant="primary" disabled={busy || !query.trim()} onClick={() => void look(query, source, 0)}>
+        <Button variant="create" disabled={busy || !query.trim()} onClick={() => void look(query, source, 0)}>
           Search
         </Button>
       </form>
 
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-3 flex flex-wrap gap-2">
         {CATEGORIES.map((category) => (
           <button
             key={category.label}
@@ -163,25 +163,36 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
               setQuery(category.query);
               void look(category.query, source, 0);
             }}
-            className="inline-flex min-h-8 items-center rounded-full border border-ink-200 px-3 text-[12.5px] text-ink-700 transition-colors hover:border-accent-500 hover:text-accent-500"
+            className="inline-flex min-h-9 items-center rounded-[6px] border px-3 text-[12px] uppercase tracking-[0.06em] text-ink-900 transition-colors hover:border-ink-900 disabled:opacity-50"
+            style={{
+              borderColor: 'var(--studio-line)',
+              background: 'var(--studio-card)',
+              fontFamily: 'var(--font-mono)',
+            }}
           >
             {category.label}
           </button>
         ))}
       </div>
 
-      <p className="mt-2 text-[12px] text-ink-500">
-        Searching sends your search words to{' '}
-        {source === 'commons' ? 'Wikimedia' : 'the Smithsonian'} — nothing else about you, and
-        nothing you have made. Only public-domain and CC0 items are shown, by each service&rsquo;s
-        own licence field.
+      <p className="mt-3 max-w-2xl text-[12.5px] leading-relaxed text-ink-500">
+        Searching sends your words to {source === 'commons' ? 'Wikimedia' : 'the Smithsonian'}, and
+        nothing else about you or what you have made. Only public-domain and CC0 items are shown, by
+        each service&rsquo;s own licence field.
       </p>
       {!sources.smithsonian && (
-        <p className="mt-1 text-[12px] text-ink-500">
-          The Smithsonian collection needs a free key: set{' '}
-          <code className="rounded bg-ink-100 px-1">SMITHSONIAN_API_KEY</code> on the server (from
-          api.data.gov) and it appears here.
-        </p>
+        <details className="mt-1 text-[12.5px] text-ink-500">
+          <summary className="cursor-pointer select-none underline-offset-2 hover:underline">
+            Add the Smithsonian collection
+          </summary>
+          <p className="mt-1 max-w-2xl leading-relaxed">
+            It needs a free key: set{' '}
+            <code className="rounded px-1" style={{ background: 'var(--studio-card)' }}>
+              SMITHSONIAN_API_KEY
+            </code>{' '}
+            on the server (from api.data.gov) and it appears here.
+          </p>
+        </details>
       )}
 
       {problem && (
@@ -254,9 +265,10 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
             {items.map((item) => (
               <div
                 key={`${item.id}-${item.fileUrl}`}
-                className="group relative min-w-0"
+                className={`${CARD} ${cardHover} group relative min-w-0 overflow-hidden`}
+                style={cardStyle}
               >
-                <Chequerboard className="aspect-square w-full rounded-lg border border-ink-200">
+                <Chequerboard className="aspect-square w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.thumbUrl}
@@ -265,30 +277,33 @@ export function BrowseGraphics({ onAdded }: { onAdded: () => void }) {
                     className="max-h-[88%] max-w-[88%] object-contain"
                   />
                 </Chequerboard>
-                <span className="mt-1 block truncate text-[12px] leading-tight" title={item.title}>
-                  {item.title}
-                </span>
-                <span
-                  className="block truncate text-[11px] leading-tight text-ink-500"
-                  title={`${item.author} — ${item.licence}`}
-                >
-                  {item.author} · {item.licence}
-                </span>
-                <a
-                  href={item.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="block truncate text-[11px] leading-tight text-accent-500 underline"
-                >
-                  source
-                </a>
+                <div className="border-t px-2.5 py-2" style={{ borderColor: 'var(--studio-line)' }}>
+                  <span className="block truncate text-[12.5px] font-[560] leading-tight" title={item.title}>
+                    {item.title}
+                  </span>
+                  <span
+                    className="mt-0.5 block truncate text-[11px] leading-tight text-ink-500"
+                    title={`${item.author} — ${item.licence}`}
+                  >
+                    {item.author} · {item.licence}
+                  </span>
+                  <a
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="mt-0.5 block truncate text-[11px] leading-tight text-accent-500 underline"
+                  >
+                    source
+                  </a>
+                </div>
                 <button
                   type="button"
                   disabled={busy}
                   title={`Add ${item.title} to My stickers`}
                   aria-label={`Add ${item.title}`}
                   onClick={() => void add([item])}
-                  className="absolute right-1 top-1 grid size-6 place-items-center rounded-full border border-ink-200 bg-paper/95 text-ink-700 opacity-0 shadow transition-opacity hover:border-accent-500 group-focus-within:opacity-100 group-hover:opacity-100"
+                  className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full border text-ink-900 opacity-0 shadow transition-opacity hover:border-ink-900 focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100"
+                  style={{ borderColor: 'var(--studio-line)', background: 'var(--studio-card)' }}
                 >
                   <PlusIcon size={14} />
                 </button>
