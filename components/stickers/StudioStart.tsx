@@ -129,7 +129,7 @@ export function StudioStart({
             is a different tool and says so by going somewhere.
           */}
           <SectionHead className="mt-10">Start from</SectionHead>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <StartCard
               title="Photo"
               caption="Cut out and outline"
@@ -153,20 +153,6 @@ export function StudioStart({
                   <path d="M6 26l1.5-5.5L21 7a2.5 2.5 0 013.5 3.5L11 24z" />
                   <path d="M19 9l4 4" />
                   <path d="M6 26l5.5-1.5" />
-                </>
-              }
-            />
-            <StartCard
-              title="Line art"
-              caption="Turn a picture into ink lines"
-              href="/lab"
-              badge="New"
-              icon={
-                <>
-                  <rect x="3.5" y="5" width="25" height="22" rx="3" />
-                  <path d="M16 5v22" />
-                  <circle cx="9.75" cy="16" r="4.5" />
-                  <circle cx="22.25" cy="16" r="4.5" />
                 </>
               }
             />

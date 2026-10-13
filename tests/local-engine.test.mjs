@@ -6,29 +6,22 @@ import { join } from 'node:path';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
 /**
- * The Line Art Lab runs on the computer it is opened on.
+ * The line art engine runs on the computer it is opened on.
  *
- * That is the product promise the screen itself makes — "Made with algorithms,
- * no AI model" — and the reason this feature costs nothing to host: there is no
- * server doing the drawing, so there is no server to scale. It is easy to lose
- * by accident, one convenient `fetch` at a time, so it is asserted here rather
- * than remembered.
+ * That is the promise the app makes — pictures never leave the computer — and the
+ * reason this feature costs nothing to host: there is no server doing the
+ * drawing, so there is no server to scale. It is easy to lose by accident, one
+ * convenient `fetch` at a time, so it is asserted here rather than remembered.
  *
- * The one deliberate exception is `lib/lab/smart.ts`, the optional hand-off to
- * a helper the user runs on their own machine. It is not a hosted service and
- * it is off in production builds; `smart.test.mjs` covers what it does. Every
- * other file in the engine must be able to run with the network unplugged.
+ * (This file used to cover `lib/lab` too, the Line Art Lab's engine and its
+ * optional hand-off to a local helper. The Lab is archived, tag
+ * `archive/line-art-lab`; what is left is the engine the colouring editor uses.)
  */
 
-const ENGINE = ['lib/lineart', 'lib/lab'];
+const ENGINE = ['lib/lineart'];
 
-/** Files allowed to talk to anything, and why. */
-const ALLOWED = new Set([
-  // The optional local helper. Opt-in, 127.0.0.1, off in production.
-  'lib/lab/smart.ts',
-  // Reads back a blob: URL the app itself just made. No origin, no network.
-  'lib/lab/rasterise.ts',
-]);
+/** Files allowed to talk to anything, and why. None: it all runs offline. */
+const ALLOWED = new Set([]);
 
 function sourceFiles() {
   const found = [];

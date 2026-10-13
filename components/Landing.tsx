@@ -95,27 +95,6 @@ import { readableSize } from '@/lib/deleted';
  * The numbers are the point: a proof sheet is marked up in order, and "01" and
  * "02" say that the two sections are steps rather than two unrelated piles.
  */
-/** Half a photograph, half the drawing made from it. */
-function LabMark() {
-  return (
-    <svg width="112" height="68" viewBox="0 0 112 68" fill="none" aria-hidden="true">
-      <rect x="2" y="2" width="54" height="64" rx="2" fill="var(--color-paper-200)" />
-      <rect x="56" y="2" width="54" height="64" rx="2" fill="var(--color-sheet)" />
-      <circle cx="29" cy="30" r="15" fill="var(--color-ink-300)" />
-      <path d="M6 62 L24 44 L36 54 L52 38 L52 66 L6 66 Z" fill="var(--color-ink-300)" />
-      <circle cx="83" cy="30" r="15" stroke="var(--color-ink-900)" strokeWidth="1.75" />
-      <path
-        d="M60 62 L78 44 L90 54 L106 38"
-        stroke="var(--color-ink-900)"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <line x1="56" y1="2" x2="56" y2="66" stroke="var(--color-ink-900)" strokeWidth="1" />
-    </svg>
-  );
-}
-
 /**
  * The brand, in the one place somebody looks for it.
  *
@@ -941,37 +920,8 @@ export function Landing() {
               </ul>
             </section>
 
-            {/*
-              Tools, between the sizes and the work: sizes are where a thing
-              starts, tools are what you do to a thing you already have, and
-              the work itself is the result. Its own section rather than an
-              eighth format tile, because the Lab is not a paper size and a row
-              of seven that wraps to eight reads as a mistake.
-            */}
             <section className="mt-9">
-              <SectionLabel number="02" title="Tools" />
-              <div className="mt-5 flex flex-wrap gap-5">
-                <Link href="/lab" className="proof proof-lift block w-[259px]">
-                  <span className="plate block rounded-[6px] bg-paper-100 p-4">
-                    <Chequerboard className="h-[96px] rounded-[3px]">
-                      <LabMark />
-                    </Chequerboard>
-                    <span
-                      className="mt-3 block truncate"
-                      style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 20 }}
-                    >
-                      Line Art Lab
-                    </span>
-                    <span className="mono-label mt-1 block truncate text-ink-500" style={{ fontSize: 10 }}>
-                      Six ways · no AI model
-                    </span>
-                  </span>
-                </Link>
-              </div>
-            </section>
-
-            <section className="mt-9">
-              <SectionLabel number="03" title="Recent work" />
+              <SectionLabel number="02" title="Recent work" />
 
               <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <div className="flex flex-wrap gap-1.5">
