@@ -4,6 +4,7 @@ import { getDb } from './db';
 import { copyName, listStandaloneDesigns } from './designs';
 import { DEFAULT_COLORING_TYPOGRAPHY, createProject, id } from './defaults';
 import { DEFAULT_COLORING_TRIM, getTrim, inchesToPt } from './kdp';
+import { frontImageRect, wholeOf } from './board';
 import { boardFor, presetById } from './presets';
 import { coverLayout } from './render/coverLayout';
 import { SCHEMA } from './schema';
@@ -358,11 +359,12 @@ function itemsOn(
     // Exactly the designer's rule: a picture either fills the whole board or
     // sits on the front panel and bleeds off its three outer edges.
     const spans = cover.imageSpansWrap || !front;
+    const where = spans ? wholeOf(board) : frontImageRect(board, front);
     items.push({
       kind: 'picture',
-      x: (spans ? 0 : front.x - board.bleed) - region.x,
+      x: where.x - region.x,
       y: -region.y,
-      width: spans ? board.width : front.width + board.bleed,
+      width: where.width,
       height: board.height,
       assetId: cover.frontImage.assetId,
       rotate: 0,
@@ -447,12 +449,7 @@ export function frontThumb(
 ): Thumb {
   const front = layout.panels.front ?? layout.panels.board;
   const region: Region = front
-    ? {
-        x: front.x - layout.bleed,
-        y: 0,
-        width: front.width + layout.bleed,
-        height: layout.height,
-      }
+    ? frontImageRect(layout, front)
     : { x: 0, y: 0, width: layout.width, height: layout.height };
   return {
     width: region.width,

@@ -2,7 +2,7 @@ import { curvedText, type CurvedText } from '../cover/curve';
 import type { CoverSpec, CoverSticker, CoverTextBox, CoverableBook } from '../types';
 import { coverLayout, type CoverLayout } from './coverLayout';
 import type { Board, Rect } from '../board';
-import { reservedOf, trimOf, wholeOf } from '../board';
+import { frontImageRect, reservedOf, trimOf, wholeOf } from '../board';
 import { stickerImageKey, stickerRect } from './stickers';
 import { cssColor, cssFamily, escapeBlock, escapeHtml, escapeSvgText } from './text';
 
@@ -188,16 +188,17 @@ export function buildBoardHtml(
   const imageSrc = image ? (options.assets?.[image.assetId] ?? '') : '';
   const front = board.panels.front;
   // A picture fills the whole board unless the board has a front to put it on,
-  // and then it fills that plus the bleed running off the outer edge.
+  // and then it fills that plus the bleed running off its outer edges.
+  //
+  // The front is the RIGHT-hand panel, so its outer edges are the top, the
+  // bottom and the right. This used to start one bleed to the LEFT of the front
+  // (over the spine) and stop at the trim line, which is the mirror image of
+  // what it says: the picture overlapped the spine fold and left the right-hand
+  // bleed unpainted, so a cover came out with a white strip down its outer edge.
   const imageRect =
     cover.imageSpansWrap || !front
       ? wholeOf(board)
-      : {
-          x: front.x - board.bleed,
-          y: 0,
-          width: front.width + board.bleed,
-          height: board.height,
-        };
+      : frontImageRect(board, front);
 
   const imageHtml = image && imageSrc
     ? `<img class="cover-image" src="${escapeHtml(imageSrc)}" alt="">`

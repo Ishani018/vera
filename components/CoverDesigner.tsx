@@ -15,7 +15,7 @@ import {
 } from '@/lib/kdp';
 import type { ReactNode } from 'react';
 import type { Board } from '@/lib/board';
-import { foldsOf, safeOf, trimOf } from '@/lib/board';
+import { foldsOf, frontImageRect, safeOf, trimOf } from '@/lib/board';
 import { coverLayout, spineTooThinForText, type CoverLayout } from '@/lib/render/coverLayout';
 import { id } from '@/lib/defaults';
 import { font } from '@/lib/defaults';
@@ -1317,12 +1317,12 @@ export function CoverDesigner<T extends CoverableBook>({
                   left:
                     cover.imageSpansWrap || !layout.panels.front
                       ? 0
-                      : (layout.panels.front.x - layout.bleed) * scale,
+                      : frontImageRect(layout, layout.panels.front).x * scale,
                   top: 0,
                   width:
                     cover.imageSpansWrap || !layout.panels.front
                       ? layout.width * scale
-                      : (layout.panels.front.width + layout.bleed) * scale,
+                      : frontImageRect(layout, layout.panels.front).width * scale,
                   height: layout.height * scale,
                   objectFit: cover.frontImage.fit,
                 }}

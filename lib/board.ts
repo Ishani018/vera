@@ -56,6 +56,26 @@ export const trimOf = (board: Pick<Board, 'width' | 'height' | 'bleed'>): Rect =
   height: board.height - 2 * board.bleed,
 });
 
+/**
+ * Where a front-cover picture goes: the front panel, then on to the board's edge
+ * on the right, and to the top and bottom edges — the bleed that gets trimmed off.
+ *
+ * The front is the RIGHT-hand panel, so those are its outer edges. The rule used
+ * to start one bleed to the LEFT of the front, over the spine, and stop at the
+ * trim line: the mirror image of what it claimed, which left a white strip down
+ * the outer edge of every cover with a picture on it. One function, used by the
+ * export, the designer and the thumbnails, so the three cannot disagree again.
+ */
+export const frontImageRect = (
+  board: Pick<Board, 'width' | 'height'>,
+  front: Pick<Rect, 'x'>,
+): Rect => ({
+  x: front.x,
+  y: 0,
+  width: board.width - front.x,
+  height: board.height,
+});
+
 export const foldsOf = (board: Pick<Board, 'guides'>): Array<Extract<Guide, { kind: 'fold' }>> =>
   board.guides.filter((g): g is Extract<Guide, { kind: 'fold' }> => g.kind === 'fold');
 
