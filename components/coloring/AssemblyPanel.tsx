@@ -1,34 +1,28 @@
 'use client';
 
-import { COLORING_TRIM_IDS, MIN_PAGES, PAPER_LABELS, getTrim } from '@/lib/kdp';
-import { usesLineArt } from '@/lib/coloring/picture';
+import { COLORING_TRIM_IDS, PAPER_LABELS, getTrim } from '@/lib/kdp';
 import { useColoring } from '@/lib/coloring/store';
-import { validateColoringBook } from '@/lib/coloring/validate';
-import { frontMatterPages } from '@/lib/render/coloringLayout';
 import type { PaperType } from '@/lib/types';
 import { MatterPage } from './MatterPage';
-import { Notice, Select, TextInput, Toggle } from '../ui';
-import { PanelField as Field, PanelSection, SectionHeading } from '../panel/Panel';
+import { Select, TextInput, Toggle } from '../ui';
+import { PanelField as Field, PanelSection } from '../panel/Panel';
 import { newColouringBookTitle } from '@/lib/home/naming';
 
 /**
- * How the book is put together: what size it prints at, what goes in the front,
- * and whether every picture gets a blank back.
+ * The book's details: its name, what size it prints at, and what goes in the
+ * front. Under the pictures, and shut: these are set once, near the start, and
+ * the pictures are what somebody came to work on.
  *
- * The warnings live here rather than at export because that is far too late to
- * be told a book is nineteen pages long.
+ * What used to follow — the page arithmetic and the warnings — is at Export,
+ * which already lists the same checks, so there is one place to read them.
  */
-export function AssemblyPanel({ pageCount }: { pageCount: number }) {
+export function AssemblyPanel() {
   const book = useColoring((s) => s.book);
   const update = useColoring((s) => s.update);
   const setBookSetting = useColoring((s) => s.setBookSetting);
   if (!book) return null;
 
-  const issues = validateColoringBook(book, pageCount);
   const trim = getTrim(book.trim.trimId);
-  const front = frontMatterPages(book);
-  const backs = book.coloring.singleSided ? book.pages.length : 0;
-  const lineArt = usesLineArt(book);
   const matter = [
     book.coloring.titlePage,
     book.coloring.copyrightPage,
@@ -38,22 +32,7 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
 
   return (
     <div>
-      <PanelSection title="How pages are made">
-        <Toggle
-          label="Turn pictures into line art"
-          hint="Off prints each picture exactly as you added it — mazes, word searches, dot-to-dot, finished drawings. Nothing is traced or thresholded."
-          checked={lineArt}
-          onChange={(value) => setBookSetting('lineArtOn', value)}
-        />
-        <Toggle
-          label="A blank page behind every picture"
-          hint="So a marker that soaks through spoils nothing. Leave it off when the back of a page is a page too."
-          checked={book.coloring.singleSided}
-          onChange={(value) => setBookSetting('singleSided', value)}
-        />
-      </PanelSection>
-
-      <PanelSection title="The book">
+      <PanelSection title="Book details" collapsible now={book.meta.title}>
         <Field label="Title">
           <TextInput
             value={book.meta.title}
@@ -93,7 +72,7 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
         </div>
       </PanelSection>
 
-      <PanelSection title="Paper" collapsible defaultOpen now={`${trim.width}″ × ${trim.height}″`}>
+      <PanelSection title="Paper" collapsible now={`${trim.width}″ × ${trim.height}″`}>
         <Field label="Size" hint={`${trim.width}″ × ${trim.height}″ when trimmed`}>
           <Select
             value={book.trim.trimId}
@@ -158,51 +137,6 @@ export function AssemblyPanel({ pageCount }: { pageCount: number }) {
           onToggle={(value) => setBookSetting('colorTestPage', value)}
         />
       </PanelSection>
-
-      <section style={{ marginBottom: 'var(--panel-sectionGap)' }}>
-        <SectionHeading>How it adds up</SectionHeading>
-        <dl className="mt-3 divide-y divide-ink-200 text-[14.5px]">
-          <Row label="Front of the book" value={`${front} page${front === 1 ? '' : 's'}`} />
-          <Row label="Pictures" value={`${book.pages.length}`} />
-          <Row label="Blank backs" value={backs ? `${backs}` : 'none'} />
-          <Row
-            label="Printed length"
-            value={pageCount ? `${pageCount} pages` : 'counting…'}
-            strong
-          />
-        </dl>
-        {pageCount > 0 && pageCount < MIN_PAGES && (
-          <p className="mt-3 text-[14px] text-ink-500">
-            {MIN_PAGES - pageCount} more page{MIN_PAGES - pageCount === 1 ? '' : 's'} to reach
-            KDP&rsquo;s minimum. Another {Math.ceil((MIN_PAGES - pageCount) / (backs ? 2 : 1))}{' '}
-            picture{Math.ceil((MIN_PAGES - pageCount) / (backs ? 2 : 1)) === 1 ? '' : 's'} would do
-            it.
-          </p>
-        )}
-      </section>
-
-      {issues.length > 0 && (
-        <section style={{ marginBottom: 'var(--panel-sectionGap)' }}>
-          <SectionHeading>Before you publish</SectionHeading>
-          <div className="mt-3 flex flex-col gap-2.5">
-            {issues.map((issue) => (
-              <Notice key={issue.id} level={issue.level}>
-                <strong className="font-[570]">{issue.message}</strong>
-                {issue.fix && <span className="mt-0.5 block opacity-80">{issue.fix}</span>}
-              </Notice>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-2">
-      <dt className="text-ink-500">{label}</dt>
-      <dd className={strong ? 'font-[570] tabular-nums' : 'tabular-nums'}>{value}</dd>
     </div>
   );
 }

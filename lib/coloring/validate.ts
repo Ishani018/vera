@@ -26,7 +26,7 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
       id: 'coloring-empty',
       level: 'error',
       message: 'There are no pictures in this book yet.',
-      fix: 'Add some in Pictures.',
+      fix: 'Add some in Pages.',
     });
   }
 
@@ -64,7 +64,7 @@ export function validateColoringBook(book: ColoringBook, pageCount: number): Val
       id: 'coloring-bleed-off',
       level: 'error',
       message: `${filling.length} picture${filling.length === 1 ? ' is' : 's are'} set to fill the page, but this book has no bleed.`,
-      fix: 'Turn on "Let pictures run off the edge" in Book — and pick Bleed in KDP\'s setup to match. Or set those pictures to fit instead.',
+      fix: 'Turn on "Let pictures run off the edge" under Paper in Pages — and pick Bleed in KDP\'s setup to match. Or set those pictures to fit instead.',
     });
   }
   if (!filling.length && book.trim.bleed) {

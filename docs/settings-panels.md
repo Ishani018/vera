@@ -30,7 +30,7 @@ Which part to reach for:
 | Font picker label | `FontPicker.tsx` | `ControlLabel`. |
 | Sticker Studio | `stickers/StudioShell.tsx`, `StickerStudio.tsx` | `Field`/`Advanced` are thin wrappers over `PanelSection`; 12 hand-rolled labels are `ControlLabel`. |
 | Colouring: line-art controls | `coloring/LineArtControls.tsx` | 32 sliders; optional `defaultValue` gives a Reset that restores it. |
-| Colouring: Book tab | `coloring/AssemblyPanel.tsx`, `MatterPage.tsx` | Starts with **How pages are made**: two switches, line art on/off and a blank back behind each picture on/off. Paper and Front of the book are collapsible with their current value on the shut header. |
+| Colouring: Pages tab | `coloring/PageSwitches.tsx`, `AssemblyPanel.tsx`, `MatterPage.tsx` | The editor has three tabs: **Pages**, **Cover**, **Export**. Pages is the switches (line art on/off, a blank back behind each picture on/off), the pictures, then Book details / Paper / Front of the book, all collapsible with their current value on the shut header. The whole-book preview and the launch-day posts moved to Export. |
 | Poetry: trays | `Modes.tsx` → `Tray` | `PanelSection` with `now`; open tray still kept in the store. |
 | Poetry: Design/Write panels | `controls.tsx` (9 panels, 31 fields) | One import line: `PanelField as Field`. Typography and matter groups are `PanelSection`. |
 | Poetry: type controls | `FontControls.tsx` | Alignment/italic/colour row now has a label and a named group. |

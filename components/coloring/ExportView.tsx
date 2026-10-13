@@ -25,7 +25,14 @@ type Status = { level: 'ok' | 'error' | 'info'; text: string } | null;
  * count is only settled once the book is. It is an estimate; the numbers
  * behind it are Amazon's and carry the date they were read.
  */
-export function ExportView({ pageCount }: { pageCount: number }) {
+export function ExportView({
+  pageCount,
+  onLaunchKit,
+}: {
+  pageCount: number;
+  /** Opens the launch-day posts. Optional so the view can stand on its own. */
+  onLaunchKit?: () => void;
+}) {
   const book = useColoring((s) => s.book);
   const [price, setPrice] = useState(12.99);
   const [busy, setBusy] = useState<'interior' | 'cover' | null>(null);
@@ -170,7 +177,7 @@ export function ExportView({ pageCount }: { pageCount: number }) {
               <span className="mt-0.5 block opacity-80">
                 Colour costs several times as much and is charged by the page rather than at a flat
                 rate, so no estimate is shown. Use KDP&rsquo;s own printing-cost calculator — or, if
-                the pages are line art, switch to black &amp; white in Book, which is what a
+                the pages are line art, switch to black &amp; white under Paper in Pages, which is what a
                 coloring book prints as.
               </span>
             </Notice>
@@ -253,6 +260,18 @@ export function ExportView({ pageCount }: { pageCount: number }) {
           </p>
         )}
       </section>
+
+      {onLaunchKit && (
+        <section className="border-t border-ink-200 pt-5">
+          <h3 className="text-[17px] font-semibold">Posts for launch day</h3>
+          <p className="mt-1 text-[14.5px] text-ink-500">
+            Instagram and Pinterest posts built from the book&rsquo;s own pages.
+          </p>
+          <div className="mt-3">
+            <Button onClick={onLaunchKit}>Make posts →</Button>
+          </div>
+        </section>
+      )}
 
       <section className="border-t border-ink-200 pt-5">
         <h3 className="text-[17px] font-semibold">Keep a copy</h3>
