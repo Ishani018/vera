@@ -176,8 +176,8 @@ export function ColoringPreview({
   const showing = describeSpread(pages, spread);
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-paper">
-      <div className="flex flex-wrap items-center gap-2 border-b border-ink-200 px-3 py-2">
+    <div className="flex h-full min-w-0 flex-col" style={{ background: 'var(--studio-card)' }}>
+      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2" style={{ borderColor: 'var(--studio-line)' }}>
         <SegmentedControl
           value={mode}
           onChange={setMode}

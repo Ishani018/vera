@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useConversionQueue } from '@/lib/coloring/convert';
-import { usesLineArt } from '@/lib/coloring/picture';
 import { useColoring } from '@/lib/coloring/store';
 import { picturesOf } from '@/lib/pictures';
 import { sheetCount } from '@/lib/render/coloringLayout';
@@ -15,7 +14,7 @@ import { LaunchKit } from '../LaunchKit';
 import { ColoringCover } from './ColoringCover';
 import { ExportView } from './ExportView';
 import { ColoringPreview } from './ColoringPreview';
-import { LineArtStudio } from './LineArtStudio';
+import { PictureInspector, PictureStage } from './PictureWorkspace';
 import { PageGrid } from './PageGrid';
 import { PageSwitches } from './PageSwitches';
 
@@ -124,7 +123,10 @@ export function ColoringWorkspace() {
             ← Back to Export
           </button>
         )}
-        <span className="ml-auto text-[14px]" style={{ color: 'var(--text-muted-on-sheet)' }}>
+        <span
+          className="ml-auto hidden shrink-0 whitespace-nowrap text-[14px] sm:inline"
+          style={{ color: 'var(--text-muted-on-sheet)' }}
+        >
           {book.pages.length} picture{book.pages.length === 1 ? '' : 's'} · {pageCount} pages ·
           saved on this computer
         </span>
@@ -132,7 +134,7 @@ export function ColoringWorkspace() {
 
       {mode === 'export' ? (
         <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
-          <div className="min-h-0 overflow-y-auto bg-ink-100">
+          <div className="min-h-0 overflow-y-auto" style={{ background: 'var(--studio-page)' }}>
             <ExportView pageCount={pageCount} onLaunchKit={() => setMode('kit')} />
           </div>
           {/* Only where there is room beside it; below that the files and the
@@ -157,13 +159,18 @@ export function ColoringWorkspace() {
           />
         </div>
       ) : mode === 'pictures' ? (
-        <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)]">
+        /*
+          Pages | stage | panel: the same three columns as the cover designer and
+          the Sticker Studio, so the three editors read as one app. Below `lg` the
+          columns stack and the page scrolls.
+        */
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[340px_minmax(0,1fr)_var(--panel-width)] lg:overflow-visible">
           <aside
-            className="min-h-0 overflow-y-auto border-r px-6 py-6"
+            className="shrink-0 border-b px-5 py-6 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r"
             style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
           >
             <h2 className="text-[22px] font-semibold tracking-tight">Pages</h2>
-            <p className="mb-5 mt-1.5 text-[15px] text-ink-500">
+            <p className="mb-5 mt-1 text-[14.5px]" style={{ color: 'var(--color-ink-500)' }}>
               Drag to set the order they are bound in.
             </p>
             {/* Where pictures are added: the first thing an activity book needs
@@ -175,16 +182,19 @@ export function ColoringWorkspace() {
             </div>
           </aside>
 
-          <section className="min-h-0 overflow-y-auto bg-ink-100 px-8 py-6">
-            <div className="mx-auto max-w-6xl">
-              <LineArtStudio />
-              <p className="mt-10 border-t border-ink-200 pt-5 text-[14.5px] leading-relaxed text-ink-500">
-                {usesLineArt(book)
-                  ? 'The converter itself is not generative: every picture is filtered by a fixed sequence of arithmetic on its own pixels, so the same painting and the same settings always give the same page. What it cannot know is where a picture came from before you added it — that is what the disclosure switch is for, and it will be shown again when you export.'
-                  : 'Pictures print exactly as you added them: nothing is traced, thresholded or enlarged. What the app cannot know is where a picture came from — that is what the disclosure switch is for, and it will be shown again when you export.'}
-              </p>
-            </div>
+          <section
+            className="shrink-0 lg:min-h-0 lg:overflow-y-auto"
+            style={{ background: 'var(--studio-page)' }}
+          >
+            <PictureStage />
           </section>
+
+          <div
+            className="flex shrink-0 flex-col border-t lg:min-h-0 lg:border-l lg:border-t-0"
+            style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+          >
+            <PictureInspector />
+          </div>
         </div>
       ) : null}
     </main>

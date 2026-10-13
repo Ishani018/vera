@@ -214,8 +214,8 @@ export function BookPreview() {
   const visible = spreadLabels(pages, currentSpread);
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-paper">
-      <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-ink-200 px-3 py-2">
+    <div className="flex h-full min-w-0 flex-col" style={{ background: 'var(--studio-card)' }}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 border-b px-3 py-2" style={{ borderColor: 'var(--studio-line)' }}>
         <SegmentedControl
           value={previewMode}
           onChange={setPreviewMode}
@@ -305,7 +305,7 @@ export function BookPreview() {
         )}
       </div>
 
-      <div className="flex items-center gap-3 border-t border-ink-200 px-3 py-1.5 text-[11px] text-ink-500">
+      <div className="flex items-center gap-3 border-t px-3 py-1.5 text-[11px] text-ink-500" style={{ borderColor: 'var(--studio-line)' }}>
         <span className="tabular-nums">
           {pageCount ? `${pageCount} pages` : 'Counting pages…'}
         </span>

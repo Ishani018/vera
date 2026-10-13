@@ -156,7 +156,7 @@ export function PoemList() {
       <header className="flex flex-col gap-3">
         {/* Equal weight, deliberately: a plate is as ordinary a thing to add to
             a collection as a poem is. */}
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-3 gap-2">
           <AddButton onClick={addPoem} glyph="¶" label="Poem" title="Add a poem" />
           <AddButton onClick={addSection} glyph="§" label="Part" title="Add a part" />
           <AddButton
@@ -169,7 +169,7 @@ export function PoemList() {
         <button
           type="button"
           onClick={() => setImporting(true)}
-          className="w-full rounded-2xl border border-dashed border-ink-300 py-4 text-[15px] font-[550] text-ink-700 transition-colors hover:border-accent-500 hover:text-accent-500"
+          className="w-full rounded-[8px] border border-dashed border-ink-300 py-2.5 text-[14px] font-[550] text-ink-700 transition-colors hover:border-accent-500 hover:text-accent-500"
         >
           Import from .docx, .txt or .md
         </button>
@@ -205,13 +205,16 @@ export function PoemList() {
           {plateCount > 0 && `, ${plateCount} plate${plateCount === 1 ? '' : 's'}`}
           {partCount > 0 && `, ${partCount} part${partCount === 1 ? '' : 's'}`}
           {warnings.size > 0 && (
-            <span className="text-accent-600"> · {warnings.size} to check</span>
+            <span className="font-[600] text-ink-900"> · {warnings.size} to check</span>
           )}
         </p>
       </header>
 
       {sampleCount > 0 && (
-        <div className="space-y-3 rounded-2xl bg-ink-100 px-4 py-4 text-[14.5px] text-ink-700">
+        <div
+          className="space-y-2.5 rounded-[10px] border px-3.5 py-3 text-[13.5px] text-ink-700"
+          style={{ borderColor: 'var(--studio-line)', background: 'var(--studio-page)' }}
+        >
           <p>
             {sampleCount} placeholder verse{sampleCount === 1 ? '' : 's'} loaded, to exercise the
             layout.
@@ -319,9 +322,10 @@ function AddButton({
       type="button"
       onClick={onClick}
       title={title}
-      className="grid justify-items-center gap-2 rounded-2xl border border-ink-300 bg-paper px-1 pb-3 pt-4 text-[14.5px] font-[570] transition-colors hover:border-accent-500 hover:bg-accent-50 hover:text-accent-500"
+      className="flex items-center justify-center gap-1.5 rounded-[8px] border px-1 py-2.5 text-[14px] font-[570] transition-colors hover:border-accent-500 hover:bg-accent-50 hover:text-accent-500"
+      style={{ borderColor: 'var(--studio-line)', background: 'var(--studio-card)' }}
     >
-      <span aria-hidden className="text-[22px] leading-none">
+      <span aria-hidden className="text-[16px] leading-none">
         {glyph}
       </span>
       {label}
@@ -429,10 +433,8 @@ function ItemRow({
             <span
               aria-hidden
               title={`${warnings} line${warnings === 1 ? '' : 's'} to check`}
-              className="shrink-0 text-[13px] leading-none text-amber-700"
-            >
-              •
-            </span>
+              className="size-2 shrink-0 rounded-full bg-amber-500"
+            />
           )}
         </span>
         <span className="mt-0.5 block truncate pl-[44px] text-[13.5px] text-ink-500">
@@ -445,7 +447,7 @@ function ItemRow({
               : 'empty'}
           {!plate && item.sampleKey ? ' · placeholder' : ''}
           {warnings > 0 && (
-            <span className="text-amber-700">
+            <span className="font-[600] text-ink-700">
               {' · '}
               {warnings} to check
             </span>

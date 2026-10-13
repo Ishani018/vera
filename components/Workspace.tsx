@@ -148,9 +148,9 @@ export function Workspace() {
       </header>
 
       {tab === 'book' ? (
-        <div className="grid min-h-0 flex-1 grid-cols-[104px_404px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[88px_380px_minmax(0,1fr)]">
           <nav
-            className="flex flex-col gap-1.5 border-r p-2.5"
+            className="flex flex-col gap-1 border-r p-2"
             style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
           >
             {MODES.map((entry) => (
@@ -160,16 +160,16 @@ export function Workspace() {
                 onClick={() => setMode(entry.id)}
                 aria-current={mode === entry.id}
                 className={cx(
-                  'grid justify-items-center gap-2 rounded-2xl px-1 pb-3 pt-4 transition-colors',
+                  'grid justify-items-center gap-1.5 rounded-[10px] px-1 pb-2.5 pt-3 transition-colors',
                   mode === entry.id
-                    ? 'bg-accent-50 text-accent-500'
+                    ? 'bg-accent-50 text-accent-600'
                     : 'text-ink-500 hover:bg-ink-100 hover:text-ink-900',
                 )}
               >
-                <span aria-hidden className="text-[25px] leading-none">
+                <span aria-hidden className="text-[22px] leading-none">
                   {entry.glyph}
                 </span>
-                <span className="text-[13.5px] font-[570]">{entry.label}</span>
+                <span className="text-[12.5px] font-[570]">{entry.label}</span>
               </button>
             ))}
           </nav>

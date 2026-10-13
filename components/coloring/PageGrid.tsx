@@ -84,18 +84,27 @@ export function PageGrid() {
           void take(e.dataTransfer.files);
         }}
         className={cx(
-          'block cursor-pointer rounded-2xl border-2 border-dashed px-4 py-7 text-center transition-colors',
+          'flex cursor-pointer items-center gap-3 rounded-[10px] border-2 border-dashed px-4 py-3.5 transition-colors',
           over
             ? 'border-accent-500 bg-accent-50'
             : 'border-ink-300 hover:border-accent-500 hover:bg-accent-50',
         )}
       >
-        <strong className="block text-[17px] font-semibold">
-          {/* An activity book's pages are puzzles and drawings, not paintings. */}
-          {book && !usesLineArt(book) ? 'Drop your pages here' : 'Drop your paintings here'}
-        </strong>
-        <span className="mt-1 block text-[14.5px] text-ink-500">
-          JPG, PNG or WebP · they never leave this computer
+        <span
+          aria-hidden="true"
+          className="grid size-9 shrink-0 place-items-center rounded-full text-[20px] leading-none"
+          style={{ background: 'var(--color-accenta-500)', color: 'var(--text-on-accenta)' }}
+        >
+          +
+        </span>
+        <span className="min-w-0">
+          <strong className="block text-[15px] font-[600] leading-tight">
+            {/* An activity book's pages are puzzles and drawings, not paintings. */}
+            {book && !usesLineArt(book) ? 'Add pages' : 'Add pictures'}
+          </strong>
+          <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-500">
+            Drop them here, or click. JPG, PNG, WebP. They stay on this computer.
+          </span>
         </span>
         <input
           type="file"
@@ -116,8 +125,8 @@ export function PageGrid() {
       )}
 
       {book.pages.length === 0 ? (
-        <p className="px-2 py-6 text-center text-[15px] text-ink-500">
-          Nothing yet. Each picture you add becomes one page to colour in.
+        <p className="px-2 py-6 text-center text-[14px] text-ink-500">
+          Nothing yet. Each picture you add becomes one page.
         </p>
       ) : (
         <DndContext
@@ -180,6 +189,15 @@ function Thumb({
 
   const { dpi, soft, stretched } = pageQuality(page, book);
 
+  // One line of status, in words, instead of a stack of pills: the number is
+  // what matters, and only the unusual things (turned, cropped, waiting) need saying.
+  const notes = [
+    page.rotate === 90 && 'turned',
+    page.fit === 'cover' && 'cropped',
+    lineArt && !page.lineArtAssetId && 'not converted',
+  ].filter(Boolean) as string[];
+  const low = soft || stretched;
+
   return (
     <div
       ref={setNodeRef}
@@ -191,66 +209,42 @@ function Thumb({
         onClick={onSelect}
         {...attributes}
         {...listeners}
+        aria-pressed={selected}
         className={cx(
-          'block w-full overflow-hidden rounded-xl border-2 bg-paper text-left transition-colors',
-          selected ? 'border-accent-500' : 'border-ink-200 hover:border-ink-300',
+          'block w-full overflow-hidden rounded-[10px] border text-left transition-[border-color,box-shadow]',
+          selected ? 'border-accent-500 ring-2 ring-accent-500/30' : 'hover:border-ink-400',
         )}
+        style={{
+          background: 'var(--studio-card)',
+          borderColor: selected ? undefined : 'var(--studio-line)',
+          boxShadow: selected ? undefined : 'var(--studio-shadow-card)',
+        }}
       >
-        <span className="relative block h-28 bg-ink-100">
-          {url && <img src={url} alt="" className="h-28 w-full object-contain" draggable={false} />}
+        <span className="relative block h-24 bg-white">
+          {url && <img src={url} alt="" className="h-24 w-full object-contain" draggable={false} />}
           {lineArt && busy && (
-            <span className="absolute inset-0 grid place-items-center bg-paper/75 text-[13px] font-[550] text-ink-700">
+            <span className="absolute inset-0 grid place-items-center bg-white/75 text-[12.5px] font-[550] text-ink-700">
               Converting…
             </span>
           )}
-          <span className="absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-ink-900/80 text-[12px] font-semibold tabular-nums text-paper">
+          <span className="absolute left-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-ink-900/80 text-[11px] font-semibold tabular-nums text-paper-50">
             {index + 1}
           </span>
         </span>
-        <span className="block px-3 py-2.5">
-          <span className="block truncate text-[14px] font-[550]">{pageName(page, 0)}</span>
+        <span className="block px-2.5 py-2">
+          <span className="block truncate text-[13px] font-[600] leading-tight">{pageName(page, 0)}</span>
           <span
-            className={cx(
-              'mt-1.5 inline-block rounded-full px-2.5 py-1 text-[12px] font-semibold',
-              soft || stretched ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800',
-            )}
+            className="mt-1 flex items-center gap-1.5 text-[11.5px] tabular-nums"
+            style={{ color: 'var(--color-ink-500)' }}
             title={`${page.naturalWidth} × ${page.naturalHeight} pixels`}
           >
+            <span
+              aria-hidden="true"
+              className={cx('size-1.5 rounded-full', low ? 'bg-amber-500' : 'bg-emerald-500')}
+            />
             {Math.round(dpi)} dpi
+            {notes.length > 0 && <span>· {notes.join(' · ')}</span>}
           </span>
-          {page.rotate === 90 && (
-            <span
-              className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500"
-              title="Turned a quarter turn to suit the page"
-            >
-              turned
-            </span>
-          )}
-          {page.fit === 'cover' && (
-            <span
-              className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500"
-              title="Fills the page; the overhang is trimmed off"
-            >
-              cropped
-            </span>
-          )}
-          {lineArt && page.source === 'lineart' && (
-            <span
-              className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500"
-              title={
-                page.sourceGuessed
-                  ? 'Worked out from the picture — open it to change this'
-                  : 'You set this'
-              }
-            >
-              line art{page.upscaled > 1.01 ? ` ×${page.upscaled.toFixed(1)}` : ''}
-            </span>
-          )}
-          {lineArt && !page.lineArtAssetId && (
-            <span className="ml-1.5 inline-block rounded-full bg-ink-100 px-2.5 py-1 text-[12px] font-semibold text-ink-500">
-              not converted
-            </span>
-          )}
         </span>
       </button>
       <button
@@ -258,7 +252,7 @@ function Thumb({
         onClick={() => removePage(page.id)}
         title="Remove this picture"
         aria-label={`Remove ${page.title || 'this picture'}`}
-        className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-ink-900/80 text-paper opacity-0 transition-opacity hover:bg-red-700 group-hover:opacity-100"
+        className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-ink-900/80 text-[13px] text-paper-50 opacity-0 transition-opacity hover:bg-red-700 focus-visible:opacity-100 group-hover:opacity-100"
       >
         ✕
       </button>

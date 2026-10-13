@@ -58,11 +58,13 @@ export function ModePanel({ mode }: { mode: Mode }) {
       className="flex h-full min-h-0 flex-col overflow-y-auto border-r"
       style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
     >
-      <header className="px-6 pb-2 pt-6">
-        <h2 className="text-[26px] font-semibold tracking-tight">{heading.title}</h2>
-        <p className="mt-1.5 text-[15px] text-ink-500">{heading.blurb}</p>
+      <header className="px-5 pb-1 pt-6">
+        <h2 className="text-[22px] font-semibold tracking-tight">{heading.title}</h2>
+        <p className="mt-1 text-[14.5px]" style={{ color: 'var(--color-ink-500)' }}>
+          {heading.blurb}
+        </p>
       </header>
-      <div className="flex flex-col gap-3.5 px-6 pb-8 pt-3.5">
+      <div className="flex flex-col gap-3.5 px-5 pb-8 pt-4">
         {mode === 'write' && <WriteMode />}
         {mode === 'design' && <DesignMode />}
         {mode === 'images' && <ImagesMode />}

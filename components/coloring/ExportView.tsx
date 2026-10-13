@@ -14,6 +14,7 @@ import { padToEven } from '@/lib/kdp';
 import { PRINT_COST, ROYALTY_TIERS, estimateRoyalty, money, printCostKnown } from '@/lib/royalty';
 import { validateCover } from '@/lib/validate';
 import { Button, Field, Notice, NumberInput, cx } from '../ui';
+import { CARD, cardStyle } from '../studio/Shell';
 
 type Status = { level: 'ok' | 'error' | 'info'; text: string } | null;
 
@@ -100,13 +101,10 @@ export function ExportView({
           </h3>
           <p className="mt-2 text-[14.5px] leading-relaxed text-amber-900/90">
             KDP asks to be told when any part of a book was generated rather than made by hand.
-            The question appears during publishing, after the files are uploaded. Check their
-            current content guidelines for the wording they want — it is theirs and it moves.
-          </p>
-          <p className="mt-2 text-[14.5px] leading-relaxed text-amber-900/90">
-            Pages traced from your own paintings are not AI-generated. If this book mixes the two,
-            splitting them into separate books is the simplest thing to do — then only one of them
-            carries the disclosure.
+            The question comes during publishing, after the files are uploaded; check their
+            current guidelines for the wording. Pages traced from your own paintings are not
+            AI-generated, so if this book mixes the two, splitting it into two books means only
+            one carries the disclosure.
           </p>
           <label className="mt-3 flex items-center gap-2.5 text-[14.5px] font-[550] text-amber-900">
             <input
@@ -151,7 +149,7 @@ export function ExportView({
         </div>
 
         {mustAcknowledge && (
-          <p className="mt-3 text-[14px] text-amber-900">
+          <p className="mt-3 text-[14px]" style={{ color: 'var(--color-ink-900)' }}>
             Tick the box above first — it is the last moment that reminder is any use.
           </p>
         )}
@@ -299,7 +297,7 @@ function Card({
   fallback: (() => void) | null;
 }) {
   return (
-    <div className="rounded-2xl border border-ink-200 bg-paper px-5 py-4">
+    <div className={CARD} style={{ ...cardStyle, padding: '16px 20px' }}>
       <h4 className="text-[16px] font-[570]">{title}</h4>
       <p className="mt-0.5 text-[14px] text-ink-500">{detail}</p>
       <div className="mt-3">{action}</div>
