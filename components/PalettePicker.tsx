@@ -89,13 +89,13 @@ function Preview({ palette }: { palette: Palette }) {
 
 /** The palette on the root right now, including one that was mixed. */
 function current(): string {
-  if (typeof document === 'undefined') return DEFAULT_THEME;
-  return document.documentElement.dataset.theme ?? DEFAULT_THEME;
+  if (typeof document === 'undefined') return 'riso';
+  return document.documentElement.dataset.theme ?? 'riso';
 }
 
 export function PalettePicker({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [chosen, setChosen] = useState<string>(DEFAULT_THEME);
+  const [chosen, setChosen] = useState<string>('riso');
   const [mixed, setMixed] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);

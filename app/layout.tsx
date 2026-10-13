@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // The palette script below sets `data-theme` before React sees the page, on
     // purpose, so the server's HTML never has it. That one attribute is expected
     // to differ; nothing below the root is exempted.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="riso" suppressHydrationWarning>
       <head>
         {/*
           The three faces that come from Google, in one request.
@@ -98,11 +98,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               `var s=localStorage.getItem(k);` +
               `var mine=null;try{mine=JSON.parse(localStorage.getItem(c)||'null')}catch(e){}` +
               `var fine=function(x){return x&&(ok.indexOf(x)>=0||(x==='${CUSTOM_ID}'&&mine))};` +
-              `var pick=fine(t)?t:(fine(s)?s:'${DEFAULT_THEME}');` +
+              `var pick=fine(t)?t:(fine(s)?s:'riso');` +
               `d.dataset.theme=pick;` +
               `if(pick==='${CUSTOM_ID}'&&mine){for(var r in mine){if(typeof mine[r]==='string'&&r.charAt(0)==='-')d.style.setProperty(r,mine[r])}}` +
               `if(t&&fine(t))localStorage.setItem(k,t);` +
-              `}catch(e){document.documentElement.dataset.theme='${DEFAULT_THEME}';}})();`,
+              `}catch(e){document.documentElement.dataset.theme='riso';}})();`,
           }}
         />
       </head>

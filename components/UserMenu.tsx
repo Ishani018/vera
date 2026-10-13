@@ -30,16 +30,14 @@ export function UserMenu({ className }: { className?: string }) {
     };
   }, [open]);
 
-  if (!ready || !configured) return null;
+  if (!ready) return null;
   // The sign-in screen already has a button the size of a hand; a second in its bar is noise.
   if (!user && typeof window !== 'undefined' && window.location.pathname === '/signin') return null;
 
   if (!user) {
     return (
       <a
-        href={`/api/auth/google?returnTo=${encodeURIComponent(
-          typeof window === 'undefined' ? '/' : window.location.pathname + window.location.search,
-        )}`}
+        href="/signin"
         className={`btn btn-default shrink-0 rounded-[6px] px-4 py-2.5 text-[14px] ${className ?? ''}`}
       >
         Sign in

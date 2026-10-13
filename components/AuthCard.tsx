@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type MouseEvent } from 'react';
 
 /**
  * Google "G" mark drawn with currentColor so it responds to theme tokens
@@ -21,11 +21,15 @@ export function AuthCard({
   googleHref,
   errorMessage,
   returnTo,
+  onGuestContinue,
+  onSuccess,
 }: {
   ready: boolean;
   googleHref: string;
   errorMessage: string | null;
   returnTo: string;
+  onGuestContinue?: () => void;
+  onSuccess?: () => void;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<'signin' | 'signup'>('signin');
@@ -43,6 +47,7 @@ export function AuthCard({
     try {
       if (typeof window !== 'undefined') {
         const displayName = name.trim() || email.split('@')[0];
+        window.localStorage.setItem('studio_guest', 'true');
         window.localStorage.setItem('studio_user_email', email);
         window.localStorage.setItem('studio_user_name', displayName);
       }
@@ -52,8 +57,24 @@ export function AuthCard({
 
     setStatusNotice(tab === 'signup' ? 'Account created! Entering the studio...' : 'Welcome back! Entering the studio...');
     setTimeout(() => {
-      router.push(returnTo);
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push(returnTo);
+      }
     }, 450);
+  };
+
+  const handleGuest = (e: MouseEvent) => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('studio_guest', 'true');
+      }
+    } catch {}
+    if (onGuestContinue) {
+      e.preventDefault();
+      onGuestContinue();
+    }
   };
 
   return (
@@ -295,6 +316,7 @@ export function AuthCard({
         </p>
         <Link
           href={returnTo}
+          onClick={handleGuest}
           className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-medium transition-colors hover:underline"
           style={{ color: 'var(--color-accenta-500)' }}
         >
