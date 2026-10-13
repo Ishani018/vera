@@ -22,7 +22,7 @@ Which part to reach for:
 
 | Surface | File(s) | Notes |
 | --- | --- | --- |
-| ~~Line Art Lab, Tune~~ | archived | The Lab was taken out of the app; tag `archive/line-art-lab`. See `docs/archive/line-art-lab/README.md`. |
+| ~~Line Art Lab, Tune~~ | archived | The Lab was taken out of the app; commit `0352e78`. See `docs/archive/line-art-lab/README.md`. |
 | Cover / board designer rail panels | `CoverDesigner.tsx`, `cover/Rail.tsx` | 14 fields on `PanelField`. Rail 78px, panel 312px. |
 | Cover designer fallback aside | `CoverDesigner.tsx` | Same width and padding as the rail's panel. |
 | Cover sub-sections | `cover/BrowseSize`, `StickerTray`, `StickerLibrary`, `CoverTemplates` | Headings are `SectionHeading`. |

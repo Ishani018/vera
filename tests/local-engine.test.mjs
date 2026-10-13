@@ -14,8 +14,8 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
  * convenient `fetch` at a time, so it is asserted here rather than remembered.
  *
  * (This file used to cover `lib/lab` too, the Line Art Lab's engine and its
- * optional hand-off to a local helper. The Lab is archived, tag
- * `archive/line-art-lab`; what is left is the engine the colouring editor uses.)
+ * optional hand-off to a local helper. The Lab is archived, last present at
+ * commit 0352e78; what is left is the engine the colouring editor uses.)
  */
 
 const ENGINE = ['lib/lineart'];
