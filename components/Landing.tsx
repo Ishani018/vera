@@ -299,10 +299,9 @@ function Nothing({
     <div className="mt-5 flex items-center gap-7 rounded-[6px] border border-ink-300 bg-paper-100 px-8 py-9">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/starter/cat.png"
-        alt=""
-        className="size-[104px] shrink-0"
-        style={{ opacity: 0.85 }}
+        src="/starter/teary-cat.png"
+        alt="Teary Chibi Cream Cat"
+        className="size-[104px] shrink-0 object-contain drop-shadow-sm"
       />
       <div className="min-w-0">
         <p style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 24 }}>
