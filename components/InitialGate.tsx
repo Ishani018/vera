@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { AuthCard } from './AuthCard';
-import { StudioHeader } from './StudioHeader';
+import { Wordmark } from './Wordmark';
 import { useUser } from '@/lib/auth/useUser';
 
 const Landing = dynamic(() => import('@/components/Landing').then((m) => m.Landing));
@@ -12,6 +12,7 @@ const Landing = dynamic(() => import('@/components/Landing').then((m) => m.Landi
  * Initial entry gate.
  *
  * Shows the log in and sign up screen when someone opens the studio.
+ * Top-left branding only, no full navbar.
  * A single click on "Continue as guest" enters the studio dashboard.
  */
 export function InitialGate() {
@@ -22,7 +23,6 @@ export function InitialGate() {
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
-        // Clear any old permanent guest flag
         window.localStorage.removeItem('studio_guest');
         const inSession = window.sessionStorage.getItem('studio_entered') === 'true';
         setEntered(inSession);
@@ -47,7 +47,9 @@ export function InitialGate() {
   if (!checked || !ready) {
     return (
       <main className="flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
-        <StudioHeader />
+        <div className="p-6 sm:p-8">
+          <Wordmark />
+        </div>
       </main>
     );
   }
@@ -59,9 +61,12 @@ export function InitialGate() {
 
   // Initial log in and sign up screen
   return (
-    <main className="flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
-      <StudioHeader />
-      <div className="grid flex-1 place-items-center px-4 py-8 sm:px-6 sm:py-12">
+    <main className="relative flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
+      {/* Top left branding only without navbar */}
+      <div className="p-6 sm:p-8">
+        <Wordmark />
+      </div>
+      <div className="grid flex-1 place-items-center px-4 pb-12 pt-0 sm:px-6 sm:pb-16">
         <AuthCard
           ready={configured}
           googleHref="/api/auth/google?returnTo=/"

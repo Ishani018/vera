@@ -4,14 +4,40 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent, type MouseEvent } from 'react';
 
-/**
- * Google "G" mark drawn with currentColor so it responds to theme tokens
- * without carrying hardcoded hex colours into the chrome.
- */
-function GoogleIcon({ className }: { className?: string }) {
+/** Mail icon for email input field */
+function MailIcon({ className }: { className?: string }) {
   return (
-    <svg className={className ?? 'size-5'} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.067 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
+    <svg
+      className={className ?? 'size-4'}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  );
+}
+
+/** Lock icon for password input field */
+function LockIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className ?? 'size-4'}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
   );
 }
@@ -47,7 +73,8 @@ export function AuthCard({
     try {
       if (typeof window !== 'undefined') {
         const displayName = name.trim() || email.split('@')[0];
-        window.localStorage.setItem('studio_guest', 'true');
+        window.sessionStorage.setItem('studio_entered', 'true');
+        window.localStorage.removeItem('studio_guest');
         window.localStorage.setItem('studio_user_email', email);
         window.localStorage.setItem('studio_user_name', displayName);
       }
@@ -80,39 +107,32 @@ export function AuthCard({
 
   return (
     <div
-      className="w-full max-w-[440px] rounded-2xl border p-7 text-center sm:p-9"
+      className="w-full max-w-[440px] rounded-2xl border p-7 text-center sm:p-9 shadow-sm"
       style={{
         background: 'var(--studio-card)',
         borderColor: 'var(--studio-line)',
         boxShadow: 'var(--studio-shadow-card)',
       }}
     >
-      {/* Optional Badge */}
-      <div
-        className="mb-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium"
-        style={{
-          borderColor: 'var(--studio-line)',
-          background: 'var(--studio-page)',
-          color: 'var(--color-ink-500)',
-        }}
-      >
-        <span
-          className="size-2 rounded-full"
-          style={{ background: 'var(--color-accenta-500)' }}
-          aria-hidden="true"
+      {/* Peeking Kitten Sticker on top of heading */}
+      <div className="flex justify-center -mt-2 mb-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/starter/pleading-kitten.png"
+          alt="Peeking kitten"
+          className="h-28 w-auto max-w-[220px] object-contain select-none pointer-events-none drop-shadow-sm"
         />
-        <span>Sign-in is optional</span>
       </div>
 
       {/* Heading */}
       <h1
-        className="display text-[32px] tracking-tight"
+        className="display text-[32px] sm:text-[34px] tracking-tight"
         style={{ color: 'var(--color-ink-900)' }}
       >
         {tab === 'signin' ? 'Welcome back' : 'Create account'}
       </h1>
 
-      <p className="mt-2 text-[14.5px] leading-relaxed" style={{ color: 'var(--color-ink-500)' }}>
+      <p className="mt-1.5 text-[14.5px] leading-relaxed" style={{ color: 'var(--color-ink-500)' }}>
         {tab === 'signin'
           ? 'Sign in to continue your work, or skip to use the studio offline.'
           : 'Create an account to keep your identity across sessions.'}
@@ -182,18 +202,19 @@ export function AuthCard({
       )}
 
       {/* Google Sign-in */}
-      <div className="mt-6">
+      <div className="mt-5">
         {ready ? (
           <a
             href={googleHref}
-            className="btn btn-default inline-flex w-full items-center justify-center gap-3 rounded-[8px] border px-4 py-3 text-[15px] font-medium transition-all"
+            className="btn btn-default inline-flex w-full items-center justify-center gap-3 rounded-[10px] border px-4 py-3 text-[15px] font-medium transition-all"
             style={{
               borderColor: 'var(--studio-line)',
               background: 'var(--studio-card)',
               color: 'var(--color-ink-900)',
             }}
           >
-            <GoogleIcon />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/google-g.svg" alt="" className="size-5 shrink-0" />
             <span>Continue with Google</span>
           </a>
         ) : (
@@ -206,7 +227,8 @@ export function AuthCard({
             }}
           >
             <div className="flex items-center gap-2 font-medium" style={{ color: 'var(--color-ink-900)' }}>
-              <GoogleIcon className="size-4 shrink-0" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/google-g.svg" alt="" className="size-4 shrink-0" />
               <span>Google OAuth</span>
             </div>
             <p className="mt-1">
@@ -217,7 +239,7 @@ export function AuthCard({
       </div>
 
       {/* Divider */}
-      <div className="relative my-6 flex items-center justify-center">
+      <div className="relative my-5 flex items-center justify-center">
         <div className="w-full border-t" style={{ borderColor: 'var(--studio-line)' }} />
         <span
           className="absolute px-3 text-[12px] uppercase tracking-wider"
@@ -257,20 +279,25 @@ export function AuthCard({
           <label className="block text-[13px] font-medium" style={{ color: 'var(--color-ink-700)' }}>
             Email address
           </label>
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="ada@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="field mt-1.5 w-full rounded-[8px] px-3.5 py-2.5 text-[15px]"
-            style={{
-              color: 'var(--color-ink-900)',
-              background: 'var(--studio-page)',
-              borderColor: 'var(--studio-line)',
-            }}
-          />
+          <div className="relative mt-1.5">
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="ada@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="field w-full rounded-[8px] pl-3.5 pr-10 py-2.5 text-[15px]"
+              style={{
+                color: 'var(--color-ink-900)',
+                background: 'var(--studio-page)',
+                borderColor: 'var(--studio-line)',
+              }}
+            />
+            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 opacity-40">
+              <MailIcon />
+            </span>
+          </div>
         </div>
 
         <div>
@@ -287,19 +314,24 @@ export function AuthCard({
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="field mt-1.5 w-full rounded-[8px] px-3.5 py-2.5 text-[15px]"
-            style={{
-              color: 'var(--color-ink-900)',
-              background: 'var(--studio-page)',
-              borderColor: 'var(--studio-line)',
-            }}
-          />
+          <div className="relative mt-1.5">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="field w-full rounded-[8px] pl-3.5 pr-10 py-2.5 text-[15px]"
+              style={{
+                color: 'var(--color-ink-900)',
+                background: 'var(--studio-page)',
+                borderColor: 'var(--studio-line)',
+              }}
+            />
+            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 opacity-40">
+              <LockIcon />
+            </span>
+          </div>
         </div>
 
         <button

@@ -2,7 +2,7 @@ import { isConfigured } from '@/lib/auth/config';
 import { safeReturnTo } from '@/lib/auth/flow';
 import { config } from '@/lib/auth/server';
 import { AuthCard } from '@/components/AuthCard';
-import { StudioHeader } from '@/components/StudioHeader';
+import { Wordmark } from '@/components/Wordmark';
 
 /** Plain reasons for every way a sign-in can end without one. */
 const REASONS: Record<string, string> = {
@@ -32,9 +32,12 @@ export default async function SignIn({
   const href = `/api/auth/google?returnTo=${encodeURIComponent(target)}`;
 
   return (
-    <main className="flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
-      <StudioHeader />
-      <div className="grid flex-1 place-items-center px-4 py-8 sm:px-6 sm:py-12">
+    <main className="relative flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
+      {/* Top left corner branding only, without navbar */}
+      <div className="p-6 sm:p-8">
+        <Wordmark />
+      </div>
+      <div className="grid flex-1 place-items-center px-4 pb-12 pt-0 sm:px-6 sm:pb-16">
         <AuthCard
           ready={ready}
           googleHref={href}
