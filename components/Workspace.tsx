@@ -15,6 +15,7 @@ import { Walkthrough, useWalkthrough } from './Walkthrough';
 import { UserMenu } from './UserMenu';
 import { Wordmark } from './Wordmark';
 import { Button, SegmentedControl, cx } from './ui';
+import { InteriorSwitch } from './InteriorSwitch';
 
 type Tab = 'book' | 'cover' | 'kit';
 
@@ -100,6 +101,8 @@ export function Workspace() {
         <span className="truncate rounded-lg px-3 py-2" style={{ color: 'var(--text-on-sheet)' }}>
           {project.meta.title}
         </span>
+
+        <InteriorSwitch kind="poetry" />
 
         <SegmentedControl<Tab>
           value={tab}

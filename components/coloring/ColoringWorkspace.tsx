@@ -8,6 +8,7 @@ import { picturesOf } from '@/lib/pictures';
 import { sheetCount } from '@/lib/render/coloringLayout';
 import { useOpenIntent } from '../openIntent';
 import { StudioHeader } from '../StudioHeader';
+import { InteriorSwitch } from '../InteriorSwitch';
 import { SegmentedControl } from '../ui';
 import { AssemblyPanel } from './AssemblyPanel';
 import { LaunchKit } from '../LaunchKit';
@@ -99,6 +100,7 @@ export function ColoringWorkspace() {
         <span className="truncate" style={{ color: 'var(--text-on-sheet)' }}>
           {book.name}
         </span>
+        <InteriorSwitch kind="coloring" />
         <div className="ml-4">
           <SegmentedControl
             value={mode === 'kit' ? 'export' : mode}

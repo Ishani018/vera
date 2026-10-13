@@ -26,7 +26,6 @@ import {
 } from '@/lib/projects';
 import {
   CATEGORIES,
-  INTERIORS,
   TILES,
   tileSize,
   type Tile,
@@ -336,7 +335,6 @@ export function Landing() {
   const [entries, setEntries] = useState<LibraryEntry[] | null>(null);
   /** The tile waiting for a book to belong to. */
   const [pending, setPending] = useState<Tile | null>(null);
-  const [interiors, setInteriors] = useState(false);
   /** The card whose name is being typed into, by key. */
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<LibraryEntry | null>(null);
@@ -431,7 +429,8 @@ export function Landing() {
    */
   const onTile = async (tile: Tile) => {
     if (tile.status !== 'ready') return;
-    if (tile.destination.kind === 'interior') return setInteriors(true);
+    // One thing on the home screen. Verse or pictures is chosen inside it.
+    if (tile.destination.kind === 'interior') return void start('poetry', { kind: 'none' });
     // A screen of its own: nothing to make first, so nothing to ask about.
     if (tile.destination.kind === 'route') return void router.push(tile.destination.href);
     if (tile.destination.kind === 'design') {
@@ -1156,48 +1155,6 @@ export function Landing() {
         </Modal>
       )}
 
-      {interiors && (
-        <Modal title="What kind of book?" onClose={() => setInteriors(false)} width="max-w-xl">
-          {/* Two pictures to choose between, not a list of descriptions. Only the kinds
-              that exist are offered: a greyed "soon" card is a promise, not a choice. */}
-          <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
-            {INTERIORS.filter((kind) => kind.status === 'ready').map((kind) => (
-              <button
-                key={kind.id}
-                type="button"
-                onClick={() => {
-                  setInteriors(false);
-                  void start(kind.id === 'coloring' ? 'coloring' : 'poetry', { kind: 'none' });
-                }}
-                className={`${CARD} ${cardHover} overflow-hidden text-left`}
-                style={cardStyle}
-              >
-                <span
-                  className="grid h-40 place-items-center"
-                  style={{ background: 'var(--studio-page)' }}
-                >
-                  <InteriorPicture kind={kind.id === 'coloring' ? 'coloring' : 'poetry'} />
-                </span>
-                <span
-                  className="block border-t px-4 py-3"
-                  style={{ borderColor: 'var(--studio-line)' }}
-                >
-                  <span
-                    className="block text-[18px] tracking-tight"
-                    style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}
-                  >
-                    {kind.label}
-                  </span>
-                  <span className="mt-1 block text-[13.5px] leading-snug text-ink-500">
-                    {kind.blurb}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
-
       {pending && (
         <Modal
           title={`${pending.label} — which book?`}
@@ -1435,46 +1392,3 @@ function when(at: number): string {
 }
 
 
-/**
- * A page of each kind of interior, drawn small: a poem set on the page, and a
- * line drawing waiting to be coloured. Ink and sheet colours come from the
- * palette so the picture sits in whichever one is chosen.
- */
-function InteriorPicture({ kind }: { kind: 'poetry' | 'coloring' }) {
-  // Drawn on the printed sheet, which stays white in every palette, so the ink
-  // is the sheet's own and not the palette's (cream in Night).
-  const ink = 'var(--text-on-sheet)';
-  const soft = 'var(--text-muted-on-sheet)';
-  return (
-    <svg viewBox="0 0 90 120" className="h-[128px]" aria-hidden="true">
-      <rect
-        x="1" y="1" width="88" height="118" rx="2"
-        fill="var(--color-paper)" stroke="var(--text-muted-on-sheet)" strokeOpacity="0.5"
-        style={{ filter: 'drop-shadow(0 6px 8px rgb(var(--shade) / 0.2))' }}
-      />
-      {kind === 'poetry' ? (
-        <g>
-          <rect x="28" y="14" width="34" height="4" rx="1" fill={ink} />
-          {[34, 42, 50, 58].map((y, n) => (
-            <rect key={y} x={n % 2 ? 24 : 20} y={y} width={n === 2 ? 36 : 46} height="2.4" rx="1" fill={soft} />
-          ))}
-          {[74, 82, 90].map((y, n) => (
-            <rect key={y} x={n % 2 ? 24 : 20} y={y} width={n === 1 ? 30 : 42} height="2.4" rx="1" fill={soft} />
-          ))}
-          <rect x="41" y="108" width="8" height="2.4" rx="1" fill={soft} />
-        </g>
-      ) : (
-        <g fill="none" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="45" cy="50" r="6" />
-          {[0, 1, 2, 3, 4, 5].map((n) => {
-            const a = (n / 6) * Math.PI * 2;
-            return <circle key={n} cx={45 + Math.cos(a) * 13} cy={50 + Math.sin(a) * 13} r="7" />;
-          })}
-          <path d="M45 70 C45 82 43 90 45 104" />
-          <path d="M45 88 C36 84 32 86 30 92 C38 94 43 92 45 88" />
-          <path d="M45 94 C54 90 58 92 60 98 C52 100 47 98 45 94" />
-        </g>
-      )}
-    </svg>
-  );
-}
