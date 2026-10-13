@@ -77,7 +77,7 @@ export function InteriorSwitch({ kind }: { kind: AnyProject['kind'] }) {
               )}
               style={
                 on
-                  ? { background: 'var(--text-on-sheet)', color: '#fff' }
+                  ? { background: 'var(--text-on-sheet)', color: 'var(--color-paper)' }
                   : { color: 'var(--text-muted-on-sheet)' }
               }
             >
