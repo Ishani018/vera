@@ -31,7 +31,7 @@ export default async function Image() {
         <div style={{ fontFamily: 'Wordmark Display', fontSize: 240, lineHeight: 1.05 }}>{BRAND.product}</div>
         <div style={{ fontFamily: 'Noto Sans', fontSize: 38, marginTop: 8, color: PRESS_PROOF.ink500 }}>{BRAND.byline}</div>
         <div style={{ fontFamily: 'Noto Sans', fontSize: 40, marginTop: 56, maxWidth: 900, lineHeight: 1.3 }}>
-          The design tool for people who self-publish books.
+          A little studio for big ideas.
         </div>
       </div>
     ),

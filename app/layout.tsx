@@ -5,7 +5,7 @@ import { BRAND } from '@/lib/brand';
 import { CUSTOM_ID, CUSTOM_KEY, DEFAULT_THEME, THEMES, THEME_KEY } from '@/lib/theme';
 import './globals.css';
 
-const TITLE = `${BRAND.product} — the design tool for people who self-publish books`;
+const TITLE = `${BRAND.product} — A little studio for big ideas.`;
 const DESCRIPTION =
   'Book interiors, covers and the launch kit around a release. Print-ready KDP PDFs, made in the browser and kept on your own computer.';
 
