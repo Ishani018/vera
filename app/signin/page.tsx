@@ -32,12 +32,16 @@ export default async function SignIn({
   const href = `/api/auth/google?returnTo=${encodeURIComponent(target)}`;
 
   return (
-    <main className="relative flex min-h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
-      {/* Top left corner branding only, without navbar */}
-      <div className="p-6 sm:p-8">
+    <main
+      className="relative flex min-h-dvh w-full items-center justify-center p-4 sm:p-6"
+      style={{ background: 'var(--studio-page)' }}
+    >
+      {/* Top left corner branding */}
+      <div className="absolute top-3 left-4 sm:top-4 sm:left-6 z-10">
         <Wordmark />
       </div>
-      <div className="grid flex-1 place-items-center px-4 pb-12 pt-0 sm:px-6 sm:pb-16">
+
+      <div className="w-full flex items-center justify-center py-4">
         <AuthCard
           ready={ready}
           googleHref={href}

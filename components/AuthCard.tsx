@@ -107,7 +107,7 @@ export function AuthCard({
 
   return (
     <div
-      className="w-full max-w-[440px] rounded-2xl border p-7 text-center sm:p-9 shadow-sm"
+      className="w-full max-w-[420px] rounded-2xl border p-6 text-center sm:p-8 shadow-sm"
       style={{
         background: 'var(--studio-card)',
         borderColor: 'var(--studio-line)',
@@ -115,24 +115,24 @@ export function AuthCard({
       }}
     >
       {/* Peeking Kitten Sticker on top of heading */}
-      <div className="flex justify-center -mt-2 mb-2">
+      <div className="flex justify-center -mt-3 mb-1">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/starter/pleading-kitten.png"
           alt="Peeking kitten"
-          className="h-28 w-auto max-w-[220px] object-contain select-none pointer-events-none drop-shadow-sm"
+          className="h-24 w-auto max-w-[190px] object-contain select-none pointer-events-none drop-shadow-sm"
         />
       </div>
 
       {/* Heading */}
       <h1
-        className="display text-[32px] sm:text-[34px] tracking-tight"
+        className="display text-[28px] sm:text-[30px] tracking-tight leading-tight"
         style={{ color: 'var(--color-ink-900)' }}
       >
         {tab === 'signin' ? 'Welcome back' : 'Create account'}
       </h1>
 
-      <p className="mt-1.5 text-[14.5px] leading-relaxed" style={{ color: 'var(--color-ink-500)' }}>
+      <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: 'var(--color-ink-500)' }}>
         {tab === 'signin'
           ? 'Sign in to continue your work, or skip to use the studio offline.'
           : 'Create an account to keep your identity across sessions.'}
@@ -140,7 +140,7 @@ export function AuthCard({
 
       {/* Tabs */}
       <div
-        className="mt-6 flex rounded-xl border p-1"
+        className="mt-5 flex rounded-xl border p-1"
         style={{ borderColor: 'var(--studio-line)', background: 'var(--studio-page)' }}
       >
         <button
@@ -149,7 +149,7 @@ export function AuthCard({
             setTab('signin');
             setStatusNotice(null);
           }}
-          className="flex-1 rounded-lg py-2 text-[14px] font-[550] transition-colors"
+          className="flex-1 rounded-lg py-1.5 text-[13.5px] font-[550] transition-colors"
           style={
             tab === 'signin'
               ? { background: 'var(--studio-card)', color: 'var(--color-ink-900)' }
@@ -164,7 +164,7 @@ export function AuthCard({
             setTab('signup');
             setStatusNotice(null);
           }}
-          className="flex-1 rounded-lg py-2 text-[14px] font-[550] transition-colors"
+          className="flex-1 rounded-lg py-1.5 text-[13.5px] font-[550] transition-colors"
           style={
             tab === 'signup'
               ? { background: 'var(--studio-card)', color: 'var(--color-ink-900)' }
@@ -179,7 +179,7 @@ export function AuthCard({
       {errorMessage && (
         <p
           role="alert"
-          className="mt-5 rounded-xl border px-4 py-3 text-left text-[14px]"
+          className="mt-4 rounded-xl border px-3.5 py-2 text-left text-[13.5px]"
           style={{ borderColor: 'var(--studio-line)', color: 'var(--color-ink-900)' }}
         >
           {errorMessage}
@@ -190,7 +190,7 @@ export function AuthCard({
       {statusNotice && (
         <p
           role="status"
-          className="mt-5 rounded-xl border px-4 py-3 text-left text-[14px]"
+          className="mt-4 rounded-xl border px-3.5 py-2 text-left text-[13.5px]"
           style={{
             borderColor: 'var(--studio-line)',
             background: 'var(--studio-page)',
@@ -202,11 +202,11 @@ export function AuthCard({
       )}
 
       {/* Google Sign-in */}
-      <div className="mt-5">
+      <div className="mt-4">
         {ready ? (
           <a
             href={googleHref}
-            className="btn btn-default inline-flex w-full items-center justify-center gap-3 rounded-[10px] border px-4 py-3 text-[15px] font-medium transition-all"
+            className="btn btn-default inline-flex w-full items-center justify-center gap-2.5 rounded-[9px] border px-4 py-2.5 text-[14.5px] font-medium transition-all"
             style={{
               borderColor: 'var(--studio-line)',
               background: 'var(--studio-card)',
@@ -214,12 +214,12 @@ export function AuthCard({
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/google-g.svg" alt="" className="size-5 shrink-0" />
+            <img src="/google-g.svg" alt="" className="size-4 shrink-0" />
             <span>Continue with Google</span>
           </a>
         ) : (
           <div
-            className="rounded-xl border p-3.5 text-left text-[13px] leading-relaxed"
+            className="rounded-xl border p-3 text-left text-[12.5px] leading-relaxed"
             style={{
               borderColor: 'var(--studio-line)',
               background: 'var(--studio-page)',
@@ -239,10 +239,10 @@ export function AuthCard({
       </div>
 
       {/* Divider */}
-      <div className="relative my-5 flex items-center justify-center">
+      <div className="relative my-4 flex items-center justify-center">
         <div className="w-full border-t" style={{ borderColor: 'var(--studio-line)' }} />
         <span
-          className="absolute px-3 text-[12px] uppercase tracking-wider"
+          className="absolute px-3 text-[11px] uppercase tracking-wider"
           style={{
             background: 'var(--studio-card)',
             color: 'var(--color-ink-500)',
@@ -253,10 +253,10 @@ export function AuthCard({
       </div>
 
       {/* Email / Password Form */}
-      <form onSubmit={handleSubmit} className="space-y-3.5 text-left">
+      <form onSubmit={handleSubmit} className="space-y-3 text-left">
         {tab === 'signup' && (
           <div>
-            <label className="block text-[13px] font-medium" style={{ color: 'var(--color-ink-700)' }}>
+            <label className="block text-[12.5px] font-medium" style={{ color: 'var(--color-ink-700)' }}>
               Your name
             </label>
             <input
@@ -265,7 +265,7 @@ export function AuthCard({
               placeholder="Ada Lovelace"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="field mt-1.5 w-full rounded-[8px] px-3.5 py-2.5 text-[15px]"
+              className="field mt-1 w-full rounded-[8px] px-3.5 py-2 text-[14.5px]"
               style={{
                 color: 'var(--color-ink-900)',
                 background: 'var(--studio-page)',
@@ -276,10 +276,10 @@ export function AuthCard({
         )}
 
         <div>
-          <label className="block text-[13px] font-medium" style={{ color: 'var(--color-ink-700)' }}>
+          <label className="block text-[12.5px] font-medium" style={{ color: 'var(--color-ink-700)' }}>
             Email address
           </label>
-          <div className="relative mt-1.5">
+          <div className="relative mt-1">
             <input
               type="email"
               required
@@ -287,7 +287,7 @@ export function AuthCard({
               placeholder="ada@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="field w-full rounded-[8px] pl-3.5 pr-10 py-2.5 text-[15px]"
+              className="field w-full rounded-[8px] pl-3.5 pr-10 py-2 text-[14.5px]"
               style={{
                 color: 'var(--color-ink-900)',
                 background: 'var(--studio-page)',
@@ -302,7 +302,7 @@ export function AuthCard({
 
         <div>
           <div className="flex items-center justify-between">
-            <label className="block text-[13px] font-medium" style={{ color: 'var(--color-ink-700)' }}>
+            <label className="block text-[12.5px] font-medium" style={{ color: 'var(--color-ink-700)' }}>
               Password
             </label>
             <button
@@ -314,14 +314,14 @@ export function AuthCard({
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
-          <div className="relative mt-1.5">
+          <div className="relative mt-1">
             <input
               type={showPassword ? 'text' : 'password'}
               autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="field w-full rounded-[8px] pl-3.5 pr-10 py-2.5 text-[15px]"
+              className="field w-full rounded-[8px] pl-3.5 pr-10 py-2 text-[14.5px]"
               style={{
                 color: 'var(--color-ink-900)',
                 background: 'var(--studio-page)',
@@ -336,21 +336,21 @@ export function AuthCard({
 
         <button
           type="submit"
-          className="btn btn-primary mt-2 inline-flex w-full justify-center rounded-[8px] px-5 py-3 text-[15.5px] font-medium"
+          className="btn btn-primary mt-1.5 inline-flex w-full justify-center rounded-[8px] px-4 py-2.5 text-[15px] font-medium"
         >
           {tab === 'signin' ? 'Sign in' : 'Create account'}
         </button>
       </form>
 
       {/* Guest / Skip Option */}
-      <div className="mt-6 border-t pt-5" style={{ borderColor: 'var(--studio-line)' }}>
-        <p className="text-[13px]" style={{ color: 'var(--color-ink-500)' }}>
+      <div className="mt-4 border-t pt-3.5" style={{ borderColor: 'var(--studio-line)' }}>
+        <p className="text-[12.5px]" style={{ color: 'var(--color-ink-500)' }}>
           Don&apos;t want an account right now?
         </p>
         <Link
           href={returnTo}
           onClick={handleGuest}
-          className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-medium transition-colors hover:underline"
+          className="mt-1 inline-flex items-center gap-1.5 text-[13.5px] font-medium transition-colors hover:underline"
           style={{ color: 'var(--color-accenta-500)' }}
         >
           <span>Continue as guest &rarr;</span>
@@ -358,7 +358,7 @@ export function AuthCard({
       </div>
 
       {/* Local storage note */}
-      <p className="mt-5 text-[12px] leading-relaxed" style={{ color: 'var(--color-ink-500)' }}>
+      <p className="mt-3 text-[11.5px] leading-relaxed" style={{ color: 'var(--color-ink-500)' }}>
         Your books, designs, and settings remain saved locally in your browser and are never uploaded without your action.
       </p>
     </div>
