@@ -418,7 +418,7 @@ export function DropZone({
             {over ? 'Let go to open it' : 'Drop a picture or choose a file'}
           </span>
           <span
-            className="btn btn-accent shrink-0 px-5 py-2.5"
+            className="btn btn-primary shrink-0 px-5 py-2.5"
             style={{ fontSize: 'var(--studio-text-body)' }}
           >
             Choose file

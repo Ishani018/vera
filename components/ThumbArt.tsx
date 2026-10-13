@@ -32,6 +32,20 @@ export function ThumbArt({ thumb }: { thumb: Thumb }) {
     >
       <rect width={thumb.width} height={thumb.height} fill={thumb.background} />
       {thumb.items.map((item, index) => {
+        if (item.kind === 'fill') {
+          return (
+            <rect
+              key={index}
+              x={item.x}
+              y={item.y}
+              width={item.width}
+              height={item.height}
+              fill={item.color}
+              stroke="var(--color-ink-300)"
+              strokeWidth={hairline}
+            />
+          );
+        }
         if (item.kind === 'picture') {
           const url = urls[item.assetId];
           const spin = item.rotate

@@ -13,6 +13,7 @@ import { padToEven } from '@/lib/kdp';
 import { useStore } from '@/lib/store';
 import { countByLevel, validateProject } from '@/lib/validate';
 import { PanelSection } from './panel/Panel';
+import { CARD, cardStyle } from './studio/Shell';
 import { Button, Notice } from './ui';
 
 type Status = { level: 'ok' | 'error' | 'info'; text: string } | null;
@@ -73,61 +74,91 @@ export function ExportPanel() {
     }
   };
 
+  const needsAttention = counts.error + counts.warning;
+
   return (
     <div>
-      <PanelSection title="Before you upload">
-        {issues.length === 0 ? (
-          <Notice level="ok">Nothing to flag. The book is ready for KDP.</Notice>
-        ) : (
-          <ul className="space-y-1.5">
-            {issues.map((issue) => (
-              <li key={issue.id} className="flex gap-2">
-                <span
-                  className={
-                    issue.level === 'error'
-                      ? 'text-red-400'
-                      : issue.level === 'warning'
-                        ? 'text-amber-700'
-                        : 'text-ink-500'
-                  }
-                  aria-hidden
-                >
-                  ●
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-ink-900">{issue.message}</span>
-                  {issue.fix && <span className="block text-[11px] text-ink-500">{issue.fix}</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {(counts.error > 0 || counts.warning > 0) && (
-          <p className="text-[11px] text-ink-500">
-            {counts.error} to fix, {counts.warning} to consider. Exporting is never blocked.
-          </p>
+      {/*
+        The answer first. Four paragraphs of problems, every one of them in the
+        same big type, buried the two buttons this screen is for; now the verdict
+        is one line, the detail is a click away, and the files come next.
+      */}
+      <PanelSection title="Is it ready?">
+        <div
+          className="flex items-center gap-3 rounded-[10px] border px-3.5 py-3"
+          style={{ borderColor: 'var(--studio-line)', background: 'var(--studio-page)' }}
+        >
+          <span
+            aria-hidden="true"
+            className={`size-3 shrink-0 rounded-full ${
+              counts.error > 0 ? 'bg-red-500' : counts.warning > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+            }`}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14.5px] font-[600] leading-tight">
+              {issues.length === 0
+                ? 'Ready for KDP'
+                : counts.error > 0
+                  ? `${counts.error} to fix first`
+                  : `${counts.warning} to consider`}
+            </span>
+            <span className="mt-0.5 block text-[12.5px] leading-snug" style={{ color: 'var(--color-ink-500)' }}>
+              {issues.length === 0
+                ? 'Nothing to flag.'
+                : `${needsAttention > 0 ? `${needsAttention} to check` : 'Notes only'}. Exporting is never blocked.`}
+            </span>
+          </span>
+        </div>
+
+        {issues.length > 0 && (
+          <details className="group">
+            <summary
+              className="cursor-pointer list-none text-[13px] font-[550] text-accent-600 underline-offset-2 hover:underline"
+            >
+              <span className="group-open:hidden">Show what to check</span>
+              <span className="hidden group-open:inline">Hide</span>
+            </summary>
+            <ul className="mt-2.5 space-y-3">
+              {issues.map((issue) => (
+                <li key={issue.id} className="flex gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className={`mt-[7px] size-2 shrink-0 rounded-full ${
+                      issue.level === 'error' ? 'bg-red-500' : issue.level === 'warning' ? 'bg-amber-500' : 'bg-ink-400'
+                    }`}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13.5px] leading-snug text-ink-900">{issue.message}</span>
+                    {issue.fix && (
+                      <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-500">{issue.fix}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </PanelSection>
 
-      <PanelSection title="The two PDFs">
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-ink-500">
-          <dt>Interior pages</dt>
-          <dd className="text-right tabular-nums text-ink-700">
-            {pageCount || '—'}
-            {padded > 0 && ` (+${padded} blank)`}
-          </dd>
-          <dt>Uploaded as</dt>
-          <dd className="text-right tabular-nums text-ink-700">{finalPages || '—'} pages</dd>
-        </dl>
-
-        <div className="grid gap-2">
-          <Button variant="primary" disabled={busy !== null} onClick={() => void run('interior')}>
-            {busy === 'interior' ? 'Rendering…' : 'Export interior PDF'}
-          </Button>
-          <Button disabled={busy !== null} onClick={() => void run('cover')}>
-            {busy === 'cover' ? 'Rendering…' : 'Export cover PDF'}
-          </Button>
-        </div>
+      <PanelSection title="Make the PDFs">
+        <FileCard
+          title="Interior"
+          detail={`${pageCount || '—'} pages${padded > 0 ? ` + ${padded} blank for KDP's even count` : ''}`}
+          action={
+            <Button variant="primary" className="w-full" disabled={busy !== null} onClick={() => void run('interior')}>
+              {busy === 'interior' ? 'Rendering…' : 'Export interior PDF'}
+            </Button>
+          }
+        />
+        <FileCard
+          title="Cover"
+          detail={`Spine sized for ${finalPages || '—'} pages`}
+          action={
+            <Button className="w-full" disabled={busy !== null} onClick={() => void run('cover')}>
+              {busy === 'cover' ? 'Rendering…' : 'Export cover PDF'}
+            </Button>
+          }
+        />
 
         {status && (
           <Notice level={status.level === 'ok' ? 'ok' : status.level === 'error' ? 'error' : 'info'}>
@@ -148,7 +179,7 @@ export function ExportPanel() {
         </PanelSection>
       )}
 
-      <PanelSection title="Backup">
+      <PanelSection title="Backup" collapsible>
         <div className="grid grid-cols-2 gap-2">
           <Button onClick={() => void exportProjectJson(project)}>Save project</Button>
           <Button onClick={() => fileRef.current?.click()}>Load project</Button>
@@ -173,10 +204,23 @@ export function ExportPanel() {
             }
           }}
         />
-        <p className="text-[11px] text-ink-500">
+        <p className="text-[12.5px] text-ink-500">
           Everything lives in this browser. Save a copy before clearing site data.
         </p>
       </PanelSection>
+    </div>
+  );
+}
+
+/** A file the panel can make: what it is, what is in it, and the one button that makes it. */
+function FileCard({ title, detail, action }: { title: string; detail: string; action: React.ReactNode }) {
+  return (
+    <div className={CARD} style={{ ...cardStyle, padding: '12px 14px' }}>
+      <h4 className="text-[14.5px] font-[600] leading-tight">{title}</h4>
+      <p className="mb-2.5 mt-0.5 text-[12.5px]" style={{ color: 'var(--color-ink-500)' }}>
+        {detail}
+      </p>
+      {action}
     </div>
   );
 }

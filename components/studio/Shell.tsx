@@ -129,3 +129,20 @@ export function SectionHead({ children, className }: { children: ReactNode; clas
     </h2>
   );
 }
+
+/**
+ * A numbered section label with a rule running to the end of the row.
+ *
+ * The home screen's way of marking up a page in order: "01 Start from", "02 Your
+ * stickers". Lives here so the pages that use it cannot drift into two versions.
+ */
+export function NumberedLabel({ number, title }: { number: string; title: string }) {
+  return (
+    <h2 className="flex items-center gap-3">
+      <span className="mono-label shrink-0 text-ink-900" style={{ fontSize: 12, fontWeight: 500 }}>
+        {number} {title}
+      </span>
+      <span aria-hidden="true" className="h-px flex-1 bg-ink-300" />
+    </h2>
+  );
+}

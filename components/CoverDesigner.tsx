@@ -68,7 +68,7 @@ import {
   cx,
 } from './ui';
 /* The panel's own field, under the name the fourteen call sites already use. */
-import { PanelField as Field } from './panel/Panel';
+import { PanelField as Field, PanelSection } from './panel/Panel';
 
 const PANEL_LABELS: Record<CoverPanel, string> = {
   back: 'Back cover',
@@ -89,9 +89,9 @@ const ADDABLE_PANELS: CoverPanel[] = ['back', 'spine', 'front'];
 
 /** What each face is called when you are putting words on it. */
 const PANEL_LABEL: Record<string, string> = {
-  back: 'Add to back',
-  spine: 'Add to spine',
-  front: 'Add to front',
+  back: 'Back',
+  spine: 'Spine',
+  front: 'Front',
   board: 'Add text',
 };
 
@@ -772,9 +772,11 @@ export function CoverDesigner<T extends CoverableBook>({
     ),
     artwork: (
       <>
-        <div className="space-y-2">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Artwork</h4>
-          <label className="block cursor-pointer rounded-md border border-ink-300 bg-ink-100 px-2.5 py-1.5 text-center transition-colors hover:bg-ink-200">
+        <div className="space-y-3">
+          <label
+            className="block cursor-pointer rounded-[8px] border border-dashed px-3 py-3 text-center text-[14px] font-[550] transition-colors hover:border-accent-500 hover:text-accent-500"
+            style={{ borderColor: 'var(--color-ink-300)' }}
+          >
             {cover.frontImage
               ? 'Replace image…'
               : isCover
@@ -908,8 +910,7 @@ export function CoverDesigner<T extends CoverableBook>({
     ),
     text: (
       <>
-        <div className="space-y-2 border-t border-ink-200 pt-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">Text</h4>
+        <div className="space-y-2">
           {rail ? (
             /*
               Three sizes rather than one button, because the first thing
@@ -941,10 +942,15 @@ export function CoverDesigner<T extends CoverableBook>({
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {ADDABLE_PANELS.map((panel) => (
-                <Button key={panel} onClick={() => addBox(panel)}>
-                  {PANEL_LABEL[panel] ?? panel}
+                <Button
+                  key={panel}
+                  onClick={() => addBox(panel)}
+                  aria-label={`Add text to the ${panel}`}
+                  className="!px-2"
+                >
+                  + {PANEL_LABEL[panel] ?? panel}
                 </Button>
               ))}
             </div>
@@ -1099,7 +1105,10 @@ export function CoverDesigner<T extends CoverableBook>({
                 level={issue.level === 'warning' ? 'warning' : issue.level === 'error' ? 'error' : 'info'}
               >
                 <p>{issue.message}</p>
-                {issue.fix && <p className="mt-1 opacity-80">{issue.fix}</p>}
+                {/* "Upload in the Cover tab" is no help to someone already in it. */}
+                {issue.fix && issue.id !== 'cover-no-image' && (
+                  <p className="mt-1 opacity-80">{issue.fix}</p>
+                )}
               </Notice>
             ))}
           </div>
@@ -1841,25 +1850,88 @@ export function CoverDesigner<T extends CoverableBook>({
           board, and 312 moved it 8px.
         */
         <aside
-          className="shrink-0 space-y-4 overflow-y-auto border-l lg:w-[var(--panel-stackedWidth)]"
+          className="shrink-0 overflow-y-auto border-l lg:w-[var(--panel-stackedWidth)]"
           style={{
             padding: 'var(--panel-pad)',
             background: 'var(--studio-card)',
             borderColor: 'var(--studio-line)',
           }}
         >
-          {sections.browseSize}
-          {sections.measurements}
-          {sections.history}
-          {sections.bookPictures}
-          {sections.library}
-          {sections.templates}
-          {sections.stickerInspector}
-          {sections.artwork}
-          {sections.colours}
-          {sections.barcode}
-          {sections.text}
-          {sections.textInspector}
+          {/*
+            Grouped the way the rail groups a board's: the front picture, the
+            colours, the words, the stickers — and the print details, which are
+            checked once, behind a header. Before, twelve unlabelled blocks ran
+            down the side in the order they had been written.
+          */}
+          <header className="mb-4 flex items-center justify-between">
+            <h3
+              className="tracking-tight"
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 600,
+                fontSize: 'var(--studio-text-section)',
+                color: 'var(--color-ink-900)',
+              }}
+            >
+              Cover
+            </h3>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                onClick={coverHistory.undo}
+                disabled={!coverHistory.canUndo}
+                title="Undo (Cmd+Z)"
+                aria-label="Undo"
+                className="!px-2.5 !py-1.5"
+              >
+                ↺
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={coverHistory.redo}
+                disabled={!coverHistory.canRedo}
+                title="Redo (Cmd+Shift+Z)"
+                aria-label="Redo"
+                className="!px-2.5 !py-1.5"
+              >
+                ↻
+              </Button>
+            </div>
+          </header>
+
+          <PanelSection title="Front picture">{sections.artwork}</PanelSection>
+
+          {sections.stickerInspector && sticker && (
+            <PanelSection title="Selected sticker">{sections.stickerInspector}</PanelSection>
+          )}
+
+          <PanelSection title="Text">
+            {sections.text}
+            {sections.textInspector}
+          </PanelSection>
+
+          <PanelSection title="Colours" collapsible now={cover.backColor}>
+            {sections.colours}
+          </PanelSection>
+
+          <PanelSection title="Stickers" collapsible>
+            {sections.bookPictures}
+            {sections.library}
+          </PanelSection>
+
+          <PanelSection title="Judge it" hint="The cover at the size a shopper sees it, and whether its words read there.">
+            {sections.browseSize}
+          </PanelSection>
+
+          <PanelSection
+            title="Size, spine and barcode"
+            collapsible
+            now={isCover ? `${layout.dimensions?.width.toFixed(1)}″ × ${layout.dimensions?.height.toFixed(1)}″` : undefined}
+          >
+            {sections.measurements}
+            {sections.barcode}
+            {sections.templates}
+          </PanelSection>
         </aside>
       )}
     </div>

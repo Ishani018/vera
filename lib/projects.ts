@@ -276,6 +276,15 @@ export async function listProjects(): Promise<ProjectSummary[]> {
  */
 export type ThumbItem =
   | {
+      /** A plain rectangle: the sheet a cover stands on when it sits on a board. */
+      kind: 'fill';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      color: string;
+    }
+  | {
       kind: 'picture';
       x: number;
       y: number;
@@ -419,8 +428,8 @@ function itemsOn(
     (item) =>
       item.x < region.width &&
       item.y < region.height &&
-      item.x + (item.kind === 'picture' ? item.width : item.width) > 0 &&
-      item.y + (item.kind === 'picture' ? item.height : item.sizePt * 1.4) > 0,
+      item.x + item.width > 0 &&
+      item.y + (item.kind === 'text' ? item.sizePt * 1.4 : item.height) > 0,
   );
 }
 
@@ -473,6 +482,63 @@ export function bookThumb(project: AnyProject): Thumb {
     };
   }
   return frontThumb(cover, coverLayout(project, NOMINAL_PAGES));
+}
+
+/**
+ * A format as it would look with this book on it: the board in its real shape,
+ * the book's front cover standing in the middle.
+ *
+ * What the launch kit's "start a new one" cards show instead of a name and a
+ * size. Seeing your own cover on a story, a pin and a postcard is what tells you
+ * which one you want; "1080 x 1920 px" does not.
+ */
+export function presetThumb(project: AnyProject, presetId: string): Thumb {
+  const preset = presetById(presetId);
+  const board = preset ? boardFor(preset) : null;
+  if (!board)
+    return { width: 100, height: 100, background: '#f4efe4', items: [] };
+  // The front cover as the book thumbnail draws it, shrunk to stand in the
+  // middle of the board on a sheet of its own colour: its picture and its words,
+  // not just a patch of its background.
+  const front = bookThumb(project);
+  const room = 0.62;
+  const scale = Math.min(
+    (board.width * room) / front.width,
+    (board.height * room) / front.height,
+  );
+  const width = front.width * scale;
+  const height = front.height * scale;
+  const ox = (board.width - width) / 2;
+  const oy = (board.height - height) / 2;
+  const items: ThumbItem[] = [
+    { kind: 'fill', x: ox, y: oy, width, height, color: front.background },
+  ];
+  for (const item of front.items) {
+    if (item.kind === 'picture') {
+      items.push({
+        ...item,
+        x: ox + item.x * scale,
+        y: oy + item.y * scale,
+        width: item.width * scale,
+        height: item.height * scale,
+        radius: item.radius * scale,
+      });
+    } else if (item.kind === 'text') {
+      items.push({
+        ...item,
+        x: ox + item.x * scale,
+        y: oy + item.y * scale,
+        width: item.width * scale,
+        sizePt: item.sizePt * scale,
+      });
+    }
+  }
+  return {
+    width: board.width,
+    height: board.height,
+    background: '#e9e3d6',
+    items,
+  };
 }
 
 export function designThumb(design: Design): Thumb {

@@ -175,13 +175,15 @@ export function PalettePicker({ compact = false }: { compact?: boolean }) {
         title={`Palette: ${chosen === CUSTOM_ID ? 'yours' : now.name}`}
         onClick={() => setOpen((was) => !was)}
         className={cx(
-          'inline-flex min-h-9 items-center gap-2 rounded-[6px] border border-ink-300 bg-sheet',
+          'inline-flex min-h-9 items-center gap-2 rounded-[6px] border border-ink-300',
           'px-3 text-[12px] text-ink-700 transition-colors hover:border-ink-900',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
           'focus-visible:outline-ink-900',
           compact && 'px-2.5',
         )}
-        style={{ fontFamily: 'var(--font-mono)' }}
+        // A studio surface, not the printed sheet: in Night the sheet stays white
+        // while the label's ink turns cream.
+        style={{ fontFamily: 'var(--font-mono)', background: 'var(--studio-card)' }}
       >
         <Swatch palette={now} />
         {!compact && <span className="uppercase tracking-[0.06em]">Palette</span>}

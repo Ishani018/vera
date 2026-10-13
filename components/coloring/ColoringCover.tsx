@@ -40,19 +40,20 @@ export function ColoringCover({ pageCount }: { pageCount: number }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-ink-200 bg-paper px-5 py-3.5">
-        <div className="flex items-baseline gap-3">
-          <h3 className="text-[16px] font-semibold">Put one of your pictures on the front</h3>
-          <span className="text-[13.5px] text-ink-500">
-            In colour, the way you painted it — not the line art.
-          </span>
-        </div>
-        {book.pages.length === 0 ? (
-          <p className="mt-2 text-[14px] text-ink-500">
-            There are no pictures in this book yet. You can still set a colour and some type.
+      <div
+        className="flex items-center gap-4 border-b px-5 py-3"
+        style={{ background: 'var(--studio-card)', borderColor: 'var(--studio-line)' }}
+      >
+        <div className="shrink-0">
+          <h3 className="text-[15px] font-[600] leading-tight">Front cover picture</h3>
+          <p className="mt-0.5 text-[12.5px]" style={{ color: 'var(--color-ink-500)' }}>
+            {book.pages.length === 0
+              ? 'Add pictures first, or just set a colour and some type.'
+              : 'In colour, as you painted it.'}
           </p>
-        ) : (
-          <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1.5">
+        </div>
+        {book.pages.length > 0 && (
+          <div className="flex min-w-0 gap-2 overflow-x-auto py-0.5">
             {book.pages.map((page) => (
               <CoverChoice
                 key={page.id}
@@ -111,12 +112,12 @@ function CoverChoice({
       onClick={onChoose}
       title={`${pageName(page, 0)} · ${Math.round(dpi)} dpi on the front`}
       className={cx(
-        'shrink-0 overflow-hidden rounded-lg border-2 transition-colors',
+        'shrink-0 overflow-hidden rounded-[8px] border-2 transition-colors',
         selected ? 'border-accent-500' : 'border-ink-200 hover:border-ink-300',
       )}
     >
-      <span className="relative block h-20 w-20 bg-ink-100">
-        {url && <img src={url} alt="" className="h-20 w-20 object-cover" />}
+      <span className="relative block size-14 bg-white">
+        {url && <img src={url} alt="" className="size-14 object-cover" />}
         {dpi > 0 && dpi < MIN_COVER_DPI && (
           <span className="absolute inset-x-0 bottom-0 bg-amber-100/90 py-0.5 text-[11px] font-semibold text-amber-900">
             {Math.round(dpi)} dpi

@@ -11,7 +11,7 @@ import type { LibrarySticker, StickerDraft } from '@/lib/types';
 import { Button, Notice } from '../ui';
 import { DropZone } from './StudioShell';
 import { Chequerboard, Thumb } from './Thumb';
-import { CARD, COLUMN, PageHead, SectionHead, StudioPage, cardHover, cardStyle } from '../studio/Shell';
+import { CARD, COLUMN, NumberedLabel, StudioPage, cardHover, cardStyle } from '../studio/Shell';
 import { TickIcon } from './icons';
 
 /** The three modes the studio opens in. Named here so a card can ask for one. */
@@ -108,7 +108,25 @@ export function StudioStart({
   return (
     <StudioPage>
         <div className={`${COLUMN} py-9`}>
-          <PageHead title="Make a sticker" line="Start from a picture, a drawing or a pack." />
+          {/* The home page's heading: display face, one italic word in the accent. */}
+          <div>
+            <h1
+              className="tracking-tight"
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 600,
+                fontSize: 'var(--studio-text-page)',
+                lineHeight: 1.08,
+                color: 'var(--color-ink-900)',
+              }}
+            >
+              Make a{' '}
+              <em style={{ color: 'var(--color-accenta-500)', fontStyle: 'italic' }}>sticker</em>
+            </h1>
+            <p className="mt-2" style={{ fontSize: 'var(--studio-text-body)', color: 'var(--color-ink-500)' }}>
+              Start from a picture or a drawing.
+            </p>
+          </div>
 
           {/* 733 wide on the mockup's 1738px window — 540 here — and 76 tall.
               Not the full column: it is one way in among three. */}
@@ -128,7 +146,9 @@ export function StudioStart({
             the same file chooser and set the mode the picture needs; the third
             is a different tool and says so by going somewhere.
           */}
-          <SectionHead className="mt-10">Start from</SectionHead>
+          <div className="mt-10">
+            <NumberedLabel number="01" title="Start from" />
+          </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <StartCard
               title="Photo"
@@ -207,27 +227,21 @@ export function StudioStart({
           )}
 
           <section className="mt-7">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <SectionHead>
-                Your stickers
-                {stickers.length > 0 && (
-                  <span
-                    className="ml-2.5 font-normal"
-                    style={{
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 'var(--studio-text-caption)',
-                      color: 'var(--color-ink-500)',
-                    }}
-                  >
-                    {picked.length ? `${picked.length} picked` : 'press one to pick it'}
-                  </span>
-                )}
-              </SectionHead>
+            <NumberedLabel number="02" title="Your stickers" />
+            <div className="mt-3 flex min-h-9 flex-wrap items-center justify-between gap-3">
+              <span
+                style={{
+                  fontSize: 'var(--studio-text-caption)',
+                  color: 'var(--color-ink-500)',
+                }}
+              >
+                {stickers.length > 0 && (picked.length ? `${picked.length} picked` : 'Press one to pick it')}
+              </span>
               {/* The one way to a sheet from here, and only when there is
                   something to put on it. */}
               {picked.length > 0 && (
                 <span className="flex gap-2">
-                  <Button variant="accent" onClick={toSheet}>
+                  <Button variant="primary" onClick={toSheet}>
                     Put {picked.length} on a sheet
                   </Button>
                   <Button onClick={() => setPicked([])}>Clear</Button>

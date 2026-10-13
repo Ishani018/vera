@@ -24,7 +24,7 @@ Which part to reach for:
 | --- | --- | --- |
 | ~~Line Art Lab, Tune~~ | archived | The Lab was taken out of the app; commit `0352e78`. See `docs/archive/line-art-lab/README.md`. |
 | Cover / board designer rail panels | `CoverDesigner.tsx`, `cover/Rail.tsx` | 14 fields on `PanelField`. Rail 78px, panel 312px. |
-| Cover designer fallback aside | `CoverDesigner.tsx` | Same width and padding as the rail's panel. |
+| Cover designer stacked aside (colouring book) | `CoverDesigner.tsx` | 320px (`PANEL.stackedWidth`). A header with Undo/Redo, then `PanelSection`s: Front picture · Selected sticker · Text · Colours · Stickers · Judge it · Size, spine and barcode. Its shut headers show the current colour and the trim size. |
 | Cover sub-sections | `cover/BrowseSize`, `StickerTray`, `StickerLibrary`, `CoverTemplates` | Headings are `SectionHeading`. |
 | Colour popover | `cover/ColourField.tsx` | Headings use the panel label voice. |
 | Font picker label | `FontPicker.tsx` | `ControlLabel`. |
@@ -34,7 +34,9 @@ Which part to reach for:
 | Poetry: trays | `Modes.tsx` → `Tray` | `PanelSection` with `now`; open tray still kept in the store. |
 | Poetry: Design/Write panels | `controls.tsx` (9 panels, 31 fields) | One import line: `PanelField as Field`. Typography and matter groups are `PanelSection`. |
 | Poetry: type controls | `FontControls.tsx` | Alignment/italic/colour row now has a label and a named group. |
-| Poetry: Export | `ExportPanel.tsx` | Four sections. |
+| Poetry: Export | `ExportPanel.tsx` | Is it ready? (one status card, the list behind "Show what to check") · Make the PDFs (a card per file) · print fallback · Backup. |
+| Poetry: Launch kit, home "which book?" | `LaunchKit.tsx`, `Landing.tsx` | Not panels: galleries of pictures (`presetThumb`, `bookThumb`) rather than names. |
+| Sticker Studio hub | `stickers/StudioStart.tsx` | Same heading and numbered labels (`NumberedLabel`) as the home page; red primary "Choose file". |
 
 Panel surfaces (`Modes`, `Workspace` rail, `cover/Rail`, the cover aside, both
 colouring asides, the sticker sheet column) paint `--studio-card`, not

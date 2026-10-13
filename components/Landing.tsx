@@ -73,6 +73,7 @@ import { Modal } from './Modal';
 import { Trash } from './Trash';
 import { StudioHeader } from './StudioHeader';
 import { ThumbArt } from './ThumbArt';
+import { CARD, cardHover, cardStyle } from './studio/Shell';
 import { Button, TextInput, cx } from './ui';
 import { PalettePicker } from './PalettePicker';
 import { UserMenu } from './UserMenu';
@@ -1194,37 +1195,55 @@ export function Landing() {
         <Modal
           title={`${pending.label} — which book?`}
           onClose={() => setPending(null)}
-          width="max-w-xl"
+          width="max-w-2xl"
         >
-          <div className="flex flex-col gap-2.5 p-5">
+          <div className="flex flex-col gap-4 p-5">
             <p className="text-[14px] leading-relaxed text-ink-500">
-              A wrap cover is the one thing here that cannot be made on its own: it is as wide as
-              the book&rsquo;s trim size twice over, and its spine is as thick as the book has
-              pages.
+              A wrap cover is as wide as the trim twice over, and its spine is as thick as the book
+              has pages. Pick the book it is for.
             </p>
-            {books.map((book) => (
-              <button
-                key={book.key}
-                type="button"
-                onClick={() => {
-                  setPending(null);
-                  void go(book.projectId!, book.bookKind!, pending.destination);
-                }}
-                className="proof rounded-[6px] text-left"
-              >
-                <span className="plate block rounded-[6px] bg-paper-100 p-3.5">
+            {/* The books themselves, not a list of names: several are called the same
+                thing, and the cover is how you tell them apart. */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {books.map((book) => (
+                <button
+                  key={book.key}
+                  type="button"
+                  onClick={() => {
+                    setPending(null);
+                    void go(book.projectId!, book.bookKind!, pending.destination);
+                  }}
+                  className={`${CARD} ${cardHover} overflow-hidden text-left`}
+                  style={cardStyle}
+                >
                   <span
-                    className="block truncate"
-                    style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 16 }}
+                    className="grid h-36 w-full place-items-center"
+                    style={{ background: 'var(--studio-page)' }}
                   >
-                    {nameFor(book)}
+                    <span
+                      className="block h-[84%] overflow-hidden rounded-[3px]"
+                      style={{
+                        aspectRatio: String(book.thumb.width / book.thumb.height),
+                        boxShadow: '0 1px 2px rgb(var(--shade) / 0.12), 0 6px 14px -6px rgb(var(--shade) / 0.35)',
+                      }}
+                    >
+                      <ThumbArt thumb={book.thumb} />
+                    </span>
                   </span>
-                  <span className="mono-label mt-1 block truncate text-ink-500" style={{ fontSize: 10 }}>
-                    {book.type}
+                  <span className="block border-t px-3 py-2.5" style={{ borderColor: 'var(--studio-line)' }}>
+                    <span
+                      className="block truncate"
+                      style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 15 }}
+                    >
+                      {nameFor(book)}
+                    </span>
+                    <span className="mono-label mt-0.5 block truncate text-ink-500" style={{ fontSize: 10 }}>
+                      {book.type}
+                    </span>
                   </span>
-                </span>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
             <div className="mt-1 flex flex-wrap gap-2">
               <Button
                 onClick={() => {

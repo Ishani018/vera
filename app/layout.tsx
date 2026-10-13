@@ -36,7 +36,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // The palette script below sets `data-theme` before React sees the page, on
+    // purpose, so the server's HTML never has it. That one attribute is expected
+    // to differ; nothing below the root is exempted.
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/*
           The three faces that come from Google, in one request.
