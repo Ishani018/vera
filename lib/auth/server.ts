@@ -14,8 +14,9 @@ export const config = (): AuthConfig => readConfig();
  * forwarded host (a platform's router sits in front of the app), then the request's own.
  */
 export function originOf(request: NextRequest, cfg: AuthConfig): string {
-  if (cfg.appUrl) return cfg.appUrl;
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? request.nextUrl.host;
+  const isLocal = host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('[::1]');
+  if (!isLocal && cfg.appUrl) return cfg.appUrl;
   const proto = request.headers.get('x-forwarded-proto') ?? request.nextUrl.protocol.replace(':', '');
   return host ? `${proto}://${host}` : request.nextUrl.origin;
 }
