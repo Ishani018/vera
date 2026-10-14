@@ -46,7 +46,11 @@ export function ExportPanel() {
         which === 'interior'
           ? await exportInteriorPdf(project)
           : await exportCoverPdf(project, finalPages);
-      if (outcome.needsPrintFallback) setPrintFallback(true);
+      if (outcome.needsPrintFallback) {
+        setPrintFallback(true);
+        await print(which);
+        return;
+      }
       setStatus({ level: outcome.ok ? 'ok' : 'error', text: outcome.message });
     } catch (error) {
       setStatus({

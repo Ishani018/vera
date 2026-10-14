@@ -29,11 +29,21 @@ const nextConfig = {
   // they resolve native binaries at runtime and cannot be traced/bundled.
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
 
-  // The export routes read the Paged.js polyfill off disk rather than importing
-  // it, so tracing has to be told about it or it will not be deployed.
+  // The export routes read the Paged.js polyfill and @sparticuz/chromium binaries off disk,
+  // so tracing must be told about them to include them in the deployed serverless function.
   outputFileTracingIncludes: {
-    '/api/export/interior': ['./node_modules/pagedjs/dist/paged.polyfill.js'],
-    '/api/export/cover': ['./node_modules/pagedjs/dist/paged.polyfill.js'],
+    '/api/export/interior': [
+      './node_modules/@sparticuz/chromium/bin/**/*',
+      './node_modules/pagedjs/dist/paged.polyfill.js',
+    ],
+    '/api/export/cover': [
+      './node_modules/@sparticuz/chromium/bin/**/*',
+      './node_modules/pagedjs/dist/paged.polyfill.js',
+    ],
+    '/api/export/board': [
+      './node_modules/@sparticuz/chromium/bin/**/*',
+      './node_modules/pagedjs/dist/paged.polyfill.js',
+    ],
   },
 };
 
