@@ -20,19 +20,39 @@ import type { CoverSpec, CoverSticker, CoverTemplate, LibrarySticker } from '../
 export async function listStickers(): Promise<LibrarySticker[]> {
   const db = getDb();
   if (!db) return [];
-  let rows = alive(await db.stickers.toArray());
-  if (typeof window !== 'undefined' && !localStorage.getItem('stickers_preloaded_v1')) {
+  if (typeof window !== 'undefined') {
     try {
       const { ensurePreloadedStickers } = await import('../stickers/preload');
-      const added = await ensurePreloadedStickers();
-      if (added) {
-        rows = alive(await db.stickers.toArray());
-      }
+      await ensurePreloadedStickers();
     } catch {
       // Continue with current rows if preload fails
     }
   }
-  return rows.sort((a, b) => b.createdAt - a.createdAt);
+  const raw = alive(await db.stickers.toArray());
+  const seen = new Set<string>();
+  const duplicates: string[] = [];
+  const unique: LibrarySticker[] = [];
+
+  raw.sort((a, b) => b.createdAt - a.createdAt);
+
+  for (const s of raw) {
+    const key = s.source?.file
+      ? `${s.source.pack}:${s.source.file}`
+      : (s.assetId ? `asset:${s.assetId}` : s.name.trim().toLowerCase());
+
+    if (seen.has(key)) {
+      duplicates.push(s.id);
+    } else {
+      seen.add(key);
+      unique.push(s);
+    }
+  }
+
+  if (duplicates.length > 0) {
+    void Promise.all(duplicates.map((id) => db.stickers.delete(id)));
+  }
+
+  return unique;
 }
 
 /** Saves an uploaded file straight into the library. */
