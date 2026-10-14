@@ -10,6 +10,7 @@ import {
   type Palette,
 } from '@/lib/theme';
 import { cx } from './ui';
+import { recordUsageAction } from '@/lib/usageGate';
 
 /**
  * Choosing the palette, from the top bar.
@@ -139,6 +140,7 @@ export function PalettePicker({ compact = false }: { compact?: boolean }) {
    * `data-motion="off"`, where an instant swap is the honest behaviour.
    */
   const apply = (palette: string) => {
+    recordUsageAction('vera:change_palette');
     const root = document.documentElement;
     const still =
       root.dataset.motion === 'off' ||

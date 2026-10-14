@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BUNDLED_FAMILIES, CATEGORY_FALLBACK, type FontFamily } from '@/lib/fonts';
 import { Button, TextInput, cx } from './ui';
 import { ControlLabel } from './panel/Panel';
+import { recordUsageAction } from '@/lib/usageGate';
 
 /** One fetch per session, shared by every picker on screen. */
 let familiesPromise: Promise<{ families: FontFamily[]; source: string }> | null = null;
@@ -107,6 +108,7 @@ export function FontPicker({
   }, [open]);
 
   const pick = (family: FontFamily) => {
+    recordUsageAction('vera:change_font');
     onChange(family.family, CATEGORY_FALLBACK[family.category]);
     setOpen(false);
   };

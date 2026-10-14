@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UnsupportedImageError, getAsset, putAsset } from '@/lib/assets';
 import { saveToLibrary, parseTags } from '@/lib/cover/library';
+import { recordUsageAction } from '@/lib/usageGate';
 import { renderSticker, traceInk, type InkResult } from '@/lib/lineart/client';
 import { when } from '@/lib/when';
 import {
@@ -918,6 +919,7 @@ export function StickerStudio() {
   };
 
   const download = async () => {
+    recordUsageAction('export_sticker');
     setBusy(true);
     setWork({ what: 'Exporting the full-size sticker' });
     setSaid(null);
@@ -936,6 +938,7 @@ export function StickerStudio() {
   };
 
   const keep = async () => {
+    recordUsageAction('vera:save_sticker');
     setBusy(true);
     setWork({ what: 'Making the full-size sticker to keep' });
     setSaid(null);

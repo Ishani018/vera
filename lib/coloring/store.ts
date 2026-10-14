@@ -8,6 +8,7 @@ import { id } from '../defaults';
 import { migrateProject } from '../projects';
 import { MATTER_ART_KEYS, matterArtwork } from '../render/coloringLayout';
 import { printedSize } from './quality';
+import { recordUsageAction } from '../usageGate';
 import type {
   ColoringBook,
   ColoringPage,
@@ -115,6 +116,7 @@ export const useColoring = create<State>((set, get) => ({
   },
 
   update: (recipe) => {
+    recordUsageAction('vera:edit_coloring');
     const current = get().book;
     if (!current) return;
     const draft = structuredClone(current);
@@ -125,6 +127,7 @@ export const useColoring = create<State>((set, get) => ({
   },
 
   addFiles: async (files) => {
+    recordUsageAction('vera:add_coloring_page');
     const added: string[] = [];
     for (const file of files) {
       const record = await putAsset(file);

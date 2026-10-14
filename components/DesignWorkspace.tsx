@@ -13,6 +13,7 @@ import { DesignEditor } from './DesignEditor';
 import { Modal } from './Modal';
 import { StudioHeader } from './StudioHeader';
 import { Button, TextInput } from './ui';
+import { recordUsageAction } from '@/lib/usageGate';
 
 /** What a new text box is set in, on a board with no book to take it from. */
 const DEFAULT_FACE = { family: 'EB Garamond', fallback: 'serif' };
@@ -46,6 +47,7 @@ export function DesignWorkspace() {
 
   const update = useCallback(
     (recipe: (draft: Design) => void) => {
+      recordUsageAction('vera:edit_design');
       setDesign((current) => {
         if (!current) return current;
         const draft = structuredClone(current);
@@ -168,6 +170,7 @@ export function DesignWorkspace() {
             pictures.length ? { title: 'Pictures from a book', empty: '' } : null
           }
           onExport={(format, scale) => {
+            recordUsageAction('export_design');
             flush();
             return exportStandaloneDesign(design, format, scale);
           }}

@@ -15,6 +15,7 @@ import { countByLevel, validateProject } from '@/lib/validate';
 import { PanelSection } from './panel/Panel';
 import { CARD, cardStyle } from './studio/Shell';
 import { Button, Notice } from './ui';
+import { recordUsageAction } from '@/lib/usageGate';
 
 type Status = { level: 'ok' | 'error' | 'info'; text: string } | null;
 
@@ -39,6 +40,7 @@ export function ExportPanel() {
   const padded = finalPages - pageCount;
 
   const run = async (which: 'interior' | 'cover') => {
+    recordUsageAction(which === 'interior' ? 'export_interior_pdf' : 'export_cover_pdf');
     setBusy(which);
     setStatus(null);
     try {
@@ -63,6 +65,7 @@ export function ExportPanel() {
   };
 
   const print = async (which: 'interior' | 'cover') => {
+    recordUsageAction('export_print');
     try {
       if (which === 'interior') printInterior(project, padded);
       else await printCover(project, finalPages);

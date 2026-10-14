@@ -12,6 +12,7 @@ import {
   startDesign,
 } from '@/lib/designs';
 import { createProject } from '@/lib/defaults';
+import { recordUsageAction } from '@/lib/usageGate';
 import { TRASH_DAYS } from '@/lib/deleted';
 import { listTrash, purgeExpired } from '@/lib/trash';
 import {
@@ -406,6 +407,7 @@ export function Landing() {
 
   /** Opens whatever a card stands for, wherever it is kept. */
   const open = async (entry: LibraryEntry) => {
+    recordUsageAction('vera:open_project');
     if (!entry.projectId || !entry.bookKind) {
       router.push(`/design?id=${encodeURIComponent(entry.designId!)}`);
       return;
@@ -415,6 +417,7 @@ export function Landing() {
 
   /** Make a book of the given kind, then carry on to where the tile pointed. */
   const start = async (kind: AnyProject['kind'], destination: TileDestination) => {
+    recordUsageAction('vera:start_book');
     const db = getDb();
     const book = kind === 'coloring' ? createColoringBook() : createProject();
     if (db) await db.projects.put(book);
@@ -433,8 +436,12 @@ export function Landing() {
     // One thing on the home screen. Verse or pictures is chosen inside it.
     if (tile.destination.kind === 'interior') return void start('poetry', { kind: 'none' });
     // A screen of its own: nothing to make first, so nothing to ask about.
-    if (tile.destination.kind === 'route') return void router.push(tile.destination.href);
+    if (tile.destination.kind === 'route') {
+      recordUsageAction('vera:navigate');
+      return void router.push(tile.destination.href);
+    }
     if (tile.destination.kind === 'design') {
+      recordUsageAction('vera:start_design');
       const design = await startDesign(tile.destination.presetId);
       if (design) router.push(`/design?id=${encodeURIComponent(design.id)}`);
       return;
@@ -552,6 +559,7 @@ export function Landing() {
   /** A copy of a design, beside the original. Books are not copied. */
   const duplicate = async (entry: LibraryEntry) => {
     if (entry.kind !== 'design' || !entry.designId) return;
+    recordUsageAction('vera:duplicate_design');
     await (entry.projectId
       ? duplicateDesign(entry.projectId, entry.designId)
       : duplicateStandaloneDesign(entry.designId));

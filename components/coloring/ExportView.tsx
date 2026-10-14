@@ -15,6 +15,7 @@ import { PRINT_COST, ROYALTY_TIERS, estimateRoyalty, money, printCostKnown } fro
 import { validateCover } from '@/lib/validate';
 import { Button, Field, Notice, NumberInput, cx } from '../ui';
 import { CARD, cardStyle } from '../studio/Shell';
+import { recordUsageAction } from '@/lib/usageGate';
 
 type Status = { level: 'ok' | 'error' | 'info'; text: string } | null;
 
@@ -60,6 +61,7 @@ export function ExportView({
   const mustAcknowledge = book.coloring.containsAiImages && !acknowledged;
 
   const run = async (which: 'interior' | 'cover') => {
+    recordUsageAction(which === 'interior' ? 'export_coloring_interior_pdf' : 'export_coloring_cover_pdf');
     setBusy(which);
     setStatus(null);
     try {
@@ -81,6 +83,7 @@ export function ExportView({
   };
 
   const print = async (which: 'interior' | 'cover') => {
+    recordUsageAction('export_coloring_print');
     try {
       if (which === 'interior') printInterior(book, padded);
       else await printCover(book, finalPages);

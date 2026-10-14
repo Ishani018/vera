@@ -16,6 +16,7 @@ import { UserMenu } from './UserMenu';
 import { Wordmark } from './Wordmark';
 import { Button, SegmentedControl, cx } from './ui';
 import { InteriorSwitch } from './InteriorSwitch';
+import { recordUsageAction } from '@/lib/usageGate';
 
 type Tab = 'book' | 'cover' | 'kit';
 
@@ -106,7 +107,10 @@ export function Workspace() {
 
         <SegmentedControl<Tab>
           value={tab}
-          onChange={setTab}
+          onChange={(nextTab) => {
+            setTab(nextTab);
+            recordUsageAction('vera:switch_tab');
+          }}
           options={[
             { value: 'book', label: 'Book' },
             { value: 'cover', label: 'Cover' },
@@ -139,6 +143,7 @@ export function Workspace() {
           <Button
             variant={tab === 'book' && mode === 'export' ? 'default' : 'primary'}
             onClick={() => {
+              recordUsageAction('export_pdf_button');
               setTab('book');
               setMode('export');
             }}
@@ -160,7 +165,10 @@ export function Workspace() {
               <button
                 key={entry.id}
                 type="button"
-                onClick={() => setMode(entry.id)}
+                onClick={() => {
+                  setMode(entry.id);
+                  recordUsageAction('vera:switch_mode');
+                }}
                 aria-current={mode === entry.id}
                 className={cx(
                   'grid justify-items-center gap-1.5 rounded-[10px] px-1 pb-2.5 pt-3 transition-colors',

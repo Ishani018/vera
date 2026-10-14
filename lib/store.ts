@@ -7,6 +7,7 @@ import { ACTIVE_PROJECT_KEY, getDb } from './db';
 import { isDeleted } from './deleted';
 import { createProject } from './defaults';
 import { buildSamplePoems, withoutSamplePoems } from './samples';
+import { recordUsageAction } from './usageGate';
 import type { Project } from './types';
 
 /** One entry per rendered page, reported back by Paged.js after pagination. */
@@ -219,6 +220,10 @@ export const useStore = create<State & Actions>((set, get) => ({
     // A burst of keystrokes folds into the step that started it.
     const coalesce = !options?.discrete && past.length > 0 && now - lastPushAt < COALESCE_MS;
     lastPushAt = now;
+
+    if (!coalesce) {
+      recordUsageAction('vera:edit_book');
+    }
 
     set({
       project: draft,
