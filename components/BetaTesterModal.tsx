@@ -107,7 +107,7 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
 
   if (!isOpen) return null;
 
-  const mailtoUrl = `mailto:ishani.chakraborty2005@gmail.com?subject=${encodeURIComponent(
+  const mailtoUrl = `mailto:ishani.chakraborty.2005@gmail.com?subject=${encodeURIComponent(
     `${productName} Tester Application: ${name || 'User'}`,
   )}&body=${encodeURIComponent(
     `Hi Ishani,\n\nI'd love to join the ${productName} beta tester program!\n\nName: ${name}\nEmail: ${email}\nNote: ${note}\n\nThanks!`,
@@ -156,7 +156,7 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
             </h3>
             <p className="mt-2 text-[14px] text-ink-600 leading-relaxed max-w-sm mx-auto">
               Your details were received and dispatched to{' '}
-              <strong className="text-ink-900 font-medium">ishani.chakraborty2005@gmail.com</strong>. We'll be in touch with early features!
+              <strong className="text-ink-900 font-medium">ishani.chakraborty.2005@gmail.com</strong>. We'll be in touch with early features!
             </p>
 
             <div className="mt-6 flex flex-col gap-2.5">
@@ -297,7 +297,7 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
               </div>
 
               <p className="text-center text-[11px] text-ink-400 pt-1">
-                Direct dispatch to <span className="font-mono text-ink-600">ishani.chakraborty2005@gmail.com</span>
+                Direct dispatch to <span className="font-mono text-ink-600">ishani.chakraborty.2005@gmail.com</span>
               </p>
             </form>
           </div>

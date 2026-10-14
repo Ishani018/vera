@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const RECIPIENT_EMAIL = 'ishani.chakraborty2005@gmail.com';
+const RECIPIENT_EMAIL =
+  process.env.RESEND_RECIPIENT_EMAIL || 'ishani.chakraborty.2005@gmail.com';
 
 export async function POST(req: Request) {
   try {
@@ -65,8 +66,7 @@ export async function POST(req: Request) {
       process.env.RESEND_TOKEN;
 
     const fromAddress =
-      process.env.RESEND_FROM_EMAIL ||
-      `${lead.product} Beta <onboarding@resend.dev>`;
+      process.env.RESEND_FROM_EMAIL || 'Vera <onboarding@resend.dev>';
 
     let emailSent = false;
     let emailStatus = 'no_api_key';
