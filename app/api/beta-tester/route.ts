@@ -59,17 +59,29 @@ export async function POST(req: Request) {
     }
 
     // 3. Attempt email delivery if RESEND_API_KEY is configured
-    const resendApiKey = process.env.RESEND_API_KEY;
+    const resendApiKey =
+      process.env.RESEND_API_KEY ||
+      process.env.RESEND_KEY ||
+      process.env.RESEND_TOKEN;
+
+    const fromAddress =
+      process.env.RESEND_FROM_EMAIL ||
+      `${lead.product} Beta <onboarding@resend.dev>`;
+
+    let emailSent = false;
+    let emailStatus = 'no_api_key';
+    let emailError: string | null = null;
+
     if (resendApiKey) {
       try {
         const emailRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${resendApiKey}`,
+            Authorization: `Bearer ${resendApiKey.trim()}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: `${lead.product} Beta <onboarding@resend.dev>`,
+            from: fromAddress,
             to: [RECIPIENT_EMAIL],
             reply_to: lead.email,
             subject: `New ${lead.product} Beta Tester: ${lead.name} (${lead.email})`,
@@ -87,19 +99,28 @@ export async function POST(req: Request) {
         if (!emailRes.ok) {
           const errData = await emailRes.text();
           console.error('Resend email error:', errData);
+          emailStatus = 'failed';
+          emailError = errData;
         } else {
           console.log(`✅ Email sent successfully to ${RECIPIENT_EMAIL} via Resend!`);
+          emailSent = true;
+          emailStatus = 'sent';
         }
       } catch (emailErr) {
         console.error('Failed to send email via Resend:', emailErr);
+        emailStatus = 'exception';
+        emailError = emailErr instanceof Error ? emailErr.message : String(emailErr);
       }
     } else {
-      console.log(`ℹ️ [Local Notice] RESEND_API_KEY not set in .env.local — lead saved locally to data/beta-testers.json`);
+      console.log('ℹ️ [Notice] RESEND_API_KEY not found in environment');
     }
 
     return NextResponse.json({
       ok: true,
       message: 'Application recorded successfully',
+      emailSent,
+      emailStatus,
+      emailError,
       lead,
     });
   } catch (err) {
