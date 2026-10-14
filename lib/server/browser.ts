@@ -28,7 +28,14 @@ const LOCAL_PATHS = [
   '/usr/bin/chromium-browser',
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable',
+  '/usr/bin/google-chrome-unstable',
+  '/usr/bin/brave-browser',
+  '/snap/bin/chromium',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+  '/Applications/Arc.app/Contents/MacOS/Arc',
+  '/Applications/Chromium.app/Contents/MacOS/Chromium',
 ].filter((p): p is string => Boolean(p));
 
 const BASE_ARGS = [
@@ -53,8 +60,12 @@ export async function launchBrowser(): Promise<LaunchedBrowser> {
 
   for (const executablePath of LOCAL_PATHS) {
     if (!existsSync(executablePath)) continue;
-    const browser = await puppeteer.launch({ executablePath, args: BASE_ARGS });
-    return { browser, via: executablePath, engine: await browser.version() };
+    try {
+      const browser = await puppeteer.launch({ executablePath, args: BASE_ARGS });
+      return { browser, via: executablePath, engine: await browser.version() };
+    } catch (err) {
+      console.warn(`[PDF Export] Could not launch local browser at ${executablePath}:`, err);
+    }
   }
 
   try {
@@ -70,8 +81,8 @@ export async function launchBrowser(): Promise<LaunchedBrowser> {
       });
       return { browser, via: '@sparticuz/chromium', engine: await browser.version() };
     }
-  } catch {
-    /* not installed, or not runnable here — fall through to the error below */
+  } catch (err) {
+    console.error('[PDF Export] Failed to launch @sparticuz/chromium:', err);
   }
 
   throw new BrowserUnavailableError(

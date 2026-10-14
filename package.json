@@ -28,24 +28,24 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@sparticuz/chromium": "^149.0.0",
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "jose": "^6.2.12",
     "mammoth": "^1.12.2",
     "next": "15.5.25",
     "pagedjs": "^0.4.3",
+    "puppeteer-core": "^25.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@sparticuz/chromium": "^149.0.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "puppeteer-core": "^25.10.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.7.2"
   }

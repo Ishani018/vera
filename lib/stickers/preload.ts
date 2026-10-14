@@ -26,7 +26,7 @@ export type PreloadManifest = {
   packs: PreloadPack[];
 };
 
-const PRELOAD_KEY = 'stickers_preloaded_v1';
+const PRELOAD_KEY = 'stickers_preloaded_v2';
 
 let inFlightPreload: Promise<boolean> | null = null;
 
@@ -44,7 +44,7 @@ export async function ensurePreloadedStickers(): Promise<boolean> {
     if (!db) return false;
 
     // Deduplicate any existing items in the database
-    const existing: LibrarySticker[] = alive(await db.stickers.toArray());
+    let existing: LibrarySticker[] = alive(await db.stickers.toArray());
     const seen = new Set<string>();
     existing.sort((a, b) => b.createdAt - a.createdAt);
 
@@ -60,7 +60,22 @@ export async function ensurePreloadedStickers(): Promise<boolean> {
     }
 
     const preloaded = localStorage.getItem(PRELOAD_KEY);
-    if (preloaded && existing.length > 0) return false;
+    const needRefresh = preloaded !== 'v2';
+
+    if (!needRefresh && existing.length > 0) return false;
+
+    if (needRefresh) {
+      // Clean up previous preloaded stickers to ensure updated transparent assets are loaded
+      for (const s of existing) {
+        if (s.source?.pack) {
+          await db.stickers.delete(s.id);
+          const key = `${s.source.pack}:${s.source.file}`;
+          seen.delete(key);
+          seen.delete(s.name.trim().toLowerCase());
+        }
+      }
+      existing = alive(await db.stickers.toArray());
+    }
 
     try {
       const res = await fetch('/stickers/manifest.json');
@@ -112,7 +127,7 @@ export async function ensurePreloadedStickers(): Promise<boolean> {
         }
       }
 
-      localStorage.setItem(PRELOAD_KEY, 'true');
+      localStorage.setItem(PRELOAD_KEY, 'v2');
       return addedCount > 0;
     } catch {
       return false;

@@ -1065,7 +1065,7 @@ input[type='range']:hover::-moz-range-thumb {
 }
 
 .collage-card {
-  background: var(--color-sheet);
+  background: transparent;
   overflow: hidden;
 }
 
