@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getAssetUrl } from '@/lib/assets';
 import { listStickers } from '@/lib/cover/library';
 import {
   creditsOf,
   creditsText,
   packCounts,
-  packSummaries,
   searchCredits,
+  type Credit,
 } from '@/lib/starter/credits';
 import { installPack, summarise } from '@/lib/starter/installClient';
 import type { ItemOutcome } from '@/lib/starter/install';
@@ -18,30 +19,21 @@ import { StudioHeader, StudioTitle } from '../StudioHeader';
 import { PalettePicker } from '../PalettePicker';
 import { StickerTabs } from './StickerTabs';
 import { BrowseGraphics } from './BrowseGraphics';
-import { Fan, Thumb } from './Thumb';
-import { DownloadIcon, LibraryIcon, UploadIcon } from './icons';
+import { Chequerboard, Thumb } from './Thumb';
+import { LibraryIcon, UploadIcon, TickIcon, SheetIcon } from './icons';
 import { Button, Notice, Spinner, TextInput, cx } from '../ui';
-import { CARD, COLUMN, NumberedLabel, PageHead, StudioPage, cardHover, cardStyle } from '../studio/Shell';
+import { COLUMN, PageHead, StudioPage } from '../studio/Shell';
 
-/**
- * The library: what is installed, where each of it came from, and how to get
- * more.
- *
- * This is the page somebody opens asking "what have I got, and am I allowed to
- * sell something with it on". So the packs come first as cards, each carrying
- * its licence and its source — the two facts that answer the second half of
- * that question — and the list underneath answers it item by item.
- *
- * Only CC0 and public-domain work is accepted, so none of it requires
- * attribution. The credits file exists anyway, because a list is what lets you
- * thank somebody, check a claim you took on trust, and find one item again if
- * that claim turns out to have been wrong.
- */
 export function PackLibrary() {
+  const router = useRouter();
   const [stickers, setStickers] = useState<LibrarySticker[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<'installed' | 'browse'>('installed');
   const [query, setQuery] = useState('');
   const [pack, setPack] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [inspecting, setInspecting] = useState<Credit | null>(null);
+
   const [said, setSaid] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +47,6 @@ export function PackLibrary() {
   }, []);
 
   const credits = useMemo(() => creditsOf(stickers), [stickers]);
-  const packs = useMemo(() => packSummaries(credits), [credits]);
   const counts = useMemo(() => packCounts(credits), [credits]);
   const shown = useMemo(() => searchCredits(credits, query, pack), [credits, query, pack]);
 
@@ -76,6 +67,15 @@ export function PackLibrary() {
       live = false;
     };
   }, [credits, stickers]);
+
+  const togglePick = (id: string) => {
+    setPicked((was) => (was.includes(id) ? was.filter((x) => x !== id) : [...was, id]));
+  };
+
+  const toSheet = (ids: string[]) => {
+    if (!ids.length) return;
+    router.push(`/stickers/sheet?add=${ids.join(',')}`);
+  };
 
   /** The same install as the Packs page: it only ever adds. */
   const install = async (file: File | undefined) => {
@@ -122,7 +122,7 @@ export function PackLibrary() {
   const installer = (
     <label
       className={cx(
-        'btn btn-default flex cursor-pointer items-center gap-2 rounded-[6px] px-4 py-2.5 text-[14px]',
+        'btn btn-default flex cursor-pointer items-center gap-2 rounded-[6px] px-3.5 py-2 text-[13.5px]',
         busy && 'pointer-events-none opacity-50',
       )}
     >
@@ -134,7 +134,6 @@ export function PackLibrary() {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          // Cleared so the same zip can be chosen twice running.
           e.target.value = '';
           void install(file);
         }}
@@ -155,9 +154,12 @@ export function PackLibrary() {
       </StudioHeader>
 
       <StudioPage>
-        <div className={`${COLUMN} py-8`}>
-          <PageHead title="Library" line="Free graphics to browse, and everything you have installed.">
-            <div className="flex flex-wrap gap-2">
+        <div className={`${COLUMN} py-7`}>
+          <PageHead
+            title="Library"
+            line="Your installed sticker collection, clean and ready to print or layout."
+          >
+            <div className="flex flex-wrap items-center gap-2">
               {installer}
               {credits.length > 0 && (
                 <Button
@@ -196,166 +198,256 @@ export function PackLibrary() {
             </div>
           )}
 
-          {/* Browse on top, installed below: looking for something is what
-              brings somebody here, and what they already have is the answer to
-              "have I got this one already". */}
-          <div className="mt-10">
-            <NumberedLabel number="01" title="Browse free graphics" />
-            <BrowseGraphics onAdded={() => void reload()} />
-          </div>
-
-          <div className="mt-12">
-            <NumberedLabel number="02" title="Installed" />
-          </div>
-
-          {!credits.length ? (
-            <div
-              className="mt-5 grid place-items-center rounded-[10px] border border-dashed px-6 py-12"
-              style={{ borderColor: 'var(--studio-line)', background: 'var(--studio-card)' }}
+          {/* Clean Segmented Tab Switch */}
+          <div className="mt-6 flex border-b border-ink-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('installed')}
+              className={cx(
+                'flex items-center gap-2 border-b-2 px-5 py-2.5 text-[14px] font-[550] transition-colors',
+                activeTab === 'installed'
+                  ? 'border-accent-500 text-ink-900'
+                  : 'border-transparent text-ink-500 hover:text-ink-700',
+              )}
             >
-              <div className="max-w-xl text-center">
-                <span
-                  className="mx-auto grid size-14 place-items-center rounded-2xl text-ink-500"
-                  style={{ background: 'var(--studio-page)' }}
-                >
-                  <LibraryIcon size={28} />
-                </span>
-                <h3
-                  className="mt-4 tracking-tight"
-                  style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 22 }}
-                >
-                  Nothing installed yet
-                </h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-ink-500">
-                  This is where stickers that came from somewhere else live, with the licence and
-                  the link for each one. The ones you drew yourself are under Make a sticker.
-                </p>
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  {installer}
-                  <Button onClick={() => setHelper(true)}>Where to get free graphics</Button>
-                </div>
-              </div>
-            </div>
-          ) : (
+              <LibraryIcon size={16} />
+              Installed Stickers
+              <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-700">
+                {credits.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('browse')}
+              className={cx(
+                'flex items-center gap-2 border-b-2 px-5 py-2.5 text-[14px] font-[550] transition-colors',
+                activeTab === 'browse'
+                  ? 'border-accent-500 text-ink-900'
+                  : 'border-transparent text-ink-500 hover:text-ink-700',
+              )}
+            >
+              Discover Free Graphics
+              <span className="rounded-full bg-accentb-100 px-2 py-0.5 text-[11px] font-medium text-accentb-700">
+                Wikimedia & Smithsonian
+              </span>
+            </button>
+          </div>
+
+          {activeTab === 'installed' ? (
             <>
-              <p className="mt-1 text-[13.5px] text-ink-500">
-                {credits.length} {credits.length === 1 ? 'item' : 'items'} from{' '}
-                {packs.length} {packs.length === 1 ? 'pack' : 'packs'}. All public domain or CC0, so
-                none of it has to be credited.
-              </p>
-
-              <div className="mt-5 grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {packs.map((summary) => (
-                  <div
-                    key={summary.pack}
-                    className={`${CARD} ${cardHover} group flex flex-col p-3`}
-                    style={cardStyle}
-                  >
-                    <button
-                      type="button"
-                      title={`Show only ${summary.pack}`}
-                      onClick={() => setPack(pack === summary.pack ? null : summary.pack)}
-                      className="block text-left"
-                    >
-                      <Fan
-                        urls={summary.ids.map((id) => urls[id])}
-                        name={summary.pack}
-                        className={cx(pack === summary.pack && 'border-accent-500')}
-                      />
-                      <span className="mt-2 block truncate text-[14.5px] font-[600]">
-                        {summary.pack}
-                      </span>
-                      <span className="block text-[12px] text-ink-500">
-                        {summary.count} {summary.count === 1 ? 'sticker' : 'stickers'} · added{' '}
-                        {summary.added}
-                      </span>
-                    </button>
-                    <p className="mt-1.5 text-[12px] leading-snug text-ink-700">
-                      {summary.licences.join(', ')}
-                    </p>
-                    <p className="text-[12px] leading-snug text-ink-500" title={summary.authors.join(', ')}>
-                      <span className="block truncate">{summary.authors.join(', ')}</span>
-                    </p>
-                    {summary.sources.length === 1 ? (
-                      <a
-                        href={summary.sources[0]}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        title={summary.sources[0]}
-                        className="mt-1 flex min-h-8 items-center truncate text-[12px] text-accent-500 underline"
-                      >
-                        {hostOf(summary.sources[0])}
-                      </a>
-                    ) : (
-                      <span className="mt-1 block text-[12px] text-ink-500">
-                        {summary.sources.length} sources
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-7 flex flex-wrap items-center gap-2">
-                <TextInput
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  aria-label="Search the library"
-                  placeholder="Search name, author, licence or link"
-                  className="max-w-sm"
-                />
-                <button
-                  type="button"
-                  aria-pressed={pack === null}
-                  onClick={() => setPack(null)}
-                  className={cx(CHIP, pack === null && CHIP_ON)}
-                >
-                  All <span className="ml-1 text-ink-500">{credits.length}</span>
-                </button>
-                {counts.map((entry) => (
+              {/* Filter & Search Bar */}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <TextInput
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    aria-label="Search stickers in your library"
+                    placeholder="Search by name, pack, or tag…"
+                    className="!w-64"
+                  />
                   <button
-                    key={entry.pack}
                     type="button"
-                    aria-pressed={pack === entry.pack}
-                    onClick={() => setPack(entry.pack)}
-                    className={cx(CHIP, pack === entry.pack && CHIP_ON)}
+                    aria-pressed={pack === null}
+                    onClick={() => setPack(null)}
+                    className={cx(CHIP, pack === null && CHIP_ON)}
                   >
-                    {entry.pack} <span className="ml-1 text-ink-500">{entry.count}</span>
+                    All <span className="ml-1 text-ink-500">{credits.length}</span>
                   </button>
-                ))}
+                  {counts.map((entry) => (
+                    <button
+                      key={entry.pack}
+                      type="button"
+                      aria-pressed={pack === entry.pack}
+                      onClick={() => setPack(pack === entry.pack ? null : entry.pack)}
+                      className={cx(CHIP, pack === entry.pack && CHIP_ON)}
+                    >
+                      {entry.pack} <span className="ml-1 text-ink-500">{entry.count}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Selection Action Bar */}
+                {picked.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-[550] text-ink-700">
+                      {picked.length} selected
+                    </span>
+                    <Button
+                      variant="primary"
+                      onClick={() => toSheet(picked)}
+                      title="Put selected stickers on a printable sheet"
+                    >
+                      Put on sticker sheet
+                    </Button>
+                    <Button onClick={() => setPicked([])}>Clear</Button>
+                  </div>
+                ) : (
+                  <span className="text-[12.5px] text-ink-500">
+                    Click any sticker to select or view details
+                  </span>
+                )}
               </div>
 
+              {/* Sticker Grid */}
               {!shown.length ? (
-                <p className="mt-6 text-[14px] text-ink-500">
-                  Nothing matches that. Try part of a name, an author, or a licence.
-                </p>
+                <div
+                  className="mt-8 grid place-items-center rounded-[10px] border border-dashed py-12 text-center"
+                  style={{ borderColor: 'var(--studio-line)' }}
+                >
+                  <p className="text-[14px] text-ink-500">
+                    {query || pack
+                      ? 'No stickers match this search or filter.'
+                      : 'No stickers installed yet.'}
+                  </p>
+                  {(query || pack) && (
+                    <Button
+                      className="mt-3"
+                      onClick={() => {
+                        setQuery('');
+                        setPack(null);
+                      }}
+                    >
+                      Clear search
+                    </Button>
+                  )}
+                </div>
               ) : (
-                <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-5 lg:grid-cols-6">
-                  {shown.map((credit) => (
-                    <Thumb
-                      key={credit.id}
-                      url={urls[credit.id]}
-                      name={credit.name}
-                      note={`${credit.pack} · ${credit.licence}`}
-                      title={
-                        `${credit.name}\n${credit.pack} · ${credit.file}\n` +
-                        `${credit.author} — ${credit.licence}\n${credit.sourceUrl}\nadded ${credit.downloadedOn}`
-                      }
-                    />
-                  ))}
+                <div className="mt-5 grid grid-cols-2 gap-3.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+                  {shown.map((credit) => {
+                    const isPicked = picked.includes(credit.id);
+                    return (
+                      <div key={credit.id} className="group relative flex flex-col">
+                        <Thumb
+                          url={urls[credit.id]}
+                          name={credit.name}
+                          note={credit.pack}
+                          title={`${credit.name} · ${credit.pack}`}
+                          selected={isPicked}
+                          onClick={() => togglePick(credit.id)}
+                          badge={
+                            isPicked ? (
+                              <span className="pointer-events-none absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-accent-500 text-paper shadow">
+                                <TickIcon size={12} />
+                              </span>
+                            ) : null
+                          }
+                          corner={
+                            <button
+                              type="button"
+                              title="View details and licence"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInspecting(credit);
+                              }}
+                              className="absolute left-1.5 top-1.5 hidden size-6 place-items-center rounded bg-sheet/85 text-[11px] font-bold text-ink-600 shadow-sm backdrop-blur transition hover:bg-sheet group-hover:grid"
+                            >
+                              ℹ
+                            </button>
+                          }
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              <p className="mt-6 text-[12.5px] text-ink-500">
-                Credits are not required by any of these licences.{' '}
-                <button type="button" onClick={exportCredits} className="text-accent-500 underline">
-                  Export credits
-                </button>{' '}
-                writes the whole list anyway — never the filtered one, because a partial record is a
-                wrong one.
-              </p>
+              {/* Minimal Clean Footer */}
+              <div
+                className="mt-12 flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-[12.5px] text-ink-500"
+                style={{ borderColor: 'var(--studio-line)' }}
+              >
+                <span>
+                  All installed stickers are CC0 or Public Domain. No attribution required.
+                </span>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={exportCredits}
+                    className="text-accent-500 underline hover:text-accent-600"
+                  >
+                    Export CREDITS.txt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHelper(true)}
+                    className="text-accent-500 underline hover:text-accent-600"
+                  >
+                    Licence & source policy
+                  </button>
+                </div>
+              </div>
             </>
+          ) : (
+            /* Browse Free Graphics Sub-tab */
+            <div className="mt-6">
+              <BrowseGraphics onAdded={() => void reload()} />
+            </div>
           )}
 
+          {/* Inspect Sticker Modal */}
+          {inspecting && (
+            <Modal title={inspecting.name} onClose={() => setInspecting(null)} width="max-w-md">
+              <div className="flex flex-col items-center">
+                <Chequerboard className="size-48 rounded-lg border border-ink-200">
+                  {urls[inspecting.id] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={urls[inspecting.id]}
+                      alt={inspecting.name}
+                      className="max-h-[85%] max-w-[85%] object-contain"
+                    />
+                  ) : null}
+                </Chequerboard>
+                <div className="mt-4 w-full space-y-2 text-[13px]">
+                  <div className="flex justify-between border-b pb-1.5" style={{ borderColor: 'var(--studio-line)' }}>
+                    <span className="text-ink-500">Pack</span>
+                    <span className="font-[550]">{inspecting.pack}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1.5" style={{ borderColor: 'var(--studio-line)' }}>
+                    <span className="text-ink-500">Licence</span>
+                    <span className="font-[550] text-emerald-600">{inspecting.licence}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1.5" style={{ borderColor: 'var(--studio-line)' }}>
+                    <span className="text-ink-500">Author</span>
+                    <span>{inspecting.author || 'Unknown'}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1.5" style={{ borderColor: 'var(--studio-line)' }}>
+                    <span className="text-ink-500">File</span>
+                    <span className="truncate max-w-[200px]" title={inspecting.file}>{inspecting.file}</span>
+                  </div>
+                  {inspecting.sourceUrl && (
+                    <div className="flex justify-between pt-1">
+                      <span className="text-ink-500">Source</span>
+                      <a
+                        href={inspecting.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="truncate max-w-[200px] text-accent-500 underline"
+                      >
+                        {hostOf(inspecting.sourceUrl)}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 flex w-full gap-2">
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    onClick={() => {
+                      toSheet([inspecting.id]);
+                      setInspecting(null);
+                    }}
+                  >
+                    Put on sticker sheet
+                  </Button>
+                  <Button onClick={() => setInspecting(null)}>Close</Button>
+                </div>
+              </div>
+            </Modal>
+          )}
+
+          {/* Free Graphics Info Modal */}
           {helper && (
             <Modal title="Where to get free graphics" onClose={() => setHelper(false)} width="max-w-lg">
               <p className="text-[14px] leading-relaxed">
@@ -379,23 +471,11 @@ export function PackLibrary() {
                 </a>
                 .
               </p>
-              <p className="mt-3 text-[14px] leading-relaxed">
-                There is a helper in this repository that fetches from their official APIs, keeps
-                only what is CC0 or public domain by the API&rsquo;s own licence field, and writes a
-                pack with the source, author, licence and date filled in:
-              </p>
-              <pre className="mt-3 overflow-x-auto rounded-lg bg-ink-100 px-3 py-2 text-[12.5px]">
-                npm run starter:fetch commons &quot;botanical illustration&quot; 20
-              </pre>
-              <p className="mt-3 text-[13px] leading-relaxed text-ink-500">
-                It runs on your own computer, not in the app, and writes into{' '}
-                <code>starter/</code>. Then <code>npm run starter:build</code> checks every item and
-                makes the zip you install here. See <code>starter/README.md</code> for which terms
-                to read first — a site&rsquo;s label can be wrong, and CC0 waives copyright but not
-                trademark or personality rights.
+              <p className="mt-3 text-[14px] leading-relaxed text-ink-500">
+                You can browse and import both directly in the “Discover Free Graphics” tab above.
               </p>
               <div className="mt-5 flex justify-end">
-                <Button onClick={() => setHelper(false)}>Close</Button>
+                <Button onClick={() => setHelper(false)}>Done</Button>
               </div>
             </Modal>
           )}
@@ -405,14 +485,12 @@ export function PackLibrary() {
   );
 }
 
-/** The pill the home screen's filters use, so a filter looks the same wherever it is. */
 const CHIP =
-  'inline-flex min-h-9 items-center rounded-[6px] border px-3 text-[12px] uppercase tracking-[0.06em] ' +
+  'inline-flex min-h-8 items-center rounded-[6px] border px-2.5 text-[11.5px] uppercase tracking-[0.05em] ' +
   'transition-colors hover:border-ink-900 [border-color:var(--studio-line)] [background:var(--studio-card)] ' +
   '[font-family:var(--font-mono)]';
 const CHIP_ON = '!border-ink-900 !bg-ink-900 !text-paper-50';
 
-/** "commons.wikimedia.org", for a link that would otherwise wrap over two lines. */
 function hostOf(url: string): string {
   try {
     return new URL(url).host;
