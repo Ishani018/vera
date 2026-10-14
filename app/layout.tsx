@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Flow } from '@/components/Flow';
 import { Toasts } from '@/components/Toasts';
+import { BetaTesterModal } from '@/components/BetaTesterModal';
 import { BRAND } from '@/lib/brand';
 import { CUSTOM_ID, CUSTOM_KEY, DEFAULT_THEME, THEMES, THEME_KEY } from '@/lib/theme';
 import './globals.css';
@@ -127,6 +128,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           through.
         */}
         <Toasts>{children}</Toasts>
+        <BetaTesterModal productName={BRAND.product} />
       </body>
     </html>
   );
