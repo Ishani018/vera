@@ -106,6 +106,22 @@ export function maskFromInk(lines: Gray): Mask {
 }
 
 /**
+ * A mask directly from an image's own alpha channel.
+ *
+ * For stickers that already have a transparent background or where background
+ * removal is turned off, this preserves the original cut and transparency
+ * exactly without attempting to remove anything.
+ */
+export function maskFromAlpha(source: Bitmap): Mask {
+  const { width, height, data } = source;
+  const mask = new Uint8Array(width * height);
+  for (let p = 0, i = 3; p < mask.length; p++, i += 4) {
+    mask[p] = data[i];
+  }
+  return { width, height, data: mask };
+}
+
+/**
  * A mask for a picture on plain paper: everything except the background.
  *
  * Flooded **inward from the border**, and that is the whole trick. Removing
@@ -174,16 +190,26 @@ export function backgroundMask(
   }
 
   // The paper's colour, averaged over the border, so one dark pixel in a corner
-  // does not decide what the background is.
+  // does not decide what the background is. Only opaque pixels count towards
+  // the paper color so transparent pixels (alpha 0) never skew the average.
   let sl = 0;
   let sa = 0;
   let sb = 0;
+  let n = 0;
   for (const i of seeds) {
-    sl += lab.l[i];
-    sa += lab.a[i];
-    sb += lab.b[i];
+    if (source.data[i * 4 + 3] >= 128) {
+      sl += lab.l[i];
+      sa += lab.a[i];
+      sb += lab.b[i];
+      n += 1;
+    }
   }
-  const n = seeds.length || 1;
+
+  // If the border is entirely transparent, the background is already gone.
+  if (n === 0) {
+    return maskFromAlpha(source);
+  }
+
   const [pl, pa, pb] = [sl / n, sa / n, sb / n];
 
   /** How far a pixel is from the paper the border says this is. */
@@ -202,16 +228,6 @@ export function backgroundMask(
     return Math.sqrt(dl * dl + da * da + db * db);
   };
 
-  // Generous overall, strict about each step: the total allowance is what lets
-  // the flood follow a lamp's falloff right across the page, and the step is
-  // what stops it walking straight into the subject when it gets there.
-  //
-  // A tapering step — strict the further from paper it gets — was tried, to
-  // stop the flood following a soft shadow into the object it belongs to. It
-  // made the shadow a little better and the uneven lighting much worse, because
-  // brightly lit paper is itself a long way from the average paper colour and
-  // the taper would not let the flood reach it. A soft shadow against its own
-  // subject is what the touch-up brushes are for; the screen says so.
   const roam = tolerance + softness + step * 4;
   const passable = (i: number, from: number) =>
     i === from
@@ -221,6 +237,10 @@ export function backgroundMask(
   const background = flood({ width, height, seeds, passable });
   const data = new Uint8Array(width * height).fill(SOLID);
   for (const i of background) data[i] = CLEAR;
+  // If the source already had transparent pixels, ensure they stay transparent.
+  for (let p = 0, i = 3; p < data.length; p++, i += 4) {
+    if (source.data[i] < 128) data[p] = CLEAR;
+  }
 
   if (speck > 0) unspeckle(data, width, height, speck);
   if (softness > 0) softenEdge(data, width, height, between, step, softness);

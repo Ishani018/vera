@@ -542,18 +542,16 @@ function mix(a: string, b: string, amount: number): string {
  * and a near-white page is the opposite of the palette — so Night keeps
  * `paper50` exactly and the depth comes from the card surfaces instead.
  */
-export const studioPage = (p: Palette) => (p.isDark ? p.paper50 : mix(p.paper50, p.sheet, 0.72));
+export const studioPage = (p: Palette) => p.paper50;
 
 /**
  * A card on that page: one quiet step off it, in the same direction as the ink.
  *
- * Light palettes step DOWN from the near-white page towards `paper100`; dark
- * palettes step UP from the near-black page towards `paper200`, because in the
- * dark a raised surface is a lighter one. Either way the card is the thing in
- * front and the page the thing behind, which is what "not flat" means here.
+ * Light palettes step towards `paper100`; dark palettes step towards `paper200`,
+ * matching the rest of the application.
  */
 export const studioCard = (p: Palette) =>
-  p.isDark ? mix(p.paper100, p.paper200, 0.45) : mix(p.sheet, p.paper100, 0.42);
+  p.isDark ? mix(p.paper100, p.paper200, 0.45) : p.paper100;
 
 /** The hairline round a card: a step further again, so an edge is an edge. */
 export const studioLine = (p: Palette) => (p.isDark ? p.paper300 : mix(p.paper200, p.paper300, 0.5));

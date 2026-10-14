@@ -453,11 +453,42 @@ export function StickerStudio() {
    * drawing to clean up — so they say, and the studio opens on that answer
    * rather than on its own default. Saying nothing keeps the default.
    */
-  const take = async (chosen: File | undefined, startMode?: Mode) => {
+  const take = async (chosen: File | undefined, startMode?: Mode, startRemoveBg?: boolean) => {
     if (!chosen) return;
     setProblem(null);
     setSaid(null);
-    if (startMode) setMode(startMode);
+    let targetMode = startMode ?? mode;
+    let targetRemoveBg = startRemoveBg ?? removeBackground;
+
+    // Detect if this is an image with transparency (like an uploaded real sticker)
+    if (startMode === undefined || startRemoveBg === undefined) {
+      if (chosen.type === 'image/png' || chosen.type === 'image/webp') {
+        try {
+          const bmp = await createImageBitmap(chosen);
+          const oc = new OffscreenCanvas(Math.min(bmp.width, 100), Math.min(bmp.height, 100));
+          const ctx = oc.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(bmp, 0, 0, oc.width, oc.height);
+            const imgData = ctx.getImageData(0, 0, oc.width, oc.height);
+            let hasAlpha = false;
+            for (let i = 3; i < imgData.data.length; i += 4) {
+              if (imgData.data[i] < 255) {
+                hasAlpha = true;
+                break;
+              }
+            }
+            if (hasAlpha) {
+              if (startMode === undefined) targetMode = 'asis';
+              if (startRemoveBg === undefined) targetRemoveBg = false;
+            }
+          }
+          bmp.close();
+        } catch {}
+      }
+    }
+
+    setMode(targetMode);
+    setRemoveBackground(targetRemoveBg);
     try {
       // The same checks the rest of the app makes, and the same store. The
       // original goes in untouched and at full resolution; everything below
@@ -468,6 +499,8 @@ export function StickerStudio() {
       startColour.current = null;
       startTouch.current = null;
       const started = newDraft(record.id, chosen.name.replace(/\.[^.]+$/, ''));
+      started.mode = targetMode;
+      started.removeBackground = targetRemoveBg;
       await saveDraft(started);
       row.current = started;
       setDrafted(true);
@@ -1139,11 +1172,38 @@ export function StickerStudio() {
                 label: 'Keep as is',
                 note: 'Colours kept exactly',
                 preview: modeShots.asis,
-                hint: 'The picture is kept as it is, in its own colours, and only cut out.',
+                hint: 'The picture is kept in its own colours. Background removal can be toggled on or off.',
               },
             ]}
           />
         </Field>
+        {mode === 'asis' && (
+          <Field
+            title="Background"
+            help="Choose whether to remove the background or keep it untouched."
+          >
+            <Toggle
+              label="Remove background"
+              checked={removeBackground}
+              onChange={setRemoveBackground}
+            />
+            <p className="mt-1 text-[13px] text-ink-500">
+              {removeBackground
+                ? 'Removes plain or paper background from the edges.'
+                : 'Does not change or remove any background. Keeps original transparency intact (ideal for real stickers).'}
+            </p>
+            {removeBackground && (
+              <Control
+                label="How close a match counts as background"
+                hint="Bigger lifts more of a shaded or off-white paper, and eventually starts eating the picture."
+                value={tolerance}
+                min={2}
+                max={50}
+                onChange={setTolerance}
+              />
+            )}
+          </Field>
+        )}
         {mode !== 'asis' && (
           <Field title="Tracing" help="How the drawing is found in the picture.">
             <Control
@@ -1190,43 +1250,50 @@ export function StickerStudio() {
         {mode === 'asis' && (
           <Field title="Background removal" help="Only background joined to the edge is removed.">
             <Toggle
-              label="Remove the plain background"
+              label="Remove background"
               checked={removeBackground}
               onChange={setRemoveBackground}
             />
-            <p
-              title={
-                'It works inward from the edges, so an enclosed white — the inside of an eye, ' +
-                'the hole in a letter O — is never punched out. It follows uneven lighting ' +
-                'across a photographed page, ignores paper grain, and cuts a soft edge rather ' +
-                'than a staircase.'
-              }
-              className="-mt-2 cursor-help text-[12.5px] leading-snug text-ink-500 underline decoration-dotted underline-offset-2"
-            >
-              How it decides what counts as background
-            </p>
-            <p
-              title={
-                'Busy photographs, where there is no one background to find. Hair and fur — ' +
-                'thousands of strands thinner than the cut. Glass and anything see-through: it ' +
-                'can keep it or drop it, not both. A soft shadow touching the object, which ' +
-                'runs smoothly into the edge and takes a bite out of it. And a background that ' +
-                'fades from one colour to a different one, rather than the same colour lit ' +
-                'unevenly. Touch-up is for all five.'
-              }
-              className="-mt-2 cursor-help text-[12.5px] leading-snug text-ink-500 underline decoration-dotted underline-offset-2"
-            >
-              Five things it cannot do, and what to do instead
+            <p className="mt-1 text-[13px] text-ink-500">
+              {removeBackground
+                ? 'Removes plain or paper background from the edges.'
+                : 'Does not change or remove any background. Keeps original transparency intact (ideal for real stickers).'}
             </p>
             {removeBackground && (
-              <Control
-                label="How close a match counts as background"
-                hint="Bigger lifts more of a shaded or off-white paper, and eventually starts eating the picture."
-                value={tolerance}
-                min={2}
-                max={50}
-                onChange={setTolerance}
-              />
+              <>
+                <p
+                  title={
+                    'It works inward from the edges, so an enclosed white — the inside of an eye, ' +
+                    'the hole in a letter O — is never punched out. It follows uneven lighting ' +
+                    'across a photographed page, ignores paper grain, and cuts a soft edge rather ' +
+                    'than a staircase.'
+                  }
+                  className="-mt-2 cursor-help text-[12.5px] leading-snug text-ink-500 underline decoration-dotted underline-offset-2"
+                >
+                  How it decides what counts as background
+                </p>
+                <p
+                  title={
+                    'Busy photographs, where there is no one background to find. Hair and fur — ' +
+                    'thousands of strands thinner than the cut. Glass and anything see-through: it ' +
+                    'can keep it or drop it, not both. A soft shadow touching the object, which ' +
+                    'runs smoothly into the edge and takes a bite out of it. And a background that ' +
+                    'fades from one colour to a different one, rather than the same colour lit ' +
+                    'unevenly. Touch-up is for all five.'
+                  }
+                  className="-mt-2 cursor-help text-[12.5px] leading-snug text-ink-500 underline decoration-dotted underline-offset-2"
+                >
+                  Five things it cannot do, and what to do instead
+                </p>
+                <Control
+                  label="How close a match counts as background"
+                  hint="Bigger lifts more of a shaded or off-white paper, and eventually starts eating the picture."
+                  value={tolerance}
+                  min={2}
+                  max={50}
+                  onChange={setTolerance}
+                />
+              </>
             )}
           </Field>
         )}
@@ -2039,7 +2106,7 @@ export function StickerStudio() {
         <StudioStart
           busy={busy}
           problem={problem}
-          onFiles={(files, startMode) => void take(files?.[0], startMode)}
+          onFiles={(files, startMode, startRemoveBg) => void take(files?.[0], startMode, startRemoveBg)}
           resumable={resumable}
           onResume={(draft) => void resume(draft)}
           onDiscard={(draft) => void discard(draft)}

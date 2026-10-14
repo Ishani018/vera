@@ -17,7 +17,9 @@ import {
   compositeSticker,
   dieCutRing,
   feather,
+  hasTransparency,
   makeMask,
+  maskFromAlpha,
   maskFromInk,
   padBitmap,
   padMask,
@@ -334,7 +336,7 @@ async function makeSticker({ id, blob, settings, options }: StickerRequest): Pro
       if (options.swaps?.length) paint = applySwaps(paint, options.swaps);
       subject = options.removeBackground
         ? backgroundMask(paint, options.tolerance)
-        : makeMask(outWidth, outHeight, SOLID);
+        : (hasTransparency(paint) ? maskFromAlpha(paint) : makeMask(outWidth, outHeight, SOLID));
     } else {
       let lines = options.mode === 'cleanup' ? runCleanup(input, settings) : runLineArt(input, settings);
       if (ceiling > Math.max(width, height)) {

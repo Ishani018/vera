@@ -11,6 +11,7 @@ import {
   feather,
   grow,
   hasTransparency,
+  maskFromAlpha,
   maskFromInk,
   padBitmap,
   padMask,
@@ -277,3 +278,47 @@ test('a kept picture keeps its own colours, not a flat fill', () => {
   assert.equal(out.data[i + 3], 255);
   assert.equal(alphaAt(out, 0, 0), 0, 'and the paper went');
 });
+
+test('maskFromAlpha derives mask directly from alpha channel', () => {
+  const data = new Uint8ClampedArray(10 * 10 * 4);
+  for (let i = 0; i < 100; i++) {
+    data[i * 4 + 3] = i < 50 ? 255 : 0;
+  }
+  const mask = maskFromAlpha({ width: 10, height: 10, data });
+  assert.equal(mask.width, 10);
+  assert.equal(mask.height, 10);
+  assert.equal(mask.data[0], SOLID);
+  assert.equal(mask.data[49], SOLID);
+  assert.equal(mask.data[50], CLEAR);
+  assert.equal(mask.data[99], CLEAR);
+});
+
+test('backgroundMask does not eat transparent stickers with transparent borders', () => {
+  // A sticker that already has transparent borders and black linework inside
+  const data = new Uint8ClampedArray(20 * 20 * 4);
+  for (let y = 0; y < 20; y++) {
+    for (let x = 0; x < 20; x++) {
+      const i = (y * 20 + x) * 4;
+      if (x >= 5 && x <= 15 && y >= 5 && y <= 15) {
+        // Artwork: black lines [0, 0, 0, 255]
+        data[i] = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
+        data[i + 3] = 255;
+      } else {
+        // Transparent border: [0, 0, 0, 0]
+        data[i] = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
+        data[i + 3] = 0;
+      }
+    }
+  }
+  const source = { width: 20, height: 20, data };
+  const mask = backgroundMask(source, 14);
+  // The artwork inside must NOT be eaten
+  assert.equal(at(mask, 10, 10), SOLID, 'black linework inside the sticker survives');
+  // Border remains clear
+  assert.equal(at(mask, 0, 0), CLEAR, 'transparent border is clear');
+});
+

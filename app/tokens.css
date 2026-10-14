@@ -56,8 +56,8 @@
   --sidebar-active-text: #1B1815;
 
   /* the studio screens: a page, a card on it, and the card's edge */
-  --studio-page: #fefdfa;
-  --studio-card: #fbf8f2;
+  --studio-page: #FBF7EE;
+  --studio-card: #F5EEDF;
   --studio-line: #e4dac3;
 
   /* aliases — the names the app was written in, pointing at the roles above */
@@ -205,8 +205,8 @@
   --sidebar-active-text: #3B2433;
 
   /* the studio screens: a page, a card on it, and the card's edge */
-  --studio-page: #fffdfc;
-  --studio-card: #fef7f3;
+  --studio-page: #FFF8F3;
+  --studio-card: #FDEBE2;
   --studio-line: #f2cfbf;
 
   /* aliases — the names the app was written in, pointing at the roles above */
@@ -291,8 +291,8 @@
   --sidebar-active-text: #1F3A33;
 
   /* the studio screens: a page, a card on it, and the card's edge */
-  --studio-page: #fcfefd;
-  --studio-card: #f5faf7;
+  --studio-page: #F5FBF7;
+  --studio-card: #E6F4EC;
   --studio-line: #c5dfcf;
 
   /* aliases — the names the app was written in, pointing at the roles above */
@@ -377,8 +377,8 @@
   --sidebar-active-text: #2A2145;
 
   /* the studio screens: a page, a card on it, and the card's edge */
-  --studio-page: #fefdff;
-  --studio-card: #f9f6fd;
+  --studio-page: #FAF7FF;
+  --studio-card: #F0EAFB;
   --studio-line: #d8cdf0;
 
   /* aliases — the names the app was written in, pointing at the roles above */
@@ -463,8 +463,8 @@
   --sidebar-active-text: #111A6B;
 
   /* the studio screens: a page, a card on it, and the card's edge */
-  --studio-page: #fcfbf5;
-  --studio-card: #f7f4ea;
+  --studio-page: #F6F2E7;
+  --studio-card: #ECE6D3;
   --studio-line: #d4cbb0;
 
   /* aliases — the names the app was written in, pointing at the roles above */

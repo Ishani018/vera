@@ -1,0 +1,434 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "cats",
+      "name": "Cute Cats",
+      "tag": "pack:cats",
+      "items": [
+        {
+          "file": "Curled-Up Ginger Cat.png",
+          "name": "Curled-Up Ginger Cat",
+          "pack": "cats",
+          "path": "cats/Curled-Up Ginger Cat.png",
+          "tags": [
+            "cat",
+            "ginger cat",
+            "sleeping",
+            "kawaii",
+            "cute",
+            "animal"
+          ]
+        },
+        {
+          "file": "Pleading Kawaii Kitten.png",
+          "name": "Pleading Kawaii Kitten",
+          "pack": "cats",
+          "path": "cats/Pleading Kawaii Kitten.png",
+          "tags": [
+            "cat",
+            "kitten",
+            "kawaii",
+            "pleading",
+            "cute",
+            "animal"
+          ]
+        },
+        {
+          "file": "Sleeping Cat in Cosy Pet Bed.png",
+          "name": "Sleeping Cat in Cosy Pet Bed",
+          "pack": "cats",
+          "path": "cats/Sleeping Cat in Cosy Pet Bed.png",
+          "tags": [
+            "cat",
+            "sleeping",
+            "pet bed",
+            "cozy",
+            "cute",
+            "animal"
+          ]
+        },
+        {
+          "file": "Sleeping Ginger Cat in Box.png",
+          "name": "Sleeping Ginger Cat in Box",
+          "pack": "cats",
+          "path": "cats/Sleeping Ginger Cat in Box.png",
+          "tags": [
+            "cat",
+            "ginger cat",
+            "box",
+            "sleeping",
+            "cute",
+            "animal"
+          ]
+        },
+        {
+          "file": "Teary Chibi Cream Cat.png",
+          "name": "Teary Chibi Cream Cat",
+          "pack": "cats",
+          "path": "cats/Teary Chibi Cream Cat.png",
+          "tags": [
+            "cat",
+            "chibi",
+            "cream cat",
+            "cute",
+            "kawaii",
+            "animal"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cafe-treats",
+      "name": "Cafe & Treats",
+      "tag": "pack:cafe-treats",
+      "items": [
+        {
+          "file": "Boba Tea & Strawberry Cake.png",
+          "name": "Boba Tea & Strawberry Cake",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Boba Tea & Strawberry Cake.png",
+          "tags": [
+            "boba",
+            "bubble tea",
+            "strawberry cake",
+            "dessert",
+            "food",
+            "drink"
+          ]
+        },
+        {
+          "file": "Cheesy Pizza Slice.png",
+          "name": "Cheesy Pizza Slice",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Cheesy Pizza Slice.png",
+          "tags": [
+            "pizza",
+            "cheese",
+            "food",
+            "snack",
+            "cute"
+          ]
+        },
+        {
+          "file": "Cute Chibi Ramen.png",
+          "name": "Cute Chibi Ramen",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Cute Chibi Ramen.png",
+          "tags": [
+            "ramen",
+            "noodles",
+            "chibi",
+            "food",
+            "japanese",
+            "cute"
+          ]
+        },
+        {
+          "file": "Cute Iced Coffee.png",
+          "name": "Cute Iced Coffee",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Cute Iced Coffee.png",
+          "tags": [
+            "coffee",
+            "iced coffee",
+            "drink",
+            "cafe",
+            "cute"
+          ]
+        },
+        {
+          "file": "Cute Strawberry Teapot.png",
+          "name": "Cute Strawberry Teapot",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Cute Strawberry Teapot.png",
+          "tags": [
+            "teapot",
+            "tea",
+            "strawberry",
+            "kitchen",
+            "cute",
+            "cottagecore"
+          ]
+        },
+        {
+          "file": "Kawaii Pancake Breakfast.png",
+          "name": "Kawaii Pancake Breakfast",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Kawaii Pancake Breakfast.png",
+          "tags": [
+            "pancakes",
+            "breakfast",
+            "kawaii",
+            "food",
+            "butter",
+            "cute"
+          ]
+        },
+        {
+          "file": "Strawberry Pancake Stack.png",
+          "name": "Strawberry Pancake Stack",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Strawberry Pancake Stack.png",
+          "tags": [
+            "pancakes",
+            "strawberry",
+            "stack",
+            "dessert",
+            "breakfast",
+            "cute"
+          ]
+        },
+        {
+          "file": "Pastel Donuts in Bakery Box.png",
+          "name": "Pastel Donuts in Bakery Box",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Pastel Donuts in Bakery Box.png",
+          "tags": [
+            "donuts",
+            "bakery",
+            "box",
+            "pastel",
+            "sweets",
+            "dessert"
+          ]
+        },
+        {
+          "file": "Pastel Floral Matcha Tea.png",
+          "name": "Pastel Floral Matcha Tea",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Pastel Floral Matcha Tea.png",
+          "tags": [
+            "matcha",
+            "tea",
+            "floral",
+            "pastel",
+            "drink",
+            "zen"
+          ]
+        },
+        {
+          "file": "Cute Honey Tumbler Drink.png",
+          "name": "Cute Honey Tumbler Drink",
+          "pack": "cafe-treats",
+          "path": "cafe-treats/Cute Honey Tumbler Drink.png",
+          "tags": [
+            "drink",
+            "tumbler",
+            "honey",
+            "iced drink",
+            "cafe",
+            "cute"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cozy-aesthetic",
+      "name": "Cozy Aesthetic",
+      "tag": "pack:cozy-aesthetic",
+      "items": [
+        {
+          "file": "Cosy Book Stack with Floral Mug.png",
+          "name": "Cosy Book Stack with Floral Mug",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Cosy Book Stack with Floral Mug.png",
+          "tags": [
+            "books",
+            "mug",
+            "reading",
+            "cozy",
+            "study",
+            "floral"
+          ]
+        },
+        {
+          "file": "Cosy Pastel Laptop.png",
+          "name": "Cosy Pastel Laptop",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Cosy Pastel Laptop.png",
+          "tags": [
+            "laptop",
+            "pastel",
+            "tech",
+            "study",
+            "work",
+            "cozy"
+          ]
+        },
+        {
+          "file": "Cozy Floral Stack of Books.png",
+          "name": "Cozy Floral Stack of Books",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Cozy Floral Stack of Books.png",
+          "tags": [
+            "books",
+            "stack",
+            "floral",
+            "reading",
+            "library",
+            "cozy"
+          ]
+        },
+        {
+          "file": "Cozy Kawaii Backpack.png",
+          "name": "Cozy Kawaii Backpack",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Cozy Kawaii Backpack.png",
+          "tags": [
+            "backpack",
+            "bag",
+            "school",
+            "travel",
+            "kawaii",
+            "cozy"
+          ]
+        },
+        {
+          "file": "Kawaii Camera with Tulip Photo.png",
+          "name": "Kawaii Camera with Tulip Photo",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Kawaii Camera with Tulip Photo.png",
+          "tags": [
+            "camera",
+            "instant camera",
+            "polaroid",
+            "photo",
+            "tulip",
+            "cute"
+          ]
+        },
+        {
+          "file": "Pastel Floral Record Player.png",
+          "name": "Pastel Floral Record Player",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Pastel Floral Record Player.png",
+          "tags": [
+            "record player",
+            "vinyl",
+            "music",
+            "vintage",
+            "pastel",
+            "floral"
+          ]
+        },
+        {
+          "file": "Vintage Suitcase Record Player.png",
+          "name": "Vintage Suitcase Record Player",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Vintage Suitcase Record Player.png",
+          "tags": [
+            "record player",
+            "suitcase",
+            "vinyl",
+            "music",
+            "vintage",
+            "retro"
+          ]
+        },
+        {
+          "file": "Retro Instant Camera.png",
+          "name": "Retro Instant Camera",
+          "pack": "cozy-aesthetic",
+          "path": "cozy-aesthetic/Retro Instant Camera.png",
+          "tags": [
+            "camera",
+            "polaroid",
+            "photo",
+            "retro",
+            "vintage",
+            "photography"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skates-and-kicks",
+      "name": "Retro Skates & Kicks",
+      "tag": "pack:skates-and-kicks",
+      "items": [
+        {
+          "file": "Cute Retro Roller Skates.png",
+          "name": "Cute Retro Roller Skates",
+          "pack": "skates-and-kicks",
+          "path": "skates-and-kicks/Cute Retro Roller Skates.png",
+          "tags": [
+            "roller skates",
+            "retro",
+            "skating",
+            "shoes",
+            "cute"
+          ]
+        },
+        {
+          "file": "Kawaii Pink Inline Skates.png",
+          "name": "Kawaii Pink Inline Skates",
+          "pack": "skates-and-kicks",
+          "path": "skates-and-kicks/Kawaii Pink Inline Skates.png",
+          "tags": [
+            "inline skates",
+            "rollerblades",
+            "pink",
+            "skating",
+            "kawaii"
+          ]
+        },
+        {
+          "file": "Pink Roller Skates Duo.png",
+          "name": "Pink Roller Skates Duo",
+          "pack": "skates-and-kicks",
+          "path": "skates-and-kicks/Pink Roller Skates Duo.png",
+          "tags": [
+            "roller skates",
+            "duo",
+            "pink",
+            "skates",
+            "retro"
+          ]
+        },
+        {
+          "file": "Red High-Top Sneakers.png",
+          "name": "Red High-Top Sneakers",
+          "pack": "skates-and-kicks",
+          "path": "skates-and-kicks/Red High-Top Sneakers.png",
+          "tags": [
+            "sneakers",
+            "high-top",
+            "shoes",
+            "red",
+            "streetwear",
+            "retro"
+          ]
+        },
+        {
+          "file": "Western Cowboy Boots.png",
+          "name": "Western Cowboy Boots",
+          "pack": "skates-and-kicks",
+          "path": "skates-and-kicks/Western Cowboy Boots.png",
+          "tags": [
+            "cowboy boots",
+            "western",
+            "boots",
+            "leather",
+            "shoes",
+            "vintage"
+          ]
+        },
+        {
+          "file": "Tan Embroidered Cowboy Boots.png",
+          "name": "Tan Embroidered Cowboy Boots",
+          "pack": "skates-and-kicks",
+          "path": "skates-and-kicks/Tan Embroidered Cowboy Boots.png",
+          "tags": [
+            "cowboy boots",
+            "tan boots",
+            "embroidered",
+            "western",
+            "boots",
+            "vintage"
+          ]
+        }
+      ]
+    }
+  ]
+}

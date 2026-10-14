@@ -20,7 +20,18 @@ import type { CoverSpec, CoverSticker, CoverTemplate, LibrarySticker } from '../
 export async function listStickers(): Promise<LibrarySticker[]> {
   const db = getDb();
   if (!db) return [];
-  const rows = alive(await db.stickers.toArray());
+  let rows = alive(await db.stickers.toArray());
+  if (typeof window !== 'undefined' && !localStorage.getItem('stickers_preloaded_v1')) {
+    try {
+      const { ensurePreloadedStickers } = await import('../stickers/preload');
+      const added = await ensurePreloadedStickers();
+      if (added) {
+        rows = alive(await db.stickers.toArray());
+      }
+    } catch {
+      // Continue with current rows if preload fails
+    }
+  }
   return rows.sort((a, b) => b.createdAt - a.createdAt);
 }
 

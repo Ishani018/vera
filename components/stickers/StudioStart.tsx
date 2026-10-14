@@ -41,8 +41,8 @@ export function StudioStart({
 }: {
   busy: boolean;
   problem: string | null;
-  /** The second argument asks the studio to open in a particular mode. */
-  onFiles: (files: FileList | null, mode?: StartMode) => void;
+  /** The second argument asks the studio to open in a particular mode, and the third specifies bg removal. */
+  onFiles: (files: FileList | null, mode?: StartMode, removeBackground?: boolean) => void;
   resumable: StickerDraft | null;
   onResume: (draft: StickerDraft) => void;
   onDiscard: (draft: StickerDraft) => void;
@@ -149,12 +149,23 @@ export function StudioStart({
           <div className="mt-10">
             <NumberedLabel number="01" title="Start from" />
           </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <StartCard
+              title="Sticker"
+              caption="Keep original, no bg removal"
+              busy={busy}
+              onFiles={(files) => onFiles(files, 'asis', false)}
+              icon={
+                <>
+                  <path d="M16 4l2.5 5.5 6 .9-4.3 4.2 1 6-5.2-2.8-5.2 2.8 1-6-4.3-4.2 6-.9z" />
+                </>
+              }
+            />
             <StartCard
               title="Photo"
               caption="Cut out and outline"
               busy={busy}
-              onFiles={(files) => onFiles(files, 'asis')}
+              onFiles={(files) => onFiles(files, 'asis', true)}
               icon={
                 <>
                   <rect x="3.5" y="5" width="25" height="22" rx="3" />
