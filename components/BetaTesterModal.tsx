@@ -42,9 +42,18 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
     const handleUpdate = () => checkState();
     const handleOpenDirect = () => setIsOpen(true);
 
+    // Gently prompt after 15 seconds of exploration if not already submitted
+    const timer = setTimeout(() => {
+      const status = getUsageStatus(DEFAULT_USAGE_THRESHOLD);
+      if (!status.isSubmitted && !status.isSnoozed) {
+        setIsOpen(true);
+      }
+    }, 15000);
+
     window.addEventListener('vera:usage_updated', handleUpdate);
     window.addEventListener('vera:open_beta_modal', handleOpenDirect);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('vera:usage_updated', handleUpdate);
       window.removeEventListener('vera:open_beta_modal', handleOpenDirect);
     };
@@ -185,9 +194,8 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
 
             {/* Header info */}
             <div className="text-center">
-              <span className="mono-label inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-paper-100/70 px-3 py-0.5 text-[10.5px] uppercase tracking-wider text-ink-600">
-                <span>✨</span>
-                <span>Early Tester Access</span>
+              <span className="mono-label inline-flex items-center rounded-full border border-ink-200 bg-paper-100/70 px-3 py-0.5 text-[10.5px] uppercase tracking-wider text-ink-600">
+                Early Tester Access
               </span>
 
               <h3
