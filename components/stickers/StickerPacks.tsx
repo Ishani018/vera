@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getAsset, getAssetUrl } from '@/lib/assets';
 import { listStickers, updateSticker } from '@/lib/cover/library';
 import {
@@ -39,6 +40,7 @@ import { CARD, COLUMN, PageHead, StudioPage, cardHover, cardStyle } from '../stu
  * pack leaves this browser only as a zip somebody downloads.
  */
 export function StickerPacks() {
+  const router = useRouter();
   const [stickers, setStickers] = useState<LibrarySticker[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [chosen, setChosen] = useState<string | null>(null);
@@ -380,6 +382,15 @@ export function StickerPacks() {
                         Download zip
                       </Button>
                       <Button onClick={() => setChosen(pack.name)}>Open</Button>
+                      <Button
+                        title="Lay out this pack on a printable sticker sheet"
+                        onClick={() => {
+                          const ids = pack.stickerIds.filter(Boolean);
+                          if (ids.length) router.push(`/stickers/sheet?add=${ids.join(',')}`);
+                        }}
+                      >
+                        Put on sheet
+                      </Button>
                       {installed(pack.name) && (
                         <Button
                           disabled={busy}
@@ -440,6 +451,17 @@ export function StickerPacks() {
                   {inside.length} {inside.length === 1 ? 'sticker' : 'stickers'}
                 </span>
                 <span className="ml-auto flex flex-wrap gap-1.5">
+                  <Button
+                    variant="primary"
+                    disabled={busy || !inside.length}
+                    title="Lay out these stickers on a sheet to print or export as PNG"
+                    onClick={() => {
+                      const ids = inside.map((s) => s.id).filter(Boolean);
+                      if (ids.length) router.push(`/stickers/sheet?add=${ids.join(',')}`);
+                    }}
+                  >
+                    Put on sticker sheet
+                  </Button>
                   <Button
                     disabled={busy || !inside.length}
                     title="A zip of its pictures, saved to your downloads"
