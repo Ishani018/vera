@@ -58,12 +58,14 @@ import {
   HomeIcon,
   InstagramIcon,
   InteriorIcon,
+  LockIcon,
   PencilIcon,
   PinIcon,
   PlusIcon,
   PostcardIcon,
   SearchIcon,
   TrashIcon,
+  VideoIcon,
 } from './icons';
 import { PackIcon } from './stickers/icons';
 import { TilePreview } from './TilePreview';
@@ -610,6 +612,11 @@ export function Landing() {
     { id: 'sticker-studio', label: 'Stickers', Icon: PackIcon },
   ];
 
+  /** Media & video formats shown on the line below the first. */
+  const MEDIA_SHORTCUTS = [
+    { id: 'video-studio', label: 'Video editor', Icon: VideoIcon },
+  ];
+
 
   return (
     <main data-home className="flex h-dvh">
@@ -913,6 +920,77 @@ export function Landing() {
                         </span>
                         <span className="mono-label mt-0.5 block truncate text-ink-500" style={{ fontSize: 11 }}>
                           {tileSize(tile)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {/* Line below the first: video editor (locked & coming soon) */}
+              <ul
+                aria-label="Media & video"
+                className="mt-6 flex flex-wrap gap-7"
+              >
+                {MEDIA_SHORTCUTS.map((shortcut) => {
+                  const tile = TILES.find((one) => one.id === shortcut.id);
+                  if (!tile) return null;
+                  const Art = SILHOUETTES[shortcut.id];
+                  return (
+                    <li key={shortcut.id}>
+                      <button
+                        type="button"
+                        disabled
+                        aria-disabled="true"
+                        title="Video editor — coming soon (locked)"
+                        className="proof block w-[144px] cursor-not-allowed text-left opacity-90 transition-opacity hover:opacity-100"
+                      >
+                        <span
+                          className={cx(
+                            'plate relative block h-[150px] w-[144px] overflow-hidden rounded-[6px]',
+                            'bg-paper-100',
+                          )}
+                        >
+                          {/* The 16×4 chip that says which family this belongs to. */}
+                          <span
+                            aria-hidden="true"
+                            className="absolute left-2 top-2 block h-1 w-4 rounded-[1px]"
+                            style={{ background: CHIP[tile.category] ?? 'var(--color-ink-300)' }}
+                          />
+                          {/* Locked pill badge in top right of plate */}
+                          <span
+                            className="absolute right-2 top-2 flex items-center gap-1 rounded bg-paper-200/90 px-1.5 py-0.5 text-ink-700"
+                            style={{ border: '1px solid var(--color-ink-300)' }}
+                          >
+                            <LockIcon size={11} />
+                            <span className="mono-label" style={{ fontSize: 9, letterSpacing: '0.04em' }}>
+                              Soon
+                            </span>
+                          </span>
+                          {Art ? <Art /> : null}
+                        </span>
+                        <span className="mt-2.5 flex items-baseline justify-between gap-1">
+                          <span
+                            className="truncate text-ink-900"
+                            style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17 }}
+                          >
+                            {shortcut.label}
+                          </span>
+                          <span
+                            className="tag shrink-0 font-mono text-[9px] uppercase tracking-wider"
+                            style={{
+                              padding: '1px 5px',
+                              background: 'var(--color-paper-200)',
+                              color: 'var(--color-ink-600)',
+                              border: '1px solid var(--color-ink-300)',
+                            }}
+                          >
+                            Soon
+                          </span>
+                        </span>
+                        <span className="mono-label mt-0.5 flex items-center gap-1 truncate text-ink-500" style={{ fontSize: 11 }}>
+                          <LockIcon size={11} className="shrink-0 text-ink-400" />
+                          <span className="truncate">{tileSize(tile)}</span>
                         </span>
                       </button>
                     </li>

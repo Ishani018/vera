@@ -141,3 +141,17 @@ export const BookmarkIcon = ({ size = 20, className }: IconProps) => (
     <path d="M7 3.75h10a1 1 0 0 1 1 1V20.5l-6-3.5-6 3.5V4.75a1 1 0 0 1 1-1Z" />
   </svg>
 );
+
+export const LockIcon = ({ size = 20, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
+
+export const VideoIcon = ({ size = 20, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <rect x="3" y="5" width="14" height="14" rx="2" />
+    <path d="m17 9 4-3v12l-4-3" />
+  </svg>
+);

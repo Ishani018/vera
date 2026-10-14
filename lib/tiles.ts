@@ -151,6 +151,15 @@ export const TILES: Tile[] = [
     destination: { kind: 'design', presetId: 'bookmark' },
     art: 'bookmark',
   },
+  {
+    id: 'video-studio',
+    label: 'Video editor',
+    category: 'social',
+    size: 'Reels, shorts & audio',
+    status: 'soon',
+    destination: { kind: 'none' },
+    art: 'square',
+  },
 ];
 
 /** What the tile says underneath its name. */

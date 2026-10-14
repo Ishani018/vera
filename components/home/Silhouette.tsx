@@ -251,6 +251,52 @@ export function Stickers() {
   );
 }
 
+/** Video editor: widescreen sheet with play button and timeline track. */
+export function VideoEditor() {
+  const page = at(96, 54);
+  return (
+    <Frame>
+      <CropMarks {...page} />
+      <Sheet {...page} />
+      {/* Screen canvas */}
+      <rect
+        x={page.x + 5}
+        y={page.y + 5}
+        width={page.width - 10}
+        height={page.height - 10}
+        fill="var(--color-accentb-100)"
+        rx={2}
+      />
+      {/* Center play triangle */}
+      <polygon
+        points={`${page.x + page.width / 2 - 4},${page.y + page.height / 2 - 10} ${page.x + page.width / 2 + 8},${page.y + page.height / 2 - 2} ${page.x + page.width / 2 - 4},${page.y + page.height / 2 + 6}`}
+        fill="var(--color-accentb-500)"
+      />
+      {/* Timeline track and playhead */}
+      <rect
+        x={page.x + 8}
+        y={page.y + page.height - 13}
+        width={page.width - 16}
+        height={2}
+        fill="var(--color-ink-300)"
+      />
+      <rect
+        x={page.x + 8}
+        y={page.y + page.height - 13}
+        width={26}
+        height={2}
+        fill="var(--color-accentb-500)"
+      />
+      <circle
+        cx={page.x + 34}
+        cy={page.y + page.height - 12}
+        r={2.5}
+        fill="var(--color-accentb-500)"
+      />
+    </Frame>
+  );
+}
+
 export const SILHOUETTES: Record<string, () => React.ReactElement> = {
   'book-interior': BookInterior,
   'book-cover': BookCover,
@@ -259,4 +305,5 @@ export const SILHOUETTES: Record<string, () => React.ReactElement> = {
   postcard: Postcard,
   bookmark: Bookmark,
   'sticker-studio': Stickers,
+  'video-studio': VideoEditor,
 };
