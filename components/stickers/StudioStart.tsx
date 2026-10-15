@@ -27,39 +27,6 @@ const INSPIRATION_STICKERS = [
   { id: 'bags', label: 'Bags', path: '/stickers/cozy-aesthetic/Cozy Kawaii Backpack.png' },
 ];
 
-function CutoutIcon({ className = 'size-5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="6" cy="6" r="3" />
-      <circle cx="6" cy="18" r="3" />
-      <line x1="20" y1="4" x2="8.12" y2="15.88" />
-      <line x1="14.47" y1="14.48" x2="20" y2="20" />
-      <line x1="8.12" y1="8.12" x2="12" y2="12" />
-    </svg>
-  );
-}
-
-function WandIcon({ className = 'size-5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m15 4-2 4 4-2Z" />
-      <path d="m14 10 7-7" />
-      <path d="M9 15 3 21" />
-      <path d="M2.5 12.5 4 11l9 9-1.5 1.5a2.12 2.12 0 0 1-3 0L4 17a2.12 2.12 0 0 1 0-3l-1.5-1.5Z" />
-    </svg>
-  );
-}
-
-function DownloadIcon({ className = 'size-5' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  );
-}
-
 function UploadArrowIcon({ className = 'size-4' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -200,38 +167,36 @@ export function StudioStart({
               Turn your photos, drawings or ideas into cut-out stickers in seconds.
             </p>
 
-            {/* 3 Simple Circular Feature Bullets */}
-            <div className="mt-7 flex flex-col gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-pink-100/90 text-pink-600">
-                  <CutoutIcon className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-bold text-ink-900 leading-tight">Remove background</h3>
-                  <p className="text-[13px] text-ink-500 mt-0.5">Clean cut-outs, no hassle</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3.5">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-indigo-100/90 text-indigo-600">
-                  <WandIcon className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-bold text-ink-900 leading-tight">Turn anything into a sticker</h3>
-                  <p className="text-[13px] text-ink-500 mt-0.5">Photos, drawings, doodles</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3.5">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-amber-100/90 text-amber-700">
-                  <DownloadIcon className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-bold text-ink-900 leading-tight">Download & use anywhere</h3>
-                  <p className="text-[13px] text-ink-500 mt-0.5">For your projects, notes, and more</p>
-                </div>
-              </div>
-            </div>
+            {/* 3 Simplified Feature Highlights */}
+            <ul className="mt-6 flex flex-col gap-2.5">
+              <li className="flex items-center gap-2.5 text-[14px] text-ink-700">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-paper-200 text-ink-700" aria-hidden="true">
+                  <TickIcon size={11} />
+                </span>
+                <span>
+                  <strong className="font-semibold text-ink-900">Remove background</strong>
+                  <span className="text-ink-500"> · Clean cut-outs, no hassle</span>
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5 text-[14px] text-ink-700">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-paper-200 text-ink-700" aria-hidden="true">
+                  <TickIcon size={11} />
+                </span>
+                <span>
+                  <strong className="font-semibold text-ink-900">Turn anything into a sticker</strong>
+                  <span className="text-ink-500"> · Photos, drawings, doodles</span>
+                </span>
+              </li>
+              <li className="flex items-center gap-2.5 text-[14px] text-ink-700">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-paper-200 text-ink-700" aria-hidden="true">
+                  <TickIcon size={11} />
+                </span>
+                <span>
+                  <strong className="font-semibold text-ink-900">Download & use anywhere</strong>
+                  <span className="text-ink-500"> · For your projects, notes, and more</span>
+                </span>
+              </li>
+            </ul>
           </div>
 
           {/* Right Column: The Dashed Dropzone Card */}
