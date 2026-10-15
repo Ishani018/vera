@@ -1,7 +1,7 @@
 'use client';
 
 import { TRASH_DAYS } from '@/lib/deleted';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAssetUrl } from '@/lib/assets';
 import { Chequerboard } from '../stickers/Thumb';
 import {
@@ -61,7 +61,35 @@ export function StickerLibrary({
   useEffect(reload, [reloadKey]);
 
   const tags = allTags(stickers);
-  const shown = searchStickers(stickers, query, tag);
+
+  const tagChips = useMemo(() => {
+    const seen = new Set<string>();
+    const res: { raw: string; label: string }[] = [];
+    for (const raw of tags) {
+      const label = raw.replace(/^(pack|peck):/, '').replace(/[-_]+/g, ' ').trim();
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      res.push({ raw, label });
+    }
+    return res;
+  }, [tags]);
+
+  const shown = useMemo(() => {
+    if (!tag) return searchStickers(stickers, query, null);
+    const cleanTag = tag.replace(/^(pack|peck):/, '').toLowerCase();
+    const needle = query.trim().toLowerCase();
+    return stickers.filter((sticker) => {
+      const matchesTag = sticker.tags.some(
+        (t) => t === tag || t.replace(/^(pack|peck):/, '').toLowerCase() === cleanTag,
+      );
+      if (!matchesTag) return false;
+      if (!needle) return true;
+      return (
+        sticker.name.toLowerCase().includes(needle) ||
+        sticker.tags.some((t) => t.toLowerCase().includes(needle))
+      );
+    });
+  }, [stickers, query, tag]);
 
   const take = async (file: File | undefined) => {
     setError(null);
@@ -127,23 +155,42 @@ export function StickerLibrary({
             />
           </div>
 
-          {tags.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {tags.map((each) => (
-                <button
-                  key={each}
-                  type="button"
-                  onClick={() => setTag(tag === each ? null : each)}
-                  className={cx(
-                    'rounded-full border px-2 py-0.5 text-[11px] transition-colors',
-                    tag === each
-                      ? 'border-accent-500 bg-accent-50 text-accent-500'
-                      : 'border-ink-300 text-ink-500 hover:text-ink-900',
-                  )}
-                >
-                  {each}
-                </button>
-              ))}
+          {tagChips.length > 0 && (
+            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                type="button"
+                onClick={() => setTag(null)}
+                className={cx(
+                  'shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] transition-colors',
+                  tag === null
+                    ? 'border-accent-500 bg-accent-50 font-medium text-accent-500'
+                    : 'border-ink-300 text-ink-500 hover:text-ink-900',
+                )}
+              >
+                All
+              </button>
+              {tagChips.map(({ raw, label }) => {
+                const isSelected =
+                  tag === raw ||
+                  (tag !== null &&
+                    tag.replace(/^(pack|peck):/, '').toLowerCase() ===
+                      raw.replace(/^(pack|peck):/, '').toLowerCase());
+                return (
+                  <button
+                    key={raw}
+                    type="button"
+                    onClick={() => setTag(isSelected ? null : raw)}
+                    className={cx(
+                      'shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] transition-colors',
+                      isSelected
+                        ? 'border-accent-500 bg-accent-50 font-medium text-accent-500'
+                        : 'border-ink-300 text-ink-500 hover:text-ink-900',
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           )}
 

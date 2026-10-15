@@ -1189,9 +1189,6 @@ export function CoverDesigner<T extends CoverableBook>({
       if (found) Object.assign(found.font, patch);
     });
 
-  const empty =
-    !cover.frontImage && !cover.stickers.length && !cover.textBoxes.length;
-
   return (
     /*
       A column below `lg`, a row above it.
@@ -1458,14 +1455,6 @@ export function CoverDesigner<T extends CoverableBook>({
                 </div>
               );
             })}
-
-            {empty && (
-              <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                <span className="rounded-full bg-black/60 px-4 py-2 text-[13px] text-white">
-                  Add text, or drag a picture here
-                </span>
-              </div>
-            )}
 
             {/* Guides sit above everything: they are what makes the folds legible.
                 Read off the board, so a board with one fold draws one. */}
