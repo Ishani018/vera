@@ -8,7 +8,6 @@ import { picturesOf } from '@/lib/pictures';
 import { sheetCount } from '@/lib/render/coloringLayout';
 import { useOpenIntent } from '../openIntent';
 import { StudioHeader } from '../StudioHeader';
-import { InteriorSwitch } from '../InteriorSwitch';
 import { SegmentedControl } from '../ui';
 import { AssemblyPanel } from './AssemblyPanel';
 import { LaunchKit } from '../LaunchKit';
@@ -95,13 +94,27 @@ export function ColoringWorkspace() {
 
   return (
     <main className="flex h-dvh flex-col">
-      <StudioHeader>
-        {/* The bar is white in every palette, so its text is coloured for white. */}
-        <span className="truncate" style={{ color: 'var(--text-on-sheet)' }}>
+      <StudioHeader
+        actions={
+          mode === 'kit' ? (
+            <button
+              type="button"
+              onClick={() => setMode('export')}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-ink-100"
+              style={{ color: 'var(--text-on-sheet)' }}
+            >
+              ← Back to Export
+            </button>
+          ) : null
+        }
+      >
+        <span
+          className="max-w-[180px] sm:max-w-xs truncate font-semibold text-[14px]"
+          style={{ color: 'var(--text-on-sheet)' }}
+        >
           {book.name}
         </span>
-        <InteriorSwitch kind="coloring" />
-        <div className="ml-4">
+        <div className="ml-2">
           <SegmentedControl
             value={mode === 'kit' ? 'export' : mode}
             onChange={setMode}
@@ -112,26 +125,6 @@ export function ColoringWorkspace() {
             ]}
           />
         </div>
-        {/* The way back lives in the bar, not in a strip above the posts: the
-            board's size is worked out from the room it is given, and a strip
-            would take some of it. */}
-        {mode === 'kit' && (
-          <button
-            type="button"
-            onClick={() => setMode('export')}
-            className="shrink-0 rounded-lg px-3 py-1.5 text-[14px] transition-colors hover:bg-ink-100"
-            style={{ color: 'var(--text-on-sheet)' }}
-          >
-            ← Back to Export
-          </button>
-        )}
-        <span
-          className="ml-auto hidden shrink-0 whitespace-nowrap text-[14px] sm:inline"
-          style={{ color: 'var(--text-muted-on-sheet)' }}
-        >
-          {book.pages.length} picture{book.pages.length === 1 ? '' : 's'} · {pageCount} pages ·
-          saved on this computer
-        </span>
       </StudioHeader>
 
       {mode === 'export' ? (

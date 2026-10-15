@@ -2120,42 +2120,30 @@ export function StickerStudio() {
 
   return (
     <main className="flex h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
-      <StudioHeader>
-        {/* The title and the status are the two things a narrow window can
-            lose: the wordmark already says where you are, and the actions are
-            what the bar is for. */}
+      <StudioHeader
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 border-r border-ink-200 pr-2">
+              <Button onClick={undoHere} title="Undo (Cmd+Z)" aria-label="Undo" variant="ghost" className="!px-2 !py-1 text-[13px]">
+                ↺
+              </Button>
+              <Button onClick={redoHere} title="Redo (Cmd+Shift+Z)" aria-label="Redo" variant="ghost" className="!px-2 !py-1 text-[13px]">
+                ↻
+              </Button>
+            </div>
+            <Button disabled={busy} onClick={askForABoard} variant="ghost" className="!px-3 !py-1.5 text-[13px]">
+              Send to design
+            </Button>
+            <Button disabled={busy} onClick={() => void keep()} className="!px-3 !py-1.5 text-[13px]">
+              Save
+            </Button>
+            <Button variant="primary" disabled={busy} onClick={() => void download()} className="!px-3.5 !py-1.5 text-[13px]">
+              Download PNG
+            </Button>
+          </div>
+        }
+      >
         <StudioTitle>Sticker Studio</StudioTitle>
-
-        <span className="flex shrink-0 items-center gap-1">
-          <Button onClick={undoHere} title="Undo (Cmd+Z)" aria-label="Undo">
-            ↺
-          </Button>
-          <Button onClick={redoHere} title="Redo (Cmd+Shift+Z)" aria-label="Redo">
-            ↻
-          </Button>
-        </span>
-
-        <span className="ml-auto flex min-w-0 shrink items-center gap-2">
-          <span
-            title={
-              drafted && savedAt
-                ? 'Kept on this computer. A reload will not lose it.'
-                : 'Nothing has been written yet.'
-            }
-            className="hidden text-[12.5px] text-ink-500 lg:inline"
-          >
-            {drafted && savedAt ? `Draft kept ${when(savedAt)}` : 'Not saved yet'}
-          </span>
-          <Button disabled={busy} onClick={askForABoard}>
-            Send to a design
-          </Button>
-          <Button disabled={busy} onClick={() => void keep()}>
-            Save to My stickers
-          </Button>
-          <Button variant="primary" disabled={busy} onClick={() => void download()}>
-            Download PNG
-          </Button>
-        </span>
       </StudioHeader>
 
       {/*

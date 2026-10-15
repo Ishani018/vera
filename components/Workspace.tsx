@@ -12,11 +12,8 @@ import { MODES, ModePanel, type Mode } from './Modes';
 import { useOpenIntent } from './openIntent';
 import { PoemEditor } from './PoemEditor';
 import { Walkthrough, useWalkthrough } from './Walkthrough';
-import { UserMenu } from './UserMenu';
-import { Wordmark } from './Wordmark';
-import { PalettePicker } from './PalettePicker';
+import { StudioHeader } from './StudioHeader';
 import { Button, SegmentedControl, cx } from './ui';
-import { InteriorSwitch } from './InteriorSwitch';
 import { recordUsageAction } from '@/lib/usageGate';
 
 type Tab = 'book' | 'cover' | 'kit';
@@ -98,13 +95,51 @@ export function Workspace() {
         800 wide and took the whole page's horizontal scrollbar with it, which
         drags the manuscript sideways under the cursor.
       */}
-      <header className="flex min-w-0 items-center gap-4 overflow-x-auto border-b border-ink-200 bg-paper px-5">
-        <Wordmark />
-        <span className="truncate rounded-lg px-3 py-2" style={{ color: 'var(--text-on-sheet)' }}>
+      <StudioHeader
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 border-r border-ink-200 pr-2">
+              <Button
+                variant="ghost"
+                onClick={undo}
+                disabled={!canUndo}
+                title="Undo (Cmd+Z)"
+                aria-label="Undo"
+                className="!px-2 !py-1 text-[13px]"
+              >
+                ↺
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={redo}
+                disabled={!canRedo}
+                title="Redo (Cmd+Shift+Z)"
+                aria-label="Redo"
+                className="!px-2 !py-1 text-[13px]"
+              >
+                ↻
+              </Button>
+            </div>
+            <Button
+              variant={tab === 'book' && mode === 'export' ? 'default' : 'primary'}
+              onClick={() => {
+                recordUsageAction('export_pdf_button');
+                setTab('book');
+                setMode('export');
+              }}
+              className="!py-1.5 !px-3.5 text-[13px]"
+            >
+              Export PDF
+            </Button>
+          </div>
+        }
+      >
+        <span
+          className="max-w-[180px] sm:max-w-xs truncate font-semibold text-[14px]"
+          style={{ color: 'var(--text-on-sheet)' }}
+        >
           {project.meta.title}
         </span>
-
-        <InteriorSwitch kind="poetry" />
 
         <SegmentedControl<Tab>
           value={tab}
@@ -118,38 +153,7 @@ export function Workspace() {
             { value: 'kit', label: 'Launch kit' },
           ]}
         />
-
-        {/* shrink-0, so a narrow window scrolls the bar rather than squashing
-            every control in it into an unreadable column of letters. */}
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-0.5 border-r border-ink-200 pr-2">
-            <Button variant="ghost" onClick={undo} disabled={!canUndo} title="Undo (Cmd+Z)" aria-label="Undo" className="!px-2 !py-1">
-              ↺
-            </Button>
-            <Button variant="ghost" onClick={redo} disabled={!canRedo} title="Redo (Cmd+Shift+Z)" aria-label="Redo" className="!px-2 !py-1">
-              ↻
-            </Button>
-          </div>
-          <span className="hidden md:inline text-[13px] text-ink-500 tabular-nums px-1">
-            {pageCount ? `${pageCount} pages` : 'counting…'}
-          </span>
-          <Button variant="ghost" onClick={() => setHelpOpen(true)} title="Shortcuts & Help (?)" className="!px-2 !py-1 text-[13px]">
-            ?
-          </Button>
-          <Button
-            variant={tab === 'book' && mode === 'export' ? 'default' : 'primary'}
-            onClick={() => {
-              recordUsageAction('export_pdf_button');
-              setTab('book');
-              setMode('export');
-            }}
-          >
-            Export PDF
-          </Button>
-          <PalettePicker compact />
-          <UserMenu />
-        </div>
-      </header>
+      </StudioHeader>
 
       {tab === 'book' ? (
         <div className="grid min-h-0 flex-1 grid-cols-[88px_380px_minmax(0,1fr)]">

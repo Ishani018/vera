@@ -14,7 +14,13 @@ import { Wordmark } from './Wordmark';
  * It scrolls sideways rather than pushing the window wider: a bar that makes
  * the whole page scroll sideways takes the thing being worked on with it.
  */
-export function StudioHeader({ children }: { children?: ReactNode }) {
+export function StudioHeader({
+  children,
+  actions,
+}: {
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <header className="flex h-14 min-w-0 items-center justify-between border-b border-ink-200 bg-paper px-4 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4 overflow-x-auto">
@@ -22,6 +28,7 @@ export function StudioHeader({ children }: { children?: ReactNode }) {
         {children}
       </div>
       <div className="ml-4 flex shrink-0 items-center gap-2.5 py-1">
+        {actions}
         <PalettePicker compact />
         <UserMenu />
       </div>

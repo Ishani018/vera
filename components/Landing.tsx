@@ -836,7 +836,7 @@ export function Landing() {
           </div>
 
           <span className="ml-auto shrink-0">
-            <PalettePicker />
+            <PalettePicker compact />
           </span>
           <UserMenu />
           <button

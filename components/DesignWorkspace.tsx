@@ -154,7 +154,6 @@ export function DesignWorkspace() {
         <span className="shrink-0 text-[13px] text-ink-500">
           {preset ? `${preset.name} · ${preset.stated}` : ''}
         </span>
-        <span className="ml-auto shrink-0 text-[13px] text-ink-500">saved on this computer</span>
       </StudioHeader>
 
       <div className="min-h-0 flex-1">
