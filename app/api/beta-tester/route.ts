@@ -9,15 +9,50 @@ const RECIPIENT_EMAIL =
 const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
-const COMMON_TYPOS: Record<string, string> = {
-  'gmai.com': 'gmail.com',
-  'gamil.com': 'gmail.com',
-  'gmial.com': 'gmail.com',
-  'yaho.com': 'yahoo.com',
-  'hotmial.com': 'hotmail.com',
-  'outlok.com': 'outlook.com',
-  'iclod.com': 'icloud.com',
-};
+const POPULAR_DOMAINS = [
+  'gmail.com',
+  'yahoo.com',
+  'outlook.com',
+  'hotmail.com',
+  'icloud.com',
+  'proton.me',
+  'live.com',
+  'aol.com',
+];
+
+const DISPOSABLE_DOMAINS = new Set([
+  'mailinator.com',
+  'tempmail.com',
+  '10minutemail.com',
+  'guerrillamail.com',
+  'sharklasers.com',
+  'trashmail.com',
+  'yopmail.com',
+  'dispostable.com',
+]);
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function checkDomainTypo(domain: string): string | null {
+  for (const pop of POPULAR_DOMAINS) {
+    if (domain === pop) return null;
+    if (levenshtein(domain, pop) <= 2) return pop;
+  }
+  return null;
+}
 
 async function verifyEmail(email: string): Promise<{ valid: boolean; error?: string }> {
   const trimmed = email.trim().toLowerCase();
@@ -31,6 +66,9 @@ async function verifyEmail(email: string): Promise<{ valid: boolean; error?: str
   }
 
   const [local, domain] = parts;
+  if (local.length < 2) {
+    return { valid: false, error: 'Email username must be at least 2 characters long.' };
+  }
   if (local.length > 64) {
     return { valid: false, error: 'Email username is too long.' };
   }
@@ -38,11 +76,16 @@ async function verifyEmail(email: string): Promise<{ valid: boolean; error?: str
     return { valid: false, error: 'Email domain is too long.' };
   }
 
-  // Suggest correction for common domain typos
-  if (COMMON_TYPOS[domain]) {
+  if (DISPOSABLE_DOMAINS.has(domain)) {
+    return { valid: false, error: 'Temporary or disposable email addresses are not accepted.' };
+  }
+
+  // Suggest correction for common domain typos using edit distance
+  const suggested = checkDomainTypo(domain);
+  if (suggested) {
     return {
       valid: false,
-      error: `Did you mean @${COMMON_TYPOS[domain]} instead of @${domain}?`,
+      error: `Did you mean @${suggested} instead of @${domain}?`,
     };
   }
 

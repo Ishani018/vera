@@ -7,15 +7,50 @@ import { getUsageStatus, markBetaSubmitted, snoozeGate, DEFAULT_USAGE_THRESHOLD 
 const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
-const COMMON_TYPOS: Record<string, string> = {
-  'gmai.com': 'gmail.com',
-  'gamil.com': 'gmail.com',
-  'gmial.com': 'gmail.com',
-  'yaho.com': 'yahoo.com',
-  'hotmial.com': 'hotmail.com',
-  'outlok.com': 'outlook.com',
-  'iclod.com': 'icloud.com',
-};
+const POPULAR_DOMAINS = [
+  'gmail.com',
+  'yahoo.com',
+  'outlook.com',
+  'hotmail.com',
+  'icloud.com',
+  'proton.me',
+  'live.com',
+  'aol.com',
+];
+
+const DISPOSABLE_DOMAINS = new Set([
+  'mailinator.com',
+  'tempmail.com',
+  '10minutemail.com',
+  'guerrillamail.com',
+  'sharklasers.com',
+  'trashmail.com',
+  'yopmail.com',
+  'dispostable.com',
+]);
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function checkDomainTypo(domain: string): string | null {
+  for (const pop of POPULAR_DOMAINS) {
+    if (domain === pop) return null;
+    if (levenshtein(domain, pop) <= 2) return pop;
+  }
+  return null;
+}
 
 interface BetaTesterModalProps {
   productName?: string;
@@ -87,9 +122,23 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
       setError('Please enter a valid email address (e.g. name@example.com).');
       return;
     }
-    const domain = cleanEmail.split('@')[1];
-    if (domain && COMMON_TYPOS[domain]) {
-      setError(`Did you mean @${COMMON_TYPOS[domain]}? Please check your email.`);
+    const parts = cleanEmail.split('@');
+    if (parts.length !== 2) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    const [local, domain] = parts;
+    if (local.length < 2) {
+      setError('Email username must be at least 2 characters long.');
+      return;
+    }
+    if (DISPOSABLE_DOMAINS.has(domain)) {
+      setError('Please use your personal or work email address.');
+      return;
+    }
+    const suggested = checkDomainTypo(domain);
+    if (suggested) {
+      setError(`Did you mean @${suggested}? Please check your email.`);
       return;
     }
 
