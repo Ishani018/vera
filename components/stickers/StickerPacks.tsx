@@ -38,11 +38,11 @@ import { CARD, COLUMN, PageHead, StudioPage, cardHover, cardStyle } from '../stu
  * Private and local throughout. Nothing is shared, nothing is browsable, and a
  * pack leaves this browser only as a zip somebody downloads.
  */
-export function StickerPacks() {
+export function StickerPacks({ initialPack = null }: { initialPack?: string | null } = {}) {
   const router = useRouter();
   const [stickers, setStickers] = useState<LibrarySticker[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(initialPack);
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);

@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getAssetUrl } from '@/lib/assets';
 import { listStickers } from '@/lib/cover/library';
 import { listDrafts } from '@/lib/stickers/drafts';
+import { packsIn, type Pack } from '@/lib/stickers/packs';
 import { when } from '@/lib/when';
 import type { LibrarySticker, StickerDraft } from '@/lib/types';
 import { Button, Notice, cx } from '../ui';
-import { Chequerboard, Thumb } from './Thumb';
+import { Chequerboard, Fan, Thumb } from './Thumb';
 import { StudioPage } from '../studio/Shell';
-import { TickIcon } from './icons';
+import { PackIcon, TickIcon } from './icons';
 
 export type StartMode = 'convert' | 'cleanup' | 'asis';
 
@@ -58,10 +59,13 @@ export function StudioStart({
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [tab, setTab] = useState<'packs' | 'stickers'>('packs');
+
+  const packs = useMemo(() => packsIn(stickers), [stickers]);
 
   useEffect(() => {
     void Promise.all([listStickers(), listDrafts()]).then(([rows, drafted]) => {
-      setStickers([...rows].sort((a, b) => b.createdAt - a.createdAt).slice(0, 24));
+      setStickers([...rows].sort((a, b) => b.createdAt - a.createdAt));
       setDrafts([...drafted].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6));
       setLoaded(true);
     });
@@ -355,49 +359,170 @@ export function StudioStart({
           </div>
         </section>
 
-        {/* Your Stickers Section (if any user stickers exist) */}
-        {loaded && stickers.length > 0 && (
-          <section className="mt-9 rounded-3xl border border-ink-200/80 bg-paper-50/70 p-6 sm:p-7 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-[20px] font-bold text-ink-900 tracking-tight">
-                  Your Stickers
-                </h2>
-                <span className="rounded-full bg-ink-200/80 px-2.5 py-0.5 text-[12px] font-semibold text-ink-700">
-                  {stickers.length}
-                </span>
+        {/* Packs & Stickers Section */}
+        {loaded && (stickers.length > 0 || packs.length > 0) && (
+          <section className="mt-9 rounded-3xl border border-ink-300/40 bg-paper-50/70 p-6 sm:p-7 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+              {/* Toggle switch between Packs & All Stickers */}
+              <div className="flex items-center gap-1 rounded-2xl bg-paper-200/80 p-1 border border-ink-300/30 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setTab('packs')}
+                  className={cx(
+                    'flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-[13.5px] font-semibold transition-all cursor-pointer',
+                    tab === 'packs'
+                      ? 'bg-sheet text-ink-900 shadow-sm'
+                      : 'text-ink-700 hover:text-ink-900',
+                  )}
+                >
+                  <PackIcon size={16} />
+                  <span>Packs</span>
+                  <span
+                    className={cx(
+                      'rounded-full px-2 py-0.5 text-[11px] font-bold',
+                      tab === 'packs' ? 'bg-paper-200 text-ink-900' : 'bg-paper-300/60 text-ink-700',
+                    )}
+                  >
+                    {packs.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab('stickers')}
+                  className={cx(
+                    'flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-[13.5px] font-semibold transition-all cursor-pointer',
+                    tab === 'stickers'
+                      ? 'bg-sheet text-ink-900 shadow-sm'
+                      : 'text-ink-700 hover:text-ink-900',
+                  )}
+                >
+                  <span>All Stickers</span>
+                  <span
+                    className={cx(
+                      'rounded-full px-2 py-0.5 text-[11px] font-bold',
+                      tab === 'stickers' ? 'bg-paper-200 text-ink-900' : 'bg-paper-300/60 text-ink-700',
+                    )}
+                  >
+                    {stickers.length}
+                  </span>
+                </button>
               </div>
-              {picked.length > 0 && (
-                <span className="flex items-center gap-2">
-                  <Button variant="primary" onClick={toSheet} className="!py-1.5 !px-3.5 text-[13px]">
-                    Put {picked.length} on a sheet
-                  </Button>
-                  <Button onClick={() => setPicked([])} className="!py-1.5 !px-3 text-[13px]">
-                    Clear
-                  </Button>
-                </span>
+
+              {/* Action buttons on the right */}
+              {tab === 'packs' ? (
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/stickers/packs"
+                    className="group inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-700 hover:text-accenta-700 transition-colors"
+                  >
+                    <span>Manage packs</span>
+                    <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                  </Link>
+                </div>
+              ) : (
+                picked.length > 0 && (
+                  <span className="flex items-center gap-2">
+                    <Button variant="primary" onClick={toSheet} className="!py-1.5 !px-3.5 text-[13px]">
+                      Put {picked.length} on a sheet
+                    </Button>
+                    <Button onClick={() => setPicked([])} className="!py-1.5 !px-3 text-[13px]">
+                      Clear
+                    </Button>
+                  </span>
+                )
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3.5 sm:grid-cols-5 md:grid-cols-8">
-              {stickers.map((sticker) => (
-                <Thumb
-                  key={sticker.id}
-                  url={urls[sticker.id]}
-                  name={sticker.name}
-                  title={`${sticker.name}${sticker.tags.length ? ` · ${sticker.tags.join(', ')}` : ''}`}
-                  selected={picked.includes(sticker.id)}
-                  onClick={() => pick(sticker.id)}
-                  badge={
-                    picked.includes(sticker.id) ? (
-                      <span className="pointer-events-none absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-accent-500 text-paper shadow">
-                        <TickIcon size={12} />
+            {/* Content: Packs Grid vs All Stickers Grid */}
+            {tab === 'packs' ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {packs.map((pack) => (
+                  <div
+                    key={pack.tag}
+                    className="group flex flex-col justify-between rounded-2xl border border-ink-300/50 bg-sheet p-3.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-500 hover:shadow-md"
+                  >
+                    <Link
+                      href={`/stickers/packs?pack=${encodeURIComponent(pack.name)}`}
+                      className="block text-left"
+                    >
+                      <Fan
+                        urls={pack.stickerIds.map((id) => urls[id])}
+                        name={pack.name}
+                        className="transition-colors group-hover:border-accentb-500"
+                      />
+                      <span
+                        className="mt-3 block truncate tracking-tight text-ink-900 font-semibold text-[15px]"
+                        style={{ fontFamily: 'var(--font-display)' }}
+                      >
+                        {pack.name}
                       </span>
-                    ) : null
-                  }
-                />
-              ))}
-            </div>
+                      <span className="mt-0.5 block text-[12px] text-ink-500">
+                        {pack.stickerIds.length} {pack.stickerIds.length === 1 ? 'sticker' : 'stickers'}
+                      </span>
+                    </Link>
+
+                    <div className="mt-3.5 flex items-center gap-2 pt-2 border-t border-paper-200">
+                      <Link
+                        href={`/stickers/packs?pack=${encodeURIComponent(pack.name)}`}
+                        className="inline-flex flex-1 items-center justify-center rounded-lg border border-ink-300/80 px-2.5 py-1 text-[12px] font-medium text-ink-700 hover:bg-paper-100 transition-colors"
+                      >
+                        Open
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ids = pack.stickerIds.filter(Boolean);
+                          if (ids.length) router.push(`/stickers/sheet?add=${ids.join(',')}`);
+                        }}
+                        title="Put this pack on a printable sheet"
+                        className="inline-flex items-center justify-center rounded-lg bg-paper-200 px-2.5 py-1 text-[12px] font-medium text-ink-700 hover:bg-paper-300 transition-colors cursor-pointer"
+                      >
+                        Sheet
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add new pack prompt card */}
+                <Link
+                  href="/stickers/packs"
+                  className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-300/60 p-4 text-center transition-colors hover:border-accenta-500 hover:bg-paper-100/50"
+                >
+                  <span className="grid size-10 place-items-center rounded-full bg-paper-200 text-ink-700">
+                    <PackIcon size={20} />
+                  </span>
+                  <span
+                    className="font-semibold text-ink-900 text-[14px]"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    Start or install pack
+                  </span>
+                  <span className="text-[12px] text-ink-500">
+                    Zip import or custom group
+                  </span>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3.5 sm:grid-cols-5 md:grid-cols-8">
+                {stickers.map((sticker) => (
+                  <Thumb
+                    key={sticker.id}
+                    url={urls[sticker.id]}
+                    name={sticker.name}
+                    title={`${sticker.name}${sticker.tags.length ? ` · ${sticker.tags.join(', ')}` : ''}`}
+                    selected={picked.includes(sticker.id)}
+                    onClick={() => pick(sticker.id)}
+                    badge={
+                      picked.includes(sticker.id) ? (
+                        <span className="pointer-events-none absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-accenta-500 text-white shadow">
+                          <TickIcon size={12} />
+                        </span>
+                      ) : null
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </section>
         )}
       </div>
