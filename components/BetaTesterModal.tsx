@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Spinner } from './ui';
 import { getUsageStatus, markBetaSubmitted, snoozeGate, DEFAULT_USAGE_THRESHOLD } from '@/lib/usageGate';
+import { useUser } from '@/lib/auth/useUser';
 
 const EMAIL_REGEX =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
@@ -57,6 +58,7 @@ interface BetaTesterModalProps {
 }
 
 export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps) {
+  const { configured: authConfigured, user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -65,6 +67,13 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      if (user.name) setName(user.name);
+      if (user.email) setEmail(user.email);
+    }
+  }, [user]);
 
   useEffect(() => {
     // Check initial state or URL override for testing (e.g. ?beta_gate=1 or ?test_gate=1 or ?reset_gate=1)
@@ -109,37 +118,42 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const effectiveName = (user?.name || name).trim();
+    const effectiveEmail = (user?.email || email).trim().toLowerCase();
+
+    if (!effectiveName) {
       setError('Please enter your name.');
       return;
     }
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
+    if (!effectiveEmail) {
       setError('Please enter your email address.');
       return;
     }
-    if (!EMAIL_REGEX.test(cleanEmail)) {
-      setError('Please enter a valid email address (e.g. name@example.com).');
-      return;
-    }
-    const parts = cleanEmail.split('@');
-    if (parts.length !== 2) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    const [local, domain] = parts;
-    if (local.length < 2) {
-      setError('Email username must be at least 2 characters long.');
-      return;
-    }
-    if (DISPOSABLE_DOMAINS.has(domain)) {
-      setError('Please use your personal or work email address.');
-      return;
-    }
-    const suggested = checkDomainTypo(domain);
-    if (suggested) {
-      setError(`Did you mean @${suggested}? Please check your email.`);
-      return;
+
+    if (!user) {
+      if (!EMAIL_REGEX.test(effectiveEmail)) {
+        setError('Please enter a valid email address (e.g. name@example.com).');
+        return;
+      }
+      const parts = effectiveEmail.split('@');
+      if (parts.length !== 2) {
+        setError('Please enter a valid email address.');
+        return;
+      }
+      const [local, domain] = parts;
+      if (local.length < 2) {
+        setError('Email username must be at least 2 characters long.');
+        return;
+      }
+      if (DISPOSABLE_DOMAINS.has(domain)) {
+        setError('Please use your personal or work email address.');
+        return;
+      }
+      const suggested = checkDomainTypo(domain);
+      if (suggested) {
+        setError(`Did you mean @${suggested}? Please check your email.`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -150,11 +164,12 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
+          name: effectiveName,
+          email: effectiveEmail,
           note: note.trim(),
           actionCount,
           productName,
+          verifiedWithGoogle: Boolean(user && user.email.toLowerCase() === effectiveEmail),
         }),
       });
 
@@ -163,7 +178,7 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
         throw new Error(data.error || 'Failed to submit details');
       }
 
-      markBetaSubmitted(email.trim());
+      markBetaSubmitted(effectiveEmail);
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -292,39 +307,100 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
               </div>
             )}
 
-            {/* Clean Form */}
-            <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
-              <div>
-                <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder="e.g. Ishani"
-                  className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
-                />
+            {/* Google Verification Banner or 1-Click Button */}
+            {user ? (
+              <div className="mt-4 flex items-center gap-3 rounded-[10px] border border-ink-200 bg-paper-100/70 p-3">
+                {user.picture ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.picture}
+                    alt=""
+                    className="size-9 shrink-0 rounded-full border border-ink-300 object-cover"
+                  />
+                ) : (
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-[13px] font-semibold text-paper">
+                    {(user.name || user.email).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[13.5px] font-semibold text-ink-900">{user.name}</span>
+                    <span className="shrink-0 rounded-full border border-ink-300 bg-paper px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-ink-700">
+                      Google Verified
+                    </span>
+                  </div>
+                  <span className="block truncate text-[12px] text-ink-500">{user.email}</span>
+                </div>
               </div>
+            ) : authConfigured ? (
+              <div className="mt-4">
+                <a
+                  href={`/api/auth/google?returnTo=${encodeURIComponent(
+                    typeof window !== 'undefined'
+                      ? window.location.pathname + window.location.search + (window.location.search.includes('?') ? '&' : '?') + 'beta_gate=1'
+                      : '/'
+                  )}`}
+                  className="btn btn-default inline-flex w-full items-center justify-center gap-2.5 rounded-[9px] border px-4 py-2.5 text-[14px] font-medium transition-all shadow-2xs hover:border-ink-900"
+                  style={{
+                    borderColor: 'var(--studio-line)',
+                    background: 'var(--studio-card)',
+                    color: 'var(--color-ink-900)',
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/google-g.svg" alt="" className="size-4 shrink-0" />
+                  <span>1-Click Verify with Google</span>
+                </a>
 
-              <div>
-                <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder="your.email@example.com"
-                  className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
-                />
+                <div className="relative my-4 flex items-center justify-center">
+                  <div className="w-full border-t border-ink-200" />
+                  <span
+                    className="absolute px-3 text-[11px] uppercase tracking-wider text-ink-400"
+                    style={{ background: 'var(--surface-raised)' }}
+                  >
+                    or enter manually
+                  </span>
+                </div>
               </div>
+            ) : null}
+
+            {/* Clean Form */}
+            <form onSubmit={handleSubmit} className="mt-3.5 space-y-3.5">
+              {!user && (
+                <>
+                  <div>
+                    <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      placeholder="e.g. Ishani"
+                      className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      placeholder="your.email@example.com"
+                      className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
@@ -354,6 +430,8 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
                       <Spinner size={14} />
                       <span>Sending...</span>
                     </span>
+                  ) : user ? (
+                    'Submit Verified Application'
                   ) : (
                     'Join Tester Circle'
                   )}

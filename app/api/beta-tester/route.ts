@@ -138,7 +138,7 @@ async function verifyEmail(email: string): Promise<{ valid: boolean; error?: str
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, note, actionCount, productName = 'Studio' } = body || {};
+    const { name, email, note, actionCount, productName = 'Studio', verifiedWithGoogle = false } = body || {};
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ ok: false, error: 'Name is required' }, { status: 400 });
@@ -148,9 +148,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Valid email is required' }, { status: 400 });
     }
 
-    const check = await verifyEmail(email);
-    if (!check.valid) {
-      return NextResponse.json({ ok: false, error: check.error || 'Invalid email address' }, { status: 400 });
+    const isVerified = Boolean(verifiedWithGoogle);
+    if (!isVerified) {
+      const check = await verifyEmail(email);
+      if (!check.valid) {
+        return NextResponse.json({ ok: false, error: check.error || 'Invalid email address' }, { status: 400 });
+      }
     }
 
     const lead = {
@@ -159,6 +162,7 @@ export async function POST(req: Request) {
       note: note ? String(note).trim() : '',
       actionCount: typeof actionCount === 'number' ? actionCount : 0,
       product: String(productName).trim(),
+      verifiedWithGoogle: isVerified,
       submittedAt: new Date().toISOString(),
       recipient: RECIPIENT_EMAIL,
     };
@@ -167,7 +171,7 @@ export async function POST(req: Request) {
     console.log('\n======================================================');
     console.log('[NEW EARLY TESTER APPLICATION]');
     console.log(`Name:      ${lead.name}`);
-    console.log(`Email:     ${lead.email}`);
+    console.log(`Email:     ${lead.email} ${lead.verifiedWithGoogle ? '[Verified via Google]' : ''}`);
     if (lead.note) {
       console.log(`Note:      ${lead.note}`);
     }
@@ -223,7 +227,7 @@ export async function POST(req: Request) {
             html: `
               <h2>New ${lead.product} Beta Tester Application</h2>
               <p><strong>Name:</strong> ${lead.name}</p>
-              <p><strong>Email:</strong> <a href="mailto:${lead.email}">${lead.email}</a></p>
+              <p><strong>Email:</strong> <a href="mailto:${lead.email}">${lead.email}</a> ${lead.verifiedWithGoogle ? '<span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:10px;background:#e6f4ea;color:#137333;font-size:11px;font-weight:600;">Verified via Google</span>' : ''}</p>
               ${lead.note ? `<p><strong>Note:</strong> ${lead.note}</p>` : ''}
               <p><strong>Usage Actions:</strong> ${lead.actionCount}</p>
               <p><strong>Submitted At:</strong> ${lead.submittedAt}</p>
