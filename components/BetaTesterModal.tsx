@@ -4,6 +4,19 @@ import { useEffect, useState } from 'react';
 import { Spinner } from './ui';
 import { getUsageStatus, markBetaSubmitted, snoozeGate, DEFAULT_USAGE_THRESHOLD } from '@/lib/usageGate';
 
+const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+const COMMON_TYPOS: Record<string, string> = {
+  'gmai.com': 'gmail.com',
+  'gamil.com': 'gmail.com',
+  'gmial.com': 'gmail.com',
+  'yaho.com': 'yahoo.com',
+  'hotmial.com': 'hotmail.com',
+  'outlok.com': 'outlook.com',
+  'iclod.com': 'icloud.com',
+};
+
 interface BetaTesterModalProps {
   productName?: string;
 }
@@ -65,8 +78,18 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
       setError('Please enter your name.');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
-      setError('Please enter a valid email address.');
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      setError('Please enter a valid email address (e.g. name@example.com).');
+      return;
+    }
+    const domain = cleanEmail.split('@')[1];
+    if (domain && COMMON_TYPOS[domain]) {
+      setError(`Did you mean @${COMMON_TYPOS[domain]}? Please check your email.`);
       return;
     }
 

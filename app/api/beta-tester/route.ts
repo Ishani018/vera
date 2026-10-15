@@ -1,9 +1,96 @@
 import { NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
+import dns from 'node:dns/promises';
 
 const RECIPIENT_EMAIL =
   process.env.RESEND_RECIPIENT_EMAIL || 'ishani.chakraborty.2005@gmail.com';
+
+const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+const COMMON_TYPOS: Record<string, string> = {
+  'gmai.com': 'gmail.com',
+  'gamil.com': 'gmail.com',
+  'gmial.com': 'gmail.com',
+  'yaho.com': 'yahoo.com',
+  'hotmial.com': 'hotmail.com',
+  'outlok.com': 'outlook.com',
+  'iclod.com': 'icloud.com',
+};
+
+async function verifyEmail(email: string): Promise<{ valid: boolean; error?: string }> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || !EMAIL_REGEX.test(trimmed)) {
+    return { valid: false, error: 'Please provide a valid email format (e.g. name@example.com).' };
+  }
+
+  const parts = trimmed.split('@');
+  if (parts.length !== 2) {
+    return { valid: false, error: 'Email must contain exactly one @ symbol.' };
+  }
+
+  const [local, domain] = parts;
+  if (local.length > 64) {
+    return { valid: false, error: 'Email username is too long.' };
+  }
+  if (domain.length > 255) {
+    return { valid: false, error: 'Email domain is too long.' };
+  }
+
+  // Suggest correction for common domain typos
+  if (COMMON_TYPOS[domain]) {
+    return {
+      valid: false,
+      error: `Did you mean @${COMMON_TYPOS[domain]} instead of @${domain}?`,
+    };
+  }
+
+  // DNS MX record verification to confirm domain can receive email
+  try {
+    const mxRecords = await Promise.race([
+      dns.resolveMx(domain),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('DNS_TIMEOUT')), 3000),
+      ),
+    ]);
+
+    if (mxRecords && mxRecords.length > 0) {
+      return { valid: true };
+    }
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    const message = (err as Error)?.message;
+
+    if (code === 'ENOTFOUND' || code === 'ENODATA' || code === 'EREFUSED') {
+      try {
+        const aRecords = await dns.resolve4(domain);
+        if (aRecords && aRecords.length > 0) {
+          return { valid: true };
+        }
+      } catch {
+        return {
+          valid: false,
+          error: `The email domain "${domain}" does not exist or has no active mail servers.`,
+        };
+      }
+      return {
+        valid: false,
+        error: `The email domain "${domain}" is not configured to receive emails.`,
+      };
+    }
+
+    if (message === 'DNS_TIMEOUT') {
+      console.warn(`DNS lookup timed out for ${domain}, proceeding with format validation.`);
+      return { valid: true };
+    }
+
+    console.warn(`DNS check skipped for ${domain}:`, message);
+    return { valid: true };
+  }
+
+  return { valid: true };
+}
 
 export async function POST(req: Request) {
   try {
@@ -14,13 +101,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Name is required' }, { status: 400 });
     }
 
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
+    if (!email || typeof email !== 'string') {
       return NextResponse.json({ ok: false, error: 'Valid email is required' }, { status: 400 });
+    }
+
+    const check = await verifyEmail(email);
+    if (!check.valid) {
+      return NextResponse.json({ ok: false, error: check.error || 'Invalid email address' }, { status: 400 });
     }
 
     const lead = {
       name: name.trim(),
-      email: email.trim(),
+      email: email.trim().toLowerCase(),
       note: note ? String(note).trim() : '',
       actionCount: typeof actionCount === 'number' ? actionCount : 0,
       product: String(productName).trim(),
@@ -30,15 +122,15 @@ export async function POST(req: Request) {
 
     // 1. Console log for immediate local terminal visibility
     console.log('\n======================================================');
-    console.log('🎉 [NEW EARLY TESTER APPLICATION]');
-    console.log(`👤 Name:      ${lead.name}`);
-    console.log(`✉️  Email:     ${lead.email}`);
+    console.log('[NEW EARLY TESTER APPLICATION]');
+    console.log(`Name:      ${lead.name}`);
+    console.log(`Email:     ${lead.email}`);
     if (lead.note) {
-      console.log(`💬 Note:      ${lead.note}`);
+      console.log(`Note:      ${lead.note}`);
     }
-    console.log(`📊 Actions:   ${lead.actionCount}`);
-    console.log(`📬 Send To:   ${RECIPIENT_EMAIL}`);
-    console.log(`⏰ Time:      ${lead.submittedAt}`);
+    console.log(`Actions:   ${lead.actionCount}`);
+    console.log(`Send To:   ${RECIPIENT_EMAIL}`);
+    console.log(`Time:      ${lead.submittedAt}`);
     console.log('======================================================\n');
 
     // 2. Persist to local data/beta-testers.json so no lead is ever lost locally
