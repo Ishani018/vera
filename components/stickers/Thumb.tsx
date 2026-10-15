@@ -100,7 +100,7 @@ export function Thumb({
       >
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={name} className="max-h-[88%] max-w-[88%] object-contain [filter:drop-shadow(0_3px_5px_rgba(0,0,0,0.18))]" />
+          <img src={url} alt={name} className="max-h-[88%] max-w-[88%] object-contain" />
         ) : (
           <span className="text-[11px] text-ink-500">no picture</span>
         )}
