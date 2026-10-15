@@ -60,6 +60,7 @@ interface BetaTesterModalProps {
 export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps) {
   const { configured: authConfigured, user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
+  const [useEmail, setUseEmail] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [note, setNote] = useState('');
@@ -307,149 +308,205 @@ export function BetaTesterModal({ productName = 'Studio' }: BetaTesterModalProps
               </div>
             )}
 
-            {/* Google Verification Banner or 1-Click Button */}
+            {/* Signed-in user view */}
             {user ? (
-              <div className="mt-4 flex items-center gap-3 rounded-[10px] border border-ink-200 bg-paper-100/70 p-3">
-                {user.picture ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.picture}
-                    alt=""
-                    className="size-9 shrink-0 rounded-full border border-ink-300 object-cover"
-                  />
-                ) : (
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-[13px] font-semibold text-paper">
-                    {(user.name || user.email).charAt(0).toUpperCase()}
+              <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
+                <div className="flex items-center gap-3 rounded-[12px] border border-ink-200 bg-paper-100/70 p-3.5 text-left">
+                  {user.picture ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.picture}
+                      alt=""
+                      className="size-10 shrink-0 rounded-full border border-ink-300 object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink-900 text-[14px] font-semibold text-paper">
+                      {(user.name || user.email).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-[14px] font-semibold text-ink-900">{user.name}</span>
+                      <span className="shrink-0 rounded-full border border-ink-300 bg-paper px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-ink-700">
+                        Verified
+                      </span>
+                    </div>
+                    <span className="block truncate text-[12.5px] text-ink-500">{user.email}</span>
                   </div>
-                )}
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[13.5px] font-semibold text-ink-900">{user.name}</span>
-                    <span className="shrink-0 rounded-full border border-ink-300 bg-paper px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-ink-700">
-                      Google Verified
-                    </span>
-                  </div>
-                  <span className="block truncate text-[12px] text-ink-500">{user.email}</span>
                 </div>
-              </div>
-            ) : authConfigured ? (
-              <div className="mt-4">
+
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5 text-left">
+                    What are you creating? <span className="text-ink-400 font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Poetry book, video reels, covers, stickers..."
+                    className="w-full resize-none rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2 text-[13.5px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors leading-relaxed"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center gap-2.5">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 rounded-[8px] py-2.5 px-4 text-[14px] font-[550] shadow-xs transition-all hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      background: 'var(--color-ink-900)',
+                      color: 'var(--color-paper-50)',
+                    }}
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Spinner size={14} />
+                        <span>Sending...</span>
+                      </span>
+                    ) : (
+                      'Join Tester Circle'
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSnooze}
+                    className="rounded-[8px] border border-ink-200 bg-paper px-4 py-2.5 text-[13px] font-medium text-ink-600 hover:bg-paper-100 hover:text-ink-900 transition-colors"
+                  >
+                    Maybe Later
+                  </button>
+                </div>
+              </form>
+            ) : !useEmail && authConfigured ? (
+              /* Default Clean Choice: 1-Click Google or Switch to Email */
+              <div className="pt-4 pb-1 text-center">
                 <a
                   href={`/api/auth/google?returnTo=${encodeURIComponent(
                     typeof window !== 'undefined'
                       ? window.location.pathname + window.location.search + (window.location.search.includes('?') ? '&' : '?') + 'beta_gate=1'
                       : '/'
                   )}`}
-                  className="btn btn-default inline-flex w-full items-center justify-center gap-2.5 rounded-[9px] border px-4 py-2.5 text-[14px] font-medium transition-all shadow-2xs hover:border-ink-900"
-                  style={{
-                    borderColor: 'var(--studio-line)',
-                    background: 'var(--studio-card)',
-                    color: 'var(--color-ink-900)',
-                  }}
+                  className="btn btn-default flex w-full items-center justify-center gap-3 rounded-[10px] border border-ink-300 bg-paper py-3 px-4 text-[14.5px] font-semibold text-ink-900 shadow-2xs hover:border-ink-900 hover:bg-paper-100 transition-all"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/google-g.svg" alt="" className="size-4 shrink-0" />
-                  <span>1-Click Verify with Google</span>
+                  <img src="/google-g.svg" alt="" className="size-4.5 shrink-0" />
+                  <span>Continue with Google</span>
                 </a>
 
-                <div className="relative my-4 flex items-center justify-center">
-                  <div className="w-full border-t border-ink-200" />
-                  <span
-                    className="absolute px-3 text-[11px] uppercase tracking-wider text-ink-400"
-                    style={{ background: 'var(--surface-raised)' }}
+                <div className="mt-4 flex flex-col items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseEmail(true);
+                      setError(null);
+                    }}
+                    className="text-[13px] text-ink-600 hover:text-ink-900 underline transition-colors"
                   >
-                    or enter manually
-                  </span>
+                    or use email address
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSnooze}
+                    className="text-[12px] text-ink-400 hover:text-ink-600 transition-colors pt-2"
+                  >
+                    Maybe later
+                  </button>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              /* Email Form View */
+              <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
+                    Your Name
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    placeholder="e.g. Ishani"
+                    className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
+                  />
+                </div>
 
-            {/* Clean Form */}
-            <form onSubmit={handleSubmit} className="mt-3.5 space-y-3.5">
-              {!user && (
-                <>
-                  <div>
-                    <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => {
-                        setName(e.target.value);
-                        if (error) setError(null);
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    placeholder="your.email@example.com"
+                    className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
+                    What are you creating? <span className="text-ink-400 font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Poetry book, video reels, covers, stickers..."
+                    className="w-full resize-none rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2 text-[13.5px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors leading-relaxed"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center gap-2.5">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 rounded-[8px] py-2.5 px-4 text-[14px] font-[550] shadow-xs transition-all hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      background: 'var(--color-ink-900)',
+                      color: 'var(--color-paper-50)',
+                    }}
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Spinner size={14} />
+                        <span>Sending...</span>
+                      </span>
+                    ) : (
+                      'Join Tester Circle'
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSnooze}
+                    className="rounded-[8px] border border-ink-200 bg-paper px-4 py-2.5 text-[13px] font-medium text-ink-600 hover:bg-paper-100 hover:text-ink-900 transition-colors"
+                  >
+                    Maybe Later
+                  </button>
+                </div>
+
+                {authConfigured && (
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUseEmail(false);
+                        setError(null);
                       }}
-                      placeholder="e.g. Ishani"
-                      className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
-                    />
+                      className="text-[12px] text-ink-500 hover:text-ink-900 transition-colors"
+                    >
+                      ← Back to Google sign-in
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (error) setError(null);
-                      }}
-                      placeholder="your.email@example.com"
-                      className="w-full rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2.5 text-[14px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-[12.5px] font-semibold text-ink-700 mb-1.5">
-                  What are you creating? <span className="text-ink-400 font-normal">(optional)</span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Poetry book, video reels, covers, stickers..."
-                  className="w-full resize-none rounded-[8px] border border-ink-300 bg-paper px-3.5 py-2 text-[13.5px] text-ink-900 shadow-2xs placeholder:text-ink-400 focus:border-ink-900 focus:outline-hidden transition-colors leading-relaxed"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center gap-2.5">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 rounded-[8px] py-2.5 px-4 text-[14px] font-[550] shadow-xs transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{
-                    background: 'var(--color-ink-900)',
-                    color: 'var(--color-paper-50)',
-                  }}
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Spinner size={14} />
-                      <span>Sending...</span>
-                    </span>
-                  ) : user ? (
-                    'Submit Verified Application'
-                  ) : (
-                    'Join Tester Circle'
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSnooze}
-                  className="rounded-[8px] border border-ink-200 bg-paper px-4 py-2.5 text-[13px] font-medium text-ink-600 hover:bg-paper-100 hover:text-ink-900 transition-colors"
-                >
-                  Maybe Later
-                </button>
-              </div>
-
-              <p className="text-center text-[11px] text-ink-400 pt-1">
-                Direct dispatch to <span className="font-mono text-ink-600">ishani.chakraborty.2005@gmail.com</span>
-              </p>
-            </form>
+                )}
+              </form>
+            )}
           </div>
         )}
       </div>
