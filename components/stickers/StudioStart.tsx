@@ -217,7 +217,7 @@ export function StudioStart({
               <img
                 src="/sticker-polaroids.png"
                 alt=""
-                className="h-16 w-auto object-contain select-none mb-3 [filter:drop-shadow(0_3px_5px_rgba(0,0,0,0.06))]"
+                className="h-20 sm:h-22 w-auto object-contain select-none mb-3 [filter:drop-shadow(0_3px_5px_rgba(0,0,0,0.06))]"
               />
 
               <h2 className="text-[21px] font-bold text-ink-900 tracking-tight">
