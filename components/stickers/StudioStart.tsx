@@ -165,10 +165,10 @@ export function StudioStart({
   return (
     <StudioPage>
       <div className="mx-auto w-full max-w-[1200px] px-6 sm:px-10 py-7 sm:py-9">
-        {/* Hero Section: 3-Column Studio Desk Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-6 items-center">
-          {/* Left Column: Heading, Subtitle & 3 Value Props */}
-          <div className="lg:col-span-5 flex flex-col justify-center">
+        {/* Hero Section: Clean 2-Column Studio Desk Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-14 items-center">
+          {/* Left Column: Heading, Subtitle & 3 Simple Value Props */}
+          <div className="flex flex-col justify-center">
             {/* Eyebrow Badge */}
             <div className="mb-3">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-300/60 bg-paper-100/70 px-3 py-1 text-[11px] font-semibold tracking-widest text-ink-600 uppercase select-none">
@@ -176,10 +176,10 @@ export function StudioStart({
               </span>
             </div>
 
-            {/* Headline with Bow Sticker Floating */}
-            <div className="relative">
+            {/* Headline */}
+            <div>
               <h1
-                className="text-[34px] sm:text-[42px] font-bold text-ink-900 tracking-tight leading-[1.08]"
+                className="text-[36px] sm:text-[44px] font-bold text-ink-900 tracking-tight leading-[1.08]"
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 Make your own<br />
@@ -187,61 +187,54 @@ export function StudioStart({
                   stickers
                 </span>
               </h1>
-              {/* Cute bow and star floating sticker accent */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/sticker-bow.png"
-                alt=""
-                className="pointer-events-none absolute -top-3 right-4 sm:right-10 w-12 sm:w-14 select-none [filter:drop-shadow(0_4px_6px_rgba(0,0,0,0.1))] max-lg:hidden"
-              />
             </div>
 
-            <p className="mt-2.5 text-[14.5px] sm:text-[15px] text-ink-600 leading-relaxed max-w-sm">
+            <p className="mt-2.5 text-[14.5px] sm:text-[15.5px] text-ink-600 leading-relaxed max-w-md">
               Turn your photos, drawings or ideas into cut-out stickers in seconds.
             </p>
 
-            {/* 3 Feature Bullets */}
-            <div className="mt-6 flex flex-col gap-3.5">
-              <div className="flex items-center gap-3">
-                <div className="flex size-9.5 shrink-0 items-center justify-center rounded-xl bg-pink-100/80 text-pink-600 border border-pink-200/60">
-                  <CutoutIcon className="size-4.5" />
+            {/* 3 Simple Circular Feature Bullets */}
+            <div className="mt-7 flex flex-col gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-pink-100/90 text-pink-600">
+                  <CutoutIcon className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-[13.5px] font-bold text-ink-900 leading-tight">Remove background</h3>
-                  <p className="text-[12px] text-ink-500">Clean cut-outs, no hassle</p>
+                  <h3 className="text-[15px] font-bold text-ink-900 leading-tight">Remove background</h3>
+                  <p className="text-[13px] text-ink-500 mt-0.5">Clean cut-outs, no hassle</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex size-9.5 shrink-0 items-center justify-center rounded-xl bg-indigo-100/80 text-indigo-600 border border-indigo-200/60">
-                  <WandIcon className="size-4.5" />
+              <div className="flex items-center gap-3.5">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-indigo-100/90 text-indigo-600">
+                  <WandIcon className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-[13.5px] font-bold text-ink-900 leading-tight">Turn anything into a sticker</h3>
-                  <p className="text-[12px] text-ink-500">Photos, drawings, doodles</p>
+                  <h3 className="text-[15px] font-bold text-ink-900 leading-tight">Turn anything into a sticker</h3>
+                  <p className="text-[13px] text-ink-500 mt-0.5">Photos, drawings, doodles</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex size-9.5 shrink-0 items-center justify-center rounded-xl bg-amber-100/80 text-amber-700 border border-amber-200/60">
-                  <DownloadIcon className="size-4.5" />
+              <div className="flex items-center gap-3.5">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-amber-100/90 text-amber-700">
+                  <DownloadIcon className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-[13.5px] font-bold text-ink-900 leading-tight">Download & use anywhere</h3>
-                  <p className="text-[12px] text-ink-500">For your projects, notes, and more</p>
+                  <h3 className="text-[15px] font-bold text-ink-900 leading-tight">Download & use anywhere</h3>
+                  <p className="text-[13px] text-ink-500 mt-0.5">For your projects, notes, and more</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Middle Column: The Dashed Dropzone Card */}
-          <div className="lg:col-span-4 flex flex-col justify-center">
+          {/* Right Column: The Dashed Dropzone Card */}
+          <div className="flex flex-col justify-center">
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={cx(
-                'relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed p-7 sm:p-9 text-center transition-all duration-200',
+                'relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed p-8 sm:p-11 text-center transition-all duration-200',
                 isDragging
                   ? 'border-accenta-500 bg-accenta-100/40 ring-4 ring-accenta-500/20 scale-[1.01]'
                   : 'border-ink-300/80 bg-sheet/80 hover:border-ink-400 shadow-sm',
@@ -255,10 +248,10 @@ export function StudioStart({
                 className="h-16 w-auto object-contain select-none mb-3 [filter:drop-shadow(0_3px_5px_rgba(0,0,0,0.06))]"
               />
 
-              <h2 className="text-[20px] font-bold text-ink-900 tracking-tight">
+              <h2 className="text-[21px] font-bold text-ink-900 tracking-tight">
                 Drop a file here
               </h2>
-              <p className="mt-0.5 text-[13px] text-ink-500 font-medium">
+              <p className="mt-0.5 text-[13.5px] text-ink-500 font-medium">
                 or choose a file
               </p>
 
@@ -285,18 +278,6 @@ export function StudioStart({
               <span className="mt-3.5 block font-mono text-[11px] uppercase tracking-wider text-ink-400">
                 PNG, JPG, WEBP up to 10MB
               </span>
-            </div>
-          </div>
-
-          {/* Right Column: Aesthetic Desk Illustration */}
-          <div className="lg:col-span-3 hidden lg:flex justify-end items-center">
-            <div className="relative overflow-hidden rounded-2xl select-none">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/sticker-desk-illustration.png"
-                alt=""
-                className="w-full max-w-[320px] h-auto object-contain rounded-2xl [filter:drop-shadow(0_8px_16px_rgba(0,0,0,0.06))]"
-              />
             </div>
           </div>
         </div>
