@@ -169,13 +169,6 @@ export function StudioStart({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-14 items-center">
           {/* Left Column: Heading, Subtitle & 3 Simple Value Props */}
           <div className="flex flex-col justify-center">
-            {/* Eyebrow Badge */}
-            <div className="mb-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-300/60 bg-paper-100/70 px-3 py-1 text-[11px] font-semibold tracking-widest text-ink-600 uppercase select-none">
-                <span className="text-[9px] opacity-70">✦</span> STICKER STUDIO <span className="text-[9px] opacity-70">✦</span>
-              </span>
-            </div>
-
             {/* Headline */}
             <div>
               <h1
