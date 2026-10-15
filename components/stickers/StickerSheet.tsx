@@ -17,7 +17,6 @@ import {
 } from '@/lib/stickers/sheet';
 import type { LibrarySticker } from '@/lib/types';
 import { StudioHeader, StudioTitle } from '../StudioHeader';
-import { PalettePicker } from '../PalettePicker';
 import { StickerTabs } from './StickerTabs';
 import { Thumb } from './Thumb';
 import { MinusIcon } from './icons';
@@ -239,11 +238,8 @@ export function StickerSheet() {
     <main className="flex h-dvh flex-col" style={{ background: 'var(--studio-page)' }}>
       <StudioHeader>
         <StudioTitle>Sticker Studio</StudioTitle>
-        <span className="ml-auto flex shrink-0 items-center gap-3 self-stretch">
-          <span className="flex items-stretch self-stretch">
-            <StickerTabs />
-          </span>
-          <PalettePicker compact />
+        <span className="ml-auto flex shrink-0 items-center self-stretch">
+          <StickerTabs />
         </span>
       </StudioHeader>
 

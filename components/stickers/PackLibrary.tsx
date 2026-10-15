@@ -16,7 +16,6 @@ import type { ItemOutcome } from '@/lib/starter/install';
 import type { LibrarySticker } from '@/lib/types';
 import { Modal } from '../Modal';
 import { StudioHeader, StudioTitle } from '../StudioHeader';
-import { PalettePicker } from '../PalettePicker';
 import { StickerTabs } from './StickerTabs';
 import { BrowseGraphics } from './BrowseGraphics';
 import { Chequerboard, Thumb } from './Thumb';
@@ -145,11 +144,8 @@ export function PackLibrary() {
     <main className="flex h-dvh flex-col">
       <StudioHeader>
         <StudioTitle>Sticker Studio</StudioTitle>
-        <span className="ml-auto flex shrink-0 items-center gap-3 self-stretch">
-          <span className="flex items-stretch self-stretch">
-            <StickerTabs />
-          </span>
-          <PalettePicker compact />
+        <span className="ml-auto flex shrink-0 items-center self-stretch">
+          <StickerTabs />
         </span>
       </StudioHeader>
 

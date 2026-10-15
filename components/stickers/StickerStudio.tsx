@@ -48,7 +48,6 @@ import { Button, Info, Notice, ProgressRing, TextInput, Toggle, WhileSliding, cx
 import { useSay } from '../Toasts';
 import { PaintSurface, isPicker, isTouchTool, type SurfaceHandle, type Tool } from './PaintSurface';
 import { paletteOfBlob } from '@/lib/stickers/palette';
-import { PalettePicker } from '../PalettePicker';
 import { BatchPanel } from './BatchPanel';
 
 /**
@@ -2099,11 +2098,10 @@ export function StickerStudio() {
           {/* No link home beside it: the wordmark to its left is that link,
               and has been all along. */}
           <StudioTitle>Sticker Studio</StudioTitle>
-          <span className="ml-auto flex shrink-0 items-center gap-3 self-stretch">
+          <span className="ml-auto flex shrink-0 items-center self-stretch">
             <span className="flex items-stretch self-stretch">
               <StickerTabs />
             </span>
-            <PalettePicker compact />
           </span>
         </StudioHeader>
         <StudioStart
@@ -2135,7 +2133,6 @@ export function StickerStudio() {
           <Button onClick={redoHere} title="Redo (Cmd+Shift+Z)" aria-label="Redo">
             ↻
           </Button>
-          <PalettePicker compact />
         </span>
 
         <span className="ml-auto flex min-w-0 shrink items-center gap-2">

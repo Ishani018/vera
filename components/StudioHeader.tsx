@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { PalettePicker } from './PalettePicker';
 import { UserMenu } from './UserMenu';
 import { Wordmark } from './Wordmark';
 
@@ -15,22 +16,15 @@ import { Wordmark } from './Wordmark';
  */
 export function StudioHeader({ children }: { children?: ReactNode }) {
   return (
-    /*
-      The bar stays white in every palette, including Night. That is a decided
-      thing, not an oversight: the wordmark is drawn in `outline`, a near-black
-      in all six, and `tests/brand.test.mjs` holds it there. So everything else
-      in this bar is coloured for a white fill too — see `StudioTitle` below and
-      the tab colours in `StickerTabs`.
-    */
-    <header className="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-ink-200 bg-paper px-3 sm:gap-4 sm:px-5">
-      <Wordmark />
-      {children}
-      {/* Takes the rest of the bar and puts the menu at its far end. Empty, so
-          removed from the layout altogether, where sign-in is not set up: the bar
-          is then exactly what it always was. */}
-      <span className="flex flex-1 justify-end py-1 empty:hidden">
+    <header className="flex h-14 min-w-0 items-center justify-between border-b border-ink-200 bg-paper px-4 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4 overflow-x-auto">
+        <Wordmark />
+        {children}
+      </div>
+      <div className="ml-4 flex shrink-0 items-center gap-2.5 py-1">
+        <PalettePicker compact />
         <UserMenu />
-      </span>
+      </div>
     </header>
   );
 }

@@ -122,24 +122,19 @@ export function Workspace() {
         {/* shrink-0, so a narrow window scrolls the bar rather than squashing
             every control in it into an unreadable column of letters. */}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <Button variant="ghost" onClick={undo} disabled={!canUndo} title="Undo" aria-label="Undo">
-            ↺
-          </Button>
-          <Button variant="ghost" onClick={redo} disabled={!canRedo} title="Redo" aria-label="Redo">
-            ↻
-          </Button>
-          <span className="rounded-full bg-ink-100 px-4 py-2 text-[14px] tabular-nums text-ink-700">
+          <div className="flex items-center gap-0.5 border-r border-ink-200 pr-2">
+            <Button variant="ghost" onClick={undo} disabled={!canUndo} title="Undo (Cmd+Z)" aria-label="Undo" className="!px-2 !py-1">
+              ↺
+            </Button>
+            <Button variant="ghost" onClick={redo} disabled={!canRedo} title="Redo (Cmd+Shift+Z)" aria-label="Redo" className="!px-2 !py-1">
+              ↻
+            </Button>
+          </div>
+          <span className="hidden md:inline text-[13px] text-ink-500 tabular-nums px-1">
             {pageCount ? `${pageCount} pages` : 'counting…'}
           </span>
-          <Button variant="ghost" onClick={() => setHelpOpen(true)} title="Keyboard shortcuts (?)">
+          <Button variant="ghost" onClick={() => setHelpOpen(true)} title="Shortcuts & Help (?)" className="!px-2 !py-1 text-[13px]">
             ?
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => walkthrough.update({ step: walkthrough.progress.step, dismissed: false })}
-            title="Reopen the getting-started walkthrough"
-          >
-            Guide
           </Button>
           <Button
             variant={tab === 'book' && mode === 'export' ? 'default' : 'primary'}
@@ -152,7 +147,6 @@ export function Workspace() {
             Export PDF
           </Button>
           <PalettePicker compact />
-          {/* Nothing where sign-in is not set up. */}
           <UserMenu />
         </div>
       </header>
