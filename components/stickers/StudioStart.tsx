@@ -127,7 +127,21 @@ export function StudioStart({
     router.push(`/stickers/sheet?add=${picked.join(',')}`);
   };
 
-  const latest = resumable ?? drafts[0] ?? null;
+  const [discardedIds, setDiscardedIds] = useState<Set<string>>(new Set());
+
+  const handleDiscard = async (draft: StickerDraft) => {
+    setDiscardedIds((prev) => new Set(prev).add(draft.id));
+    setDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+    try {
+      await onDiscard(draft);
+    } catch (e) {
+      console.error('Failed to discard draft:', e);
+    }
+  };
+
+  const validResumable = resumable && !discardedIds.has(resumable.id) ? resumable : null;
+  const validDraft = drafts.find((d) => !discardedIds.has(d.id)) ?? null;
+  const latest = validResumable ?? validDraft;
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -318,7 +332,9 @@ export function StudioStart({
               </Button>
               <Button
                 disabled={busy}
-                onClick={() => onDiscard(latest)}
+                onClick={() => {
+                  if (latest) void handleDiscard(latest);
+                }}
                 variant="ghost"
                 className="!px-3 !py-1.5 text-[13px]"
               >
