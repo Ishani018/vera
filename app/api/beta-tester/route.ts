@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       process.env.RESEND_TOKEN;
 
     const fromAddress =
-      process.env.RESEND_FROM_EMAIL || 'Vera <onboarding@resend.dev>';
+      process.env.RESEND_FROM_EMAIL || 'Beta Onboarding <onboarding@resend.dev>';
 
     let emailSent = false;
     let emailStatus = 'no_api_key';
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
           emailStatus = 'failed';
           emailError = errData;
         } else {
-          console.log(`✅ Email sent successfully to ${RECIPIENT_EMAIL} via Resend!`);
+          console.log(`Email sent successfully to ${RECIPIENT_EMAIL} via Resend.`);
           emailSent = true;
           emailStatus = 'sent';
         }
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         emailError = emailErr instanceof Error ? emailErr.message : String(emailErr);
       }
     } else {
-      console.log('ℹ️ [Notice] RESEND_API_KEY not found in environment');
+      console.log('[Notice] RESEND_API_KEY not found in environment');
     }
 
     return NextResponse.json({

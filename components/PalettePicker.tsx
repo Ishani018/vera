@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CUSTOM_ID,
   CUSTOM_KEY,
@@ -98,11 +99,15 @@ export function PalettePicker({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [chosen, setChosen] = useState<string>('riso');
   const [mixed, setMixed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left?: number; right?: number } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const id = useId();
 
   useEffect(() => {
+    setMounted(true);
     setChosen(current());
     try {
       setMixed(Boolean(localStorage.getItem(CUSTOM_KEY)));
@@ -111,10 +116,62 @@ export function PalettePicker({ compact = false }: { compact?: boolean }) {
     }
   }, []);
 
+  const updateCoords = useCallback(() => {
+    if (!button.current) return;
+    const rect = button.current.getBoundingClientRect();
+    const padding = 12;
+    const popoverWidth = 296;
+    const popoverHeight = 360;
+
+    const isRightHalf = rect.left + rect.width / 2 > window.innerWidth / 2;
+    let left: number | undefined;
+    let right: number | undefined;
+
+    if (isRightHalf) {
+      right = Math.max(
+        padding,
+        Math.min(window.innerWidth - popoverWidth - padding, window.innerWidth - rect.right),
+      );
+    } else {
+      left = Math.max(
+        padding,
+        Math.min(window.innerWidth - popoverWidth - padding, rect.left),
+      );
+    }
+
+    let top = rect.bottom + 6;
+    if (top + popoverHeight > window.innerHeight && rect.top > popoverHeight + 12) {
+      top = Math.max(padding, rect.top - popoverHeight - 6);
+    } else {
+      top = Math.min(window.innerHeight - popoverHeight - padding, top);
+      top = Math.max(padding, top);
+    }
+
+    setCoords({ top, left, right });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updateCoords();
+    const handleReposition = () => updateCoords();
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [open, updateCoords]);
+
   useEffect(() => {
     if (!open) return;
     const away = (event: MouseEvent) => {
-      if (!box.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (
+        !box.current?.contains(target) &&
+        !popoverRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
     };
     const key = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -167,7 +224,7 @@ export function PalettePicker({ compact = false }: { compact?: boolean }) {
   const now = PALETTES.find((one) => one.id === chosen) ?? PALETTES[0];
 
   return (
-    <div ref={box} className="relative">
+    <div ref={box} className="relative shrink-0">
       <button
         ref={button}
         type="button"
@@ -177,7 +234,7 @@ export function PalettePicker({ compact = false }: { compact?: boolean }) {
         title={`Palette: ${chosen === CUSTOM_ID ? 'yours' : now.name}`}
         onClick={() => setOpen((was) => !was)}
         className={cx(
-          'inline-flex min-h-9 items-center gap-2 rounded-[6px] border border-ink-300',
+          'inline-flex min-h-9 items-center gap-2 rounded-[6px] border border-ink-300 shrink-0',
           'px-3 text-[12px] text-ink-700 transition-colors hover:border-ink-900',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
           'focus-visible:outline-ink-900',
@@ -191,70 +248,81 @@ export function PalettePicker({ compact = false }: { compact?: boolean }) {
         {!compact && <span className="uppercase tracking-[0.06em]">Palette</span>}
       </button>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-label="Choose a palette"
-          className={cx(
-            'absolute right-0 z-50 mt-2 w-[296px] rounded-[6px] border border-ink-300 bg-sheet p-3',
-            'shadow-[var(--shadow-float)]',
-          )}
-        >
-          <p
-            className="mb-2 text-[11px] uppercase tracking-[0.12em] text-ink-500"
-            style={{ fontFamily: 'var(--font-mono)' }}
+      {open &&
+        mounted &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-label="Choose a palette"
+            style={{
+              position: 'fixed',
+              top: coords ? `${coords.top}px` : '48px',
+              ...(coords?.right !== undefined ? { right: `${coords.right}px` } : {}),
+              ...(coords?.left !== undefined ? { left: `${coords.left}px` } : {}),
+              zIndex: 99999,
+            }}
+            className={cx(
+              'w-[296px] max-w-[calc(100vw-24px)] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[8px] border border-ink-300 bg-sheet p-3',
+              'shadow-2xl animate-in fade-in zoom-in-95 duration-100 select-text',
+            )}
           >
-            Palette
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {PALETTES.map((palette) => (
+            <p
+              className="mb-2 text-[11px] uppercase tracking-[0.12em] text-ink-500"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              Palette
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {PALETTES.map((palette) => (
+                <button
+                  key={palette.id}
+                  type="button"
+                  aria-pressed={chosen === palette.id}
+                  onClick={() => apply(palette.id)}
+                  title={palette.note}
+                  className={cx(
+                    'flex flex-col gap-1.5 rounded-[6px] border p-1.5 text-left transition-colors',
+                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1',
+                    'focus-visible:outline-ink-900',
+                    chosen === palette.id
+                      ? 'border-ink-900 bg-paper-100'
+                      : 'border-ink-300 hover:border-ink-500',
+                  )}
+                >
+                  <Preview palette={palette} />
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-[12.5px] font-[500] text-ink-900">{palette.name}</span>
+                    {chosen === palette.id && (
+                      <span
+                        aria-hidden="true"
+                        className="ml-auto block size-1.5 shrink-0 rounded-full bg-accenta-500"
+                      />
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {mixed && (
               <button
-                key={palette.id}
                 type="button"
-                aria-pressed={chosen === palette.id}
-                onClick={() => apply(palette.id)}
-                title={palette.note}
+                aria-pressed={chosen === CUSTOM_ID}
+                onClick={() => apply(CUSTOM_ID)}
                 className={cx(
-                  'flex flex-col gap-1.5 rounded-[6px] border p-1.5 text-left transition-colors',
-                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1',
-                  'focus-visible:outline-ink-900',
-                  chosen === palette.id
+                  'mt-2 flex w-full items-center gap-2 rounded-[6px] border px-2.5 py-2 text-left',
+                  'text-[12.5px] transition-colors focus-visible:outline focus-visible:outline-2',
+                  'focus-visible:outline-offset-1 focus-visible:outline-ink-900',
+                  chosen === CUSTOM_ID
                     ? 'border-ink-900 bg-paper-100'
                     : 'border-ink-300 hover:border-ink-500',
                 )}
               >
-                <Preview palette={palette} />
-                <span className="flex items-center gap-1.5">
-                  <span className="truncate text-[12.5px] font-[500] text-ink-900">{palette.name}</span>
-                  {chosen === palette.id && (
-                    <span
-                      aria-hidden="true"
-                      className="ml-auto block size-1.5 shrink-0 rounded-full bg-accenta-500"
-                    />
-                  )}
-                </span>
+                Yours
               </button>
-            ))}
-          </div>
-          {mixed && (
-            <button
-              type="button"
-              aria-pressed={chosen === CUSTOM_ID}
-              onClick={() => apply(CUSTOM_ID)}
-              className={cx(
-                'mt-2 flex w-full items-center gap-2 rounded-[6px] border px-2.5 py-2 text-left',
-                'text-[12.5px] transition-colors focus-visible:outline focus-visible:outline-2',
-                'focus-visible:outline-offset-1 focus-visible:outline-ink-900',
-                chosen === CUSTOM_ID
-                  ? 'border-ink-900 bg-paper-100'
-                  : 'border-ink-300 hover:border-ink-500',
-              )}
-            >
-              Yours
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

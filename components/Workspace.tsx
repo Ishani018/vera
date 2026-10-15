@@ -14,6 +14,7 @@ import { PoemEditor } from './PoemEditor';
 import { Walkthrough, useWalkthrough } from './Walkthrough';
 import { UserMenu } from './UserMenu';
 import { Wordmark } from './Wordmark';
+import { PalettePicker } from './PalettePicker';
 import { Button, SegmentedControl, cx } from './ui';
 import { InteriorSwitch } from './InteriorSwitch';
 import { recordUsageAction } from '@/lib/usageGate';
@@ -150,6 +151,7 @@ export function Workspace() {
           >
             Export PDF
           </Button>
+          <PalettePicker compact />
           {/* Nothing where sign-in is not set up. */}
           <UserMenu />
         </div>
